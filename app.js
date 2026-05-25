@@ -9,6 +9,7 @@
   // ── 全局状态 ──────────────────────────────────────────────────────
   const STATE = {
     mode: 'HOME',        // 'HOME' | 'READER'
+    sidebarOpen: false,
     articles: [],        // 从 manifest.json 加载的原始数据
     filtered: [],       // 经过滤后的展示数据
     activeCategory: null,
@@ -24,6 +25,9 @@
   const dom = {
     appShell:      $('#app-shell'),
     sidebar:       $('#sidebar'),
+    sidebarOverlay: $('#sidebar-overlay'),
+    sidebarClose:  $('#sidebar-close'),
+    menuToggle:     $('#menu-toggle'),
     categoryList:  $('#category-list'),
     tagCloud:      $('#tag-cloud'),
     topBar:        $('#top-bar'),
@@ -65,6 +69,21 @@
     );
   };
 
+  // ── 侧边栏（移动端） ─────────────────────────────────────────────
+  function openSidebar() {
+    STATE.sidebarOpen = true;
+    dom.sidebar.classList.add('open');
+    dom.sidebarOverlay.classList.remove('hidden');
+    dom.sidebarOverlay.classList.add('visible');
+  }
+
+  function closeSidebar() {
+    STATE.sidebarOpen = false;
+    dom.sidebar.classList.remove('open');
+    dom.sidebarOverlay.classList.add('hidden');
+    dom.sidebarOverlay.classList.remove('visible');
+  }
+
   // ── 核心渲染 ──────────────────────────────────────────────────────
 
   /** 渲染左侧分类目录 */
@@ -80,6 +99,7 @@
       STATE.activeCategory = null;
       renderCategories();
       applyFilters();
+      closeSidebar();
     });
     dom.categoryList.appendChild(allItem);
 
@@ -95,6 +115,7 @@
         STATE.activeCategory = STATE.activeCategory === cat ? null : cat;
         renderCategories();
         applyFilters();
+        closeSidebar();
       });
       dom.categoryList.appendChild(item);
     });
@@ -117,6 +138,7 @@
           : [...STATE.activeTags, tag];
         renderTagCloud();
         applyFilters();
+        closeSidebar();
       });
       dom.tagCloud.appendChild(btn);
     });
@@ -156,9 +178,9 @@
       // 标签
       const tagsRow = el('div', 'card-tags');
       (article.tags || []).forEach(tag => {
-        const tag2 = el('span', 'card-tag');
-        tag2.textContent = tag;
-        tagsRow.appendChild(tag2);
+        const tagEl = el('span', 'card-tag');
+        tagEl.textContent = tag;
+        tagsRow.appendChild(tagEl);
       });
 
       // 附件格式图标
@@ -224,6 +246,7 @@
     // 切换视图
     dom.appShell.classList.add('hidden');
     dom.readerFrame.classList.remove('hidden');
+    closeSidebar();
     window.scrollTo(0, 0);
 
     STATE.mode = 'READER';
@@ -259,15 +282,29 @@
   // 返回按钮
   dom.btnBack.addEventListener('click', closeReader);
 
+  // 菜单切换（移动端）
+  dom.menuToggle.addEventListener('click', () => {
+    if (STATE.sidebarOpen) closeSidebar(); else openSidebar();
+  });
+
+  // 关闭侧边栏按钮
+  dom.sidebarClose.addEventListener('click', closeSidebar);
+
+  // 点击遮罩关闭侧边栏
+  dom.sidebarOverlay.addEventListener('click', closeSidebar);
+
   // 搜索输入
   dom.searchInput.addEventListener('input', (e) => {
     STATE.searchQuery = e.target.value.trim();
     applyFilters();
   });
 
-  // 键盘快捷键：Escape 关闭 Reader
+  // 键盘快捷键：Escape 关闭 Reader / 侧边栏
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && STATE.mode === 'READER') closeReader();
+    if (e.key === 'Escape') {
+      if (STATE.sidebarOpen) { closeSidebar(); return; }
+      if (STATE.mode === 'READER') closeReader();
+    }
     // Ctrl/Cmd + K 聚焦搜索
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
       e.preventDefault();
