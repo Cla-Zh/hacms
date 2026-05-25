@@ -58,6 +58,14 @@
     return icons[fmt] || fmt.toUpperCase();
   };
 
+  // 判断是否为 Word 文档格式
+  const isWordDoc = (fmt) => fmt === 'docx' || fmt === 'doc';
+
+  // 获取在线查看 Word 的 URL（Office Online）
+  const getWordViewerUrl = (docUrl) => {
+    return 'https://view.officeapps.live.com/op/embed.aspx?src=' + encodeURIComponent(docUrl);
+  };
+
   // 模糊搜索：同时匹配 title / summary / tags
   const fuzzyMatch = (article, query) => {
     if (!query) return true;
@@ -233,14 +241,31 @@
       dom.readerAttach.appendChild(btn);
     });
 
-    // Iframe / 兜底
+    // HTML 优先展示；无 HTML 时检查 Word 文档并提供在线查看
     if (article.html_path) {
       dom.contentIframe.src = article.html_path;
       dom.contentIframe.classList.remove('hidden');
       dom.noHtmlNotice.classList.add('hidden');
     } else {
-      dom.contentIframe.classList.add('hidden');
-      dom.noHtmlNotice.classList.remove('hidden');
+      // 无 HTML，检查是否有 Word 文档可以在线查看
+      const wordAtt = (article.attachments || []).find(att => isWordDoc(att.format));
+      if (wordAtt) {
+        // 有 Word 文档，显示在线查看提示（点击按钮在 Office Online 打开）
+        dom.contentIframe.classList.add('hidden');
+        dom.noHtmlNotice.classList.remove('hidden');
+        const noticeEl = dom.noHtmlNotice.querySelector('.notice-inner');
+        if (noticeEl) {
+          noticeEl.innerHTML = `
+            <div class="notice-icon">📄</div>
+            <p>本文档为 Word 格式</p>
+            <a href="${getWordViewerUrl(wordAtt.path)}" target="_blank" class="word-view-btn">在线查看 Word</a>
+            <p style="margin-top:8px;font-size:12px;color:#999">或点击右上角下载按钮获取文件</p>
+          `;
+        }
+      } else {
+        dom.contentIframe.classList.add('hidden');
+        dom.noHtmlNotice.classList.remove('hidden');
+      }
     }
 
     // 切换视图
@@ -260,6 +285,17 @@
     dom.readerMeta.innerHTML = '';
     dom.readerAttach.innerHTML = '';
     dom.contentIframe.src = '';
+
+    // 恢复兜底提示原样
+    const noticeEl = dom.noHtmlNotice.querySelector('.notice-inner');
+    if (noticeEl) {
+      noticeEl.innerHTML = `
+        <div class="notice-icon">📄</div>
+        <p>暂无 HTML 预览</p>
+        <p>请下载附件查看</p>
+      `;
+    }
+
     dom.appShell.classList.remove('hidden');
     window.scrollTo(0, STATE.prevHomeScroll);
     STATE.mode = 'HOME';
