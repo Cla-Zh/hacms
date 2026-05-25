@@ -111,8 +111,16 @@
     });
     dom.categoryList.appendChild(allItem);
 
-    // 各分类项（动态从 manifest 提取）
+    // 各分类项（动态从 manifest 提取，按指定顺序排列）
     const cats = [...new Set(STATE.articles.map(a => a.category).filter(Boolean))];
+    const ORDER = ['洞察', 'AI 应用'];
+    cats.sort((a, b) => {
+      const ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
+      if (ia >= 0 && ib >= 0) return ia - ib;
+      if (ia >= 0) return -1;
+      if (ib >= 0) return 1;
+      return a.localeCompare(b);
+    });
     cats.forEach(cat => {
       if (!STATE.articles.some(a => a.category === cat)) return;
       const item = el('li', 'cat-item');
