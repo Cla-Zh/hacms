@@ -1,0 +1,325 @@
+/**
+ * app.js — AAM-CMS v2 前端核心路由、模糊搜索与附件渲染逻辑
+ * 状态机：HOME（主页列表） <-> READER（文章框架 Iframe）
+ */
+
+(function () {
+  'use strict';
+
+  // ── 全局状态 ──────────────────────────────────────────────────────
+  const STATE = {
+    mode: 'HOME',        // 'HOME' | 'READER'
+    articles: [],        // 从 manifest.json 加载的原始数据
+    filtered: [],       // 经过滤后的展示数据
+    activeCategory: null,
+    activeTags: [],
+    searchQuery: '',
+    prevHomeScroll: 0,  // 离开主页时的滚动位置
+  };
+
+  // ── DOM 引用 ──────────────────────────────────────────────────────
+  const $ = (sel) => document.querySelector(sel);
+  const $$ = (sel) => document.querySelectorAll(sel);
+
+  const dom = {
+    appShell:      $('#app-shell'),
+    sidebar:       $('#sidebar'),
+    categoryList:  $('#category-list'),
+    tagCloud:      $('#tag-cloud'),
+    topBar:        $('#top-bar'),
+    searchInput:   $('#search-input'),
+    articleCount:  $('#article-count'),
+    articleList:   $('#article-list'),
+    readerFrame:   $('#reader-frame'),
+    readerBar:     $('#reader-bar'),
+    btnBack:       $('#btn-back'),
+    readerTitle:   $('#reader-title'),
+    readerMeta:    $('#reader-meta'),
+    readerAttach:  $('#reader-attachments'),
+    iframeWrap:    $('#iframe-wrap'),
+    contentIframe: $('#content-iframe'),
+    noHtmlNotice:  $('#no-html-notice'),
+  };
+
+  // ── 工具函数 ──────────────────────────────────────────────────────
+  const el = (tag, cls, text) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text) n.textContent = text;
+    return n;
+  };
+
+  const formatIcon = (fmt) => {
+    const icons = { docx:'Word', doc:'Word', pptx:'PPT', ppt:'PPT', pdf:'PDF', xlsx:'Excel', xls:'Excel' };
+    return icons[fmt] || fmt.toUpperCase();
+  };
+
+  // 模糊搜索：同时匹配 title / summary / tags
+  const fuzzyMatch = (article, query) => {
+    if (!query) return true;
+    const q = query.toLowerCase();
+    return (
+      article.title.toLowerCase().includes(q) ||
+      (article.summary || '').toLowerCase().includes(q) ||
+      (article.tags || []).some(t => t.toLowerCase().includes(q))
+    );
+  };
+
+  // ── 核心渲染 ──────────────────────────────────────────────────────
+
+  /** 渲染左侧分类目录 */
+  function renderCategories() {
+    dom.categoryList.innerHTML = '';
+
+    // "全部" 项
+    const allItem = el('li', 'cat-item');
+    allItem.innerHTML = `<span class="cat-icon">📚</span> 全部文章`;
+    allItem.dataset.cat = '';
+    if (!STATE.activeCategory) allItem.classList.add('active');
+    allItem.addEventListener('click', () => {
+      STATE.activeCategory = null;
+      renderCategories();
+      applyFilters();
+    });
+    dom.categoryList.appendChild(allItem);
+
+    // 各分类项（动态从 manifest 提取）
+    const cats = [...new Set(STATE.articles.map(a => a.category).filter(Boolean))];
+    cats.forEach(cat => {
+      if (!STATE.articles.some(a => a.category === cat)) return;
+      const item = el('li', 'cat-item');
+      item.innerHTML = `<span class="cat-icon">•</span> ${cat}`;
+      item.dataset.cat = cat;
+      if (STATE.activeCategory === cat) item.classList.add('active');
+      item.addEventListener('click', () => {
+        STATE.activeCategory = STATE.activeCategory === cat ? null : cat;
+        renderCategories();
+        applyFilters();
+      });
+      dom.categoryList.appendChild(item);
+    });
+  }
+
+  /** 渲染标签云 */
+  function renderTagCloud() {
+    dom.tagCloud.innerHTML = '';
+    const tagCount = {};
+    STATE.articles.forEach(a => (a.tags || []).forEach(t => { tagCount[t] = (tagCount[t] || 0) + 1; }));
+    const sorted = Object.entries(tagCount).sort((a, b) => b[1] - a[1]).slice(0, 30);
+    sorted.forEach(([tag, count]) => {
+      const btn = el('button', 'tag-btn');
+      btn.textContent = tag;
+      if (STATE.activeTags.includes(tag)) btn.classList.add('active');
+      btn.title = `${count} 篇`;
+      btn.addEventListener('click', () => {
+        STATE.activeTags = STATE.activeTags.includes(tag)
+          ? STATE.activeTags.filter(t => t !== tag)
+          : [...STATE.activeTags, tag];
+        renderTagCloud();
+        applyFilters();
+      });
+      dom.tagCloud.appendChild(btn);
+    });
+  }
+
+  /** 渲染文章列表卡片 */
+  function renderArticleList() {
+    dom.articleList.innerHTML = '';
+
+    if (STATE.filtered.length === 0) {
+      dom.articleList.innerHTML = '<div class="empty-state">没有匹配的文章，请尝试调整筛选条件。</div>';
+      dom.articleCount.textContent = '';
+      return;
+    }
+
+    dom.articleCount.textContent = `${STATE.filtered.length} 篇文章`;
+
+    STATE.filtered.forEach(article => {
+      const card = el('div', 'article-card');
+      card.dataset.id = article.id;
+
+      // 卡片顶部：分类 + 日期
+      const header = el('div', 'card-header');
+      header.innerHTML = `
+        <span class="card-cat">${article.category || '未分类'}</span>
+        <span class="card-date">${article.date || ''}</span>
+      `;
+
+      // 标题
+      const title = el('div', 'card-title');
+      title.textContent = article.title;
+
+      // 摘要
+      const summary = el('div', 'card-summary');
+      summary.textContent = article.summary || '';
+
+      // 标签
+      const tagsRow = el('div', 'card-tags');
+      (article.tags || []).forEach(tag => {
+        const tag2 = el('span', 'card-tag');
+        tag2.textContent = tag;
+        tagsRow.appendChild(tag2);
+      });
+
+      // 附件格式图标
+      const attachRow = el('div', 'card-attach');
+      if (article.html_path) {
+        const badge = el('span', 'fmt-badge fmt-html');
+        badge.textContent = 'HTML';
+        attachRow.appendChild(badge);
+      }
+      (article.attachments || []).forEach(att => {
+        const badge = el('span', `fmt-badge fmt-${att.format}`);
+        badge.textContent = formatIcon(att.format);
+        attachRow.appendChild(badge);
+      });
+
+      card.appendChild(header);
+      card.appendChild(title);
+      card.appendChild(summary);
+      card.appendChild(tagsRow);
+      card.appendChild(attachRow);
+
+      card.addEventListener('click', () => openReader(article));
+      dom.articleList.appendChild(card);
+    });
+  }
+
+  /** 渲染文章阅读框架（Reader Frame）*/
+  function openReader(article) {
+    STATE.prevHomeScroll = window.scrollY;
+
+    // 填充元数据
+    dom.readerTitle.textContent = article.title;
+    dom.readerMeta.innerHTML = `
+      <span class="rmeta-cat">${article.category || '未分类'}</span>
+      <span class="rmeta-sep">·</span>
+      <span>${article.date || ''}</span>
+      <span class="rmeta-sep">·</span>
+      <span>${(article.tags || []).join('、')}</span>
+    `;
+
+    // 动态附件下载按钮
+    dom.readerAttach.innerHTML = '';
+    (article.attachments || []).forEach(att => {
+      const btn = document.createElement('a');
+      btn.className = `attach-btn attach-${att.format}`;
+      btn.href = att.path;
+      btn.download = att.name;
+      btn.textContent = `📥 ${att.name}`;
+      btn.target = '_blank';
+      dom.readerAttach.appendChild(btn);
+    });
+
+    // Iframe / 兜底
+    if (article.html_path) {
+      dom.contentIframe.src = article.html_path;
+      dom.contentIframe.classList.remove('hidden');
+      dom.noHtmlNotice.classList.add('hidden');
+    } else {
+      dom.contentIframe.classList.add('hidden');
+      dom.noHtmlNotice.classList.remove('hidden');
+    }
+
+    // 切换视图
+    dom.appShell.classList.add('hidden');
+    dom.readerFrame.classList.remove('hidden');
+    window.scrollTo(0, 0);
+
+    STATE.mode = 'READER';
+    window.location.hash = `article/${article.id}`;
+  }
+
+  /** 关闭 Reader，返回主页（并恢复筛选状态）*/
+  function closeReader() {
+    dom.readerFrame.classList.add('hidden');
+    dom.readerTitle.textContent = '';
+    dom.readerMeta.innerHTML = '';
+    dom.readerAttach.innerHTML = '';
+    dom.contentIframe.src = '';
+    dom.appShell.classList.remove('hidden');
+    window.scrollTo(0, STATE.prevHomeScroll);
+    STATE.mode = 'HOME';
+    window.location.hash = '';
+  }
+
+  /** 应用筛选（分类 + 标签 + 搜索）*/
+  function applyFilters() {
+    STATE.filtered = STATE.articles.filter(a => {
+      const catMatch = !STATE.activeCategory || a.category === STATE.activeCategory;
+      const tagMatch = STATE.activeTags.length === 0 || STATE.activeTags.every(t => (a.tags || []).includes(t));
+      const searchMatch = fuzzyMatch(a, STATE.searchQuery);
+      return catMatch && tagMatch && searchMatch;
+    });
+    renderArticleList();
+  }
+
+  // ── 事件绑定 ──────────────────────────────────────────────────────
+
+  // 返回按钮
+  dom.btnBack.addEventListener('click', closeReader);
+
+  // 搜索输入
+  dom.searchInput.addEventListener('input', (e) => {
+    STATE.searchQuery = e.target.value.trim();
+    applyFilters();
+  });
+
+  // 键盘快捷键：Escape 关闭 Reader
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && STATE.mode === 'READER') closeReader();
+    // Ctrl/Cmd + K 聚焦搜索
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      dom.searchInput.focus();
+    }
+  });
+
+  // Hash 路由：支持直接链接打开文章
+  window.addEventListener('hashchange', () => {
+    const hash = window.location.hash;
+    if (hash.startsWith('#article/')) {
+      const id = hash.replace('#article/', '');
+      const article = STATE.articles.find(a => a.id === id);
+      if (article) openReader(article);
+    } else if (!hash && STATE.mode === 'READER') {
+      closeReader();
+    }
+  });
+
+  // ── 初始化：加载 manifest.json ───────────────────────────────────
+  async function init() {
+    try {
+      const r = await fetch('content/index/manifest.json');
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      STATE.articles = Array.isArray(data) ? data : [];
+    } catch (e) {
+      STATE.articles = [];
+      console.warn('[AAM-CMS] manifest.json 加载失败:', e.message);
+    }
+
+    STATE.filtered = [...STATE.articles];
+
+    // 如果 URL 带 hash，直接打开对应文章
+    const hash = window.location.hash;
+    if (hash.startsWith('#article/')) {
+      const id = hash.replace('#article/', '');
+      const article = STATE.articles.find(a => a.id === id);
+      if (article) {
+        renderCategories();
+        renderTagCloud();
+        renderArticleList();
+        openReader(article);
+        return;
+      }
+    }
+
+    renderCategories();
+    renderTagCloud();
+    renderArticleList();
+  }
+
+  init();
+
+})();

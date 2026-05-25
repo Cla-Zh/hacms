@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AAM-CMS 去中心化 CMS 系统介绍</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --surface: #ffffff; --border: #e2e5ea;
+    --text: #1a1e2e; --text2: #6b7280; --accent: #2563eb;
+    --green: #16a34a; --radius: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+    font-size: 15px;
+    line-height: 1.8;
+    padding: 48px 24px;
+  }
+  .container { max-width: 780px; margin: 0 auto; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 40px 48px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  h1 { font-size: 1.8rem; color: var(--text); margin-bottom: 8px; letter-spacing: -0.3px; }
+  .meta { font-size: 13px; color: #9ca3af; margin-bottom: 32px; }
+  .meta span { margin-right: 16px; }
+  h2 { font-size: 1.15rem; color: var(--accent); margin: 36px 0 12px; border-left: 3px solid var(--accent); padding-left: 10px; }
+  h3 { font-size: 1rem; color: var(--text); margin: 20px 0 8px; font-weight: 600; }
+  p { color: var(--text2); margin: 8px 0; }
+  ul { padding-left: 20px; color: var(--text2); }
+  ul li { margin: 4px 0; }
+  .badge-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  .badge { background: rgba(37,99,235,0.08); color: var(--accent); padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .highlight-box {
+    background: rgba(37,99,235,0.04);
+    border: 1px solid rgba(37,99,235,0.15);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin: 20px 0;
+    font-size: 14px;
+    color: var(--text2);
+  }
+  .highlight-box strong { color: var(--accent); }
+  code { background: #f0f2f5; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #c2410c; }
+  .footer { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); font-size: 12px; color: #9ca3af; text-align: center; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="card">
+
+  <h1>AAM-CMS 去中心化 CMS 系统介绍</h1>
+  <div class="meta">
+    <span>📅 2026-05-25</span>
+    <span>📁 AI基础设施</span>
+    <span>👤 Agent System</span>
+  </div>
+
+  <div class="badge-row">
+    <span class="badge">静态CMS</span>
+    <span class="badge">去后端</span>
+    <span class="badge">Agent管理</span>
+    <span class="badge">多格式聚合</span>
+  </div>
+
+  <h2>项目概述</h2>
+  <p>AAM-CMS（AI-Agent Managed Static CMS）是一个专为 AI Agent 内容生命周期管理设计的<strong>完全去后端</strong>（Zero-Backend）静态知识库系统。</p>
+  <p>它解决了以下核心问题：</p>
+  <ul>
+    <li>多格式内容（HTML/Word/PPT/PDF）分散管理，难以统一检索</li>
+    <li>传统 CMS 需要数据库和后端服务，增加运维复杂度和攻击面</li>
+    <li>Agent 在执行任务时缺乏统一的资产管理规范，容易产生\"文件碎片化\"问题</li>
+  </ul>
+
+  <h2>核心架构设计</h2>
+  <h3>1. 资产聚合模型</h3>
+  <p>相同主题的不同格式文件（<code>index.html</code>、<code>main.docx</code>、<code>slides.pptx</code>）必须聚合在<strong>同一个文章目录下</strong>，通过 <code>manifest.json</code> 的 <code>attachments</code> 字段统一索引。</p>
+
+  <h3>2. 双层分类过滤</h3>
+  <p>系统整合了"父级目录（<strong>Category</strong>）"与"横向标签（<strong>Tags</strong>）"的双重筛选逻辑，配合前端模糊搜索实现秒级检索。</p>
+
+  <h3>3. 零后端架构</h3>
+  <p>纯静态部署，无需数据库。可托管于任意静态文件服务器（ Nginx、GitHub Pages、Vercel、Cloudflare Pages）。</p>
+
+  <h3>4. Agent 行为约束</h3>
+  <p>通过 <code>.harness/harness.json</code> 对 Agent 行为进行规范约束，确保其：</p>
+  <ul>
+    <li>处理文件前必须先读取 harness 规范</li>
+    <li>禁止在前端核心架构文件（<code>index.html</code>、<code>app.js</code>、<code>style.css</code>）上进行未授权修改</li>
+    <li>多格式文件必须聚合存放，manifest.json 中不得出现重复条目</li>
+  </ul>
+
+  <h2>前端功能说明</h2>
+  <div class="highlight-box">
+    <strong>列表视图（List State）：</strong>展示所有文章卡片，支持分类筛选、标签筛选和实时模糊搜索。卡片上用小图标标出该文章包含的格式（HTML、WORD、PPT图标）。<br><br>
+    <strong>文章框架（Reader Frame）：</strong>点击卡片后进入全屏 iframe 框架，左上角常驻 [◀ 返回] 按钮，右上角根据 <code>attachments</code> 动态渲染下载按钮（Word版、PPT演示文稿等）。
+  </div>
+
+  <h2>目录结构</h2>
+  <pre style="background:#f0f2f5;border-radius:6px;padding:16px 20px;font-size:12.5px;color:#374151;line-height:1.7;overflow-x:auto">├── .harness/
+│   └── harness.json          # 智能体行为宪法
+├── content/
+│   ├─ index/
+│   │   └── manifest.json     # 全局动态索引
+│   ├─ articles/
+│   │   └─ [topic-slug]/
+│   │       ├─ index.html     # 主体报告（iframe 加载）
+│   │       ├─ main.docx      # Word 附件
+│   │       └─ slides.pptx     # PPT 附件
+│   └── assets/
+├── index.html                # 前端主外壳
+├── app.js                    # SPA 路由 & 搜索逻辑
+├── style.css                 # 高质感样式表
+└── README.md</pre>
+
+  <h2>快速开始</h2>
+  <h3>本地预览</h3>
+  <p>在项目根目录执行：</p>
+  <pre style="background:#1a1e2e;color:#a5d6ff;border-radius:6px;padding:12px 16px;font-size:13px;margin:8px 0">python3 -m http.server 8080</pre>
+  <p>然后访问 <code>http://localhost:8080</code> 即可预览。</p>
+
+  <h2>技术规范</h2>
+  <ul>
+    <li><strong>前端：</strong>原生 JS（无框架依赖），SPA 状态机管理</li>
+    <li><strong>样式：</strong>CSS Variables + Flexbox/Grid，极简主义设计语言</li>
+    <li><strong>存储：</strong>纯 JSON 文件（<code>manifest.json</code>），无需数据库</li>
+    <li><strong>部署：</strong>Nginx / GitHub Pages / Vercel 均可</li>
+    <li><strong>协议：</strong>Apache 2.0</li>
+  </ul>
+
+  <div class="footer">
+    AAM-CMS v2.0 · 开源协议：Apache 2.0 · 由 AI Agent 统一管理维护
+  </div>
+
+</div>
+</div>
+</body>
+</html>
