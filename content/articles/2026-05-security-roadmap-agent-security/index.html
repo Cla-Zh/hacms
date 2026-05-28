@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent安全 — 存储侧Agent防护</title>
+<style>
+:root{--pri:#1a1a2e;--accent:#6B21A8;--accent2:#C7000B;--bg:#f8f9fc;--card:#fff;--border:#e2e8f0;--shadow:0 2px 16px rgba(0,0,0,.07)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,'Noto Sans SC','Segoe UI',sans-serif;background:var(--bg);color:var(--pri);line-height:1.75;padding:28px 36px}
+h1{font-size:1.9em;background:linear-gradient(135deg,#0369A1,#6B21A8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+.sub{color:#64748b;font-size:.9em;margin-bottom:24px}
+h2{font-size:1.3em;color:var(--accent);margin:28px 0 14px;padding-bottom:8px;border-bottom:2.5px solid var(--accent)}
+h3{font-size:1.1em;color:var(--accent2);margin:20px 0 10px}
+.card{background:var(--card);border-radius:12px;padding:20px;margin:14px 0;box-shadow:var(--shadow);border-left:4px solid var(--accent)}
+.card.red{border-left-color:var(--accent2)}.card.green{border-left-color:#059669}.card.blue{border-left-color:#0369A1}.card.amber{border-left-color:#D97706}
+.tag{display:inline-block;background:var(--accent);color:#fff;padding:2px 10px;border-radius:10px;font-size:.78em;margin:2px 4px}
+.tag.red{background:var(--accent2)}.tag.blue{background:#2563EB}.tag.green{background:#059669}.tag.amber{background:#D97706}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:.88em}
+th{background:var(--accent);color:#fff;padding:9px 12px;text-align:left}
+td{padding:8px 12px;border-bottom:1px solid var(--border)}
+tr:nth-child(even){background:#f9fafb}
+ul,ol{padding-left:20px}li{margin:4px 0;font-size:.9em}
+.insight{background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1.5px solid #93c5fd;border-radius:12px;padding:16px;margin:14px 0}
+.insight h4{color:#0369A1}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
+.kpi-box{background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:10px;padding:14px;text-align:center;border:1px solid #93c5fd}
+.kpi-box .num{font-size:1.6em;font-weight:800;color:#0369A1}.kpi-box .label{font-size:.8em;color:#64748b;margin-top:4px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:14px 0}
+@media(max-width:900px){.two-col{grid-template-columns:1fr}.kpi-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<h1>Agent安全 — 存储侧Agent防护</h1>
+<p class="sub">27H1 战略项目 | P1 蓝海 | 价值特性线前沿</p>
+
+<div class="kpi-grid">
+<div class="kpi-box"><div class="num">OWASP</div><div class="label">Agentic AI Top10 2026</div></div>
+<div class="kpi-box"><div class="num">88%</div><div class="label">企业遭遇Agent安全事件</div></div>
+<div class="kpi-box"><div class="num">5类</div><div class="label">存储侧Agent攻击面</div></div>
+<div class="kpi-box"><div class="num">蓝海</div><div class="label">竞品几乎无同类方案</div></div>
+</div>
+
+<!-- ==================== 为什么做Agent安全 ==================== -->
+<h2>1. 为什么Agent安全是蓝海机会？</h2>
+
+<div class="card red">
+<h4>🚨 威胁正在爆发</h4>
+<ul>
+<li><b>OWASP 2026 Agentic AI Top10</b>：2025年12月发布，首次系统性定义Agent应用安全风险，涵盖Memory Poisoning、Tool Abuse、Identity Spoofing等10大风险</li>
+<li><b>88%企业遭遇Agent安全事件</b>：2026年3月OWASP调查，Agent安全事件已成为企业最担忧的AI风险</li>
+<li><b>OpenClaw事件(2026年初)</b>：135K+ Star的开源Agent框架存在关键漏洞+恶意插件，引发行业震动</li>
+<li><b>存储是Agent攻击的"最终目标"</b>：Agent能访问存储→Agent被投毒→存储数据被破坏/泄漏</li>
+</ul>
+</div>
+
+<div class="insight">
+<h4>💡 核心洞察</h4>
+<p><b>存储厂商做Agent安全有天然优势</b>——Agent最终操作的是数据，数据在存储上。存储能看到Agent的<b>每一个I/O动作</b>，这是网络侧/主机侧安全产品看不到的。<br><br>
+<b>类比</b>：就像防勒索检测，存储侧检测比主机侧检测更准确——因为存储看到的是"真实I/O行为"，不受主机端rootkit/内核级恶意软件的干扰。<br><br>
+<b>蓝海判断</b>：目前没有任何存储厂商提供Agent安全方案。这是一个<b>先发者定义品类</b>的机会。</p>
+</div>
+
+<!-- ==================== 攻击面 ==================== -->
+<h2>2. 存储侧Agent攻击面</h2>
+
+<table>
+<tr><th>攻击面</th><th>OWASP对应</th><th>存储侧表现</th><th>危害等级</th></tr>
+<tr>
+<td><b>Memory Poisoning</b></td>
+<td>#1 Memory Poisoning</td>
+<td>Agent的长期记忆被注入恶意内容→Agent基于被污染的记忆做出错误决策→向存储写入错误/恶意数据</td>
+<td><span class="tag red">极高</span></td>
+</tr>
+<tr>
+<td><b>Tool Abuse</b></td>
+<td>#3 Tool Abuse</td>
+<td>Agent被诱导调用危险工具（如批量删除/格式化/数据外传）→存储数据被批量破坏或泄漏</td>
+<td><span class="tag red">极高</span></td>
+</tr>
+<tr>
+<td><b>Identity Spoofing</b></td>
+<td>#5 Identity Spoofing</td>
+<td>恶意Agent冒充合法Agent访问存储→绕过访问控制→数据泄漏</td>
+<td><span class="tag amber">高</span></td>
+</tr>
+<tr>
+<td><b>Prompt Injection</b></td>
+<td>#2 Prompt Injection</td>
+<td>Agent被注入恶意Prompt→执行非预期操作→向存储写入后门/删除数据</td>
+<td><span class="tag amber">高</span></td>
+</tr>
+<tr>
+<td><b>数据投毒</b></td>
+<td>#6 Data Poisoning</td>
+<td>Agent读取被污染的训练/参考数据→产生错误推理→基于错误推理操作存储</td>
+<td><span class="tag blue">中高</span></td>
+</tr>
+</table>
+
+<!-- ==================== 技术方案 ==================== -->
+<h2>3. 存储侧Agent安全方案</h2>
+
+<div class="card">
+<h4>🛡️ 三层防护架构</h4>
+
+<div class="two-col">
+<div>
+<h4>Layer 1: Agent行为审计</h4>
+<ul>
+<li><b>Agent I/O画像</b>：为每个Agent建立正常I/O行为基线</li>
+<li><b>操作审计日志</b>：记录Agent每次I/O操作的时间/类型/目标/结果</li>
+<li><b>偏离检测</b>：Agent行为偏离画像→告警</li>
+<li>实现：基于AI卡的I/O镜像+Agent身份标识</li>
+</ul>
+</div>
+<div>
+<h4>Layer 2: Agent操作控制</h4>
+<ul>
+<li><b>最小权限</b>：Agent仅获得完成任务所需的最小存储访问权限</li>
+<li><b>危险操作拦截</b>：Agent尝试批量删除/格式化→需人工审批</li>
+<li><b>操作沙盒</b>：高风险Agent操作先在沙盒中执行→验证后写入生产</li>
+<li>实现：存储访问控制+Agent身份认证+操作审批流</li>
+</ul>
+</div>
+</div>
+
+<div style="margin-top:14px">
+<h4>Layer 3: Agent数据恢复</h4>
+<ul>
+<li><b>Agent操作快照</b>：每次Agent批量操作前自动快照→支持一键回滚</li>
+<li><b>受污染数据隔离</b>：Agent投毒后，基于I/O审计追踪受污染数据→隔离+标记</li>
+<li><b>知识图谱校验</b>：Agent输出的知识图谱条目→自动校验一致性→不一致条目标记为"可疑"</li>
+<li>实现：Cyber Recovery基础设施+Agent I/O追踪</li>
+</ul>
+</div>
+</div>
+
+<!-- ==================== 与防勒索协同 ==================== -->
+<h2>4. 与防勒索的协同</h2>
+
+<div class="card green">
+<h4>🔄 防勒索 + Agent安全 = 存储安全统一平台</h4>
+<ul>
+<li><b>共享AI卡</b>：Agent行为异常检测复用AI卡的I/O分析能力，不需要额外硬件</li>
+<li><b>共享快照/恢复</b>：Agent操作回滚复用Cyber Recovery的快照+恢复基础设施</li>
+<li><b>共享审计日志</b>：勒索检测日志+Agent操作日志统一存储→统一取证</li>
+<li><b>统一安全策略</b>：防勒索策略+Agent安全策略统一管理界面</li>
+</ul>
+<p style="font-size:.88em"><b>关键</b>：Agent安全不是独立产品，是防勒索平台的扩展。客户已有防勒索→Agent安全是增值License，边际成本低。</p>
+</div>
+
+<!-- ==================== 交付里程碑 ==================== -->
+<h2>5. 交付物与里程碑</h2>
+
+<table>
+<tr><th>阶段</th><th>时间</th><th>交付物</th><th>验收标准</th></tr>
+<tr><td>M0-威胁建模</td><td>27H1 M1</td><td>存储侧Agent攻击面威胁模型</td><td>5类攻击面+20+攻击路径覆盖</td></tr>
+<tr><td>M1-行为审计</td><td>27H1 M2</td><td>Agent I/O画像+审计日志</td><td>支持10+Agent同时监控</td></tr>
+<tr><td>M2-操作控制</td><td>27H1 M3</td><td>最小权限+危险操作拦截</td><td>批量删除100%需审批</td></tr>
+<tr><td>M3-行为检测</td><td>27H1 M4</td><td>Agent行为偏离AI检测</td><td>异常行为检出率≥95%</td></tr>
+<tr><td>M4-Beta</td><td>27H1 M5</td><td>Agent安全Beta版</td><td>3家Beta客户部署</td></tr>
+<tr><td>M5-取证报告</td><td>27H1 M6</td><td>Agent攻击取证+合规报告</td><td>满足OWASP审计要求</td></tr>
+</table>
+
+<div class="card amber">
+<h4>⚠️ 关键风险</h4>
+<ul>
+<li><b>市场不成熟</b>：Agent安全是新领域，客户认知度低 → 缓解：联合OWASP做标准+教育市场，参考"等保驱动防勒索"模式</li>
+<li><b>Agent身份标识</b>：存储侧如何区分"哪个Agent在做I/O"？ → 缓解：要求Agent框架传递身份Token+存储端映射</li>
+<li><b>行为画像冷启动</b>：新Agent没有历史行为数据 → 缺解：同类Agent共享画像+白名单策略+学习期宽松模式</li>
+<li><b>竞品跟进</b>：NetApp/Dell可能快速跟进 → 缓解：先发优势+OWASP标准参与+专利布局</li>
+</ul>
+</div>
+
+<p style="text-align:center;color:#94a3b8;font-size:.82em;margin-top:28px">Agent安全 项目详情 | 27H1 | 2026年5月</p>
+
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent投毒恢复 — 受污染数据隔离与恢复</title>
+<style>
+:root{--pri:#1a1a2e;--accent:#6B21A8;--accent2:#C7000B;--bg:#f8f9fc;--card:#fff;--border:#e2e8f0;--shadow:0 2px 16px rgba(0,0,0,.07)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,'Noto Sans SC','Segoe UI',sans-serif;background:var(--bg);color:var(--pri);line-height:1.75;padding:28px 36px}
+h1{font-size:1.9em;background:linear-gradient(135deg,#7C3AED,#0369A1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+.sub{color:#64748b;font-size:.9em;margin-bottom:24px}
+h2{font-size:1.3em;color:var(--accent);margin:28px 0 14px;padding-bottom:8px;border-bottom:2.5px solid var(--accent)}
+h3{font-size:1.1em;color:var(--accent2);margin:20px 0 10px}
+.card{background:var(--card);border-radius:12px;padding:20px;margin:14px 0;box-shadow:var(--shadow);border-left:4px solid var(--accent)}
+.card.red{border-left-color:var(--accent2)}.card.green{border-left-color:#059669}.card.blue{border-left-color:#0369A1}.card.amber{border-left-color:#D97706}
+.tag{display:inline-block;background:var(--accent);color:#fff;padding:2px 10px;border-radius:10px;font-size:.78em;margin:2px 4px}
+.tag.red{background:var(--accent2)}.tag.blue{background:#2563EB}.tag.green{background:#059669}.tag.amber{background:#D97706}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:.88em}
+th{background:var(--accent);color:#fff;padding:9px 12px;text-align:left}
+td{padding:8px 12px;border-bottom:1px solid var(--border)}
+tr:nth-child(even){background:#f9fafb}
+ul,ol{padding-left:20px}li{margin:4px 0;font-size:.9em}
+.insight{background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:1.5px solid #c4b5fd;border-radius:12px;padding:16px;margin:14px 0}
+.insight h4{color:#7C3AED}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
+.kpi-box{background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-radius:10px;padding:14px;text-align:center;border:1px solid #c4b5fd}
+.kpi-box .num{font-size:1.6em;font-weight:800;color:#7C3AED}.kpi-box .label{font-size:.8em;color:#64748b;margin-top:4px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:14px 0}
+.arch-box{background:#1e1e2e;color:#e2e8f0;border-radius:10px;padding:18px;font-family:'Cascadia Code',monospace;font-size:.82em;line-height:1.6;margin:12px 0;overflow-x:auto}
+.arch-box .label{color:#a78bfa}.arch-box .arrow{color:#fbbf24}.arch-box .data{color:#34d399}.arch-box .warn{color:#f87171}
+@media(max-width:900px){.two-col{grid-template-columns:1fr}.kpi-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<h1>Agent投毒恢复 — 受污染数据隔离与恢复</h1>
+<p class="sub">27H2 战略项目 | P1 蓝海 | 价值特性线深水区</p>
+
+<div class="kpi-grid">
+<div class="kpi-box"><div class="num">I/O溯源</div><div class="label">投毒数据追踪</div></div>
+<div class="kpi-box"><div class="num">KG校验</div><div class="label">知识图谱完整性</div></div>
+<div class="kpi-box"><div class="num">精准隔离</div><div class="label">仅隔离受污染数据</div></div>
+<div class="kpi-box"><div class="num">一键恢复</div><div class="label">基于快照精确回滚</div></div>
+</div>
+
+<!-- ==================== 问题定义 ==================== -->
+<h2>1. 什么是Agent投毒？为什么比勒索更难恢复？</h2>
+
+<div class="card red">
+<h4>🚨 Agent投毒 vs 勒索加密：本质区别</h4>
+<table>
+<tr><th>维度</th><th>勒索加密</th><th>Agent投毒</th></tr>
+<tr><td><b>攻击特征</b></td><td>明目张胆：批量加密，I/O模式显著异常</td><td>隐蔽渐进：少量多次，I/O模式接近正常</td></tr>
+<tr><td><b>数据状态</b></td><td>数据被加密但仍存在</td><td>数据被篡改但看起来"正常"</td></tr>
+<tr><td><b>检测难度</b></td><td>中等——熵值/速率特征明显</td><td>极高——投毒数据在统计上难以区分</td></tr>
+<tr><td><b>恢复难度</b></td><td>相对简单——回滚到加密前快照</td><td>非常困难——不知道哪些数据被"投毒"了</td></tr>
+<tr><td><b>传播效应</b></td><td>有限——加密不会"感染"其他数据</td><td>严重——投毒数据被其他Agent读取→二次污染→级联扩散</td></tr>
+<tr><td><b>类比</b></td><td>被抢劫——损失明确可见</td><td>被下毒——不知何时中招，影响持续扩散</td></tr>
+</table>
+</div>
+
+<div class="insight">
+<h4>💡 核心洞察：数据谱系(Data Lineage)是解法关键</h4>
+<p><b>Cyberhaven的Data Lineage理念</b>（DLP领域创新者）提供了关键启发——不是检测数据"是什么"，而是追踪数据"从哪来、经过谁、到哪去"。<br><br>
+<b>映射到Agent投毒</b>：如果Agent A被投毒，它写入的所有数据都应标记为"可疑"。Agent B读取了Agent A的数据并基于此产生新数据，则Agent B的输出也应标记为"间接可疑"。这就是<b>数据谱系追踪</b>。<br><br>
+<b>存储侧优势</b>：存储能看到所有Agent的所有I/O操作——读写关系、数据流向——这是构建数据谱系图谱的天然基础。主机侧/网络侧安全产品无法做到。</p>
+</div>
+
+<!-- ==================== 技术架构 ==================== -->
+<h2>2. 技术架构</h2>
+
+<div class="arch-box">
+<span class="label">┌──────── Agent投毒恢复系统 ────────┐</span>
+<span class="label">│                                    │</span>
+<span class="warn">│  ① 投毒检测                        │</span>
+<span class="label">│     Agent行为偏离→投毒嫌疑标记      │</span>
+<span class="label">│     依赖: Agent安全(27H1)行为检测    │</span>
+<span class="label">│         │                          │</span>
+<span class="label">│         ▼                          │</span>
+<span class="warn">│  ② 数据谱系追踪                     │</span>
+<span class="data">│     I/O审计→读写依赖图→污染传播分析  │</span>
+<span class="data">│     Agent A(毒)→File X→Agent B→File Y</span>
+<span class="data">│     结论: X,Y均为"受污染"            │</span>
+<span class="label">│         │                          │</span>
+<span class="label">│         ▼                          │</span>
+<span class="warn">│  ③ 精准隔离                         │</span>
+<span class="data">│     仅隔离受污染文件/卷              │</span>
+<span class="data">│     未受污染数据保持正常访问          │</span>
+<span class="label">│         │                          │</span>
+<span class="label">│         ▼                          │</span>
+<span class="warn">│  ④ 智能恢复                         │</span>
+<span class="data">│     找到"投毒前"快照→精准回滚        │</span>
+<span class="data">│     恢复后重新验证KG完整性           │</span>
+<span class="label">│         │                          │</span>
+<span class="label">│         ▼                          │</span>
+<span class="warn">│  ⑤ KG完整性校验                     │</span>
+<span class="data">│     知识图谱一致性检测              │</span>
+<span class="data">│     矛盾三元组标记→人工审核          │</span>
+<span class="label">│                                    │</span>
+<span class="label">└────────────────────────────────────┘</span>
+</div>
+
+<h3>2.1 核心技术：数据谱系图谱</h3>
+
+<div class="card">
+<h4>📊 数据谱系图谱构建</h4>
+<ul>
+<li><b>节点</b>：Agent(身份+角色)、文件(LUN+inode+版本)、快照(时间戳+范围)</li>
+<li><b>边</b>：读写关系(Agent→File写入，Agent←File读取)、传播关系(File A→Agent→File B)</li>
+<li><b>属性</b>：每个节点/边的"污染状态"(clean/suspect/tainted/confirmed)、时间戳、操作类型</li>
+<li><b>查询</b>：给定一个被确认投毒的Agent，查询所有直接/间接关联的数据→精准隔离</li>
+<li><b>实现</b>：基于I/O审计日志构建图数据库，BFS/DFS遍历传播链</li>
+</ul>
+</div>
+
+<div class="card blue">
+<h4>🧠 知识图谱完整性校验</h4>
+<p>Agent投毒的特殊问题：Agent可能基于被污染的数据生成了<b>知识图谱条目</b>。这些条目看起来"合理"但"实质错误"。</p>
+<ul>
+<li><b>一致性检测</b>：KG内三元组是否存在逻辑矛盾（如同一实体两种矛盾属性）</li>
+<li><b>来源追溯</b>：每个KG条目追溯到生成它的Agent+输入数据→如果源头被标记"tainted"，条目标记"可疑"</li>
+<li><b>交叉验证</b>：被污染Agent生成的条目与独立Agent生成的条目对比→不一致=高概率错误</li>
+<li><b>人工审核</b>：标记为"可疑"的条目推送人工审核→确认后删除/修正</li>
+</ul>
+</div>
+
+<!-- ==================== 竞品与差异化 ==================== -->
+<h2>3. 竞品与差异化</h2>
+
+<table>
+<tr><th>维度</th><th>我们的方案</th><th>Cyberhaven(DLP)</th><th>传统备份恢复</th></tr>
+<tr>
+<td><b>投毒检测</b></td>
+<td>✅ Agent行为偏离+I/O谱系</td>
+<td>⚠️ 数据谱系但无Agent概念</td>
+<td>❌ 无检测能力</td>
+</tr>
+<tr>
+<td><b>污染追踪</b></td>
+<td>✅ I/O读写依赖图+传播分析</td>
+<td>✅ 数据谱系标签传播</td>
+<td>❌ 无追踪能力</td>
+</tr>
+<tr>
+<td><b>精准隔离</b></td>
+<td>✅ 文件级/条目级精准隔离</td>
+<td>⚠️ 文件级隔离</td>
+<td>❌ 全卷隔离或无隔离</td>
+</tr>
+<tr>
+<td><b>KG校验</b></td>
+<td>✅ KG条目级完整性校验</td>
+<td>❌ 无KG概念</td>
+<td>❌ 无KG概念</td>
+</tr>
+<tr>
+<td><b>恢复</b></td>
+<td>✅ 基于快照精准回滚</td>
+<td>❌ 不涉及恢复</td>
+<td>✅ 全卷恢复(不精准)</td>
+</tr>
+</table>
+
+<div class="card green">
+<h4>✅ 差异化优势</h4>
+<ul>
+<li><b>唯一提供"检测→追踪→隔离→恢复→校验"完整闭环</b>的存储厂商方案</li>
+<li><b>知识图谱完整性校验</b>是独有能力——竞品(DLP/备份)都不涉及KG层面</li>
+<li><b>精准隔离</b>避免"一刀切"——仅隔离受污染数据，未污染数据保持正常业务</li>
+<li><b>存储侧I/O可见性</b>是构建数据谱系的天然基础——主机/网络侧无法获得同等信息</li>
+</ul>
+</div>
+
+<!-- ==================== 交付里程碑 ==================== -->
+<h2>4. 交付物与里程碑</h2>
+
+<table>
+<tr><th>阶段</th><th>时间</th><th>交付物</th><th>验收标准</th></tr>
+<tr><td>M0-谱系模型</td><td>27H2 M1</td><td>数据谱系图谱数据模型+构建算法</td><td>10万+I/O事件的谱系图构建&lt;1min</td></tr>
+<tr><td>M1-传播分析</td><td>27H2 M2</td><td>投毒传播BFS/DFS追踪引擎</td><td>3跳传播追踪延迟&lt;10s</td></tr>
+<tr><td>M2-精准隔离</td><td>27H2 M3</td><td>文件级精准隔离机制</td><td>隔离操作对未污染数据0影响</td></tr>
+<tr><td>M3-KG校验</td><td>27H2 M4</td><td>KG条目一致性检测+来源追溯</td><td>矛盾条目检出率≥90%</td></tr>
+<tr><td>M4-智能恢复</td><td>27H2 M5</td><td>基于谱系的精准回滚</td><td>恢复后KG一致性≥99%</td></tr>
+<tr><td>M5-GA</td><td>27H2 M6</td><td>Agent投毒恢复产品GA</td><td>2家客户部署+案例发布</td></tr>
+</table>
+
+<div class="card amber">
+<h4>⚠️ 关键风险</h4>
+<ul>
+<li><b>强依赖Agent安全(27H1)</b>：投毒检测基于Agent行为偏离→Agent安全必须先GA</li>
+<li><b>谱系图规模</b>：大规模存储系统中I/O事件可达亿级→图构建和查询性能是挑战 → 缓解：增量图+时间窗口裁剪+采样</li>
+<li><b>KG校验误报</b>：知识图谱中"看似矛盾实则正确"的条目可能被误标 → 缓解：人工审核环节+置信度评分</li>
+<li><b>市场教育</b>：Agent投毒是新概念→客户理解门槛高 → 缓解：demo+攻击模拟+案例驱动</li>
+</ul>
+</div>
+
+<p style="text-align:center;color:#94a3b8;font-size:.82em;margin-top:28px">Agent投毒恢复 项目详情 | 27H2 | 2026年5月</p>
+
+</body>
+</html>

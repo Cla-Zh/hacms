@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI卡V1 — 防勒索AI检测卸载</title>
+<style>
+:root{--pri:#1a1a2e;--accent:#6B21A8;--accent2:#C7000B;--bg:#f8f9fc;--card:#fff;--border:#e2e8f0;--shadow:0 2px 16px rgba(0,0,0,.07)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,'Noto Sans SC','Segoe UI',sans-serif;background:var(--bg);color:var(--pri);line-height:1.75;padding:28px 36px}
+h1{font-size:1.9em;background:linear-gradient(135deg,#7C3AED,#C7000B);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+.sub{color:#64748b;font-size:.9em;margin-bottom:24px}
+h2{font-size:1.3em;color:var(--accent);margin:28px 0 14px;padding-bottom:8px;border-bottom:2.5px solid var(--accent)}
+h3{font-size:1.1em;color:var(--accent2);margin:20px 0 10px}
+h4{font-size:1em;color:var(--pri);margin:14px 0 6px;font-weight:700}
+.card{background:var(--card);border-radius:12px;padding:20px;margin:14px 0;box-shadow:var(--shadow);border-left:4px solid var(--accent)}
+.card.red{border-left-color:var(--accent2)}.card.green{border-left-color:#059669}.card.blue{border-left-color:#0369A1}.card.amber{border-left-color:#D97706}
+.tag{display:inline-block;background:var(--accent);color:#fff;padding:2px 10px;border-radius:10px;font-size:.78em;margin:2px 4px}
+.tag.red{background:var(--accent2)}.tag.blue{background:#2563EB}.tag.green{background:#059669}.tag.amber{background:#D97706}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:.88em}
+th{background:var(--accent);color:#fff;padding:9px 12px;text-align:left}
+td{padding:8px 12px;border-bottom:1px solid var(--border)}
+tr:nth-child(even){background:#f9fafb}
+ul,ol{padding-left:20px}li{margin:4px 0;font-size:.9em}
+.insight{background:linear-gradient(135deg,#faf5ff,#ede9fe);border:1.5px solid #c4b5fd;border-radius:12px;padding:16px;margin:14px 0}
+.insight h4{color:var(--accent)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:14px 0}
+.arch-box{background:#1e1e2e;color:#e2e8f0;border-radius:10px;padding:18px;font-family:'Cascadia Code',monospace;font-size:.82em;line-height:1.6;margin:12px 0;overflow-x:auto}
+.arch-box .label{color:#a78bfa}.arch-box .arrow{color:#fbbf24}.arch-box .data{color:#34d399}.arch-box .warn{color:#f87171}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
+.kpi-box{background:linear-gradient(135deg,#f3f0ff,#ede9fe);border-radius:10px;padding:14px;text-align:center;border:1px solid #e9d5ff}
+.kpi-box .num{font-size:1.6em;font-weight:800;color:var(--accent)}.kpi-box .label{font-size:.8em;color:#64748b;margin-top:4px}
+@media(max-width:900px){.two-col{grid-template-columns:1fr}.kpi-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<h1>AI卡V1 — 防勒索AI检测卸载</h1>
+<p class="sub">26H1 核心项目 | P0 必须 | 问题线首战</p>
+
+<div class="kpi-grid">
+<div class="kpi-box"><div class="num">≤30s</div><div class="label">检测延迟目标</div></div>
+<div class="kpi-box"><div class="num">≥99%</div><div class="label">检出率目标</div></div>
+<div class="kpi-box"><div class="num">0%</div><div class="label">数据面影响</div></div>
+<div class="kpi-box"><div class="num">SAN+NAS</div><div class="label">双协议支持</div></div>
+</div>
+
+<!-- ==================== 为什么做 ==================== -->
+<h2>1. 为什么必须做AI卡？</h2>
+
+<div class="card red">
+<h4>🚨 当前痛点</h4>
+<ul>
+<li><b>检测性能瓶颈</b>：AI推理跑在存储控制器CPU上，与I/O处理争抢资源，大流量场景下检测延迟可达2-5分钟</li>
+<li><b>误报影响业务</b>：POC场景中误报触发自动隔离，导致客户关键业务中断——这是丢单的首要原因</li>
+<li><b>漏报失去信任</b>：新型勒索家族变种绕过检测，一次漏报=客户数据全毁=合同终止</li>
+<li><b>性能与安全不可兼得</b>：开AI检测→I/O性能下降15-20%；关AI检测→安全风险——客户被迫二选一</li>
+</ul>
+</div>
+
+<div class="insight">
+<h4>💡 业界洞察</h4>
+<p><b>NVIDIA BlueField-4</b>（2026年1月发布）证明了DPU卸载是行业趋势——800Gb/s吞吐，将AI推理、安全处理、网络加速全部从主机CPU卸载。Dell/IBM/Pure Storage/Hitachi等均已接入BlueField-4生态。<br><br>
+<b>NetApp ARP/AI</b>在控制器上实现了99%检出率+0%误报（SE Labs AAA认证），但这是软件方案的极限——要在更大流量下做到30秒检测，必须硬件卸载。<br><br>
+<b>关键判断</b>：AI推理卸载到专用硬件，是存储安全从"功能可用"到"性能领先"的必经之路。先做者建立技术壁垒和客户心智。</p>
+</div>
+
+<!-- ==================== 技术架构 ==================== -->
+<h2>2. 技术架构</h2>
+
+<div class="arch-box">
+<span class="label">┌─────────────────────── 数据面（I/O Path）────────────────────────┐</span>
+<span class="data">│  Host → FC/iSCSI/NFS → 存储控制器 → 后端磁盘池                    │</span>
+<span class="label">│                          │                                         │</span>
+<span class="label">│                    ┌─────┴──────┐                                  │</span>
+<span class="label">│                    │ I/O Mirror │ ← 旁路镜像，零数据面影响           │</span>
+<span class="label">│                    └─────┬──────┘                                  │</span>
+<span class="label">└──────────────────────────┼──────────────────────────────────────────┘</span>
+                           │
+<span class="label">┌─────────────────────── 控制面（AI Detection）──────────────────────┐</span>
+<span class="label">│                          ▼                                        │</span>
+<span class="label">│               ┌─────────────────────┐                           │</span>
+<span class="warn">│               │   🖥️ AI卡 (PCIe)    │                           │</span>
+<span class="label">│               │  ┌─────────────────┐ │                           │</span>
+<span class="data">│               │  │ 推理引擎(TFLite)│ │  ← 模型推理核心           │</span>
+<span class="label">│               │  ├─────────────────┤ │                           │</span>
+<span class="data">│               │  │ 特征提取模块    │ │  ← entropy/结构/行为特征  │</span>
+<span class="label">│               │  ├─────────────────┤ │                           │</span>
+<span class="data">│               │  │ 时序关联引擎    │ │  ← RansomRadar级联检测    │</span>
+<span class="label">│               │  ├─────────────────┤ │                           │</span>
+<span class="data">│               │  │ 决策引擎        │ │  ← 多模型投票+阈值控制    │</span>
+<span class="label">│               │  └─────────────────┘ │                           │</span>
+<span class="label">│               └─────────┬───────────┘                           │</span>
+<span class="label">│                         │                                         │</span>
+<span class="label">│              ┌──────────▼──────────┐                            │</span>
+<span class="warn">│              │ 响应模块(回控制器)   │  ← 告警/隔离/快照触发      │</span>
+<span class="label">│              └───────────────────────┘                            │</span>
+<span class="label">└──────────────────────────────────────────────────────────────────┘</span>
+</div>
+
+<h3>2.1 核心设计决策</h3>
+
+<table>
+<tr><th>决策点</th><th>方案A</th><th>方案B</th><th>✅ 选择</th></tr>
+<tr>
+<td><b>架构模式</b></td>
+<td>内嵌（I/O路径上）</td>
+<td>旁路（Mirror+独立检测）</td>
+<td><b>旁路</b>——零数据面影响，AI卡故障不影响存储业务</td>
+</tr>
+<tr>
+<td><b>硬件形态</b></td>
+<td>标准PCIe AI加速卡</td>
+<td>DPU/SmartNIC集成</td>
+<td><b>PCIe AI卡</b>——成本可控，不依赖DPU供应链，迭代更快</td>
+</tr>
+<tr>
+<td><b>推理引擎</b></td>
+<td>TFLite/ONNX Runtime</td>
+<td>自研推理内核</td>
+<td><b>TFLite</b>——成熟生态，模型兼容性好，后期可切自研</td>
+</tr>
+<tr>
+<td><b>检测模型</b></td>
+<td>单大模型(end-to-end)</td>
+<td>多模型级联(特征→分类→时序)</td>
+<td><b>多模型级联</b>——每个模型可独立更新，误报更低</td>
+</tr>
+<tr>
+<td><b>模型更新</b></td>
+<td>离线刷固件</td>
+<td>在线热更新</td>
+<td><b>在线热更新</b>——新型勒索响应速度决定客户安全</td>
+</tr>
+</table>
+
+<!-- ==================== 检测模型 ==================== -->
+<h2>3. 检测模型架构</h2>
+
+<div class="card">
+<h4>🧠 三级级联检测引擎</h4>
+
+<div class="two-col">
+<div>
+<h4>Level 1: 特征快速过滤</h4>
+<ul>
+<li><b>熵值检测</b>：文件熵值突变→加密行为标志</li>
+<li><b>结构特征</b>：文件头魔数改变→文件破坏标志</li>
+<li><b>速率特征</b>：写入速率突增→批量加密标志</li>
+<li><b>延迟</b>：&lt;5秒（实时过滤）</li>
+<li><b>目标</b>：过滤90%正常I/O，仅10%进入L2</li>
+</ul>
+</div>
+<div>
+<h4>Level 2: ML分类决策</h4>
+<ul>
+<li><b>集成模型</b>：Decision Tree Ensemble + Lightweight CNN</li>
+<li><b>输入</b>：L1过滤后的I/O特征向量（256维）</li>
+<li><b>训练数据</b>：100万+样本，覆盖50+勒索家族</li>
+<li><b>延迟</b>：&lt;20秒（窗口聚合后推理）</li>
+<li><b>目标</b>：检出率99%+，FPR&lt;0.5%</li>
+</ul>
+</div>
+</div>
+
+<div style="margin-top:14px">
+<h4>Level 3: 时序关联确认</h4>
+<ul>
+<li><b>RansomRadar级联</b>：跨时间窗口关联多个L2告警，消除孤立误报</li>
+<li><b>行为序列建模</b>：LSTM编码I/O行为序列，识别勒索攻击模式vs正常批量操作</li>
+<li><b>延迟</b>：+5-10秒（跨窗口聚合）</li>
+<li><b>目标</b>：FPR从0.5%→0.1%以下，这是误报治理的关键</li>
+<li><b>参考</b>：RansomRadar（FSE 2025 清华）证明时序关联可将FPR从5%→0.3%</li>
+</ul>
+</div>
+</div>
+
+<!-- ==================== 交付物 ==================== -->
+<h2>4. 交付物与里程碑</h2>
+
+<table>
+<tr><th>阶段</th><th>时间</th><th>交付物</th><th>验收标准</th></tr>
+<tr><td>M0-硬件选型</td><td>26H1 M1</td><td>AI卡硬件规格书+供应商锁定</td><td>推理性能≥10K ops/s；功耗≤25W</td></tr>
+<tr><td>M1-驱动集成</td><td>26H1 M2</td><td>PCIe驱动+固件V1.0</td><td>存储控制器可识别AI卡，通信延迟&lt;1ms</td></tr>
+<tr><td>M2-模型部署</td><td>26H1 M3</td><td>三级检测模型部署到AI卡</td><td>端到端检测延迟≤30s</td></tr>
+<tr><td>M3-SAN适配</td><td>26H1 M4</td><td>FC/iSCSI协议I/O镜像+检测</td><td>SAN场景检出率≥99%</td></tr>
+<tr><td>M4-NAS适配</td><td>26H1 M5</td><td>NFS/SMB协议I/O镜像+检测</td><td>NAS场景检出率≥99%</td></tr>
+<tr><td>M5-Alpha</td><td>26H1 M6</td><td>AI卡Alpha版本</td><td>内部POC通过，0误报</td></tr>
+</table>
+
+<!-- ==================== 竞品对比 ==================== -->
+<h2>5. 竞品对比与差异化</h2>
+
+<table>
+<tr><th>维度</th><th>我们的AI卡V1</th><th>NetApp ARP/AI</th><th>Dell PowerMax Cyber</th><th>Pure Storage</th></tr>
+<tr>
+<td><b>推理位置</b></td>
+<td>专用AI卡(硬件卸载)</td>
+<td>控制器CPU(软件)</td>
+<td>控制器内嵌</td>
+<td>控制器内嵌</td>
+</tr>
+<tr>
+<td><b>检测延迟</b></td>
+<td><span style="color:#059669;font-weight:700">≤30s</span></td>
+<td>1-5分钟</td>
+<td>1-3分钟</td>
+<td>1-3分钟</td>
+</tr>
+<tr>
+<td><b>数据面影响</b></td>
+<td><span style="color:#059669;font-weight:700">0%</span></td>
+<td>10-20% I/O性能下降</td>
+<td>5-15%</td>
+<td>5-10%</td>
+</tr>
+<tr>
+<td><b>误报率</b></td>
+<td>目标≤0.1%</td>
+<td>0%（SE Labs验证）</td>
+<td>未公开(有误报文档)</td>
+<td>未公开</td>
+</tr>
+<tr>
+<td><b>在线更新</b></td>
+<td>✅ 支持</td>
+<td>✅ 支持</td>
+<td>❌ 需固件升级</td>
+<td>部分支持</td>
+</tr>
+<tr>
+<td><b>硬件增值</b></td>
+<td>✅ License+硬件双模式</td>
+<td>❌ 软件License</td>
+<td>❌ 含在产品中</td>
+<td>❌ 含在产品中</td>
+</tr>
+</table>
+
+<div class="card green">
+<h4>✅ 差异化优势</h4>
+<ul>
+<li><b>性能领先</b>：30s检测 vs 竞品1-5分钟——对"闪电加密"型勒索有决定性优势</li>
+<li><b>零数据面影响</b>：旁路架构+独立AI卡，存储I/O性能不受AI检测影响</li>
+<li><b>变现模式创新</b>：硬件+License双模式，NetApp/Dell/Pure都是"含在产品中"不单独收费</li>
+<li><b>扩展性</b>：AI卡可后续扩展DLP/分类/Agent安全等多模型，而软件方案受限于控制器CPU</li>
+</ul>
+</div>
+
+<div class="card amber">
+<h4>⚠️ 关键风险</h4>
+<ul>
+<li><b>硬件供应链</b>：AI推理芯片产能紧张 → 缓解：提前6个月备料，备选FPGA方案（性能降30%但可用）</li>
+<li><b>30s达标</b>：实际场景中I/O模式复杂可能导致延迟增加 → 缓解：L1快速过滤是关键，90%流量在L1即排除</li>
+<li><b>NetApp标杆</b>：ARP/AI已获SE Labs AAA，客户会比较 → 缓解：强调硬件性能差异，申请同等第三方评测</li>
+</ul>
+</div>
+
+<p style="text-align:center;color:#94a3b8;font-size:.82em;margin-top:28px">AI卡V1 项目详情 | 26H1 | 2026年5月</p>
+
+</body>
+</html>

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>误报治理 — 多信号融合降误报</title>
+<style>
+:root{--pri:#1a1a2e;--accent:#6B21A8;--accent2:#C7000B;--bg:#f8f9fc;--card:#fff;--border:#e2e8f0;--shadow:0 2px 16px rgba(0,0,0,.07)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,'Noto Sans SC','Segoe UI',sans-serif;background:var(--bg);color:var(--pri);line-height:1.75;padding:28px 36px}
+h1{font-size:1.9em;background:linear-gradient(135deg,#D97706,#C7000B);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+.sub{color:#64748b;font-size:.9em;margin-bottom:24px}
+h2{font-size:1.3em;color:var(--accent);margin:28px 0 14px;padding-bottom:8px;border-bottom:2.5px solid var(--accent)}
+h3{font-size:1.1em;color:var(--accent2);margin:20px 0 10px}
+h4{font-size:1em;color:var(--pri);margin:14px 0 6px;font-weight:700}
+.card{background:var(--card);border-radius:12px;padding:20px;margin:14px 0;box-shadow:var(--shadow);border-left:4px solid var(--accent)}
+.card.red{border-left-color:var(--accent2)}.card.green{border-left-color:#059669}.card.blue{border-left-color:#0369A1}.card.amber{border-left-color:#D97706}
+.tag{display:inline-block;background:var(--accent);color:#fff;padding:2px 10px;border-radius:10px;font-size:.78em;margin:2px 4px}
+.tag.red{background:var(--accent2)}.tag.blue{background:#2563EB}.tag.green{background:#059669}.tag.amber{background:#D97706}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:.88em}
+th{background:var(--accent);color:#fff;padding:9px 12px;text-align:left}
+td{padding:8px 12px;border-bottom:1px solid var(--border)}
+tr:nth-child(even){background:#f9fafb}
+ul,ol{padding-left:20px}li{margin:4px 0;font-size:.9em}
+.insight{background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px dashed #D97706;border-radius:12px;padding:16px;margin:14px 0}
+.insight h4{color:#92400E}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
+.kpi-box{background:linear-gradient(135deg,#fffbeb,#fef3c7);border-radius:10px;padding:14px;text-align:center;border:1px solid #fde68a}
+.kpi-box .num{font-size:1.6em;font-weight:800;color:#D97706}.kpi-box .label{font-size:.8em;color:#64748b;margin-top:4px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:14px 0}
+@media(max-width:900px){.two-col{grid-template-columns:1fr}.kpi-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<h1>误报治理 — 多信号融合降误报</h1>
+<p class="sub">26H2 核心项目 | P0 必须 | 问题线第二战</p>
+
+<div class="kpi-grid">
+<div class="kpi-box"><div class="num">≤0.1%</div><div class="label">目标FPR</div></div>
+<div class="kpi-box"><div class="num">POC清零</div><div class="label">客户场景误报</div></div>
+<div class="kpi-box"><div class="num">6大根因</div><div class="label">误报分类体系</div></div>
+<div class="kpi-box"><div class="num">7层信号</div><div class="label">融合决策维度</div></div>
+</div>
+
+<!-- ==================== 误报根因 ==================== -->
+<h2>1. 误报根因体系</h2>
+
+<p>根据前期POC客户反馈和业界分析，存储防勒索误报有6大根因，每类误报的"解法"完全不同——<b>不能一刀切</b>。</p>
+
+<table>
+<tr><th>根因</th><th>触发场景</th><th>当前误报占比</th><th>客户影响</th><th>解法方向</th></tr>
+<tr>
+<td><b>加密重叠</b></td>
+<td>合法加密操作(数据库加密/磁盘加密/SSL)触发熵值异常</td>
+<td>35%</td>
+<td>⭐⭐⭐⭐⭐ 极高</td>
+<td>加密白名单+进程关联</td>
+</tr>
+<tr>
+<td><b>备份行为</b></td>
+<td>备份软件全量写入触发批量写入异常</td>
+<td>20%</td>
+<td>⭐⭐⭐⭐ 高</td>
+<td>备份流量识别+时间窗口关联</td>
+</tr>
+<tr>
+<td><b>系统更新</b></td>
+<td>OS/应用批量更新触发文件批量修改</td>
+<td>15%</td>
+<td>⭐⭐⭐ 中</td>
+<td>更新模式识别+操作序列匹配</td>
+</tr>
+<tr>
+<td><b>数据迁移</b></td>
+<td>跨卷/跨存储数据迁移触发批量写入</td>
+<td>12%</td>
+<td>⭐⭐⭐ 中</td>
+<td>迁移任务感知+源-目的地匹配</td>
+</tr>
+<tr>
+<td><b>批量操作</b></td>
+<td>ETL/数据仓库批量加载触发写入突增</td>
+<td>10%</td>
+<td>⭐⭐ 低</td>
+<td>任务调度关联+行为模式匹配</td>
+</tr>
+<tr>
+<td><b>间歇性加密</b></td>
+<td>新型勒索间歇性低速率加密(模拟正常行为)</td>
+<td>8%</td>
+<td>⭐⭐⭐⭐ 高(漏报风险)</td>
+<td>时序关联+长期行为画像</td>
+</tr>
+</table>
+
+<div class="insight">
+<h4>💡 关键洞察：误报≠误报</h4>
+<p>6类误报中，<b>"加密重叠"和"间歇性加密"</b>是最难的一对矛盾——前者是"正常操作被误判为勒索"，后者是"勒索伪装成正常操作"。单纯调低灵敏度能降误报但会增漏报，单纯调高灵敏度则相反。<br><br>
+<b>解法</b>：不是调阈值，而是<b>引入更多信号维度</b>——进程级关联、时间窗口关联、操作序列模式。这就是多信号融合的核心价值。</p>
+</div>
+
+<!-- ==================== 多信号融合架构 ==================== -->
+<h2>2. 多信号融合架构</h2>
+
+<div class="card">
+<h4>🔗 七维信号融合决策引擎</h4>
+<div style="font-size:.86em;line-height:1.8">
+
+<p><b>维度1：I/O统计信号</b>（已有）</p>
+<ul>
+<li>写入速率/频率/文件扩展名分布/熵值变化——这是当前检测的基础</li>
+</ul>
+
+<p><b>维度2：进程关联信号</b>（26H2新增 ⭐）</p>
+<ul>
+<li>哪个进程触发了I/O？数据库进程vs勒索进程——进程级白名单是降"加密重叠"误报的关键</li>
+<li>实现：I/O镜像中提取PID+进程名+签名，与白名单匹配</li>
+</ul>
+
+<p><b>维度3：时间窗口关联</b>（26H2新增 ⭐）</p>
+<ul>
+<li>备份/更新/迁移都有固定时间窗口——时间窗口关联可将"批量写入"误报降低80%+</li>
+<li>实现：备份调度表同步+更新窗口预注册</li>
+</ul>
+
+<p><b>维度4：操作序列模式</b>（26H2新增 ⭐）</p>
+<ul>
+<li>勒索的操作序列(遍历→加密→删除原文件)与正常操作序列(打开→编辑→保存)有本质区别</li>
+<li>实现：LSTM编码操作序列，序列分类模型判断</li>
+</ul>
+
+<p><b>维度5：历史行为画像</b>（26H2新增）</p>
+<ul>
+<li>每个卷/每个客户端的历史I/O画像——偏离画像才触发告警，正常波动自动过滤</li>
+<li>实现：滑动窗口统计画像+偏差检测</li>
+</ul>
+
+<p><b>维度6：跨卷关联</b>（26H2新增）</p>
+<ul>
+<li>同一攻击者的勒索会跨卷扩散——多卷同时异常是高置信度信号</li>
+<li>实现：跨卷告警聚合+关联图分析</li>
+</ul>
+
+<p><b>维度7：诱饵验证</b>（26H2增强）</p>
+<ul>
+<li>诱饵文件被访问→近乎100%确认是勒索——诱饵是误报治理的"终审判"</li>
+<li>实现：增加诱饵文件密度+诱饵触发权重提升</li>
+</ul>
+</div>
+</div>
+
+<h3>2.1 融合决策逻辑</h3>
+
+<div class="card blue">
+<h4>📐 加权评分模型</h4>
+<p style="font-size:.88em">每个告警的综合得分：</p>
+<p style="font-family:monospace;background:#f1f5f9;padding:8px 14px;border-radius:6px;margin:8px 0;font-size:.86em">
+Score = w₁·S_io + w₂·S_proc + w₃·S_time + w₄·S_seq + w₅·S_hist + w₆·S_cross + w₇·S_honey
+</p>
+<p style="font-size:.86em">其中权重由贝叶斯优化自动调优，基于历史告警数据学习最优权重组合。</p>
+<ul style="font-size:.86em">
+<li>S_proc（进程关联）权重最高——单个白名单进程即可将Score降至阈值以下</li>
+<li>S_honey（诱饵）触发即满分——诱饵被访问是"铁证"，无任何误报</li>
+<li>S_seq（操作序列）是区分勒索vs备份的关键——备份序列不会出现"遍历→加密→删原文件"</li>
+</ul>
+</div>
+
+<!-- ==================== 竞品对比 ==================== -->
+<h2>3. 竞品误报方案对比</h2>
+
+<table>
+<tr><th>厂商</th><th>降误报策略</th><th>实际FPR</th><th>局限</th></tr>
+<tr>
+<td><b>NetApp ARP/AI</b></td>
+<td>AI模型训练100万+文件，SE Labs验证0%FPR</td>
+<td><span style="color:#059669;font-weight:700">0%</span>（实验室）</td>
+<td>实验室场景≠生产场景；未处理加密重叠等6类根因</td>
+</tr>
+<tr>
+<td><b>Dell PowerMax</b></td>
+<td>误报触发分析+手动调整阈值</td>
+<td>未公开</td>
+<td>被动式，需人工干预；已有误报触发文档说明</td>
+</tr>
+<tr>
+<td><b>华为Dorado</b></td>
+<td>误告警分析功能+诱饵机制</td>
+<td>未公开</td>
+<td>诱饵+基础分析，无多信号融合</td>
+</tr>
+<tr>
+<td><b>Cohesity</b></td>
+<td>双模型投票(检测模型+验证模型)</td>
+<td>低</td>
+<td>双模型减少误报但无根因分析</td>
+</tr>
+<tr>
+<td><b>我们(目标)</b></td>
+<td><b>七维信号融合+加权评分+根因分类</b></td>
+<td><b>≤0.1%</b></td>
+<td>依赖AI卡V1硬件支撑——软件方案无法做到进程级关联</td>
+</tr>
+</table>
+
+<!-- ==================== 交付里程碑 ==================== -->
+<h2>4. 交付物与里程碑</h2>
+
+<table>
+<tr><th>阶段</th><th>时间</th><th>交付物</th><th>验收标准</th></tr>
+<tr><td>M0-根因分类</td><td>26H2 M1</td><td>6类误报根因分类器</td><td>POC客户历史误报100%可归因</td></tr>
+<tr><td>M1-进程关联</td><td>26H2 M2</td><td>进程级白名单+I/O关联</td>
+<td>"加密重叠"类误报降低80%+</td></tr>
+<tr><td>M2-时间关联</td><td>26H2 M3</td><td>备份/更新窗口同步</td><td>"备份行为"类误报降低90%+</td></tr>
+<tr><td>M3-序列模型</td><td>26H2 M4</td><td>操作序列LSTM分类器</td><td>勒索vs备份/迁移区分F1≥95%</td></tr>
+<tr><td>M4-融合引擎</td><td>26H2 M5</td><td>七维融合决策引擎</td><td>综合FPR≤0.1%</td></tr>
+<tr><td>M5-POC验证</td><td>26H2 M6</td><td>客户POC场景验证</td><td>POC误报清零</td></tr>
+</table>
+
+<div class="card green">
+<h4>✅ 预期效果</h4>
+<ul>
+<li><b>FPR从当前1-3%→0.1%以下</b>：10-30倍误报降低</li>
+<li><b>POC场景误报清零</b>：客户POC不再因误报丢单</li>
+<li><b>为数据恢复铺路</b>：误报可控→自动隔离可信赖→恢复SLA可承诺</li>
+<li><b>业界差异化</b>：无其他存储厂商做到"根因分类+七维融合"级别的误报治理</li>
+</ul>
+</div>
+
+<div class="card amber">
+<h4>⚠️ 关键风险</h4>
+<ul>
+<li><b>进程关联在NAS场景受限</b>：NFS/SMB协议可能不携带完整进程信息 → 缓解：客户端Agent辅助采集进程信息</li>
+<li><b>LSTM序列模型推理延迟</b>：序列建模需要时间窗口累积 → 缓解：短窗口(10s)+长窗口(60s)双通道并行</li>
+<li><b>白名单维护</b>：客户环境千差万别，通用白名单可能覆盖不足 → 缓解：自动学习+客户自定义双模式</li>
+</ul>
+</div>
+
+<p style="text-align:center;color:#94a3b8;font-size:.82em;margin-top:28px">误报治理 项目详情 | 26H2 | 2026年5月</p>
+
+</body>
+</html>
