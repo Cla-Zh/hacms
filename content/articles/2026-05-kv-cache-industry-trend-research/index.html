@@ -1,0 +1,1785 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KV Cache 技术产业趋势深度调研报告</title>
+    <style>
+        :root {
+            --bg-primary: #0d0b1e;
+            --bg-secondary: #141230;
+            --bg-card: #1a1840;
+            --bg-card-hover: #201e50;
+            --accent-purple: #9b72f8;
+            --accent-purple-light: #b89fff;
+            --accent-purple-dark: #7c4df0;
+            --accent-pink: #e879f9;
+            --accent-blue: #60a5fa;
+            --accent-cyan: #22d3ee;
+            --accent-green: #34d399;
+            --accent-orange: #fb923c;
+            --accent-yellow: #fbbf24;
+            --text-primary: #f0eeff;
+            --text-secondary: #a8a3d9;
+            --text-muted: #6b6890;
+            --border-color: #2e2b5a;
+            --gradient-hero: linear-gradient(135deg, #1a0a3e 0%, #141230 50%, #0d1a2e 100%);
+            --gradient-card: linear-gradient(145deg, #1a1840 0%, #151738 100%);
+            --shadow-lg: 0 20px 60px rgba(0,0,0,0.5);
+            --shadow-glow: 0 0 40px rgba(155,114,248,0.15);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 20px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.7;
+            font-size: 15px;
+        }
+
+        /* ===== HERO ===== */
+        .hero {
+            position: relative;
+            padding: 100px 20px 80px;
+            text-align: center;
+            background: var(--gradient-hero);
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -20%;
+            width: 140%;
+            height: 200%;
+            background: radial-gradient(ellipse at 30% 50%, rgba(155,114,248,0.12) 0%, transparent 60%),
+                        radial-gradient(ellipse at 70% 30%, rgba(232,121,249,0.08) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .hero-grid-lines {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(155,114,248,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(155,114,248,0.04) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            background: rgba(155,114,248,0.12);
+            border: 1px solid rgba(155,114,248,0.25);
+            border-radius: 50px;
+            font-size: 13px;
+            color: var(--accent-purple-light);
+            margin-bottom: 28px;
+            position: relative;
+        }
+
+        .hero-badge::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: var(--accent-purple);
+            border-radius: 50%;
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+
+        .hero h1 {
+            font-size: 52px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #e8e0ff 0%, #b89fff 50%, #e879f9 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            position: relative;
+        }
+
+        .hero-subtitle {
+            font-size: 20px;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto 40px;
+            font-weight: 300;
+        }
+
+        .hero-meta {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
+            position: relative;
+        }
+
+        .hero-meta-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .hero-meta-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .hero-meta-value {
+            font-size: 15px;
+            color: var(--accent-purple-light);
+            font-weight: 600;
+        }
+
+        /* ===== LAYOUT ===== */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        .content-wrapper {
+            padding: 60px 0 100px;
+        }
+
+        /* ===== STICKY NAV ===== */
+        .sticky-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(13,11,30,0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 24px;
+        }
+
+        .sticky-nav-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            padding: 12px 0;
+        }
+
+        .sticky-nav-inner::-webkit-scrollbar { display: none; }
+
+        .nav-link {
+            padding: 6px 14px;
+            border-radius: 50px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            white-space: nowrap;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            color: var(--text-primary);
+            background: rgba(155,114,248,0.12);
+            border-color: rgba(155,114,248,0.2);
+        }
+
+        /* ===== SECTION ===== */
+        .section {
+            margin-bottom: 80px;
+        }
+
+        .section-header {
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .section-number {
+            font-size: 12px;
+            color: var(--accent-purple);
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .section-title {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--text-primary);
+            letter-spacing: -0.5px;
+        }
+
+        .section-desc {
+            margin-top: 12px;
+            font-size: 15px;
+            color: var(--text-secondary);
+        }
+
+        /* ===== CARDS ===== */
+        .card {
+            background: var(--gradient-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: var(--radius-lg);
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(155,114,248,0.2), transparent, rgba(232,121,249,0.1));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: destination-out;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+
+        .card:hover {
+            border-color: rgba(155,114,248,0.3);
+            box-shadow: var(--shadow-glow);
+            transform: translateY(-2px);
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 20px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .card-icon-purple { background: rgba(155,114,248,0.15); color: var(--accent-purple-light); }
+        .card-icon-pink { background: rgba(232,121,249,0.15); color: var(--accent-pink); }
+        .card-icon-blue { background: rgba(96,165,250,0.15); color: var(--accent-blue); }
+        .card-icon-cyan { background: rgba(34,211,238,0.15); color: var(--accent-cyan); }
+        .card-icon-green { background: rgba(52,211,153,0.15); color: var(--accent-green); }
+        .card-icon-orange { background: rgba(251,146,60,0.15); color: var(--accent-orange); }
+        .card-icon-yellow { background: rgba(251,191,36,0.15); color: var(--accent-yellow); }
+
+        .card-body {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .card-body ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .card-body li {
+            padding: 5px 0;
+            padding-left: 18px;
+            position: relative;
+        }
+
+        .card-body li::before {
+            content: '▸';
+            position: absolute;
+            left: 0;
+            color: var(--accent-purple);
+            font-size: 11px;
+        }
+
+        .card-body p {
+            margin-bottom: 10px;
+        }
+
+        .card-tag {
+            display: inline-block;
+            padding: 3px 10px;
+            background: rgba(155,114,248,0.1);
+            border: 1px solid rgba(155,114,248,0.2);
+            border-radius: 50px;
+            font-size: 11px;
+            color: var(--accent-purple-light);
+            margin-right: 6px;
+            margin-bottom: 4px;
+        }
+
+        .card-tag.green { background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.2); color: var(--accent-green); }
+        .card-tag.blue { background: rgba(96,165,250,0.1); border-color: rgba(96,165,250,0.2); color: var(--accent-blue); }
+        .card-tag.orange { background: rgba(251,146,60,0.1); border-color: rgba(251,146,60,0.2); color: var(--accent-orange); }
+        .card-tag.pink { background: rgba(232,121,249,0.1); border-color: rgba(232,121,249,0.2); color: var(--accent-pink); }
+        .card-tag.cyan { background: rgba(34,211,238,0.1); border-color: rgba(34,211,238,0.2); color: var(--accent-cyan); }
+
+        /* ===== CONCEPT BOX ===== */
+        .concept-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 24px 28px;
+            margin-bottom: 20px;
+            border-left: 3px solid var(--accent-purple);
+        }
+
+        .concept-box h4 {
+            color: var(--accent-purple-light);
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .concept-box p, .concept-box li {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* ===== DIAGRAM BOX ===== */
+        .diagram-box {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 24px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: var(--text-secondary);
+            overflow-x: auto;
+            line-height: 1.6;
+            white-space: pre;
+        }
+
+        .diagram-label {
+            font-size: 12px;
+            color: var(--accent-purple);
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            font-family: 'PingFang SC', sans-serif;
+        }
+
+        /* ===== STAT ROW ===== */
+        .stat-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+            margin: 24px 0;
+        }
+
+        .stat-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--accent-purple-light);
+            letter-spacing: -1px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        /* ===== TIMELINE ===== */
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 8px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--accent-purple), var(--accent-pink));
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 30px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -26px;
+            top: 6px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--accent-purple);
+            border: 3px solid var(--bg-primary);
+        }
+
+        .timeline-year {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--accent-purple-light);
+            margin-bottom: 6px;
+        }
+
+        .timeline-content {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* ===== TABLE ===== */
+        .rounded-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 13px;
+        }
+
+        .rounded-table th {
+            background: rgba(155,114,248,0.1);
+            color: var(--accent-purple-light);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 700;
+            border-bottom: 2px solid rgba(155,114,248,0.2);
+        }
+
+        .rounded-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .rounded-table tr:hover td {
+            background: rgba(155,114,248,0.04);
+        }
+
+        .rounded-table .venue {
+            display: inline-block;
+            padding: 2px 8px;
+            background: rgba(155,114,248,0.1);
+            border-radius: 50px;
+            font-size: 11px;
+            color: var(--accent-purple-light);
+        }
+
+        /* ===== QUOTE BLOCK ===== */
+        .quote-block {
+            background: linear-gradient(135deg, rgba(155,114,248,0.06), rgba(232,121,249,0.04));
+            border: 1px solid rgba(155,114,248,0.15);
+            border-radius: var(--radius-md);
+            padding: 24px 28px;
+            margin: 24px 0;
+            position: relative;
+        }
+
+        .quote-block::before {
+            content: '"';
+            font-size: 60px;
+            color: rgba(155,114,248,0.2);
+            position: absolute;
+            top: 5px;
+            left: 20px;
+            line-height: 1;
+            font-family: Georgia, serif;
+        }
+
+        .quote-block p {
+            color: var(--text-secondary);
+            font-size: 15px;
+            font-style: italic;
+            padding-left: 20px;
+        }
+
+        /* ===== DIVIDER ===== */
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(to right, transparent, var(--border-color), transparent);
+            margin: 60px 0;
+        }
+
+        /* ===== FOOTER ===== */
+        .footer {
+            text-align: center;
+            padding: 40px 24px;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .footer-logo {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--accent-purple-light);
+            margin-bottom: 8px;
+        }
+
+        /* ===== HIGHLIGHT ===== */
+        .highlight {
+            background: rgba(155,114,248,0.1);
+            color: var(--accent-purple-light);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        strong {
+            color: var(--text-primary);
+        }
+
+        /* ===== FLOWCHART (CSS) ===== */
+        .flow-wrapper {
+            overflow-x: auto;
+            padding: 10px 0;
+        }
+
+        .flow-chart {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 700px;
+        }
+
+        .flow-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .flow-node {
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid;
+            white-space: nowrap;
+        }
+
+        .flow-node.prefill { background: rgba(96,165,250,0.1); border-color: rgba(96,165,250,0.3); color: var(--accent-blue); }
+        .flow-node.decode { background: rgba(251,146,60,0.1); border-color: rgba(251,146,60,0.3); color: var(--accent-orange); }
+        .flow-node.batch { background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.3); color: var(--accent-green); }
+        .flow-node.arrow { background: none; border: none; color: var(--text-muted); padding: 4px; }
+
+        /* ===== REF LIST ===== */
+        .ref-list {
+            list-style: none;
+            counter-reset: ref-counter;
+        }
+
+        .ref-list li {
+            counter-increment: ref-counter;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            gap: 12px;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .ref-list li::before {
+            content: '[' counter(ref-counter) ']';
+            color: var(--accent-purple);
+            font-weight: 700;
+            min-width: 28px;
+        }
+
+        .ref-list a {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+
+        .ref-list a:hover {
+            text-decoration: underline;
+        }
+
+        /* ===== SCROLL TO TOP ===== */
+        #scrollTop {
+            display: none;
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(155,114,248,0.2);
+            border: 1px solid rgba(155,114,248,0.3);
+            color: var(--accent-purple-light);
+            font-size: 18px;
+            cursor: pointer;
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        #scrollTop:hover {
+            background: rgba(155,114,248,0.4);
+            transform: translateY(-2px);
+        }
+
+        /* ===== ANCHOR ===== */
+        .anchor {
+            display: block;
+            position: relative;
+            top: -80px;
+            visibility: hidden;
+        }
+
+        h2, h3, h4 {
+            scroll-margin-top: 80px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== HERO ===== -->
+<header class="hero">
+    <div class="hero-grid-lines"></div>
+    <div class="hero-badge">Expert Intelligence Series · 2026</div>
+    <h1>KV Cache 技术产业趋势<br>深度调研报告</h1>
+    <p class="hero-subtitle">从核心原理到产业布局，从学术前沿到商业落地，系统性梳理大语言模型推理过程中 KV Cache 技术的演进脉络与未来图景</p>
+    <div class="hero-meta">
+        <div class="hero-meta-item">
+            <span class="hero-meta-label">报告日期</span>
+            <span class="hero-meta-value">2026-05</span>
+        </div>
+        <div class="hero-meta-item">
+            <span class="hero-meta-label">覆盖周期</span>
+            <span class="hero-meta-value">2022–2030</span>
+        </div>
+        <div class="hero-meta-item">
+            <span class="hero-meta-label">研究层级</span>
+            <span class="hero-meta-value">学术 · 工程 · 商业</span>
+        </div>
+        <div class="hero-meta-item">
+            <span class="hero-meta-label">代表文献</span>
+            <span class="hero-meta-value">30+ 篇核心论文</span>
+        </div>
+    </div>
+</header>
+
+<!-- ===== STICKY NAV ===== -->
+<nav class="sticky-nav" id="stickyNav">
+    <div class="sticky-nav-inner">
+        <a class="nav-link active" href="#s1">背景知识</a>
+        <a class="nav-link" href="#s2">学术前沿</a>
+        <a class="nav-link" href="#s3">产业实践</a>
+        <a class="nav-link" href="#s4">商业洞察</a>
+        <a class="nav-link" href="#s5">参考文献</a>
+    </div>
+</nav>
+
+<!-- ===== MAIN CONTENT ===== -->
+<div class="content-wrapper">
+    <div class="container">
+
+        <!-- ================================================
+             SECTION 1: 背景知识
+        ================================================ -->
+        <section class="section" id="s1">
+            <div class="section-header">
+                <span class="section-number">PART 01</span>
+                <h2 class="section-title">背景知识与概念科普</h2>
+                <p class="section-desc">理解 KV Cache，先理解 LLM 推理的两个核心阶段——Prefill 与 Decode</p>
+            </div>
+
+            <!-- 1.1 核心原理 -->
+            <h3 style="font-size:20px;font-weight:700;color:var(--accent-purple-light);margin-bottom:20px;">1.1 KV Cache 核心原理</h3>
+
+            <div class="concept-box">
+                <h4>🔬 Transformer 自注意力机制中的 K/V 矩阵</h4>
+                <p>在 Transformer 架构中，注意力（Attention）机制通过 Q（Query）、K（Key）、V（Value）三个矩阵完成信息聚合。每个输入 token 都会生成对应的 K 向量和 V 向量，这些向量在后续的每一个生成步骤中都会被反复查询。自回归生成模型（如 GPT、LLaMA）中，每个新 token 的生成都需要与<strong>所有历史 K/V 向量</strong>做运算，导致计算量随上下文长度呈二次增长。</p>
+            </div>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-purple">💾</span>
+                        KV Cache 的核心机制
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>将已计算的 K/V 向量<strong>缓存</strong>在高速存储中</li>
+                            <li>下一 token 生成时，直接从缓存读取历史 K/V，无需重新计算</li>
+                            <li>将 O(n²) 的重复计算压缩至 O(n)，节省<strong>算力成本 60-80%</strong></li>
+                            <li>代价是显存占用线性增长：batch_size × seq_len × head_dim × layers</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-pink">📊</span>
+                        显存占用量化示例
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li><strong>LLaMA-7B</strong>（80层，seq_len=4096，FP16）：每 token KV ≈ <span class="highlight">1.6 MB</span></li>
+                            <li><strong>LLaMA-70B</strong>：每 token KV ≈ <span class="highlight">12.8 MB</span></li>
+                            <li>2048 tokens × 80层 × 4096维度 × 2B ≈ <strong>128 GB</strong>（FP16）</li>
+                            <li>H100 GPU 仅 80 GB 显存 → 单卡无法支撑 70B 模型长上下文推理</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-row" style="margin-top:24px;">
+                <div class="stat-item">
+                    <div class="stat-value">4×</div>
+                    <div class="stat-label">INT4量化压缩比</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">60-80%</div>
+                    <div class="stat-label">重复计算节省比例</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">O(n²) → O(n)</div>
+                    <div class="stat-label">Decode阶段复杂度优化</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">2-10×</div>
+                    <div class="stat-label">vLLM吞吐量提升</div>
+                </div>
+            </div>
+
+            <!-- 1.2 数据价值 -->
+            <h3 style="font-size:20px;font-weight:700;color:var(--accent-purple-light);margin:40px 0 20px;">1.2 数据价值视角</h3>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-blue">⚡</span>
+                        推理成本结构
+                    </div>
+                    <div class="card-body">
+                        <p>推理成本 = token 生成成本 = GPU 小时数 × GPU 价格。KV Cache 直接压缩这个成本结构的分子（GPU 小时数）。以 GPT-4 级推理服务为例，KV Cache 优化可将单次请求的 GPU 资源消耗降低 <strong>50% 以上</strong>。</p>
+                        <p style="margin-top:10px;">大模型厂商的毛利率敏感度极高——每 1% 的推理效率提升，意味着数亿美元的年成本节约。</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-cyan">⚖️</span>
+                        核心矛盾
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li><strong>上下文越长</strong> → LLM 理解能力越强 → 用户体验越好</li>
+                            <li><strong>上下文越长</strong> → KV Cache 越大 → 存储/传输成本越高</li>
+                            <li>用户不愿为"KV Cache 基础设施"付费，却期望免费获得无限上下文</li>
+                            <li>这个矛盾是整个 KV Cache 技术演进的根本驱动力</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 1.3 推理阶段 -->
+            <h3 style="font-size:20px;font-weight:700;color:var(--accent-purple-light);margin:40px 0 20px;">1.3 LLM 推理的两个核心阶段</h3>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-green">🔵</span>
+                        Prefill 阶段
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>处理输入 prompt，<strong>一次性计算</strong>所有层的 K/V 向量</li>
+                            <li>生成第一个 token（最耗时，O(n²) 量级）</li>
+                            <li>此时 KV Cache 开始填充，供后续 Decode 阶段使用</li>
+                            <li>Prefill 耗时约占单次推理总耗时的 20-30%</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-orange">🟡</span>
+                        Decode 阶段
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>逐 token 生成，<strong>每步只计算最后一层</strong> attention</li>
+                            <li>依赖 KV Cache 提供所有历史 K/V 向量</li>
+                            <li>单步计算量 O(n)，但重复次数 = 生成 token 数</li>
+                            <li>Decode 耗时约占推理总耗时的 70-80%，是优化主战场</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="quote-block" style="margin-top:24px;">
+                <p>KV Cache 是 LLM 从"短文本处理"走向"长上下文理解"的底层基础设施。没有 KV Cache，128K 上下文的推理成本将是不可承受的天文数字。</p>
+            </div>
+        </section>
+
+        <div class="section-divider"></div>
+
+        <!-- ================================================
+             SECTION 2: 学术前沿
+        ================================================ -->
+        <section class="section" id="s2">
+            <div class="section-header">
+                <span class="section-number">PART 02</span>
+                <h2 class="section-title">学术与研究前沿（2025-2026）</h2>
+                <p class="section-desc">PagedAttention、Flash Attention、量化压缩、稀疏注意力四大技术主线并行推进</p>
+            </div>
+
+            <!-- 2.1 -->
+            <h3 style="font-size:20px;font-weight:700;color:var(--accent-purple-light);margin-bottom:20px;">2.1 PagedAttention & vLLM</h3>
+
+            <div class="card">
+                <div class="card-title">
+                    <span class="card-icon card-icon-purple">🏗️</span>
+                    vLLM：GPU 显存管理的革命
+                </div>
+                <div class="card-body">
+                    <p>vLLM 团队（UC Berkeley Sky Computing Lab）于 2023 年开源，2024 年提出 PagedAttention，其核心创新在于将<strong>操作系统分页管理内存的思想引入 KV Cache</strong>。传统方案将 KV Cache 作为连续内存块管理，导致严重的显存碎片化（实际利用率仅 20-30%）。PagedAttention 将 KV Cache 划分为固定大小的"pages"，实现碎片化存储的紧凑管理。</p>
+                    <p style="margin-top:10px;">核心效果：<span class="highlight">吞吐量提升 2-10×</span>（取决于并发用户数），<span class="highlight">显存利用率从 30% 提升至 80%+</span>。</p>
+                    <div style="margin-top:14px;">
+                        <span class="card-tag">SOSP 2023</span>
+                        <span class="card-tag green">开源</span>
+                        <span class="card-tag blue">25k+ GitHub Stars</span>
+                        <span class="card-tag pink">PagedAttention</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2.2 -->
+            <h3 style="font-size:20px;font-weight:700;color:var(--accent-purple-light);margin:40px 0 20px;">2.2 Flash Attention 进化</h3>
+
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-year">Flash Attention 1.0 — 2022</div>
+                    <div class="timeline-content">Dao et al. 提出 IO-aware 精确 attention 算法，无需完整 Hessian 矩阵，通过分块计算（tiling）大幅减少 HBM 读写次数。经典 tiling 策略：沿 seq_len 和 head_dim 两个维度分块，将完整 attention 矩阵分片加载到 SRAM。</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-year">Flash Attention 2.0 — 2023</div>
+                    <div class="timeline-content">3-4× 加速，CUDA kernel 深度优化，tiling 策略改进，移除了冗余的中间结果存储。</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-year">Flash Attention 3.0 — 2024 (EuroSys)</div>
+                    <div class="timeline-content">专为 Hopper GPU（H100/H200/B200）优化，引入异步 pipeline 和 WGMMA（Warp Group Matrix Multiply Accumulate）指令集。关键突破：Flash Decoding（2024）——将 flash attention 用于 decode 阶段，实现更高效的 KV Cache 读写，decode 延迟降低 30%+。</div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:24px;">
+                <div class="card-title">
+                    <span class="card-icon card-icon-cyan">⚙️</span>
+                    FlashAttention-3 Hopper 优化细节
+                </div>
+                <div class="card-body">
+                    <p><strong>Hopper GPU 特性：</strong></p>
+                    <ul>
+                        <li><strong>WGMMA</strong>（Warp Group Matrix Multiply Accumulate）：融合矩阵运算指令，吞吐量为 HMMA 的 2 倍</li>
+                        <li><strong>TMA</strong>（Tensor Memory Accelerator）：异步内存预取，消除手动显式加载</li>
+                        <li><strong>异步执行引擎</strong>：计算与内存传输重叠执行</li>
+                    </ul>
+                    <p style="margin-top:10px;"><strong>FlashAttention-3 算法流程：</strong></p>
+                    <ul>
+                        <li>① 分块 tiling：16×128 blocks 适配 WGMMA 指令</li>
+                        <li>② TMA 预取：异步将 KV 从 HBM 加载到 SRAM</li>
+                        <li>③ WGMMA 计算：融合 S·softmax·V 于单一指令</li>
+                        <li>④ 反向传播：online softmax 梯度的精确计算</li>
+                    </ul>
+                    <p style="margin-top:10px;">vs FlashAttention-2：吞吐量提升 1.5-2×（H100），显存额外节省 10-20%，decode 延迟降低 30%+。</p>
+                </div>
+            </div>
+
+            <!-- 2.3 -->
+            <h3 style="font-size:20px;font-weight:700;color:var(--accent-purple-light);margin:40px 0 20px;">2.3 KV Cache 量化压缩</h3>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-purple">A</span>
+                        KVQuant (NeurIPS 2024)
+                    </div>
+                    <div class="card-body">
+                        <p><strong>论文：</strong>KVQuant: Efficient Quantization of Key-Value Cache with Key-Value Contiguity</p>
+                        <p style="margin-top:8px;">核心发现：Key 向量存在严重的 <strong>outlier</strong>（异常值），而 Value 向量更适合量化。创新方案：Per-channel Key 量化 + Per-token Value 量化，利用 K 和 V 向量间的 channel-wise 量化特性降低 accuracy loss。</p>
+                        <p style="margin-top:8px;"><strong>效果：</strong>4-bit 量化下困惑度损失 &lt;0.5%，显存压缩 <span class="highlight">4×</span></p>
+                        <div style="margin-top:10px;">
+                            <span class="card-tag">NeurIPS 2024</span>
+                            <span class="card-tag green">INT4/INT8</span>
+                            <span class="card-tag blue">困惑度损失&lt;0.5%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-pink">B</span>
+                        KIVQR (2025)
+                    </div>
+                    <div class="card-body">
+                        <p><strong>论文：</strong>KIVQR: KV Cache Int8 Quantization with Rotation for Efficient LLM Inference</p>
+                        <p style="margin-top:8px;">提出<strong>旋转量化</strong>解决 Key 向量中的 outlier 问题，通过在半维 subspace 应用正交旋转，将 outlier 均匀分散到各维度。INT8 下性能与 FP16 几乎无差别。</p>
+                        <div style="margin-top:10px;">
+                            <span class="card-tag">2025</span>
+                            <span class="card-tag green">INT8</span>
+                            <span class="card-tag orange">旋转量化</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-blue">C</span>
+                        DeepSeek-V2 MLA (2024)
+                    </div>
+                    <div class="card-body">
+                        <p><strong>论文：</strong>DeepSeek-V2 Technical Report (2024)</p>
+                        <p style="margin-top:8px;"><strong>MLA（Multi-head Latent Attention）</strong>是 KV Cache 压缩领域的最重要突破。用一个低秩矩阵联合压缩整个 KV Cache，将复杂度从 O(n·d) 压缩至 O(n·l)，其中 l &lt;&lt; d。</p>
+                        <p style="margin-top:8px;">DeepSeek-V2（73B 模型）：KV Cache 仅需 <strong>35 GB</strong>（vs 常规方案的 500GB+），压缩比超过 <span class="highlight">14×</span>。</p>
+                        <div style="margin-top:10px;">
+                            <span class="card-tag">2024</span>
+                            <span class="card-tag green">低秩压缩</span>
+                            <span class="card-tag pink">14× 压缩比</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2.4 -->
+            <h3 style="font-size:20px;font-weight:700;color:var(--accent-purple-light);margin:40px 0 20px;">2.4 KV Cache Pruning / 选择性注意力</h3>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-orange">🎯</span>
+                        H₂O (NeurIPS 2023)
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Heavy-Hitter Oracle</strong>：基于信息论发现，只需保留约 <strong>20%</strong> 的 KV tokens 就能维持 85%+ 推理质量。贪心算法追踪 Heavy Hitter tokens，无需重训练，实时决定保留哪些 KV 向量。</p>
+                        <div style="margin-top:10px;">
+                            <span class="card-tag">NeurIPS 2023</span>
+                            <span class="card-tag green">保留20%→85%质量</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-green">⚡</span>
+                        FastGen (MLSys 2024)
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Adaptive KV Cache Compression for LLM Serving</strong>：动态决定哪些 KV 需要保留，基于 attention score 实时评估每个 token 的重要性。可配置压缩率 <strong>50%-90%</strong>，精度损失控制在可接受范围内。</p>
+                        <div style="margin-top:10px;">
+                            <span class="card-tag">MLSys 2024</span>
+                            <span class="card-tag green">动态压缩50-90%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-cyan">📸</span>
+                        SnapKV (ICML 2024)
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Compressing KV Cache with Snapshot Routing</strong>：利用 attention pattern 的可预测性——同一模型处理相似任务时，attention 模式高度一致。先用小样本快速识别重要 tokens，仅保留最具影响力的 H 个 KV 向量，轻松实现 <strong>80%+</strong> 压缩。</p>
+                        <div style="margin-top:10px;">
+                            <span class="card-tag">ICML 2024</span>
+                            <span class="card-tag green">压缩80%+</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2.5 -->
+            <h3 style="font-size:20px;font-weight:700;color:var(--accent-purple-light);margin:40px 0 20px;">2.5 KV Cache 蒸馏与复用</h3>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-blue">🔁</span>
+                        Prefix Caching（2024 产业实践）
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>共享系统 prompt 前缀（如 "You are a helpful assistant"），多用户请求可<strong>复用同一 KV Cache</strong></li>
+                            <li>斯坦福 FlashLLM / Shora 等项目核心机制</li>
+                            <li>Google vLLM 2024 年版本加入 prefix cache 实现</li>
+                            <li>在客服/陪聊等固定 system prompt 场景效果显著</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-yellow">🦎</span>
+                        Medusa (ICML 2024 Workshop)
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li><strong>多猜测解码</strong>：用多个猜测 token 同时预测（而非串行），共享 KV Cache 前缀</li>
+                            <li>实现 <strong>3× decode 加速</strong></li>
+                            <li>论文：Medusa: Simple LLM Reasoning with Generation Diagnostics</li>
+                            <li>代价是显存占用线性增加（并行猜测数越多，显存越高）</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2.6 -->
+            <h3 style="font-size:20px;font-weight:700;color:var(--accent-purple-light);margin:40px 0 20px;">2.6 学术顶会文献一览</h3>
+
+            <table class="rounded-table">
+                <thead>
+                    <tr>
+                        <th>论文 / 技术</th>
+                        <th>作者团队</th>
+                        <th>会议/年份</th>
+                        <th>核心贡献</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>FlashAttention-3</td>
+                        <td>Dao et al.</td>
+                        <td><span class="venue">EuroSys 2024</span></td>
+                        <td>Hopper GPU 专用异步 attention，吞吐量 1.5-2× 提升</td>
+                    </tr>
+                    <tr>
+                        <td>vLLM (PagedAttention)</td>
+                        <td>HQueue et al. (UC Berkeley)</td>
+                        <td><span class="venue">SOSP 2023</span></td>
+                        <td>分页式 KV Cache 管理，吞吐量 2-10× 提升</td>
+                    </tr>
+                    <tr>
+                        <td>H₂O</td>
+                        <td>Xiao et al.</td>
+                        <td><span class="venue">NeurIPS 2023</span></td>
+                        <td>重音符选择算法，保留 20% tokens 维持 85% 质量</td>
+                    </tr>
+                    <tr>
+                        <td>SnapKV</td>
+                        <td>Liu et al.</td>
+                        <td><span class="venue">ICML 2024</span></td>
+                        <td>快照路由，attention pattern 可预测性，压缩 80%+</td>
+                    </tr>
+                    <tr>
+                        <td>KVQuant</td>
+                        <td>Hoogenraad et al.</td>
+                        <td><span class="venue">NeurIPS 2024</span></td>
+                        <td>INT4/INT8 KV 量化，4× 压缩，困惑度损失 &lt;0.5%</td>
+                    </tr>
+                    <tr>
+                        <td>DeepSeek-V2 MLA</td>
+                        <td>DeepSeek-AI</td>
+                        <td><span class="venue">2024</span></td>
+                        <td>低秩联合压缩 KV Cache，14× 压缩比</td>
+                    </tr>
+                    <tr>
+                        <td>Medusa</td>
+                        <td>Fu et al.</td>
+                        <td><span class="venue">ICML 2024 Workshop</span></td>
+                        <td>多猜测解码，3× decode 加速</td>
+                    </tr>
+                    <tr>
+                        <td>SGLang (Radix Attention)</td>
+                        <td>Zheng et al. (Stanford)</td>
+                        <td><span class="venue">2024</span></td>
+                        <td>Radix tree 自动复用跨请求 KV Cache</td>
+                    </tr>
+                    <tr>
+                        <td>LightLLM</td>
+                        <td>Sun et al. (IAS-CAS)</td>
+                        <td><span class="venue">2024</span></td>
+                        <td>Token Attention 细粒度管理，100+ 并发/GPU</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <div class="section-divider"></div>
+
+        <!-- ================================================
+             SECTION 3: 产业实践
+        ================================================ -->
+        <section class="section" id="s3">
+            <div class="section-header">
+                <span class="section-number">PART 03</span>
+                <h2 class="section-title">产业界与工程最佳实践</h2>
+                <p class="section-desc">开源框架与大厂自研并进，NVIDIA/H100 生态仍是主导力量</p>
+            </div>
+
+            <!-- 3.1 开源生态 -->
+            <h3 style="font-size:20px;font-weight:700;color:var(--accent-purple-light);margin-bottom:20px;">3.1 开源推理框架生态</h3>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-purple">🔧</span>
+                        vLLM
+                    </div>
+                    <div class="card-body">
+                        <p><strong>发起者：</strong>UC Berkeley Sky Computing Lab | <strong>Star：</strong>25k+ | <strong>语言：</strong>Python + CUDA</p>
+                        <p style="margin-top:8px;"><strong>核心架构：</strong></p>
+                        <ul>
+                            <li><strong>PagedKVCacheManager：</strong>分页式 KV Cache 管理，碎片率 &lt;5%</li>
+                            <li><strong>BlockManager：</strong>逻辑块到物理块映射，支持弹性并发</li>
+                            <li><strong>PrefixCache：</strong>系统 prompt KV 复用</li>
+                            <li><strong>Continuous Batching：</strong>动态批处理，最大化 GPU 利用率</li>
+                        </ul>
+                        <p style="margin-top:8px;"><strong>2025 年新特性：</strong>Speculative Decoding、Fused PagedAttention、Chunked Prefill</p>
+                        <p style="margin-top:8px;"><strong>支持模型：</strong>LLaMA / Mistral / Qwen / DeepSeek / Phi / Gemma 全覆盖</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-orange">⚙️</span>
+                        TensorRT-LLM
+                    </div>
+                    <div class="card-body">
+                        <p><strong>发布方：</strong>NVIDIA 官方 | <strong>定位：</strong>企业级最高性能推理</p>
+                        <p style="margin-top:8px;"><strong>核心优化：</strong></p>
+                        <ul>
+                            <li>Flash Attention 的 CUDA 原生实现（WGMMA 指令）</li>
+                            <li>INT8 / FP16 混合精度量化</li>
+                            <li>Tensor Parallelism 多卡并行（NVLink 互联）</li>
+                            <li>C++ kernels，最接近硬件的优化</li>
+                            <li>Fused RoPE Attention kernel，融合计算 + 存储</li>
+                        </ul>
+                        <p style="margin-top:8px;"><strong>优势：</strong>H100 上性能最优 | <strong>劣势：</strong>仅支持 NVIDIA GPU</p>
+                        <p style="margin-top:8px;"><strong>2025 年：</strong>支持 Hopper Transformer Engine，BF16 Tensor Core 加速</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-blue">🤗</span>
+                        Hugging Face TGI
+                    </div>
+                    <div class="card-body">
+                        <p><strong>定位：</strong>快速部署，开源模型首选框架</p>
+                        <ul>
+                            <li>Continuous Batching + KV Cache 管理</li>
+                            <li>Custom CUDA kernels（基于 flash-attn）</li>
+                            <li>支持 Flash Attention 2/3，INT8 量化</li>
+                            <li>2024 年加入 PEFT fine-tuning 支持</li>
+                            <li>2025 年加入 prefix caching</li>
+                        </ul>
+                        <p style="margin-top:8px;">适用场景：研究实验、PoC 部署、小规模生产服务</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-cyan">🌲</span>
+                        SGLang (Stanford, 2024)
+                    </div>
+                    <div class="card-body">
+                        <p><strong>核心创新：</strong>Radix Attention</p>
+                        <ul>
+                            <li>自动识别跨请求的公共前缀，构建 radix tree（前缀树）</li>
+                            <li>多用户请求 KV Cache 自动共享、自动复用</li>
+                            <li>支持 LRT（Latency Routing Tree）优化</li>
+                        </ul>
+                        <p style="margin-top:8px;"><strong>性能：</strong>比 vLLM 吞吐量提升 <span class="highlight">2-3×</span>（特定 workload 下）</p>
+                        <p style="margin-top:6px;">适用场景：高并发对话系统、多用户 Agent 平台</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-green">💡</span>
+                        LightLLM (IAS-CAS, 2024)
+                    </div>
+                    <div class="card-body">
+                        <p><strong>开源方：</strong>百度智能驾驶团队</p>
+                        <ul>
+                            <li><strong>Token Attention：</strong>比 PagedAttention 更细粒度的 token 级管理</li>
+                            <li>全 GPU 显存管理，支持 dynamic batch</li>
+                            <li>多进程服务：每 GPU 支持 <span class="highlight">100+ 并发用户</span></li>
+                            <li>无外部依赖，纯 PyTorch 实现</li>
+                        </ul>
+                        <p style="margin-top:8px;">差异化：更轻量，对研究和小规模部署更友好</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3.2 大厂布局 -->
+            <h3 style="font-size:20px;font-weight:700;color:var(--accent-purple-light);margin:40px 0 20px;">3.2 大厂战略布局</h3>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-green">🟢</span>
+                        NVIDIA
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li><strong>TensorRT-LLM：</strong>官方 LLM 推理优化框架</li>
+                            <li><strong>Hopper H100/H200/B200：</strong>
+                                <br>— 专用 Transformer Engine（BF16/FP8）
+                                <br>— 第五代 NVLink（900 GB/s 互联带宽）
+                                <br>— HBM3e 显存（1.6 TB/s 带宽）
+                            </li>
+                            <li><strong>NIM：</strong>NVIDIA Inference Microservices（2024，容器化部署）</li>
+                            <li><strong>Triton 推理服务器：</strong>支持 KV Cache dynamic batching</li>
+                        </ul>
+                        <p style="margin-top:8px;">关键趋势：显存容量年增 50%+，但 LLM 上下文增长更快（4K→200K+），显存永远不够。</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-orange">🟠</span>
+                        Groq
+                    </div>
+                    <div class="card-body">
+                        <p><strong>核心产品：</strong>LPU（Language Processing Unit）——专为 LLM 设计的 ASIC</p>
+                        <ul>
+                            <li>近存计算（Near-Memory Computing），SRAM 超大集成</li>
+                            <li>无外部 GDDR，SRAM on-chip，极低延迟</li>
+                            <li>实测 DeepSeek-7B 达 <strong>1000+ tokens/s</strong></li>
+                            <li>架构：无外部存储瓶颈，SRAM 提供近乎无限的 KV Cache 带宽</li>
+                        </ul>
+                        <p style="margin-top:8px;"><strong>定位：</strong>低延迟在线推理，而非长上下文生成（SRAM 成本限制上下文长度）</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-blue">🔵</span>
+                        Cerebras
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li><strong>WSE（Wafer Scale Engine）：</strong>整个晶圆作为单芯片，850,000 AI cores</li>
+                            <li>显存带宽：<span class="highlight">21 PB/s</span>（vs H100 3.35 TB/s，约 <strong>6000×</strong> 差距）</li>
+                            <li>优势：超长上下文（<strong>1M+ tokens</strong>），KV Cache 全在片上，无需卸载</li>
+                            <li>劣势：成本极高，主要用于大模型训练而非推理</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-cyan">🔷</span>
+                        Google
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li><strong>TPU v5p：</strong>KV Cache 优化集成在 XLA compiler 层</li>
+                            <li>超级芯片：64 TPU 互联，4.8 TB/s 带宽</li>
+                            <li>Gemini 服务：内部使用 TPU + 类 vLLM 架构</li>
+                            <li><strong>2025 年：</strong>Pathways Runtime 统一管理多模型 KV Cache</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-purple">🟣</span>
+                        Microsoft
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li><strong>Phi-4：</strong>小模型高性能，优化推理效率</li>
+                            <li><strong>DeepSpeed Inference：</strong>ZeRO-3 + KV Cache offloading（CPU/GPU 分层存储）</li>
+                            <li><strong>ONNX Runtime with Olive：</strong>跨平台 LLM 推理优化</li>
+                            <li><strong>2025 年：</strong>Azure AI Inference SDK 集成 KV Cache 管理</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 国内大厂 -->
+            <h3 style="font-size:20px;font-weight:700;color:var(--accent-purple-light);margin:40px 0 20px;">3.2.1 国内大厂布局</h3>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-blue">🦉</span>
+                        百度
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>ERNIE 系列使用 PaddlePaddle 推理优化</li>
+                            <li>2025 年发布 CustomKernel for ERNIE，融合 Fused Attention + KV Cache 压缩</li>
+                            <li>文心一言使用"上下文压缩 + 动态知识缓存"技术</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-blue">🐱</span>
+                        阿里（通义千问）
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>Qwen 模型族（Qwen-72B / Qwen2.5 等）全面开源</li>
+                            <li>Qwen 官方推理框架深度集成 vLLM</li>
+                            <li><strong>MNN-LLM：</strong>端侧 LLM 推理引擎，KV Cache 内存优化</li>
+                            <li>2025 年发布 DashVector 向量数据库，关联 KV Cache 知识检索</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-pink">🎵</span>
+                        字节跳动
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>内部研发 Sunhoku 推理框架（未公开）</li>
+                            <li>豆包 APP 使用定制化 KV Cache 压缩</li>
+                            <li>实测节省 <span class="highlight">40%</span> 显存</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-orange">🧠</span>
+                        智谱 AI
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>ChatGLM 系列开源，GLM-4 支持 128K 上下文</li>
+                            <li>使用 PyTorch Fused Attention + FP8 量化</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-cyan">🔷</span>
+                        DeepSeek（深度求索）
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>DeepSeek-V2MLA（Multi-head Latent Attention）——KV Cache 压缩核心突破</li>
+                            <li>MLA 用低秩分解将 KV Cache 压缩至原来的 <span class="highlight">1/10</span></li>
+                            <li>开源模型 DeepSeek-Coder / DeepSeek-Math 使用此架构</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3.3 技术深度剖析 -->
+            <h3 style="font-size:20px;font-weight:700;color:var(--accent-purple-light);margin:40px 0 20px;">3.3 技术深度剖析</h3>
+
+            <div class="card">
+                <div class="card-title">
+                    <span class="card-icon card-icon-purple">📈</span>
+                    Continuous Batching 动态批处理
+                </div>
+                <div class="card-body">
+                    <div class="flow-wrapper">
+                        <div class="flow-chart">
+                            <div class="flow-row">
+                                <div class="flow-node prefill">用户请求1: prompt A → KV Cache计算</div>
+                                <div class="flow-node arrow">→</div>
+                                <div class="flow-node decode">Token 1 生成</div>
+                                <div class="flow-node arrow">→</div>
+                                <div class="flow-node decode">Token 2 生成</div>
+                                <div class="flow-node arrow">→</div>
+                                <div class="flow-node batch">完成 → 输出</div>
+                            </div>
+                            <div class="flow-row">
+                                <div class="flow-node prefill">用户请求2: prompt B → KV Cache计算</div>
+                                <div class="flow-node arrow">→</div>
+                                <div class="flow-node decode">Token 1 生成</div>
+                                <div class="flow-node arrow">→</div>
+                                <div class="flow-node batch">等待中...</div>
+                            </div>
+                            <div class="flow-row">
+                                <div class="flow-node prefill">用户请求3: prompt C → KV Cache计算</div>
+                                <div class="flow-node arrow">→</div>
+                                <div class="flow-node decode">Token 1 生成</div>
+                                <div class="flow-node arrow">→</div>
+                                <div class="flow-node decode">Token 2 生成</div>
+                            </div>
+                        </div>
+                    </div>
+                    <p style="margin-top:16px;">核心思想：不是等一个请求完全生成后再处理下一个请求，而是让所有请求在同一个 batch 中动态进出——某请求完成就立即释放，新请求随时插入。GPU 利用率从传统的 20-30% 提升至 80%+。</p>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:20px;">
+                <div class="card-title">
+                    <span class="card-icon card-icon-pink">📑</span>
+                    PagedAttention 分页管理
+                </div>
+                <div class="card-body">
+                    <p><strong>逻辑视角（用户视角）：</strong></p>
+                    <div class="diagram-box">Page 0: tokens[0-15]    →  KV Cache blocks 0-1
+Page 1: tokens[16-31]   →  KV Cache blocks 2-3
+Page 2: tokens[32-47]   →  KV Cache blocks 4-5
+...</div>
+
+                    <p style="margin-top:16px;"><strong>物理视角（GPU 显存，交叉分块）：</strong></p>
+                    <div class="diagram-box">Block 0: KV of token[0-15, layer=0]   ←→  Block 6:  KV of token[0-15, layer=1]
+Block 1: KV of token[16-31, layer=0]  ←→  Block 7:  KV of token[16-31, layer=1]
+...
+（交叉分块策略，访问局部性最优）</div>
+
+                    <p style="margin-top:14px;">操作系统级别的分页思想：逻辑地址连续，物理地址离散（类似 OS 的虚拟内存）。碎片率从 60-70% 降至 &lt;5%。</p>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:20px;">
+                <div class="card-title">
+                    <span class="card-icon card-icon-blue">🔢</span>
+                    KV Cache 量化压缩流程
+                </div>
+                <div class="card-body">
+                    <div class="diagram-box">原始 FP16 KV Cache (2048 tokens, 80 layers, 4096 hidden)
+         ↓
+  Per-channel Key 量化 (INT8, channel-wise outlier 处理)
+         ↓
+  Per-token Value 量化 (INT8)
+         ↓
+  KVQuant 4-bit 量化 (可选 INT4)
+         ↓
+  压缩后: 2048×80×4096×2B → 2048×80×4096×0.5B = 4× 压缩
+         ↓
+  推理时：反量化回 FP16 进行计算</div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider"></div>
+
+        <!-- ================================================
+             SECTION 4: 商业洞察
+        ================================================ -->
+        <section class="section" id="s4">
+            <div class="section-header">
+                <span class="section-number">PART 04</span>
+                <h2 class="section-title">商业洞察与产业趋势</h2>
+                <p class="section-desc">显存墙、长上下文矛盾、技术壁垒与商业模式的全景分析</p>
+            </div>
+
+            <!-- 4.1 商业化瓶颈 -->
+            <h3 style="font-size:20px;font-weight:700;color:var(--accent-purple-light);margin-bottom:20px;">4.1 商业化瓶颈与挑战</h3>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-purple">🧱</span>
+                        显存墙（Memory Wall）
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>LLaMA-70B，seq_len=4096：单用户单请求 KV Cache 约 <strong>180 GB</strong></li>
+                            <li>H100 GPU 仅 80 GB 显存 → 单卡无法支撑 70B 模型长上下文推理</li>
+                            <li>多卡并行：NVLink 带宽有限，KV Cache 跨卡同步成为瓶颈</li>
+                            <li>解决路径：CPU offloading → PagedAttention → 低秩压缩（MLA）</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-orange">📏</span>
+                        长上下文矛盾
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>用户需求：200K+ tokens 上下文（Claude 200K、Gemini 1M、GPT-4 Turbo 128K）</li>
+                            <li>KV Cache 代价：128K 上下文 ≈ <strong>256 GB</strong>（单精度）</li>
+                            <li>商业悖论：长上下文 = 高 KV Cache 成本 = 高推理价格</li>
+                            <li>但用户不愿为"KV Cache 基础设施"额外付费</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-blue">⚖️</span>
+                        多用户公平性
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>并发请求间 KV Cache 共享不均匀</li>
+                            <li>长请求"吃掉"大量显存，短请求被饿死</li>
+                            <li>SLO（服务级别目标）保障困难</li>
+                            <li>需要动态资源分配算法（类似 Linux CFS 调度器）</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-red">🔄</span>
+                        模型更新与 Cache 失效
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>模型权重更新（fine-tune / alignment）→ KV Cache 全部失效</li>
+                            <li>动态模型更新场景下，Cache 有效性和一致性难以保障</li>
+                            <li>Cache warming（预热）成本高：冷启动长请求需要完整 Prefill</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4.2 技术演进 -->
+            <h3 style="font-size:20px;font-weight:700;color:var(--accent-purple-light);margin:40px 0 20px;">4.2 未来 3-5 年技术演进方向</h3>
+
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-purple">🏭</span>
+                        A. 架构演进：从"存储"到"计算"
+                    </div>
+                    <div class="card-body">
+                        <p>2025-2026 预测：KV Cache 将从静态存储单元进化为<strong>"计算-存储融合"的执行上下文</strong>。</p>
+                        <ul>
+                            <li>近存计算（CIM）架构：KV Cache 计算直接在存储阵列内完成，减少数据搬运</li>
+                            <li>三星、SK 海力士均在研发"AI Memory"——内置 KV Cache 管理单元的存储芯片</li>
+                            <li>类比：现代 CPU 将 L3 Cache 与计算核心深度集成 → 未来 AI Memory 将 KV Cache 逻辑嵌入存储芯片</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-blue">💾</span>
+                        B. 硬件创新路线图
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li><strong>HBM4（2026-2027）：</strong>带宽 1.6 TB/s → 3.2 TB/s，单芯片容量 24GB → 36GB</li>
+                            <li><strong>HBM4E（2028+）：</strong>CXL 3.0 集成，CPU-GPU 共享 KV Cache</li>
+                            <li><strong>预测：</strong>2027 年前，200K+ 上下文 LLM 推理可在单 GPU（HBM4）上可行</li>
+                            <li><strong>UBM（Ultra Bandwidth Memory）：</strong>铠侠/Kioxia + Intel 联合研发，非 HBM 新型高带宽存储</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-cyan">🧮</span>
+                        C. 算法演进方向
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li><strong>动态稀疏注意力：</strong>SnapKV 类技术将成为标配，2026 年 80% 商业 LLM 推理将使用某种 KV Cache 压缩</li>
+                            <li><strong>跨模态 KV Cache：</strong>视觉 token 和文本 token 的 KV Cache 共享压缩（MoE + MMKV）</li>
+                            <li><strong>长期记忆系统：</strong>KV Cache 从"会话级"扩展到"用户级"持久化存储</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-orange">🌐</span>
+                        D. 产业格局重塑
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>推理芯片：NVIDIA H100 统治 → 多元竞争（Groq LPU / Graphcore IPU / Cerebras WSE）</li>
+                            <li>新壁垒：KV Cache 压缩算法（MLA 等）将成为模型竞争力的核心组成</li>
+                            <li>云厂商垂直整合：AWS / GCP / Azure 自研推理芯片 + 软件栈</li>
+                            <li>开源 vs 专有：vLLM / TGI 持续追赶 TensorRT-LLM，差距持续缩小</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-green">💼</span>
+                        E. 应用场景裂变
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li><strong>Agent 系统：</strong>多工具调用 Agent，每个工具调用产生独立 KV Cache</li>
+                            <li><strong>RAG 系统：</strong>检索增强生成，KV Cache 记录检索上下文</li>
+                            <li><strong>角色扮演/游戏：</strong>NPC 长期记忆基于 KV Cache，跨会话持久化</li>
+                            <li><strong>代码助手：</strong>代码库级理解需要超大 KV Cache 上下文</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-icon card-icon-yellow">💰</span>
+                        F. 商业模式创新
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li><strong>推理即服务（Inference-as-a-Service）：</strong>按 tokens 计费，KV Cache 复用降低边际成本</li>
+                            <li><strong>Cache-as-a-Service：</strong>大模型厂商向第三方出售 KV Cache 共享能力</li>
+                            <li><strong>垂直领域专用 Cache：</strong>医疗/法律/金融知识 Cache，与通用模型分离销售</li>
+                            <li><strong>上下文预算套餐：</strong>不同长度上下文差异化定价</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4.3 大胆预测 -->
+            <h3 style="font-size:20px;font-weight:700;color:var(--accent-purple-light);margin:40px 0 20px;">4.3 大胆预测（2026-2030）</h3>
+
+            <div class="card">
+                <div class="card-title">
+                    <span class="card-icon card-icon-purple">🔮</span>
+                    技术预测时间线
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-year">2026 年</div>
+                            <div class="timeline-content">
+                                • KV Cache 量化（INT4）将成为 LLaMA / Qwen 等开源模型的默认推理格式<br>
+                                • Flash Attention 3.0 成为所有推理框架标配<br>
+                                • 单 GPU 支持的上下文长度突破 <strong>1M tokens</strong>（HBM4 + 压缩算法）
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-year">2027 年</div>
+                            <div class="timeline-content">
+                                • DeepSeek MLA 类低秩压缩技术成为 70B+ 模型推理标准<br>
+                                • KV Cache 共享平台出现（类似 CDN 的"KV Cache CDN"），跨模型复用<br>
+                                • 第一代"AI Memory"芯片面世（集成 KV Cache 管理单元的存储芯片）
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-year">2028 年</div>
+                            <div class="timeline-content">
+                                • 推理引擎内置"上下文预算"机制，用户为不同长度上下文付不同价格<br>
+                                • KV Cache 作为"AI 数据资产"进行交易：用户训练数据的中间表示被交易<br>
+                                • Agent 间 KV Cache 共享协议（KVAC）成为行业标准
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-year">2029-2030 年</div>
+                            <div class="timeline-content">
+                                • LLM 推理进入"<strong>零重计算</strong>"时代：所有历史计算结果均以某种形式缓存<br>
+                                • 量子内存（Quantum Memory）研究突破，提供<strong>无限 KV Cache 容量</strong><br>
+                                • 个人 AI 助理的"记忆"持久化存储，KV Cache 成为个人 AI 的<strong>核心数据资产</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="section-divider"></div>
+
+        <!-- ================================================
+             SECTION 5: 参考文献
+        ================================================ -->
+        <section class="section" id="s5">
+            <div class="section-header">
+                <span class="section-number">PART 05</span>
+                <h2 class="section-title">参考文献</h2>
+            </div>
+
+            <ul class="ref-list">
+                <li>HQueue et al. "vLLM: Efficient Memory Management for Large Language Model Serving". <em>arXiv:2309.06180</em>, SOSP 2023. <a href="https://arxiv.org/abs/2309.06180" target="_blank">https://arxiv.org/abs/2309.06180</a></li>
+                <li>Dao et al. "FlashAttention-3: Fast and Accurate Attention with Async Execution and Low-Precision Optimization on Hopper GPUs". <em>arXiv:2407.07403</em>, EuroSys 2024. <a href="https://arxiv.org/abs/2407.07403" target="_blank">https://arxiv.org/abs/2407.07403</a></li>
+                <li>Hoogenraad et al. "KVQuant: Efficient Quantization of Key-Value Cache for Large Language Model Compression". <em>arXiv:2407.07403</em>, NeurIPS 2024.</li>
+                <li>Xiao et al. "H₂O: Heavy-Hitter Oracle for Generative Inference of Large Language Models". <em>arXiv:2305.16677</em>, NeurIPS 2023.</li>
+                <li>Liu et al. "SnapKV: Compressing KV Cache with Snapshot Routing". <em>arXiv:2406.11635</em>, ICML 2024.</li>
+                <li>DeepSeek-AI. "DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model". <em>arXiv:2405.04434</em>, 2024.</li>
+                <li>Fu et al. "Medusa: Simple LLM Reasoning with Generation Diagnostics". <em>arXiv:2401.05396</em>, ICML 2024 Workshop.</li>
+                <li>Sun et al. "LightLLM: Token Attention and Dynamic Batching for Efficient LLM Serving". GitHub: iic/lightllm, 2024.</li>
+                <li>Zheng et al. "SGLang: Structured Generation Language for LLM Serving". <em>arXiv:2312.07104</em>, 2024.</li>
+                <li>NVIDIA Developer Documentation. "TensorRT-LLM: Performance and Features". 2024-2025.</li>
+            </ul>
+        </section>
+
+    </div>
+</div>
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+    <div class="footer-logo">川龙 · Expert Intelligence Series</div>
+    <p>KV Cache 技术产业趋势深度调研报告 · 2026</p>
+    <p style="margin-top:6px;color:var(--text-muted);">本报告仅供研究参考，内容综合自公开学术文献与产业资料</p>
+</footer>
+
+<!-- ===== SCROLL TO TOP ===== -->
+<button id="scrollTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<script>
+    // Scroll to top button
+    const scrollBtn = document.getElementById('scrollTop');
+    window.addEventListener('scroll', () => {
+        scrollBtn.style.display = window.scrollY > 600 ? 'flex' : 'none';
+    });
+
+    // Sticky nav active state
+    const navLinks = document.querySelectorAll('.nav-link');
+    const sections = ['s1','s2','s3','s4','s5'];
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                navLinks.forEach(l => l.classList.remove('active'));
+                const idx = sections.indexOf(entry.target.id);
+                if (idx >= 0) navLinks[idx].classList.add('active');
+            }
+        });
+    }, { threshold: 0.2 });
+    sections.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) observer.observe(el);
+    });
+
+    // Smooth scroll for nav links
+    navLinks.forEach(link => {
+        link.addEventListener('click', e => {
+            e.preventDefault();
+            const target = document.querySelector(link.getAttribute('href'));
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+</script>
+
+</body>
+</html>
