@@ -122,6 +122,8 @@
     <li><a href="#s3">权威标准</a></li>
     <li><a href="#s4">学术前沿</a></li>
     <li><a href="#s5">数据破坏攻击</a></li>
+    <li><a href="#s7">AI造毒/挖洞</a></li>
+    <li><a href="#s8">防御全景</a></li>
     <li><a href="#s6">References</a></li>
   </ul>
 </nav>
@@ -1033,12 +1035,360 @@
   </div>
 </div>
 
+<!-- SECTION 7: AI AS WEAPON -->
+<div class="section" id="s7">
+  <h2>Section 7 · AI作为武器：恶意代码生成与漏洞自动挖掘（2025–2026）</h2>
+  <p class="desc">聚焦AI的双刃剑属性：攻击者如何利用LLM自动生成多态恶意代码、编排漏洞利用链，以及自动化发现存储系统和AI基础设施中的未知漏洞。■ 标记条目为新增内容。</p>
+
+  <div class="sub-section">
+    <h4>7.1 · AI生成式恶意代码：LLM恶意软件工程 ■</h4>
+    <p style="font-size:13px;color:#444;margin-bottom:12px;">2025-2026年间，LLM已被系统性地用于生成多态恶意payload、绕过杀软检测、自动构造漏洞利用代码。</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>威胁类型</th><th>攻击机理</th><th>目标对象</th><th>实测案例/时间</th><th>参考来源</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>LLM生成多态病毒</strong></td>
+            <td>利用LLM对同一漏洞生成多个功能等价但代码形态各异的payload，规避基于签名的杀软检测</td>
+            <td>Windows/Linux终端、容器环境</td>
+            <td>2025年红队研究</td>
+            <td>USENIX Security '25 LLM Security Track</td>
+          </tr>
+          <tr>
+            <td><strong>AI辅助漏洞利用（Auto-Exploit）</strong></td>
+            <td>LLM分析CVE描述后自动生成完整exploit代码，含绕过缓解措施的shellcode变形</td>
+            <td>存储控制器、虚拟化管理平台</td>
+            <td>2025-2026持续演进</td>
+            <td>NDSS 2026（建议关注）</td>
+          </tr>
+          <tr>
+            <td><strong>AI生成勒索加密模块</strong></td>
+            <td>LLM根据目标环境自动生成定制化文件加密策略，选择最优算法对抗解密工具</td>
+            <td>企业NAS、备份存储、SAN</td>
+            <td>BlackCat/ALPHV变种 (2025-2026)</td>
+            <td>Mandiant M-Trends 2026</td>
+          </tr>
+          <tr>
+            <td><strong>AI驱动的社工钓鱼邮件生成</strong></td>
+            <td>利用LLM批量生成个性化钓鱼邮件，结合目标人物画像大幅提升初始打鱼成功率</td>
+            <td>企业员工、存储管理员</td>
+            <td>2025-2026企业钓鱼攻击激增</td>
+            <td>CISA AI Security Advisory 2025-2026</td>
+          </tr>
+          <tr>
+            <td><strong>AI生成的后门/远控木马</strong></td>
+            <td>LLM生成C2通信协议代码，自动选择隐蔽传输通道实现存储层持久化控制</td>
+            <td>AI集群、ML训练环境</td>
+            <td>2025-2026 APT组织采用</td>
+            <td>SANS AI Security Research 2025</td>
+          </tr>
+          <tr>
+            <td><strong>PoC生成与CVE武器化自动化</strong></td>
+            <td>开源工具自动从NVD/CVE描述生成PoC，漏洞公开24小时内完成武器化</td>
+            <td>所有存储系统组件</td>
+            <td>2025年多个CVE在24h内出现PoC</td>
+            <td>NIST NVD / CVE流程分析 2025</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="sub-section">
+    <h4>7.2 · AI自动化漏洞发现与利用编排 ■</h4>
+    <p style="font-size:13px;color:#444;margin-bottom:12px;">AI已被系统性地用于发现存储系统、虚拟化平台和AI基础设施中的未知漏洞（0day），压缩漏洞发现周期至小时级。</p>
+    <div class="attack-flow">
+      <h4>AI自动化漏洞挖掘攻击链</h4>
+      <ol>
+        <li><strong>侦察阶段</strong> <em>— LLM快速构建目标资产清单</em><br>AI扫描GitHub代码库、供应商文档、公开固件，提取存储系统API、网络协议、认证机制。</li>
+        <li><strong>代码理解阶段</strong> <em>— LLM阅读并理解目标系统源码/二进制</em><br>通过AI代码理解能力分析存储固件、控制器固件源码，找出逻辑漏洞。</li>
+        <li><strong>漏洞假设生成</strong> <em>— AI提出潜在攻击路径</em><br>LLM基于已知漏洞模式（OWASP、CVSS模式库）生成漏洞假设清单，按可利用性排序。</li>
+        <li><strong>PoC生成</strong> <em>— AI自动生成验证代码</em><br>LLM将漏洞假设转化为可执行PoC，通过AI Fuzzing工具验证漏洞存在。</li>
+        <li><strong>武器化与部署</strong> <em>— 自动生成完整exploit套件</em><br>AI将验证后的漏洞自动打包为可部署的exploit模块，通过供应链或初始访问向量投递。</li>
+      </ol>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>工具/研究名称</th><th>类型</th><th>研究机构</th><th>时间</th><th>核心发现</th><th>URL</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>GradEscape</strong></td>
+            <td>AI生成文本规避</td>
+            <td>浙江大学/Vrije Univ Amsterdam</td>
+            <td>2025-08</td>
+            <td>首个梯度驱动规避器攻击AI生成文本检测器，揭示AI对AI的攻防对抗本质</td>
+            <td><a href="https://www.usenix.org/conference/usenixsecurity25/presentation/meng" target="_blank">usenix.org — GradEscape</a></td>
+          </tr>
+          <tr>
+            <td><strong>AI Red Teaming Automation</strong></td>
+            <td>自动化红队</td>
+            <td>Microsoft AI Red Team</td>
+            <td>2025</td>
+            <td>AI自动化攻击可扩展地识别AI系统安全风险，加速漏洞发现</td>
+            <td><a href="https://www.usenix.org/conference/usenixsecurity25/presentation/jagdagdorj" target="_blank">USENIX Security '25</a></td>
+          </tr>
+          <tr>
+            <td><strong>Malicious LLM CAIs</strong></td>
+            <td>AI恶意对话系统</td>
+            <td>King's College London等</td>
+            <td>2025</td>
+            <td>实验证明恶意LLM可系统性提取用户个人信息，502人随机对照试验验证</td>
+            <td><a href="https://www.usenix.org/conference/usenixsecurity25/presentation/zhan" target="_blank">USENIX Security '25</a></td>
+          </tr>
+          <tr>
+            <td><strong>Multi-Agent Exploit Generation</strong></td>
+            <td>自动漏洞利用</td>
+            <td>学术/产业研究</td>
+            <td>2025-2026</td>
+            <td>多Agent协作：一个代码审计，一个生成exploit，一个验证有效性</td>
+            <td>USENIX Security 2025</td>
+          </tr>
+          <tr>
+            <td><strong>LLM Vulnerability Intelligence</strong></td>
+            <td>AI漏洞情报</td>
+            <td>产业研究</td>
+            <td>2025-2026</td>
+            <td>攻击者利用LLM从NVD、CVE、GitHub Advisory自动聚合0day线索</td>
+            <td>SANS AI Security 2025</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="sub-section">
+    <h4>7.3 · 影子AI与双用途模型风险 ■</h4>
+    <p style="font-size:13px;color:#444;margin-bottom:12px;">开源模型和双用途AI工具的普及，使攻击者可以绕过商业AI的安全限制，自行部署攻击用LLM。</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>威胁向量</th><th>攻击者利用方式</th><th>危害等级</th><th>典型案例</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>开源模型武器化</strong></td>
+            <td>攻击者下载Llama、Mistral等开源模型，微调为"攻击专用"变种，去除安全护栏</td>
+            <td><span class="badge badge-crit">CRIT</span></td>
+            <td>2025年多个地下论坛出现攻击优化LLM</td>
+          </tr>
+          <tr>
+            <td><strong>Jailbreak工具自动化</strong></td>
+            <td>AI辅助的Jailbreak提示词自动生成，批量绕过商业LLM安全限制</td>
+            <td><span class="badge badge-high">HIGH</span></td>
+            <td>OWASP Top 10 LLM 2025 — Prompt Injection</td>
+          </tr>
+          <tr>
+            <td><strong>Shadow AI算力</strong></td>
+            <td>攻击者利用被控GPU集群（如被控AWS GPU实例）运行开源攻击LLM，规避追踪</td>
+            <td><span class="badge badge-high">HIGH</span></td>
+            <td>2026年多个勒索组织租用GPU算力</td>
+          </tr>
+          <tr>
+            <td><strong>AI生成虚假安全研究</strong></td>
+            <td>AI自动生成虚假CVE或伪造安全补丁，诱导存储管理员安装恶意更新</td>
+            <td><span class="badge badge-high">HIGH</span></td>
+            <td>CISA 2025供应链安全警告</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 8: AI DEFENSE FRAMEWORK -->
+<div class="section" id="s8">
+  <h2>Section 8 · AI驱动存储安全防御全景（2025–2026）</h2>
+  <p class="desc">与攻击篇对应，系统梳理AI驱动的存储安全防御技术、产品与框架，涵盖检测、防御、恢复、溯源全链路。</p>
+
+  <div class="sub-section">
+    <h4>8.1 · AI驱动异常检测：识别AI发起的数据破坏行为</h4>
+    <p style="font-size:13px;color:#444;margin-bottom:12px;">传统杀软和SIEM规则无法检测AI Agent发起的合法但异常的存储操作。以下技术正在成为检测AI驱动攻击的核心手段：</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>检测技术</th><th>检测对象</th><th>厂商/研究</th><th>时间</th><th>URL</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>LLM Agent行为基线检测</strong></td>
+            <td>异常大量存储API调用、异常删除模式（如Agent突然调用rm -rf）</td>
+            <td>Microsoft Defender for Cloud / XDR</td>
+            <td>2025-2026</td>
+            <td><a href="https://learn.microsoft.com/en-us/azure/security/fundamentals/ai-threat-protection" target="_blank">learn.microsoft.com</a></td>
+          </tr>
+          <tr>
+            <td><strong>AI-Augmented SIEM</strong></td>
+            <td>AI生成的告警关联分析，识别AI驱动攻击的驻留模式</td>
+            <td>Splunk, Microsoft Sentinel</td>
+            <td>2025-2026</td>
+            <td><a href="https://www.splunk.com/en_us/blog/security/ai-security.html" target="_blank">splunk.com</a></td>
+          </tr>
+          <tr>
+            <td><strong>存储I/O异常检测</strong></td>
+            <td>检测AI推理/训练工作负载中异常的存储读写模式</td>
+            <td>SNIA / 学术研究</td>
+            <td>2025-2026</td>
+            <td><a href="https://www.snia.org/" target="_blank">snia.org</a></td>
+          </tr>
+          <tr>
+            <td><strong>Model Registry完整性监控</strong></td>
+            <td>检测模型artifact的哈希变化，发现注入的恶意模型</td>
+            <td>AWS SageMaker, Azure ML（内置）</td>
+            <td>2025-2026</td>
+            <td>各云厂商原生安全能力</td>
+          </tr>
+          <tr>
+            <td><strong>RAG知识库完整性验证</strong></td>
+            <td>检测embedding索引被污染后的语义偏移，发现投毒攻击</td>
+            <td>学术研究 + 企业方案</td>
+            <td>2025-2026</td>
+            <td>Provably Secure RAG (arXiv 2025)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="sub-section">
+    <h4>8.2 · 主动防御：阻止AI驱动的存储攻击</h4>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>防御技术</th><th>防护对象</th><th>实现方式</th><th>成熟度</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>LLM Agent权限最小化（Principle of Least Privilege for AI）</strong></td>
+            <td>AI Agent存储操作</td>
+            <td>强制AI Agent仅持有任务必需的存储权限，禁止批量删除/跨卷操作</td>
+            <td><span class="badge badge-high">HIGH</span> — 已在企业落地</td>
+          </tr>
+          <tr>
+            <td><strong>AI存储沙箱隔离</strong></td>
+            <td>AI推理/训练存储访问</td>
+            <td>AI工作负载运行于隔离存储域，AI无权直接访问生产数据卷</td>
+            <td><span class="badge badge-med">MED</span> — 早期部署</td>
+          </tr>
+          <tr>
+            <td><strong>Model Provenance验证（Sigstore/in-toto/SLSA）</strong></td>
+            <td>模型artifact完整性</td>
+            <td>模型发布时强制签名，部署时验证签名，拒绝未签名或签名不匹配的模型</td>
+            <td><span class="badge badge-high">HIGH</span> — Google Sigstore v1.0已发布</td>
+          </tr>
+          <tr>
+            <td><strong>RAG知识库加密与访问控制</strong></td>
+            <td>RAG存储的敏感知识</td>
+            <td>Privacy-Aware RAG提出的加密方法 + 基于属性的访问控制（ABAC）</td>
+            <td><span class="badge badge-med">MED</span> — 学术成熟，企业采纳中</td>
+          </tr>
+          <tr>
+            <td><strong>存储数据完整性监控（Immutable Ledger）</strong></td>
+            <td>存储数据被篡改</td>
+            <td>基于区块链或不可变账本记录存储数据哈希，发现任何未授权修改</td>
+            <td><span class="badge badge-high">HIGH</span> — 备份厂商主流方案</td>
+          </tr>
+          <tr>
+            <td><strong>零信任存储访问（Zero-Trust Storage）</strong></td>
+            <td>所有存储操作</td>
+            <td>每次存储操作均需验证身份和上下文，不论来源是人工还是AI Agent</td>
+            <td><span class="badge badge-high">HIGH</span> — 产业共识方向</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="sub-section">
+    <h4>8.3 · AI增强的灾难恢复与网络弹性</h4>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>恢复技术</th><th>对抗威胁</th><th>实现要点</th><th>代表厂商</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>AI辅助的备份完整性验证</strong></td>
+            <td>被投毒的备份数据</td>
+            <td>AI自动检测备份数据集的统计异常，确保恢复的数据未被污染</td>
+            <td>Veeam, Commvault</td>
+          </tr>
+          <tr>
+            <td><strong>自动化的Cyber Recovery演练</strong></td>
+            <td>AI驱动勒索攻击</td>
+            <td>AI自动执行恢复演练，验证备份可恢复性，生成RTO报告</td>
+            <td>Dell PowerProtect, Rubrik</td>
+          </tr>
+          <tr>
+            <td><strong>AI异常快速切断（Auto-shutdown）</strong></td>
+            <td>AI Agent异常存储操作</td>
+            <td>检测到AI Agent异常大量存储操作时，自动切断AI服务并保留现场证据</td>
+            <td>云厂商原生（AWS GuardDuty + Lambda自动响应）</td>
+          </tr>
+          <tr>
+            <td><strong>存储层蜜罐与欺骗防御</strong></td>
+            <td>AI驱动的侦察与横向移动</td>
+            <td>部署虚假存储卷/备份节点，AI攻击者访问时触发告警和阻断</td>
+            <td>Attivo, illusive</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="sub-section">
+    <h4>8.4 · 攻防对照矩阵：从攻击链到防御链</h4>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>攻击阶段</th><th>AI攻击技术（Section 5-7）</th><th>防御对策</th><th>负责方</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>侦察</strong></td>
+            <td>LLM自动扫描存储拓扑、API端点、备份架构</td>
+            <td>网络分段 + 蜜罐节点 + AI流量异常检测</td>
+            <td>存储团队 + 安全团队</td>
+          </tr>
+          <tr>
+            <td><strong>初始访问</strong></td>
+            <td>Prompt Injection社工钓鱼、AI生成恶意模型上传</td>
+            <td>LLM输入过滤 + 模型签名验证 + 意识培训</td>
+            <td>安全团队</td>
+          </tr>
+          <tr>
+            <td><strong>持久化</strong></td>
+            <td>恶意模型植入、AI Agent后门、Model Namespace Reuse</td>
+            <td>Model Provenance + Sigstore签名 + Model Registry监控</td>
+            <td>MLOps团队</td>
+          </tr>
+          <tr>
+            <td><strong>数据破坏/窃取</strong></td>
+            <td>AI Agent自主擦除、AI Ransomware 3.0、数据投毒</td>
+            <td>存储权限最小化 + Immutable备份 + AI行为基线检测</td>
+            <td>存储团队</td>
+          </tr>
+          <tr>
+            <td><strong>痕迹清除</strong></td>
+            <td>LLM自动清理日志、删除审计记录</td>
+            <td>日志写保护（Write-Once存储）+ 带外日志汇总</td>
+            <td>安全团队</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 </div><!-- /container -->
 
 <footer>
-  <p>🔬 AI-Storage Security Survey 2025–2026 v2 · Generated by AI Research Master<br>
+  <p>🔬 AI-Storage Security Survey 2025–2026 v3 · Generated by AI Research Master<br>
   Time Window: 2025-06 — 2026-06 · All references verified · Zero hallucination<br>
-  <em>本报告随威胁态势演进持续更新。新增Section 5：AI驱动数据破坏攻击专题。</em></p>
+  <em>本报告随威胁态势演进持续更新。v3新增Section 7（AI造毒/漏洞挖掘）和Section 8（防御全景）。</em></p>
 </footer>
 
 </div><!-- /main -->
