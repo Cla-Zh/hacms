@@ -14,6 +14,7 @@ MANUAL = {
     '2026-05-harness-agent-demo':      {'category': 'AI应用',     'tags': ['Harness', 'Agent', 'AI架构', 'Demo'],                           'date': '2026-05-21'},
     '2026-05-ai-trends-q2':            {'category': '安全',       'tags': ['AI趋势', '产业分析', '2026Q2', '研究报告'],                      'date': '2026-05-22'},
     '2026-05-multiagent-scientific-data': {'category': '安全',  'tags': ['多Agent', '科研数据', '数据治理', 'AI系统'],                      'date': '2026-05-23'},
+    '2026-06-ai-storage-security-survey': {'category': '安全', 'tags': ['AI安全', '存储安全', 'LLM攻击', '2025-2026'], 'date': '2026-06-06'},
 }
 
 # 自动从HTML提取日期的正则模式（按优先级尝试）
