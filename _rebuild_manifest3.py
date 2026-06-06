@@ -6,16 +6,33 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 # 手动指定已知文章（优先级最高）
 MANUAL = {
-    '2026-05-aicms-intro':            {'category': 'AI基础设施', 'tags': ['CMS', '去中心化', 'AAM', 'AI基础设施'],                             'date': '2026-05-15'},
-    '2026-05-ransomware-defense':     {'category': '安全',       'tags': ['勒索软件', '数据保护', '安全', '2025-2026'],                      'date': '2026-05-18'},
-    '2026-05-ransomware-false-positive': {'category': '安全',    'tags': ['误报', '安全运营', 'SOC', 'EDR'],                                  'date': '2026-05-18'},
-    '2026-05-dlp-storage-vendors':     {'category': '安全',       'tags': ['DLP', '存储安全', '数据防泄漏', '厂商分析'],                      'date': '2026-05-19'},
-    '2026-05-ueba-dlp':                {'category': '安全',       'tags': ['UEBA', 'DLP', '行为分析', '数据安全'],                           'date': '2026-05-20'},
-    '2026-05-harness-agent-demo':      {'category': 'AI应用',     'tags': ['Harness', 'Agent', 'AI架构', 'Demo'],                           'date': '2026-05-21'},
-    '2026-05-ai-trends-q2':            {'category': '安全',       'tags': ['AI趋势', '产业分析', '2026Q2', '研究报告'],                      'date': '2026-05-22'},
-    '2026-05-multiagent-scientific-data': {'category': '安全',  'tags': ['多Agent', '科研数据', '数据治理', 'AI系统'],                      'date': '2026-05-23'},
+    '2026-05-ai-storage-infrastructure': {'category': 'AI基础设施', 'tags': ['AI算力', '存储架构', 'GPU', '分布式'], 'date': '2026-03-01'},
+    '2026-05-ai-supply-chain-security': {'category': '安全', 'tags': ['AI安全', '供应链', '模型安全', '投毒'], 'date': '2026-05-01'},
+    '2026-05-ai-trends-q2': {'category': '安全', 'tags': ['AI趋势', '产业分析', '2026Q2', '研究报告'], 'date': '2026-05-26'},
+    '2026-05-aicms-intro': {'category': 'AI基础设施', 'tags': ['CMS', '去中心化', 'AAM', 'AI基础设施'], 'date': '2026-05-25'},
+    '2026-05-auto-labeling-stkg': {'category': 'AI应用', 'tags': ['数据标注', '知识图谱', '科研数据', '自动化'], 'date': '2025-04-01'},
+    '2026-05-dlp-storage-vendors': {'category': '安全', 'tags': ['DLP', '存储安全', '数据防泄漏', '厂商分析'], 'date': '2026-05-19'},
+    '2026-05-harness-agent-demo': {'category': 'AI应用', 'tags': ['Harness', 'Agent', 'AI架构', 'Demo'], 'date': '2026-05-21'},
+    '2026-05-kv-cache-industry-trend-research': {'category': 'AI基础设施', 'tags': ['KV Cache', 'LLM推理', '内存优化', '产业趋势'], 'date': '2026-05-01'},
+    '2026-05-malware-trends-2025-2026': {'category': '安全', 'tags': ['恶意软件', '勒索软件', '数据窃取', '趋势分析'], 'date': '2025-05-01'},
+    '2026-05-multiagent-scientific-data': {'category': '安全', 'tags': ['多Agent', '科研数据', '数据治理', 'AI系统'], 'date': '2026-05-23'},
+    '2026-05-ransomware-defense': {'category': '安全', 'tags': ['勒索软件', '数据保护', '安全', '2025-2026'], 'date': '2025-07-09'},
+    '2026-05-ransomware-false-positive': {'category': '安全', 'tags': ['误报', '安全运营', 'SOC', 'EDR'], 'date': '2025-07-09'},
+    '2026-05-security-roadmap-agent-poison-recovery': {'category': '安全', 'tags': ['Agent安全', '数据投毒', '数据恢复'], 'date': '2026-05-01'},
+    '2026-05-security-roadmap-agent-security': {'category': '安全', 'tags': ['Agent安全', '存储侧防护'], 'date': '2025-12-01'},
+    '2026-05-security-roadmap-ai-card-v1': {'category': '安全', 'tags': ['AI检测', '勒索软件', '卸载'], 'date': '2026-01-01'},
+    '2026-05-security-roadmap-ai-foundation': {'category': 'AI基础设施', 'tags': ['AI开发', '工业化'], 'date': '2026-05-01'},
+    '2026-05-security-roadmap-data-recovery': {'category': '安全', 'tags': ['数据恢复', '网络恢复', 'Cyber Recovery'], 'date': '2026-05-01'},
+    '2026-05-security-roadmap-false-positive': {'category': '安全', 'tags': ['误报治理', '多信号融合'], 'date': '2026-05-01'},
+    '2026-05-security-roadmap-overview': {'category': '安全', 'tags': ['安全路线图', '26H1-27H2'], 'date': '2026-05-01'},
+    '2026-05-security-roadmap-recall-ai-card-v2': {'category': '安全', 'tags': ['漏报根治', 'AI卡V2'], 'date': '2026-05-01'},
+    '2026-05-storage-data-security-incremental-v3': {'category': '安全', 'tags': ['存储安全', '增量方向', '调研'], 'date': '2026-05-01'},
+    '2026-05-ueba-dlp': {'category': '安全', 'tags': ['UEBA', 'DLP', '行为分析', '数据安全'], 'date': '2026-05-20'},
+    '2026-06-ai-memory-panorama-research': {'category': 'AI基础设施', 'tags': ['AI记忆', 'Agent记忆', '内存管理'], 'date': '2025-10-28'},
     '2026-06-ai-storage-security-survey': {'category': '安全', 'tags': ['AI安全', '存储安全', 'LLM攻击', '2025-2026'], 'date': '2026-06-06'},
+    '2026-06-datashield-aegis-plan-v3': {'category': '安全', 'tags': ['DataShield', 'Aegis', 'LLM安全', 'Agent'], 'date': '2026-06-04'},
 }
+
 
 # 自动从HTML提取日期的正则模式（按优先级尝试）
 DATE_PATTERNS = [
