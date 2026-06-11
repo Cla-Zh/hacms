@@ -71,6 +71,11 @@ for name in sorted(os.listdir(BASE)):
 
     # ── 日期（严格：必须从目录名提取） ─────────────────────
     date = extract_date_from_dir(name)
+    # ── BOM 检测（必须无 BOM） ─────────────────────────────
+    if html_bytes[:3] == b'\xef\xbb\xbf':
+        errors.append(f'{name}/index.html 含有 BOM，请先移除后再运行脚本')
+        continue
+
     if not date:
         errors.append(name)
         continue  # 跳过，不生成错误 manifest
