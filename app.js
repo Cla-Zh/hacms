@@ -251,7 +251,7 @@
 
     // HTML 优先展示；无 HTML 时检查 Word 文档并提供在线查看
     if (article.html_path) {
-      dom.contentIframe.src = article.html_path;
+      dom.contentIframe.src = article.html_path + '?v=' + article.date;
       dom.contentIframe.classList.remove('hidden');
       dom.noHtmlNotice.classList.add('hidden');
     } else {
