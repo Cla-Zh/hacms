@@ -10,8 +10,10 @@ HACMS manifest 重建脚本 v6
 import re, os, json, sys
 from datetime import datetime
 
-BASE = 'C:/Users/Administrator/.openclaw/workspace/hacms/content/articles'
-OUT  = 'C:/Users/Administrator/.openclaw/workspace/hacms/content/index/manifest.json'
+# 跨平台路径：基于脚本自身位置推导，不要硬编码
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE = os.path.join(_SCRIPT_DIR, 'content', 'articles')
+OUT  = os.path.join(_SCRIPT_DIR, 'content', 'index', 'manifest.json')
 sys.stdout.reconfigure(encoding='utf-8')
 
 # ── 从目录名前10字符提取 YYYY-MM-DD（严格校验） ──────────────────
@@ -71,16 +73,15 @@ for name in sorted(os.listdir(BASE)):
 
     # ── 日期（严格：必须从目录名提取） ─────────────────────
     date = extract_date_from_dir(name)
-    # ── BOM 检测（必须无 BOM） ─────────────────────────────
-    if html_bytes[:3] == b'\xef\xbb\xbf':
-        errors.append(f'{name}/index.html 含有 BOM，请先移除后再运行脚本')
-        continue
-
     if not date:
         errors.append(name)
         continue  # 跳过，不生成错误 manifest
 
     html_bytes = open(idx, 'rb').read()
+    # ── BOM 检测（必须无 BOM） ─────────────────────────────
+    if html_bytes[:3] == b'\xef\xbb\xbf':
+        errors.append(f'{name}/index.html 含有 BOM，请先移除后再运行脚本')
+        continue
     title   = extract_title(html_bytes, name)
     summary = extract_summary(html_bytes)
     tags    = extract_tags(html_bytes)
