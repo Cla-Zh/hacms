@@ -1079,7 +1079,465 @@ hr{border:none;border-top:1px solid #e5e7eb;margin:28px 0}
 </div>
 
 <div class="card">
-<h3>11.8 小结：传统模型开发的五条核心工具链</h3>
+<h3>11.12 方法论：传统模型开发的三大范式与选择框架</h3>
+
+<h4>范式一：实验驱动型（Startup / 创新探索期）</h4>
+<p>适用场景：0→1验证阶段，数据量&lt;10万，团队&lt;3人，需快速跑通基线。</p>
+
+<div class="flow-diagram">
+  <span class="flow-step">数据探索</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">快速基线<br>(sklearn)</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">特征实验</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">模型调优</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">小规模部署</span>
+</div>
+
+<p>工具集：<strong>Jupyter + scikit-learn + Pandas + MLflow Tracking</strong>，无需K8s，从Notebook直接到API。</p>
+<p>核心原则：<strong>先让它work，再让它scale</strong>。不要在验证阶段引入生产级MLOps基础设施。</p>
+
+<h4>范式二：标准化型（Product / 增长阶段）</h4>
+<p>适用场景：1→N扩展阶段，数据量10万~1亿，团队3-8人，需可复现、可协作的流水线。</p>
+
+<div class="flow-diagram">
+  <span class="flow-step">数据管道<br>(Spark/Flink)</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">特征工程<br>(FeatureTools)</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">实验管理<br>(MLflow)</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">训练流水线<br>(Kubeflow)</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">模型注册<br>(MLflow Registry)</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">灰度上线<br>(KServe)</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">监控告警<br>(Prometheus)</span>
+</div>
+
+<p>核心原则：<strong>每个环节必须有明确交付物和版本号</strong>。数据、代码、模型三者缺一不可复现。</p>
+
+<h4>范式三：自动化型（Platform / 成熟平台阶段）</h4>
+<p>适用场景：平台化阶段，多业务线并行，模型数量10+，团队8人以上，需要AutoML和全自动化。</p>
+
+<div class="flow-diagram">
+  <span class="flow-step">数据湖<br>(Iceberg/Delta)</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">AutoML<br>(H2O/PyCaret)</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">模型比较<br>(MLflow)</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">自动部署<br>(Seldon)</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">漂移监控<br>(Evidently)</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">自动重训练<br>(触发器)</span>
+</div>
+
+<p>核心原则：<strong>机器替代人做决策</strong>，人负责业务定义和异常处理。</p>
+
+<h4>选择决策树：我的团队适合哪种范式？</h4>
+
+<pre class="diagram">
+┌─────────────────────────────────────────────┐
+│         你的团队目前处于哪个阶段？              │
+└─────────────────┬───────────────────────────┘
+                  │
+    ┌─────────────┼─────────────┐
+    ▼             ▼             ▼
+  0→1验证      1→N扩展      平台化
+    │             │             │
+  &lt;3人?        3-8人?       8人以上?
+    │             │             │
+  是→范式一      是→范式二    是→范式三
+    │             │             │
+  否→范式二      否→范式三    （持续）
+  （快速补人）  （需要方法论）
+</pre>
+
+<p>实际项目中，<strong>范式演进是渐进的，不是跳跃的</strong>。不要在创业期做平台化投资，也不要在平台化阶段退回Notebook开发。了解自己所处的阶段，比用什么工具更重要。</p>
+</div>
+
+<div class="card">
+<h3>11.9 架构原理图：CNN / RNN / LSTM 的核心结构与计算流程</h3>
+
+<h4>11.9.1 CNN（卷积神经网络）——图像处理的核心</h4>
+
+<p><strong>核心原理：局部感受野 + 权重共享 = 参数少 + 平移不变性</strong></p>
+
+<pre class="diagram">
+┌──────────────────────────────────────────────────────────────┐
+│                     CNN 架构原理图                              │
+│                                                              │
+│  ┌────────┐    ┌────────┐    ┌────────┐    ┌────────┐         │
+│  │ 输入   │───▶│ 卷积层 │───▶│ 池化层 │───▶│ 卷积层 │───▶... │
+│  │(H×W×C) │    │Conv2D  │    │MaxPool │    │Conv2D  │         │
+│  └────────┘    └────────┘    └────────┘    └────────┘         │
+│                                            │                  │
+│                                       ┌────▼────┐             │
+│                                       │ 全连接层 │             │
+│                                       │  FC层   │             │
+│                                       └────┬────┘             │
+│                                            │                  │
+│                                       ┌────▼────┐             │
+│                                       │ Softmax │             │
+│                                       │ /Sigmoid│             │
+│                                       └────┬────┘             │
+│                                            ▼                  │
+│                                      输出：分类/检测           │
+└──────────────────────────────────────────────────────────────┘
+</pre>
+
+<p><strong>卷积层的计算逻辑：</strong></p>
+<pre class="diagram">
+Feature Map (C×H×W)  ⊛  Kernel (C×K×K)  →  Output Feature Map
+
+示例：3通道224×224图像
+  ├─ 96个卷积核 (3×11×11)
+  ├─ stride=4, padding=0
+  └─ 输出：96个55×55特征图
+
+参数量：96 × (3×11×11 + 1 bias) = 34,848 参数
+对比全连接：224×224×3 → 4096：约1500万参数
+节省：400+倍
+</pre>
+
+<p><strong>为什么CNN适合图像？</strong></p>
+<ul>
+<li><strong>局部连接</strong>：每个卷积核只感知局部区域，模拟视觉皮层</li>
+<li><strong>权重共享</strong>：同一卷积核扫遍整张图，参数量大幅减少</li>
+<li><strong>平移不变性</strong>：物体出现在图的任何位置都能被检测到</li>
+<li><strong>层次化特征</strong>：浅层抓边缘/纹理，深层抓语义部件</li>
+</ul>
+
+<p><strong>经典CNN演进：</strong></p>
+<pre class="diagram">
+LeNet(1998)    →  AlexNet(2012)  →  VGG(2014)    →  ResNet(2015)
+5层             8层               19层           152层
+MNIST           ImageNet           深度堆叠        残差连接
+                突破性深度学习里程碑
+</pre>
+
+<blockquote>ResNet残差连接的思想（skip connection）解决了深度网络梯度消失问题，是现代几乎所有视觉模型的基础。<cite class="cite"><a href="https://papers.nips.cc/paper/2015/file/5850aaef8b16b46f0ae2afd8e5f5b952-Paper.pdf" target="_blank">He et al. - Deep Residual Learning for Image Recognition (ResNet, 2015)</a></cite></blockquote>
+
+<h4>11.9.2 RNN（循环神经网络）——序列建模的基础</h4>
+
+<p><strong>核心原理：时间展开 + 隐藏状态传递 = 记忆能力</strong></p>
+
+<pre class="diagram">
+┌──────────────────────────────────────────────────────────────┐
+│                    RNN 循环展开图                              │
+│                                                              │
+│   x₀ ──●────●────●────●──→  h₀                              │
+│        │    │    │    │                                      │
+│   x₁ ──●────●────●────●──→  h₁                              │
+│        │    │    │    │       (时间展开)                      │
+│   x₂ ──●────●────●────●──→  h₂                              │
+│        │    │    │    │                                      │
+│   x₃ ──●────●────●────●──→  h₃                              │
+│                                                              │
+│   单步计算：h_t = tanh(W·x_t + U·h_{t-1} + b)                 │
+│                                                              │
+│   问题：梯度消失（长期依赖丢失） / 梯度爆炸（训练不稳定）         │
+└──────────────────────────────────────────────────────────────┘
+</pre>
+
+<p><strong>RNN的致命缺陷：</strong></p>
+<pre class="diagram">
+输入序列："The cat, which ate, ..., was full."
+                    ↑___________↑
+                    需要记住 "cat"（主语） 30+ 步之前
+
+梯度传播路径：30+ 个时间步连乘 → 梯度迅速衰减至0
+              梯度消失 → 早期信息无法影响最终输出
+              RNN 无法建立长期依赖
+</pre>
+
+<p>解决方案：LSTM（长短期记忆网络）和GRU（门控循环单元）通过门机制选择性地保留或丢弃信息，解决了梯度消失问题。</p>
+
+<h4>11.9.3 LSTM（长短期记忆网络）——RNN的进化</h4>
+
+<pre class="diagram">
+┌──────────────────────────────────────────────────────────────┐
+│                    LSTM 单元结构                               │
+│                                                              │
+│         ┌──────────────────────────────────┐                  │
+│         │          遗忘门 (Forget Gate)    │                  │
+│  h_{t-1}├────────▶ σ(W_f·[h_{t-1}, x_t]+b_f) → 决定丢弃什么   │
+│         └──────────────────────────────────┘                  │
+│                         │                                     │
+│         ┌───────────────┼───────────────┐                     │
+│         ▼               ▼               ▼                     │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐             │
+│  │  遗忘门     │  │ 输入门     │  │ 候选记忆   │             │
+│  │ f_t = σ    │  │ i_t = σ    │  │ c̃_t = tanh│             │
+│  └────────────┘  └────────────┘  └────────────┘             │
+│         │               │               │                     │
+│         ▼               ▼               ▼                     │
+│       c_{t-1}  ───●──── (×) ───●── c_t                       │
+│                        │                                     │
+│   h_t = tanh(c_t) ★ i_o  (输出门)                             │
+│                                                              │
+│  细胞状态更新公式：                                           │
+│    f_t = σ(W_f·[h_{t-1},x_t]+b_f)    ← 遗忘门                 │
+│    i_t = σ(W_i·[h_{t-1},x_t]+b_i)    ← 输入门                 │
+│    o_t = σ(W_o·[h_{t-1},x_t]+b_o)    ← 输出门                 │
+│    c_t = f_t ★ c_{t-1} + i_t ★ c̃_t   ← 细胞状态更新          │
+│    h_t = o_t ★ tanh(c_t)              ← 隐藏状态输出           │
+└──────────────────────────────────────────────────────────────┘
+</pre>
+
+<p><strong>LSTM vs RNN 的关键区别：</strong></p>
+<ul>
+<li>RNN：所有历史信息等权重传入下一步（梯度消失）</li>
+<li>LSTM：通过门机制主动选择保留或遗忘（选择性记忆）</li>
+<li>细胞状态c_t：专线传递长期信息，路径上的梯度几乎不衰减</li>
+<li>参数量：LSTM是RNN的4倍（3个门各一组权重矩阵），但长期依赖建模能力指数级提升</li>
+</ul>
+
+<p><strong>典型应用场景对应：</strong></p>
+<pre class="diagram">
+CNN:       图像分类 / 目标检测 / 语义分割 / 人脸识别
+           空间特征提取，局部感知 + 权重共享
+
+RNN:       简单序列建模 / 语言建模（早期）
+           短文本、语音（短期依赖）
+
+LSTM/GRU:  机器翻译 / 语音识别(CTC) / 时序预测 / 情感分析
+           长期依赖，文本 / 语音 / 时间序列
+
+注意力机制: 取代RNN/LSTM成为序列建模主流（Transformer）
+           任意两步直接建模，不受距离限制
+</pre>
+</div>
+
+<div class="card">
+<h3>11.10 开发流程图：从数据到生产的全链路</h3>
+
+<h4>传统模型开发的标准流程（CRISP-ML方法论）</h4>
+<p>参考行业标准流程 <strong>CRISP-DM</strong>（跨行业数据挖掘标准流程）的ML演进版：</p>
+
+<pre class="diagram">
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    传统ML模型开发全流程（CRISP-ML）                        │
+│                                                                         │
+│  ┌──────────────┐                                                       │
+│  │ ① 业务理解   │ ← 定义业务问题，转化为ML问题                            │
+│  │ Business     │   例如：推荐系统点击率预测 → 二分类                     │
+│  │ Understanding│                                                       │
+│  └──────┬───────┘                                                       │
+│         ▼                                                                  │
+│  ┌──────────────┐                                                       │
+│  │ ② 数据理解   │ ← 探索性数据分析（EDA），了解数据分布/质量/缺失         │
+│  │ Data         │   工具：Pandas Profiling / Sweetviz                    │
+│  │ Understanding│                                                       │
+│  └──────┬───────┘                                                       │
+│         ▼                                                                  │
+│  ┌──────────────┐     ┌────────────────────────────────────┐            │
+│  │ ③ 数据准备   │ ←──▶│ 特征工程（Feature Engineering）     │            │
+│  │ Data         │     │ • 数值特征：标准化/归一化/分桶        │            │
+│  │ Preparation  │     │ • 类别特征：Target Encoding/WOE      │            │
+│  └──────┬───────┘     │ • 文本特征：TF-IDF / Embedding      │            │
+│         │              │ • 时序特征：滞后/滚动统计/傅里叶     │            │
+│         ▼              └────────────────────────────────────┘            │
+│  ┌──────────────┐                                                       │
+│  │ ④ 建模       │ ← 模型选型 → 训练 → 超参调优                          │
+│  │ Modeling     │   工具：sklearn / PyTorch / XGBoost / LightGBM        │
+│  └──────┬───────┘                                                       │
+│         ▼                                                                  │
+│  ┌──────────────┐     ┌────────────────────────────────────┐            │
+│  │ ⑤ 评估       │ ←──▶│ 模型验证（三路验证）                   │            │
+│  │ Evaluation   │     │ • Hold-out（时序数据不能用随机切分）  │            │
+│  └──────┬───────┘     │ • K-Fold Cross Validation（常规）      │            │
+│         │              │ • Walk-Forward（时序专用）            │            │
+│         ▼              └────────────────────────────────────┘            │
+│  ┌──────────────┐                                                       │
+│  │ ⑥ 部署       │ ← 推理优化 → API服务化 → 监控体系                      │
+│  │ Deployment   │   工具：ONNX Runtime / TorchServe / TF Serving         │
+│  └──────┬───────┘                                                       │
+│         ▼                                                                  │
+│  ┌──────────────┐                                                       │
+│  │ ⑦ 监控与迭代  │ ← 漂移检测 → 触发重训练 → 持续改进                    │
+│  │ Monitoring   │   工具：Evidently AI / Prometheus / Grafana           │
+│  └──────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────┘
+</pre>
+
+<h4>三类不同场景的完整流水线架构图</h4>
+
+<p><strong>场景A：图像分类流水线（CNN）</strong></p>
+<pre class="diagram">
+┌────────────┐   ┌────────────┐   ┌────────────┐   ┌────────────┐
+│ 原始图像   │──▶│ 数据增强   │──▶│ Backbone   │──▶│ 分类头     │
+│ (H×W×3)   │   │ Albument.  │   │ (timm/EfficientNet)│ │ (FC+Softmax)│
+└────────────┘   └────────────┘   └────────────┘   └──────┬─────┘
+                                                           │
+   ┌───────────────────────────────────────────────────────▼─┐
+   │                  PyTorch Lightning 训练循环               │
+   │  optimizer = AdamW(lr=1e-4, weight_decay=1e-5)          │
+   │  scheduler = CosineAnnealingWarmRestarts                 │
+   │  mixed_precision = True (FP16)                          │
+   └───────────────────────────────────────────────────────────┘
+                              │
+                         ┌────▼────┐
+                         │ ONNX/TorchScript
+                         │ 导出模型
+                         └────┬────┘
+                              │
+   ┌────────────┐   ┌────────────┐   ┌────────────┐   ┌────────────┐
+   │ 图像输入   │──▶│ ONNX推理   │──▶│ 后处理     │──▶│ 结果输出   │
+   │ (API)     │   │ (Triton)   │   │ (Top-K)    │   │ JSON响应   │
+   └────────────┘   └────────────┘   └────────────┘   └────────────┘
+</pre>
+
+<p><strong>场景B：推荐系统流水线（Wide&amp;Deep / DNN）</strong></p>
+<pre class="diagram">
+┌─────────────────────────────────────────────────────────────────┐
+│                 推荐系统在线学习（FTRL）实时流水线                  │
+│                                                                 │
+│  ┌────────┐   ┌────────┐   ┌────────┐   ┌────────┐   ┌────────┐│
+│  │ 用户   │   │ 特征   │   │ 特征   │   │ 在线   │   │ 模型   ││
+│  │ 行为   │──▶│ 拼接   │──▶│ 编码   │──▶│ 训练   │──▶│ 更新   ││
+│  │ Kafka  │   │ Redis  │   │ Hashing │   │ FTRL   │   │ 在线   ││
+│  └────────┘   └────────┘   └────────┘   └────────┘   └────────┘│
+│                                                    ↓            │
+│                                        ┌────────────┐          │
+│                                        │ Feature    │          │
+│                                        │ Store      │          │
+│                                        │ (Feast)    │          │
+│                                        └────────────┘          │
+└─────────────────────────────────────────────────────────────────┘
+
+离线批量训练（每日/每周）：
+┌────────┐   ┌────────┐   ┌────────┐   ┌────────┐   ┌────────┐
+│ Hive   │──▶│ Spark  │──▶│ TensorFlow│──▶│ Model  │──▶│ ONNX   │
+│ 数据湖  │   │ 特征   │   │ 分布式   │   │ Registry│   │ 导出   │
+└────────┘   └────────┘   └────────┘   └────────┘   └────────┘
+                                                              ↓
+                                                    ┌────────────┐
+                                                    │ A/B 测试   │
+                                                    │ 灰度上线   │
+                                                    └────────────┘
+</pre>
+
+<p><strong>场景C：时序预测流水线（LSTM / Transformer）</strong></p>
+<pre class="diagram">
+┌─────────────────────────────────────────────────────────────────┐
+│                    时序预测全流程                                  │
+│                                                                 │
+│  数据输入 ──▶ 缺失值处理 ──▶ 平稳化 ──▶ 特征构建 ──▶ 模型训练      │
+│  (原始序列)   (插值/KDE)  (差分)   (滞后/滚动)  (LSTM/Darts)     │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐     │
+│  │  模型选型决策：                                           │     │
+│  │  短期预测（&lt;7天）→ ARIMA / Prophet / LightGBM           │     │
+│  │  中期预测（7-30天）→ LSTM / N-BEATS / Temporal Fusion     │     │
+│  │  长期预测（&gt;30天）→ Transformer / Informer / PatchTST    │     │
+│  └─────────────────────────────────────────────────────────┘     │
+│                           ↓                                       │
+│                     模型评估（Walk-Forward验证）                  │
+│                           ↓                                       │
+│              ┌────────────────────────────┐                     │
+│              │ 预测结果 + 置信区间输出    │                     │
+│              │ (API / Dashboard)          │                     │
+│              └────────────────────────────┘                     │
+└─────────────────────────────────────────────────────────────────┘
+</pre>
+</div>
+
+<div class="card">
+<h3>11.11 深度思考：传统模型与大模型的关系及战略选择</h3>
+
+<h4>思考一：传统模型真的被取代了吗？</h4>
+<p>答案：<strong>在产业生产层面，没有</strong>。LLM在生成和推理上有革命性突破，但在以下场景传统模型仍是主流：</p>
+<ul>
+<li><strong>结构化数据决策</strong>：风控模型（GBDT+LR）可解释性是监管要求，LLM无法直接输出符合巴塞尔协议的决策解释</li>
+<li><strong>实时性要求极高</strong>：推荐系统延迟要求&lt;50ms，LLM推理延迟无法满足，只能用传统模型做粗排</li>
+<li><strong>数据稀缺场景</strong>：医疗影像AI辅助诊断，数据量少（千级标注），CNN+迁移学习远优于LLM</li>
+<li><strong>成本敏感场景</strong>：亿级日活App的推荐系统，LLM推理成本是传统模型的100-1000倍</li>
+</ul>
+
+<h4>思考二：传统模型 + LLM = Hybrid Architecture（混合架构）是未来方向</h4>
+<pre class="diagram">
+┌──────────────────────────────────────────────────────────────┐
+│                    Hybrid Architecture                       │
+│                                                              │
+│   用户输入                                                    │
+│      │                                                        │
+│      ▼                                                        │
+│  ┌────────────────┐                                          │
+│  │ LLM（理解层）   │ ← 自然语言理解、意图识别、实体提取         │
+│  │  (ChatGPT等)   │                                          │
+│  └───────┬────────┘                                          │
+│          │ 提取结构化特征                                      │
+│          ▼                                                    │
+│  ┌────────────────┐                                          │
+│  │ 传统ML模型      │ ← 排序/风控/推荐，LLM输出的特征作为输入   │
+│  │ (GBDT/LSTM等)  │                                          │
+│  └───────┬────────┘                                          │
+│          │ 决策/排序结果                                       │
+│          ▼                                                    │
+│     最终输出（推荐/风控结果）                                   │
+└──────────────────────────────────────────────────────────────┘
+
+案例：Perplexity AI 的 RAG 架构中，Embedding 阶段用 BERT（传统NLP模型）做语义检索，
+生成阶段用 LLM。两者各司其职，不可替代。
+</pre>
+
+<h4>思考三：AutoML 是普惠工具还是智商税？</h4>
+<p>需要辩证看待：</p>
+<table>
+<thead><tr><th>场景</th><th>AutoML是否值得用</th><th>原因</th></tr></thead>
+<tbody>
+<tr><td>快速验证AI可行性（业务 POC）</td><td>✅ 强烈推荐</td><td>5行代码出基线，验证价值后再投入</td></tr>
+<tr><td>结构化表格数据（风控/营销）</td><td>✅ 首选</td><td>GBDT类AutoML往往超越人工调参</td></tr>
+<tr><td>中小规模数据（&lt;10万）</td><td>✅ 可用</td><td>AutoML在小数据集上更稳定（早停/正则化）</td></tr>
+<tr><td>深度学习（CNN/RNN/Transformer）</td><td>⚠️ 有限适用</td><td>搜索空间大，AutoML无法替代专业调参</td></tr>
+<tr><td>追求SOTA性能（竞赛/顶会）</td><td>❌ 不推荐</td><td>AutoML只是基线，真正的差距在特征工程和专业知识</td></tr>
+<tr><td>高风险决策场景（医疗/金融）</td><td>❌ 谨慎</td><td>可解释性和审计是合规要求，AutoML的黑盒特性有风险</td></tr>
+</tbody>
+</table>
+
+<h4>思考四：模型可解释性不是选择题，是生存必需</h4>
+<p>在以下行业，模型可解释性是<strong>监管硬性要求</strong>，不是锦上添花：</p>
+<ul>
+<li><strong>金融风控</strong>：巴塞尔协议III / 《个人金融信息保护法》，拒绝贷款必须给理由</li>
+<li><strong>医疗AI</strong>：NMPA（国家药监局）审批，模型决策需可追溯和解释</li>
+<li><strong>保险定价</strong>：精算模型需符合银保监会费率厘定规定</li>
+<li><strong>司法辅助</strong>：量刑辅助模型需符合《人工智能法》透明度要求</li>
+</ul>
+<p><strong>SHAP</strong>（SHapley Additive exPlanations）是产业界标准解释工具，通过博弈论方法计算每个特征对单个预测的贡献值，是目前最被广泛接受的可解释性方法。<cite class="cite"><a href="https://shap.readthedocs.io/" target="_blank">shap.readthedocs.io</a></cite></p>
+
+<h4>思考五：传统模型的成本博弈矩阵</h4>
+<pre class="diagram">
+                         │ 小数据（&lt;10万）    │ 大数据（&gt;1000万）
+──────────────────────────┼───────────────────┼────────────────────
+ 简单模型（LR/GBDT）      │ 快速上线✓          │ 性价比最高✓
+                         │ AutoML可用✓        │ 分布式训练✓
+──────────────────────────┼───────────────────┼────────────────────
+ 深度模型（CNN/LSTM）      │ 迁移学习✓          │ GPU成本高⚠
+                         │ 数据增强必须✓       │ 需要分布式训练⚠
+──────────────────────────┼───────────────────┼────────────────────
+ LLM（GPT/Claude）         │ 标注成本高⚠        │ 推理成本极高⚠
+                         │ Prompt Engineering │ 但SOTA效果✓
+                         │ 效果可能出乎意料✓   │ 适合生成任务✓
+──────────────────────────┼───────────────────┼────────────────────
+
+结论：
+• 结构化决策问题 → 传统ML（GBDT/LR）仍是工业界首选
+• 生成+理解问题 → LLM不可替代
+• 未来趋势 → Hybrid：LLM理解 + 传统模型决策
+</pre>
+
+<blockquote>产业洞察：麦肯锡2024年调研显示，全球500强企业中78%已在生产中使用传统ML模型（GBDT/NN），而使用LLM的企业仅23%。传统ML模型在产业中的渗透率远超公众认知。<cite class="cite"><a href="https://www.mckinsey.com/industries/financial-services/our-insights/how-financial-institutions-can-deploy-machine-learning-at-scale" target="_blank">McKinsey - How financial institutions can deploy ML at scale</a></cite></blockquote>
+</div>
+
+
+<div class="card">
+<h3>11.12 小结：传统模型开发的五条核心工具链</h3>
 
 <h4>场景一：视觉分类/检测/分割（CNN）</h4>
 <ol>
