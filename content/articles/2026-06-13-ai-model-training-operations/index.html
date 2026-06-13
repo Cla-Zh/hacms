@@ -666,7 +666,195 @@ hr{border:none;border-top:1px solid #e5e7eb;margin:28px 0}
 </table>
 </div>
 
+<!-- ========== 第十部分：7-10人团队实战指南 ========== -->
+<div class="section-header">十、7-10人团队如何建立标准AI模型生产体系（实战指南）</div>
+
+<div class="card">
+<h3>10.1 团队组建：角色分工与招聘建议</h3>
+<p>7-10人团队是建立标准MLOps生产体系的最小可行单元。角色分工建议如下：</p>
+
+<table>
+<thead><tr><th>角色</th><th>人数</th><th>核心职责</th><th>关键技能</th></tr></thead>
+<tbody>
+<tr><td><strong>ML Engineer</strong></td><td>2-3人</td><td>模型训练/调优/部署</td><td>PyTorch、分布式训练、模型调优</td></tr>
+<tr><td><strong>ML Ops Engineer</strong></td><td>1-2人</td><td>流水线/自动化/监控</td><td>Kubernetes、Kubeflow、CI/CD</td></tr>
+<tr><td><strong>Data Engineer</strong></td><td>2人</td><td>数据管道/特征工程/标注</td><td>Spark、Flink、DVC、SQL</td></tr>
+<tr><td><strong>AI Product Manager</strong></td><td>1人</td><td>需求定义/指标设计/迭代优先级</td><td>懂AI指标、业务指标设计</td></tr>
+<tr><td><strong>Platform Engineer / SRE</strong></td><td>1-2人</td><td>基础设施/GPU调度/On-Call</td><td>K8s，云平台、监控告警</td></tr>
+<tr><td><strong>AI Research Scientist（可选）</strong></td><td>0-1人</td><td>前沿算法调研/模型选型</td><td>顶会论文、快速实验</td></tr>
+</tbody>
+</table>
+
+<blockquote>团队组建原则：<strong>不要一开始就招满</strong>。先组建核心4人（2 ML Engineer + 1 ML Ops + 1 Data Engineer），跑通全流程后再扩编。<cite class="cite"><a href="https://www.thetechrecruiters.com/signal/ai-startup-hiring/complete-guide-to-building-an-ai-engineering-team-at-a-startup/" target="_blank">thetechrecruiters.com - Complete Guide to AI Startup Hiring</a></cite></blockquote>
+</div>
+
+<div class="card">
+<h3>10.2 工具链选型：开源优先，按阶段引入</h3>
+<p>7-10人团队的MLOps工具链选型核心原则：<strong>先用开源跑通，再按需商业化</strong>。</p>
+
+<table>
+<thead><tr><th>阶段</th><th>工具</th><th>费用</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>实验跟踪</td><td>MLflow（自托管）</td><td>免费开源</td><td>最成熟的实验记录+模型注册，开源可扩展</td></tr>
+<tr><td>数据版本化</td><td>DVC</td><td>免费开源</td><td>Git-native数据版本化，配合MLflow使用</td></tr>
+<tr><td>训练流水线</td><td>Kubeflow（托管版）</td><td>免费开源（需K8s）</td><td>或阿里云PAI/腾讯Tione等托管Kubeflow</td></tr>
+<tr><td>模型推理Serving</td><td>KServe + Triton</td><td>免费开源</td><td>Kubernetes原生推理，支持灰度/A-B</td></tr>
+<tr><td>监控告警</td><td>Prometheus + Grafana + Evidently AI</td><td>免费开源</td><td>漂移检测+性能监控+Grafana看板</td></tr>
+<tr><td>超参搜索</td><td>Weights and Biases（SaaS）</td><td>$50/人/月起</td><td>研究阶段用免费版；生产级Sweeps值得付费</td></tr>
+<tr><td>Feature Store</td><td>Feast（开源）</td><td>免费开源</td><td>特征存储与复用，中小团队可用MinIO自建</td></tr>
+<tr><td>数据标注</td><td>Label Studio</td><td>免费开源</td><td>支持多种标注类型，可私有部署</td></tr>
+<tr><td>LLM推理</td><td>vLLM（Paged Attention）</td><td>免费开源</td><td>生产级LLM推理，吞吐24倍提升，必用</td></tr>
+<tr><td>持续集成</td><td>GitHub Actions + MLflow + DVC</td><td>免费（公开仓库）</td><td>代码CI/CD + 数据版本触发训练</td></tr>
+</tbody>
+</table>
+
+<blockquote><strong>不要同时引入所有工具</strong>。按优先级分三个阶段引入：<br>
+<strong>第1个月（MVP）</strong>：MLflow + DVC + GitHub Actions，实验跑通即部署<br>
+<strong>第2-3个月（自动化）</strong>：Kubeflow Pipeline + KServe + Prometheus漂移检测<br>
+<strong>第4-6个月（高级）</strong>：vLLM推理优化 + W&amp;B Sweeps + Feature Store + 灰度发布</blockquote>
+</div>
+
+<div class="card">
+<h3>10.3 标准流程：6阶段闭环</h3>
+<p>7-10人团队的标准ML生产流程，每个阶段必须有明确交付物：</p>
+
+<div class="flow-diagram">
+  <span class="flow-step">① 数据接入</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">② 实验调优</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">③ 训练上线</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">④ 灰度验证</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">⑤ 监控迭代</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">⑥ 自动重训练</span>
+</div>
+
+<h4>① 数据接入（Data Engineer主导）</h4>
+<ul>
+<li>数据源接入：Kafka/Flink实时流 或 S3/HDFS批量数据</li>
+<li>数据质量门禁：TFDV/Great Expectations，自动检查特征分布</li>
+<li>DVC数据版本化：每个训练数据集打版本标签，存入MLflow元数据</li>
+<li>交付物：数据质量报告 + 数据版本号</li>
+</ul>
+
+<h4>② 实验调优（ML Engineer主导）</h4>
+<ul>
+<li>基线模型：用最小数据集（1%样本）跑通全流程，确认Pipeline可行</li>
+<li>实验记录：每次训练必须记录在MLflow，附超参/数据版本/评估指标</li>
+<li>超参搜索：W&amp;B Sweeps或Optuna，优先手动调参再自动化</li>
+<li>交付物：MLflow实验记录 + 候选模型列表 + 线下评估报告</li>
+</ul>
+
+<h4>③ 训练上线（ML Engineer + ML Ops协作）</h4>
+<ul>
+<li>Kubeflow Pipeline：数据验证→特征工程→训练→评估→模型注册，全自动</li>
+<li>Model Registry：训练完成的模型自动注册到MLflow Model Registry（Staging阶段）</li>
+<li>模型优化：TensorRT/ONNX量化，延迟/吞吐满足SLO</li>
+<li>交付物：模型文件 + 训练日志 + 评估指标 + Serving镜像</li>
+</ul>
+
+<h4>④ 灰度验证（ML Ops主导）</h4>
+<ul>
+<li>Shadow Mode（24小时）：新模型并行接收流量但不响应，验证无错误</li>
+<li>0.1% Canary：Istio流量分割，监控p99延迟+错误率+业务指标</li>
+<li>观察期：每阶段至少4小时，Guardrail红线：p99&lt;2x champion、Error Rate&lt;0.5%</li>
+<li>全量上线：确认无异常后切100%流量，旧模型保留为Champion热备</li>
+<li>交付物：灰度报告 + 金丝雀指标截图 + 上线确认</li>
+</ul>
+
+<h4>⑤ 监控迭代（ML Ops + SRE主导）</h4>
+<ul>
+<li>技术指标：Prometheus metrics（Grafana看板），AUC/Latency/Throughput/Error Rate</li>
+<li>漂移检测：Evidently AI，PSI&gt;0.2自动告警Slack</li>
+<li>业务指标：CTR/Retention，每日Review，关键指标下跌&gt;2%触发Review</li>
+<li>交付物：每日监控日报 + 每周模型健康度Review</li>
+</ul>
+
+<h4>⑥ 自动重训练（ML Ops + Data Engineer协作）</h4>
+<ul>
+<li>触发条件：数据漂移（PSI&gt;0.2）或定时（每日凌晨）或性能下跌</li>
+<li>Pipeline自动执行：数据验证→增量训练→新模型上线灰度→通过后自动全量</li>
+<li>回滚机制：任何Guardrail异常，自动切回Champion，无需人工干预</li>
+<li>交付物：重训练日志 + 模型对比报告 + 自动上线确认</li>
+</ul>
+</div>
+
+<div class="card">
+<h3>10.4 团队协作规范（必须成文的制度）</h3>
+
+<h4>模型生命周期管理规范</h4>
+<ul>
+<li><strong>模型命名规范</strong>：{model_name}_{version}_{date}，如 <code>recommender_v2.3_20260613</code></li>
+<li><strong>模型阶段流转</strong>：Development → Staging → Production → Archived，每阶段有明确审批</li>
+<li><strong>实验记录规范</strong>：每次训练必须附实验卡片（MLflow），含动机、方法、数据版本、结论</li>
+<li><strong>模型下架规范</strong>：任何模型下线需数据支撑（Performance &lt; baseline + 漂移确认）</li>
+</ul>
+
+<h4>代码与数据规范</h4>
+<ul>
+<li><strong>代码版本</strong>：Git，所有ML代码提交到Git，CI/CD触发训练Pipeline</li>
+<li><strong>数据版本</strong>：DVC，数据集变更必须DVC commit并附变更说明</li>
+<li><strong>模型Artifact</strong>：MLflow Model Registry，原始模型+量化模型分开注册</li>
+<li><strong>特征定义</strong>：Feature Store，所有特征有文档、数据owner、质量指标</li>
+</ul>
+
+<h4>On-Call与故障响应</h4>
+<ul>
+<li><strong>On-Call轮值</strong>：ML Ops Engineer + Platform Engineer双人On-Call，每周轮换</li>
+<li><strong>P0告警</strong>：p99 &gt; 200ms 或 Error Rate &gt; 1%，5分钟内响应，15分钟内定位</li>
+<li><strong>P1告警</strong>：AUC下跌 &gt; 1% 或 漂移检测触发，1小时内响应</li>
+<li><strong>故障复盘</strong>：任何P0/P1故障，48小时内必须输出复盘报告</li>
+</ul>
+</div>
+
+<div class="card">
+<h3>10.5 成本估算：7-10人团队月均基础设施成本</h3>
+
+<table>
+<thead><tr><th>资源</th><th>规格</th><th>月成本估算</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td>GPU训练集群</td><td>8x NVIDIA A100/H100（按需使用）</td><td>约$15,000-25,000（云）或自建$80K+硬件</td><td>主要成本，建议按量付费而非常驻</td></tr>
+<tr><td>推理服务GPU</td><td>2-4x A10G/T4（常驻）</td><td>约$3,000-6,000</td><td>根据QPS决定，可缩容到0</td></tr>
+<tr><td>K8s集群（托管）</td><td>16核64G x 10节点</td><td>约$2,000-4,000</td><td>或自建省成本但需运维</td></tr>
+<tr><td>对象存储（S3/OSS）</td><td>数据+模型Artifact</td><td>约$500-2,000</td><td>训练数据+Checkpoint存储</td></tr>
+<tr><td>MLOps SaaS工具</td><td>W&amp;B（$50/人/月）+ 其他</td><td>约$500-1,000</td><td>可先用开源替代W&amp;B</td></tr>
+<tr><td><strong>合计（云端，按量训练）</strong></td><td>—</td><td><strong>约$20,000-35,000/月</strong></td><td>不含人力成本</td></tr>
+</tbody>
+</table>
+
+<blockquote><strong>成本优化建议：</strong>训练集群不要常驻，用Spot/Preemptible实例，成本降低60-70%。推理服务才用常驻GPU。数据存储用冷热分层，热数据用SSD，冷数据用Archive存储，成本降低50%。</blockquote>
+</div>
+
+<div class="card">
+<h3>10.6 总结：核心原则与避坑指南</h3>
+
+<h4>7-10人团队MLOps建设的5条核心原则</h4>
+<ol>
+<li><strong>先用开源跑通全流程</strong>：不要在第一个月就买商业平台，先用MLflow+DVC+Kubeflow跑通，证明价值后再按需采购</li>
+<li><strong>ML Engineer必须参与Ops</strong>：不是"ML Engineer写模型，Ops上线"，两者必须共同编写Pipeline，职责边界要清晰但不能割裂</li>
+<li><strong>监控是生命线，从第一天就要有</strong>：不要等模型上线后再加监控，上第一个基线模型时就接入Prometheus，建立baseline</li>
+<li><strong>Champion热备，回滚&lt;30秒</strong>：任何新模型上线前，必须确认旧版本Champion在线且可立即接管流量</li>
+<li><strong>数据质量比模型调参更重要</strong>：花70%时间在数据质量门禁（DVC+TFDV），30%时间在模型调参，这是投入产出比最高的决定</li>
+</ol>
+
+<h4>常见5大坑（提前避免）</h4>
+<ul>
+<li><strong>坑1：买了商业ML平台但没人会用</strong> → 先用开源验证团队能力，再按需采购</li>
+<li><strong>坑2：模型上线后没有监控，等用户投诉</strong> → 从第一个模型就开始监控，这是技术债，越早还越便宜</li>
+<li><strong>坑3：实验结果不可复现</strong> → DVC数据版本+MLflow实验记录，每次训练必须记录，数据和代码缺一不可</li>
+<li><strong>坑4：GPU利用率低（&lt;30%）</strong> → 用Kubeflow + Spot Instance，动态调度，不用时释放训练资源</li>
+<li><strong>坑5：没有数据质量门禁，脏数据污染模型</strong> → TFDV/Great Expectations做数据质量门禁，数据问题在训练前发现比训练后发现成本低100倍</li>
+</ul>
+
+<blockquote>参考来源：Google MLOps三级成熟度模型（cloud.google.com）、CTAIO AI团队组织三种模式（ctaio.dev）、Netflix金丝雀最佳实践（github.com/Netflix/kayenta）、Hidden Technical Debt论文（papers.nips.cc）、Evidently AI生产监控（docs.evidentlyai.com）</blockquote>
+</div>
+
+
 <!-- ========== 第九部分：参考文献 ========== -->
+
 <div class="section-header">九、参考文献（全部附URL，可查验）</div>
 
 <div class="paper-item">
@@ -762,7 +950,7 @@ hr{border:none;border-top:1px solid #e5e7eb;margin:28px 0}
 
 <div class="footer-note">
   <strong>报告说明：</strong>本报告综合自公开白皮书、官方博客、顶会论文（全部附URL）。部分内部数据（如GPT-4训练成本）为业界估算，已标注。数据核查报告见：<code>_data_verification_report.md</code><br>
-  <strong>调研日期：</strong>2026年6月13日 &nbsp;|&nbsp; <strong>作者：</strong>川龙 &nbsp;|&nbsp; <strong>版本：</strong>1.0
+  <strong>调研日期：</strong>2026年6月13日 &nbsp;|&nbsp; <strong>作者：</strong>川龙 &nbsp;|&nbsp; <strong>版本：</strong>1.1（含第十部分：7-10人团队实战指南）
 </div>
 
 </body>
