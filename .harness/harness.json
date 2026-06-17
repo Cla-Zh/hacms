@@ -1,5 +1,5 @@
 {
-  "harness_version": "2.0.0",
+  "harness_version": "2.1.0",
   "project_name": "Agent-Managed Knowledge Lake",
   "license": "Apache-2.0",
   "agent_constraints": {
@@ -10,14 +10,73 @@
   "classification_policy": {
     "mode": "Hybrid",
     "description": "支持用户显式指定分类；若用户未指定，Agent 必须根据文章内容语义自动将其归入合适的主目录（Category），并提取 2-4 个高频标签（Tags）。",
-    "allowed_categories": ["AI基础设施", "数据治理", "行业调研", "未分类"]
+    "allowed_categories": ["AI基础设施", "安全", "洞察", "AI应用", "其他"],
+    "category_descriptions": {
+      "AI基础设施": "AI 算力 / 训练 / 推理 / 存储 / 记忆 / 基础设施相关",
+      "安全": "网络安全 / 勒索病毒 / 防护 / 数据安全 / 隐私相关",
+      "洞察": "行业趋势 / 市场分析 / 厂商生态 / 商业模式相关",
+      "AI应用": "AI Agent / 多 Agent 系统 / AI 产品 / AI 落地应用",
+      "其他": "暂未归入以上分类的内容"
+    }
+  },
+  "tag_policy": {
+    "required": true,
+    "min": 2,
+    "max": 4,
+    "description": "每篇文章必须包含 2-4 个标签（Tags），用于标签云筛选和关联推荐。",
+    "naming_convention": "中文短语为主，专有名词可保留英文（如 LockBit、BlackCat）"
   },
   "asset_aggregation_policy": {
     "description": "相同主题的不同格式文件必须聚合在同一个文件夹中。在更新 manifest.json 时，必须合并为同一个条目（Article Entry）。",
     "primary_format": "html",
-    "supported_attachments": ["docx", "doc", "pptx", "ppt", "pdf", "xlsx", "xls"]
+    "supported_attachments": ["docx", "doc", "pptx", "ppt", "pdf", "xlsx", "xls", "md"],
+    "manifest_field": "attachments",
+    "attachment_format": "markdown 源文件应放在 articles/<slug>/main.md，html 是渲染产物放在 articles/<slug>/index.html"
+  },
+  "file_naming_policy": {
+    "description": "articles 目录下禁止以下命名，避免污染正式内容。",
+    "forbidden_patterns": [
+      "^_.*",
+      "^index_.*\\.html$",
+      "test|debug|scratch"
+    ],
+    "exception": "脚本、工具、日志应放在仓库根的 scripts/ 或 _archive/ 目录"
   },
   "manifest_spec": {
-    "path": "content/index/manifest.json"
+    "path": "content/index/manifest.json",
+    "required_fields": [
+      "id",
+      "title",
+      "category",
+      "tags",
+      "date",
+      "author",
+      "summary",
+      "html_path",
+      "attachments"
+    ],
+    "optional_fields": [
+      "reading_time_min",
+      "word_count",
+      "version",
+      "last_updated",
+      "related",
+      "difficulty",
+      "series"
+    ],
+    "attachment_format": "[{\"format\": \"docx\", \"name\": \"main.docx\", \"path\": \"content/articles/<id>/main.docx\"}]"
+  },
+  "validation": {
+    "script_path": "scripts/validate_manifest.py",
+    "description": "每次提交前必须运行 validate_manifest.py 校验 manifest 完整性",
+    "checks": [
+      "JSON 合法",
+      "id 唯一",
+      "html_path 文件存在",
+      "attachments 中每个文件存在",
+      "category 在 allowed_categories 中",
+      "tags 长度 2-4",
+      "id 与 html_path 一致"
+    ]
   }
 }
