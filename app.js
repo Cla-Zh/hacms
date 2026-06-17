@@ -403,4 +403,267 @@
 
   init();
 
+  // ══════════════════════════════════════════════════════════════════
+  // 阶段 3 新功能模块（追加在 IIFE 内，共享 STATE 闭包）
+  // ══════════════════════════════════════════════════════════════════
+  initV3Features();
+
+  function initV3Features() {
+    enhanceReaderWithRelated();
+    enhanceHashRouter();
+    enhanceSearchWithFullText();
+    addKeyboardShortcuts();
+  }
+
+  function enhanceReaderWithRelated() {
+    const observer = new MutationObserver(() => {
+      const wrap = document.getElementById('iframe-wrap');
+      if (!wrap || wrap.dataset.v3Enhanced) return;
+      const hash = window.location.hash;
+      if (!hash.startsWith('#article/')) return;
+      const id = hash.replace('#article/', '');
+      const article = STATE.articles.find(a => a.id === id);
+      if (!article) return;
+
+      const sorted = [...STATE.articles].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      const idx = sorted.findIndex(a => a.id === id);
+      const prev = idx > 0 ? sorted[idx - 1] : null;
+      const next = idx < sorted.length - 1 ? sorted[idx + 1] : null;
+
+      const relatedArts = (article.related || []).slice(0, 5)
+        .map(rid => STATE.articles.find(a => a.id === rid)).filter(Boolean);
+      const seriesArts = article.series
+        ? STATE.articles.filter(a => a.series === article.series && a.id !== id)
+        : [];
+
+      // 侧边面板
+      const panel = document.createElement('div');
+      panel.id = 'v3-related-panel';
+      panel.style.cssText = 'position:fixed;right:0;top:0;bottom:0;width:280px;background:#f4f2ed;border-left:1px solid #d8d4cc;overflow-y:auto;padding:16px 14px;font-size:12.5px;line-height:1.6;color:#1a1a1a;z-index:150;display:none;';
+      document.body.appendChild(panel);
+
+      function buildPanel() {
+        let html = '<div style="font-weight:700;font-size:13px;margin-bottom:10px;color:#3a4a6b;">📑 导航</div>';
+
+        if (prev || next) {
+          html += '<div style="display:flex;gap:6px;margin-bottom:16px;">';
+          if (prev) html += `<a href="#article/${prev.id}" style="flex:1;padding:6px 8px;background:#fff;border:1px solid #d8d4cc;border-radius:4px;text-decoration:none;color:#5a5a5a;font-size:11.5px;">← ${escapeHtml(prev.title.slice(0, 18))}</a>`;
+          if (next) html += `<a href="#article/${next.id}" style="flex:1;padding:6px 8px;background:#fff;border:1px solid #d8d4cc;border-radius:4px;text-decoration:none;color:#5a5a5a;font-size:11.5px;text-align:right;">${escapeHtml(next.title.slice(0, 18))} →</a>`;
+          html += '</div>';
+        }
+
+        if (article.series) {
+          html += `<div style="font-weight:700;font-size:13px;margin:14px 0 6px;color:#3a4a6b;">📚 系列：${escapeHtml(article.series)}</div>`;
+          html += '<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px;">';
+          for (const sa of seriesArts.slice(0, 6)) {
+            html += `<a href="#article/${sa.id}" style="padding:5px 8px;background:#eef0f5;border-radius:4px;text-decoration:none;color:#2c3a54;font-size:11.5px;">${escapeHtml(sa.title)}</a>`;
+          }
+          html += '</div>';
+        }
+
+        if (relatedArts.length) {
+          html += '<div style="font-weight:700;font-size:13px;margin:14px 0 6px;color:#3a4a6b;">🔗 相关文章</div>';
+          html += '<div style="display:flex;flex-direction:column;gap:5px;">';
+          for (const ra of relatedArts) {
+            html += `<a href="#article/${ra.id}" style="padding:5px 8px;background:#fff;border:1px solid #d8d4cc;border-radius:4px;text-decoration:none;color:#5a5a5a;font-size:11.5px;">${escapeHtml(ra.title)}</a>`;
+          }
+          html += '</div>';
+        }
+
+        html += '<div style="margin-top:18px;padding-top:12px;border-top:1px solid #d8d4cc;color:#9a9690;font-size:10.5px;">⌨ 快捷键：n/p 翻页 · t 关闭面板</div>';
+        panel.innerHTML = html;
+      }
+
+      buildPanel();
+      wrap.dataset.v3Enhanced = '1';
+      panel._buildPanel = buildPanel;
+
+      if (!document.getElementById('v3-toggle-btn')) {
+        const toggle = document.createElement('button');
+        toggle.id = 'v3-toggle-btn';
+        toggle.textContent = '📑';
+        toggle.title = '显示导航面板 (t)';
+        toggle.style.cssText = 'position:fixed;right:12px;bottom:60px;width:40px;height:40px;border-radius:50%;background:#3a4a6b;color:#fff;border:none;font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);z-index:160;';
+        toggle.onclick = () => {
+          const isOpen = panel.style.display === 'block';
+          panel.style.display = isOpen ? 'none' : 'block';
+          if (!isOpen && panel._buildPanel) panel._buildPanel();
+        };
+        document.body.appendChild(toggle);
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  function enhanceHashRouter() {
+    window.addEventListener('hashchange', () => {
+      const hash = window.location.hash;
+      if (hash.startsWith('#series/')) {
+        showCollectionView('series', decodeURIComponent(hash.replace('#series/', '')));
+      } else if (hash.startsWith('#tag/')) {
+        showCollectionView('tag', decodeURIComponent(hash.replace('#tag/', '')));
+      } else if (hash === '' || hash === '#') {
+        hideCollectionView();
+      }
+    });
+  }
+
+  function showCollectionView(type, value) {
+    hideCollectionView();
+    const filtered = type === 'series'
+      ? STATE.articles.filter(a => a.series === value)
+      : STATE.articles.filter(a => (a.tags || []).includes(value));
+
+    const title = type === 'series' ? `📚 系列：${value}` : `🏷️ 标签：${value}`;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'v3-collection-overlay';
+    overlay.style.cssText = 'position:fixed;left:0;right:0;top:0;bottom:0;background:#f4f2ed;z-index:300;overflow-y:auto;padding:24px 36px;';
+    overlay.innerHTML = `
+      <div style="max-width:1280px;margin:0 auto;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #3a4a6b;">
+          <h1 style="font-size:24px;color:#3a4a6b;margin:0;">${escapeHtml(title)}</h1>
+          <a href="#" id="v3-collection-close" style="padding:6px 16px;background:#fff;border:1px solid #d8d4cc;border-radius:6px;text-decoration:none;color:#5a5a5a;">← 返回首页</a>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">
+          ${filtered.map(a => `
+            <a href="#article/${a.id}" style="background:#fff;border:1px solid #d8d4cc;border-radius:8px;padding:14px;text-decoration:none;color:inherit;display:block;">
+              <div style="font-size:11px;color:#9a9690;margin-bottom:6px;">${escapeHtml(a.category || '')} · ${escapeHtml(a.date || '')}</div>
+              <div style="font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:6px;line-height:1.4;">${escapeHtml(a.title)}</div>
+              <div style="font-size:12px;color:#5a5a5a;line-height:1.5;">${escapeHtml((a.summary || '').slice(0, 80))}${(a.summary || '').length > 80 ? '…' : ''}</div>
+              ${a.tags && a.tags.length ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">${a.tags.slice(0, 3).map(t => `<span style="background:#eae7e1;color:#5a5a5a;padding:1px 8px;border-radius:10px;font-size:10.5px;">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+            </a>
+          `).join('')}
+        </div>
+        ${filtered.length === 0 ? '<p style="color:#9a9690;">没有匹配的文章。</p>' : ''}
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    document.getElementById('v3-collection-close').onclick = (e) => {
+      e.preventDefault();
+      window.location.hash = '';
+    };
+  }
+
+  function hideCollectionView() {
+    const overlay = document.getElementById('v3-collection-overlay');
+    if (overlay) overlay.remove();
+  }
+
+  function enhanceSearchWithFullText() {
+    let fulltextIndex = null;
+    const input = document.getElementById('search-input');
+    if (!input) return;
+    let timer = null;
+
+    input.addEventListener('input', (e) => {
+      clearTimeout(timer);
+      const q = e.target.value.trim();
+      if (q.length < 2) {
+        hideCollectionView();
+        return;
+      }
+      timer = setTimeout(async () => {
+        if (q.length < 2) return;
+        if (!fulltextIndex) {
+          fulltextIndex = [];
+          for (const a of STATE.articles) {
+            try {
+              const r = await fetch(a.html_path);
+              if (!r.ok) continue;
+              const html = await r.text();
+              const text = html
+                .replace(/<script[\s\S]*?<\/script>/gi, '')
+                .replace(/<style[\s\S]*?<\/style>/gi, '')
+                .replace(/<[^>]+>/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+              fulltextIndex.push({ id: a.id, text: text.slice(0, 50000) });
+            } catch (e) {}
+          }
+        }
+        const ql = q.toLowerCase();
+        const matchedIds = new Set(
+          fulltextIndex.filter(x => x.text.toLowerCase().includes(ql)).map(x => x.id)
+        );
+        // 加上 manifest 自带的 title/summary/tags 匹配
+        for (const a of STATE.articles) {
+          if (a.title.toLowerCase().includes(ql) || (a.summary || '').toLowerCase().includes(ql)) {
+            matchedIds.add(a.id);
+          }
+        }
+        if (matchedIds.size === 0) {
+          const overlay = document.createElement('div');
+          overlay.id = 'v3-collection-overlay';
+          overlay.style.cssText = 'position:fixed;left:0;right:0;top:0;bottom:0;background:#f4f2ed;z-index:300;display:flex;align-items:center;justify-content:center;';
+          overlay.innerHTML = `<div style="text-align:center;"><h1 style="color:#3a4a6b;">🔍 没有匹配 "${escapeHtml(q)}" 的文章</h1><br><a href="#" onclick="event.preventDefault();window.location.hash='';document.getElementById('v3-collection-overlay')?.remove();" style="padding:6px 16px;background:#fff;border:1px solid #d8d4cc;border-radius:6px;text-decoration:none;color:#5a5a5a;">返回</a></div>`;
+          hideCollectionView();
+          document.body.appendChild(overlay);
+          return;
+        }
+        // 渲染搜索结果视图
+        const title = `🔍 搜索："${q}" (${matchedIds.size} 篇)`;
+        const filtered = STATE.articles.filter(a => matchedIds.has(a.id));
+        const overlay = document.createElement('div');
+        overlay.id = 'v3-collection-overlay';
+        overlay.style.cssText = 'position:fixed;left:0;right:0;top:0;bottom:0;background:#f4f2ed;z-index:300;overflow-y:auto;padding:24px 36px;';
+        overlay.innerHTML = `
+          <div style="max-width:1280px;margin:0 auto;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #3a4a6b;">
+              <h1 style="font-size:24px;color:#3a4a6b;margin:0;">${escapeHtml(title)}</h1>
+              <a href="#" id="v3-collection-close" style="padding:6px 16px;background:#fff;border:1px solid #d8d4cc;border-radius:6px;text-decoration:none;color:#5a5a5a;">← 返回首页</a>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">
+              ${filtered.map(a => `
+                <a href="#article/${a.id}" style="background:#fff;border:1px solid #d8d4cc;border-radius:8px;padding:14px;text-decoration:none;color:inherit;display:block;">
+                  <div style="font-size:11px;color:#9a9690;margin-bottom:6px;">${escapeHtml(a.category || '')} · ${escapeHtml(a.date || '')}</div>
+                  <div style="font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:6px;line-height:1.4;">${escapeHtml(a.title)}</div>
+                  <div style="font-size:12px;color:#5a5a5a;line-height:1.5;">${escapeHtml((a.summary || '').slice(0, 120))}${(a.summary || '').length > 120 ? '…' : ''}</div>
+                </a>
+              `).join('')}
+            </div>
+          </div>
+        `;
+        hideCollectionView();
+        document.body.appendChild(overlay);
+        document.getElementById('v3-collection-close').onclick = (e) => {
+          e.preventDefault();
+          window.location.hash = '';
+          input.value = '';
+        };
+      }, 800);
+    });
+  }
+
+  function addKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+      if (STATE.mode !== 'READER') return;
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      const hash = window.location.hash;
+      if (!hash.startsWith('#article/')) return;
+      const id = hash.replace('#article/', '');
+      const sorted = [...STATE.articles].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      const idx = sorted.findIndex(a => a.id === id);
+      if ((e.key === 'n' || e.key === 'ArrowRight') && idx >= 0 && idx < sorted.length - 1) {
+        window.location.hash = '#article/' + sorted[idx + 1].id;
+      } else if ((e.key === 'p' || e.key === 'ArrowLeft') && idx > 0) {
+        window.location.hash = '#article/' + sorted[idx - 1].id;
+      } else if (e.key === 't') {
+        const btn = document.getElementById('v3-toggle-btn');
+        if (btn) btn.click();
+      }
+    });
+  }
+
+  function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
 })();
