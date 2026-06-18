@@ -384,7 +384,7 @@
     badgeRow.innerHTML = `
       <span class="hero-badge">精选</span>
       <span class="hero-badge cat">${escapeHtml(article.category || '未分类')}</span>
-      <span class="hero-date">${escapeHtml(article.date || '')}</span>
+      <span class="hero-date">${escapeHtml(formatDateTime(article))}</span>
     `;
     body.appendChild(badgeRow);
 
@@ -499,9 +499,10 @@
 
     // 底部: 日期 · 阅读时间 · 格式徽章
     const footer = el('div', 'grid-card-footer');
-    if (article.date) {
+    const dt = formatDateTime(article);
+    if (dt) {
       const d = el('span', 'grid-card-date');
-      d.textContent = article.date;
+      d.textContent = dt;
       footer.appendChild(d);
     }
     if (article.reading_time_min) {
@@ -554,6 +555,18 @@
     return n.toLocaleString();
   }
 
+  // 把 updated_at (ISO) 或 date (YYYY-MM-DD) 格式化成 "MM-DD HH:MM"
+  function formatDateTime(a) {
+    const iso = a.updated_at || a.date || '';
+    if (!iso) return '';
+    // ISO: 2026-06-18T20:57:42+08:00
+    const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/);
+    if (!m) return iso;
+    const [, y, mo, d, h, mi] = m;
+    if (h && mi) return `${mo}-${d} ${h}:${mi}`;
+    return `${y}-${mo}-${d}`;
+  }
+
   // ── 渲染: 文章列表 (Hero + Grid) ────────────────────
   function renderArticleList() {
     // 清空
@@ -581,7 +594,7 @@
 
     // Hero: 取最新 2 篇 (按日期降序)
     // 注意: 如果当前筛选改了, 应该展示筛选后的最新 2 篇
-    const dateSorted = sorted.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const dateSorted = sorted.slice().sort((a, b) => (b.updated_at || b.date || '').localeCompare(a.updated_at || a.date || ''));
     const heroArts = dateSorted.slice(0, 2);
     const heroIds = new Set(heroArts.map(a => a.id));
 
@@ -604,8 +617,8 @@
   // ── 排序 ────────────────────────────────────────────
   function sortArticles(arr, mode) {
     const cmp = {
-      newest:   (a, b) => (b.date || '').localeCompare(a.date || ''),
-      oldest:   (a, b) => (a.date || '').localeCompare(b.date || ''),
+      newest:   (a, b) => (b.updated_at || b.date || '').localeCompare(a.updated_at || a.date || ''),
+      oldest:   (a, b) => (a.updated_at || a.date || '').localeCompare(b.updated_at || b.date || ''),
       words:    (a, b) => (b.word_count || 0) - (a.word_count || 0),
       reading:  (a, b) => (b.reading_time_min || 0) - (a.reading_time_min || 0),
       title:    (a, b) => (a.title || '').localeCompare(b.title || ''),
@@ -635,7 +648,7 @@
     dom.readerMeta.innerHTML = `
       <span class="rmeta-cat">${escapeHtml(article.category || '未分类')}</span>
       <span class="rmeta-sep">·</span>
-      <span>${escapeHtml(article.date || '')}</span>
+      <span>${escapeHtml(formatDateTime(article))}</span>
       <span class="rmeta-sep">·</span>
       <span>${escapeHtml((article.tags || []).join('、'))}</span>
     `;
@@ -948,7 +961,7 @@
       const article = STATE.articles.find(a => a.id === id);
       if (!article) return;
 
-      const sorted = [...STATE.articles].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      const sorted = [...STATE.articles].sort((a, b) => (a.updated_at || a.date || '').localeCompare(b.updated_at || b.date || ''));
       const idx = sorted.findIndex(a => a.id === id);
       const prev = idx > 0 ? sorted[idx - 1] : null;
       const next = idx < sorted.length - 1 ? sorted[idx + 1] : null;
@@ -1051,7 +1064,7 @@
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">
           ${filtered.map(a => `
             <a href="#article/${a.id}" style="background:#fff;border:1px solid #d8d4cc;border-radius:8px;padding:14px;text-decoration:none;color:inherit;display:block;">
-              <div style="font-size:11px;color:#9a9690;margin-bottom:6px;">${escapeHtml(a.category || '')} · ${escapeHtml(a.date || '')}</div>
+              <div style="font-size:11px;color:#9a9690;margin-bottom:6px;">${escapeHtml(a.category || '')} · ${escapeHtml(formatDateTime(a))}</div>
               <div style="font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:6px;line-height:1.4;">${escapeHtml(a.title)}</div>
               <div style="font-size:12px;color:#5a5a5a;line-height:1.5;">${escapeHtml((a.summary || '').slice(0, 80))}${(a.summary || '').length > 80 ? '…' : ''}</div>
               ${a.tags && a.tags.length ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">${a.tags.slice(0, 3).map(t => `<span style="background:#eae7e1;color:#5a5a5a;padding:1px 8px;border-radius:10px;font-size:10.5px;">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
@@ -1137,7 +1150,7 @@
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">
               ${filtered.map(a => `
                 <a href="#article/${a.id}" style="background:#fff;border:1px solid #d8d4cc;border-radius:8px;padding:14px;text-decoration:none;color:inherit;display:block;">
-                  <div style="font-size:11px;color:#9a9690;margin-bottom:6px;">${escapeHtml(a.category || '')} · ${escapeHtml(a.date || '')}</div>
+                  <div style="font-size:11px;color:#9a9690;margin-bottom:6px;">${escapeHtml(a.category || '')} · ${escapeHtml(formatDateTime(a))}</div>
                   <div style="font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:6px;line-height:1.4;">${escapeHtml(a.title)}</div>
                   <div style="font-size:12px;color:#5a5a5a;line-height:1.5;">${escapeHtml((a.summary || '').slice(0, 120))}${(a.summary || '').length > 120 ? '…' : ''}</div>
                 </a>
@@ -1163,7 +1176,7 @@
       const hash = window.location.hash;
       if (!hash.startsWith('#article/')) return;
       const id = hash.replace('#article/', '');
-      const sorted = [...STATE.articles].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      const sorted = [...STATE.articles].sort((a, b) => (a.updated_at || a.date || '').localeCompare(b.updated_at || b.date || ''));
       const idx = sorted.findIndex(a => a.id === id);
       if ((e.key === 'n' || e.key === 'ArrowRight') && idx >= 0 && idx < sorted.length - 1) {
         window.location.hash = '#article/' + sorted[idx + 1].id;
