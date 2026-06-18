@@ -1,0 +1,45 @@
+# QLoRA 训练配置: 13B 模型 + 4-bit 量化 (16GB GPU 推荐)
+model_name_or_path: Qwen/Qwen2.5-14B-Instruct
+dataset_dir: /mnt/g/hacms/content/articles/2026-06-18-ransomware-model-training/data
+dataset: ransomware_defense
+output_dir: ./sft_output_14b_qlora
+
+# 训练类型: QLoRA (4-bit 量化)
+finetuning_type: qlora
+quantization_bit: 4
+quantization_method: bitsandbytes
+lora_rank: 32
+lora_alpha: 64
+lora_dropout: 0.05
+lora_target: q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj
+
+# 训练超参
+num_train_epochs: 3.0
+per_device_train_batch_size: 2
+gradient_accumulation_steps: 8
+learning_rate: 5.0e-5
+warmup_ratio: 0.1
+lr_scheduler_type: cosine
+weight_decay: 0.0
+max_grad_norm: 1.0
+optim: paged_adamw_8bit
+
+# 序列长度
+max_seq_length: 2048
+packing: false
+neftune_noise_alpha: 5
+
+# 日志与保存
+logging_steps: 20
+save_steps: 500
+save_total_limit: 3
+plot_loss: true
+report_to: tensorboard
+
+# 精度
+bf16: true
+flash_attn: true
+
+# 系统
+gradient_checkpointing: true
+seed: 42
