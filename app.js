@@ -102,13 +102,25 @@
   // 分类对应的内联 SVG 占位 (低 AI 感, 学术风)
   const CATEGORY_PLACEHOLDER = {
     'AI基础设施': `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
-      <rect x="14" y="14" width="52" height="52" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="14" y1="28" x2="66" y2="28" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="14" y1="42" x2="66" y2="42" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="14" y1="56" x2="66" y2="56" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="28" y1="14" x2="28" y2="66" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="42" y1="14" x2="42" y2="66" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="56" y1="14" x2="56" y2="66" stroke="currentColor" stroke-width="1.5"/>
+      <!-- CPU/芯片: 中央方块 + 4 向引脚 + 内部小方块 -->
+      <rect x="22" y="22" width="36" height="36" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <rect x="32" y="32" width="16" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <!-- 引脚 (上) -->
+      <line x1="30" y1="22" x2="30" y2="14" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="40" y1="22" x2="40" y2="14" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="50" y1="22" x2="50" y2="14" stroke="currentColor" stroke-width="1.5"/>
+      <!-- 引脚 (下) -->
+      <line x1="30" y1="58" x2="30" y2="66" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="40" y1="58" x2="40" y2="66" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="50" y1="58" x2="50" y2="66" stroke="currentColor" stroke-width="1.5"/>
+      <!-- 引脚 (左) -->
+      <line x1="22" y1="30" x2="14" y2="30" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="22" y1="40" x2="14" y2="40" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="22" y1="50" x2="14" y2="50" stroke="currentColor" stroke-width="1.5"/>
+      <!-- 引脚 (右) -->
+      <line x1="58" y1="30" x2="66" y2="30" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="58" y1="40" x2="66" y2="40" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="58" y1="50" x2="66" y2="50" stroke="currentColor" stroke-width="1.5"/>
     </svg>`,
     '安全': `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
       <path d="M40 12 L62 22 L62 42 Q62 58 40 68 Q18 58 18 42 L18 22 Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
@@ -236,7 +248,6 @@
     allItem.dataset.cat = '';
     if (!STATE.activeCategory) allItem.classList.add('active');
     allItem.innerHTML = `
-      <span class="cat-icon">⊞</span>
       <span class="cat-name">全部文章</span>
       <span class="cat-count">${STATE.articles.length}</span>
     `;
@@ -268,7 +279,6 @@
       item.dataset.cat = cat;
       if (STATE.activeCategory === cat) item.classList.add('active');
       item.innerHTML = `
-        <span class="cat-icon">•</span>
         <span class="cat-name">${escapeHtml(cat)}</span>
         <span class="cat-count">${catCount[cat]}</span>
       `;
