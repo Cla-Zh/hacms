@@ -65,6 +65,8 @@
 
       li.appendChild(num);
       li.appendChild(body);
+      // 如果有 anchor (如 poison-llm), 加到 li id 以便 #ref-xxx 跳转
+      if (r.anchor) li.id = 'ref-' + r.anchor;
       ol.appendChild(li);
     });
   }
