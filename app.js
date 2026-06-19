@@ -1,8 +1,13 @@
 /**
- * app.js — 肥嘟嘟的炼金工厂 v4
+ * app.js — 肥嘟嘟的炼金工厂 v5
  *
- * 状态机：HOME（双层布局：Hero 大卡 + 3 列网格）<-> READER（iframe）
- * 沿用 V3：related 面板、series/tag 集合视图、全文搜索、键盘快捷键
+ * 变更:
+ * - 排序: 严格按文章 date (YYYY-MM-DD) 字段, 模式改为 date-desc / date-asc
+ * - Hero: 不再显示"精选", 而是最新 2 篇 (badge 文字改为"最新")
+ * - 卡片: 去掉左缩略图占位, 改用顶部细色条 + 分类徽章
+ * - 搜索: 全文索引 + 高亮 + 摘要片段
+ * - 标签: 词云样式, 字号按频次缩放
+ * - 外部链接: target=_blank; 内部锚点保持当前页
  */
 
 (function () {
@@ -17,11 +22,30 @@
     activeCategory: null,
     activeTags: [],
     searchQuery: '',
-    sortMode: 'newest',
+    sortMode: 'date-desc',
     prevHomeScroll: 0,
     thumbCache: {},      // { articleId: 'path/to/img.png' | null }
     thumbInflight: {},   // 防重复探测
+    searchIndex: {},     // { articleId: { title, summary, tags, content } }
+    searchIndexReady: false,
+    searchIndexInflight: false,
   };
+
+  // ── 分类颜色映射 ─────────────────────────────────────
+  const CATEGORY_COLORS = {
+    '洞察':         '#d4a574',  // 金/橙
+    '战略洞察':     '#8b7ab8',  // 紫
+    'AI应用':       '#5fb3a1',  // 青
+    'AI基础设施':   '#4a7fb8',  // 蓝
+    '安全':         '#c97b7b',  // 红
+    '技术调研':     '#7a8a99',  // 灰蓝
+    '其他':         '#9a9690',  // 灰
+  };
+  const DEFAULT_CATEGORY_COLOR = '#9a9690';
+
+  function getCategoryColor(category) {
+    return CATEGORY_COLORS[category] || DEFAULT_CATEGORY_COLOR;
+  }
 
   // ── DOM 引用 ──────────────────────────────────────────
   const $ = (sel) => document.querySelector(sel);
@@ -79,6 +103,50 @@
       .replace(/'/g, '&#39;');
   };
 
+  // 转义正则元字符
+  const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  // 外部 URL 判断 (http/https/mailto/相对协议)
+  const isExternalUrl = (url) => /^(https?:|mailto:|tel:)/i.test(url);
+
+  // ── 高亮匹配关键字 → 返回带 <mark> 包裹的 HTML ──────────
+  // 注: 输入 text 必须是已 escape 过的 HTML 字符串
+  function highlightText(escapedHtml, query) {
+    if (!query) return escapedHtml;
+    const tokens = query.toLowerCase().split(/\s+/).filter(t => t.length >= 1);
+    if (tokens.length === 0) return escapedHtml;
+    // 注意: 高亮标记要避开已存在的标签, 这里简化处理: 对 textContent 风格字符串加 mark
+    // 由于传入的是已 escape 的纯文本 (无标签), 直接 replace 即可
+    let result = escapedHtml;
+    tokens.forEach(tok => {
+      const re = new RegExp(escapeRegex(tok), 'gi');
+      result = result.replace(re, m => `<mark class="hl">${m}</mark>`);
+    });
+    return result;
+  }
+
+  // 从纯文本中抽取包含 query 的 30 字片段
+  function extractSnippet(text, query, len = 30) {
+    if (!text || !query) return '';
+    const tokens = query.toLowerCase().split(/\s+/).filter(t => t.length >= 1);
+    if (tokens.length === 0) return '';
+    const lower = text.toLowerCase();
+    let pos = -1;
+    for (const tok of tokens) {
+      pos = lower.indexOf(tok);
+      if (pos >= 0) break;
+    }
+    if (pos < 0) return '';
+    const half = Math.floor(len / 2);
+    let start = Math.max(0, pos - half);
+    let end = Math.min(text.length, start + len);
+    if (end - start < len) start = Math.max(0, end - len);
+    let snippet = text.slice(start, end);
+    if (start > 0) snippet = '…' + snippet;
+    if (end < text.length) snippet = snippet + '…';
+    return snippet;
+  }
+
   const formatIcon = (fmt) => {
     const icons = { docx:'Word', doc:'Word', pptx:'PPT', ppt:'PPT', pdf:'PDF', xlsx:'Excel', xls:'Excel' };
     return icons[fmt] || fmt.toUpperCase();
@@ -89,154 +157,87 @@
   const getWordViewerUrl = (docUrl) =>
     'https://view.officeapps.live.com/op/embed.aspx?src=' + encodeURIComponent(docUrl);
 
-  const fuzzyMatch = (article, query) => {
+  // 工具: 给 <a> 标签加 target=_blank (外部) / 保持当前页 (内部锚点)
+  function applyAnchorTarget(anchor, href) {
+    if (!href) return;
+    if (href.startsWith('#')) {
+      // 内部锚点: 保持当前页
+      return;
+    }
+    if (isExternalUrl(href) || href.startsWith('/')) {
+      anchor.target = '_blank';
+      anchor.rel = 'noopener noreferrer';
+    }
+  }
+
+  // 全文搜索: 同步在内存索引上做
+  function searchMatch(article, query) {
     if (!query) return true;
-    const q = query.toLowerCase();
+    const q = query.toLowerCase().trim();
+    if (!q) return true;
+    const idx = STATE.searchIndex[article.id];
+    if (idx) {
+      return (
+        (idx.title || '').toLowerCase().includes(q) ||
+        (idx.summary || '').toLowerCase().includes(q) ||
+        (idx.tags || []).some(t => t.toLowerCase().includes(q)) ||
+        (idx.content || '').toLowerCase().includes(q)
+      );
+    }
+    // 索引未就绪: 退回到只搜 title/summary/tags
     return (
-      article.title.toLowerCase().includes(q) ||
+      (article.title || '').toLowerCase().includes(q) ||
       (article.summary || '').toLowerCase().includes(q) ||
       (article.tags || []).some(t => t.toLowerCase().includes(q))
     );
-  };
-
-  // 分类对应的内联 SVG 占位 (低 AI 感, 学术风)
-  const CATEGORY_PLACEHOLDER = {
-    'AI基础设施': `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
-      <!-- CPU/芯片: 中央方块 + 4 向引脚 + 内部小方块 -->
-      <rect x="22" y="22" width="36" height="36" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/>
-      <rect x="32" y="32" width="16" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/>
-      <!-- 引脚 (上) -->
-      <line x1="30" y1="22" x2="30" y2="14" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="40" y1="22" x2="40" y2="14" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="50" y1="22" x2="50" y2="14" stroke="currentColor" stroke-width="1.5"/>
-      <!-- 引脚 (下) -->
-      <line x1="30" y1="58" x2="30" y2="66" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="40" y1="58" x2="40" y2="66" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="50" y1="58" x2="50" y2="66" stroke="currentColor" stroke-width="1.5"/>
-      <!-- 引脚 (左) -->
-      <line x1="22" y1="30" x2="14" y2="30" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="22" y1="40" x2="14" y2="40" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="22" y1="50" x2="14" y2="50" stroke="currentColor" stroke-width="1.5"/>
-      <!-- 引脚 (右) -->
-      <line x1="58" y1="30" x2="66" y2="30" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="58" y1="40" x2="66" y2="40" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="58" y1="50" x2="66" y2="50" stroke="currentColor" stroke-width="1.5"/>
-    </svg>`,
-    '安全': `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
-      <path d="M40 12 L62 22 L62 42 Q62 58 40 68 Q18 58 18 42 L18 22 Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-      <path d="M30 40 L37 47 L52 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>`,
-    '洞察': `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="40" cy="40" r="22" fill="none" stroke="currentColor" stroke-width="1.5"/>
-      <circle cx="40" cy="40" r="3" fill="currentColor"/>
-      <line x1="40" y1="40" x2="40" y2="22" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="40" y1="40" x2="55" y2="48" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="40" y1="14" x2="40" y2="10" stroke="currentColor" stroke-width="1"/>
-      <line x1="40" y1="70" x2="40" y2="66" stroke="currentColor" stroke-width="1"/>
-      <line x1="14" y1="40" x2="10" y2="40" stroke="currentColor" stroke-width="1"/>
-      <line x1="70" y1="40" x2="66" y2="40" stroke="currentColor" stroke-width="1"/>
-    </svg>`,
-    'AI应用': `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
-      <rect x="16" y="22" width="48" height="36" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="16" y1="34" x2="64" y2="34" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="16" y1="46" x2="64" y2="46" stroke="currentColor" stroke-width="1.5"/>
-      <circle cx="26" cy="28" r="1.5" fill="currentColor"/>
-      <circle cx="32" cy="28" r="1.5" fill="currentColor"/>
-      <line x1="28" y1="58" x2="28" y2="64" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="52" y1="58" x2="52" y2="64" stroke="currentColor" stroke-width="1.5"/>
-      <line x1="22" y1="64" x2="58" y2="64" stroke="currentColor" stroke-width="1.5"/>
-    </svg>`,
-    '其他': `<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="40" cy="40" r="26" fill="none" stroke="currentColor" stroke-width="1.5"/>
-      <ellipse cx="40" cy="40" rx="26" ry="10" fill="none" stroke="currentColor" stroke-width="1"/>
-      <ellipse cx="40" cy="40" rx="10" ry="26" fill="none" stroke="currentColor" stroke-width="1"/>
-    </svg>`,
-  };
-
-  function getCategoryPlaceholder(category) {
-    const svg = CATEGORY_PLACEHOLDER[category] || CATEGORY_PLACEHOLDER['其他'];
-    return `<div class="placeholder-svg" aria-hidden="true">${svg}</div>`;
   }
 
-  // ── 缩略图探测 (异步, 缓存) ──────────────────────────
-  // 策略:
-  //   1. 先返回占位 SVG (同步)
-  //   2. 后台探测: content/articles/{id}/images/cover.*|01_*.{png,jpg,webp,svg}
-  //   3. 探测成功 → 替换 <img>; 失败 → 保留占位
-  const IMG_EXT = ['png', 'jpg', 'jpeg', 'webp', 'svg'];
-  const IMG_CANDIDATES = ['cover', '01_cover', '01', '1', '00', 'thumbnail'];
-
-  async function probeThumbnail(article) {
-    if (STATE.thumbCache[article.id] !== undefined) {
-      return STATE.thumbCache[article.id];
-    }
-    if (STATE.thumbInflight[article.id]) {
-      return STATE.thumbInflight[article.id];
-    }
-    if (!article.html_path) {
-      STATE.thumbCache[article.id] = null;
-      return null;
-    }
-    // html_path: content/articles/{id}/index.html
-    // 推导出 images/ 目录
-    const htmlDir = article.html_path.replace(/index\.html$/, '');
-    const base = htmlDir + 'images/';
-
-    STATE.thumbInflight[article.id] = (async () => {
-      for (const name of IMG_CANDIDATES) {
-        for (const ext of IMG_EXT) {
-          const url = `${base}${name}.${ext}`;
-          try {
-            const r = await fetch(url, { method: 'HEAD' });
-            if (r.ok) {
-              STATE.thumbCache[article.id] = url;
-              return url;
-            }
-          } catch (e) { /* 忽略, 继续探测 */ }
-        }
-      }
-      STATE.thumbCache[article.id] = null;
-      return null;
-    })();
-    return STATE.thumbInflight[article.id];
-  }
-
-  // 后台批量探测所有缩略图, 完成后替换占位
-  function hydrateThumbnails(articles) {
-    if (!('IntersectionObserver' in window)) return;
-    // 用图片懒加载 + 替换策略:
-    // 首屏立即探测, 其余延后 (requestIdleCallback)
-    const probe = (a) => probeThumbnail(a).then(url => {
-      if (!url) return;
-      // 找到对应卡片内的 img, 设置 src
-      document.querySelectorAll(`img[data-thumb-for="${a.id}"]`).forEach(img => {
-        if (!img.src || img.dataset.placeholder) {
-          img.src = url;
-          img.removeAttribute('data-placeholder');
-        }
-      });
+  // ── 全文搜索索引 (后台构建, 不阻塞首屏) ──────────────
+  async function buildSearchIndex() {
+    if (STATE.searchIndexReady || STATE.searchIndexInflight) return;
+    STATE.searchIndexInflight = true;
+    const articles = STATE.articles;
+    // 限制单篇长度, 防止内存爆炸
+    const MAX_CHARS = 80000;
+    const task = (a) => fetch(a.html_path, { cache: 'force-cache' })
+      .then(r => r.ok ? r.text() : '')
+      .then(html => {
+        if (!html) return;
+        const text = html
+          .replace(/<script[\s\S]*?<\/script>/gi, '')
+          .replace(/<style[\s\S]*?<\/style>/gi, '')
+          .replace(/<noscript[\s\S]*?<\/noscript>/gi, '')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/\s+/g, ' ')
+          .trim();
+        STATE.searchIndex[a.id] = {
+          title: a.title || '',
+          summary: a.summary || '',
+          tags: a.tags || [],
+          content: text.slice(0, MAX_CHARS),
+        };
+      })
+      .catch(() => {});
+    // 顺序: 先 4 篇立即, 其余 idle 时再处理, 避免阻塞首屏
+    const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 200));
+    articles.slice(0, 4).forEach(a => task(a));
+    idle(() => {
+      articles.slice(4).forEach(a => task(a));
+      // 等所有请求完成后再标记就绪
+      Promise.all(articles.map(a => STATE.searchIndex[a.id] || task(a)))
+        .finally(() => {
+          STATE.searchIndexReady = true;
+          STATE.searchIndexInflight = false;
+          // 如果有未应用的搜索, 重新过滤一次
+          if (STATE.searchQuery) applyFilters();
+        });
     });
-
-    articles.slice(0, 4).forEach(p => probe(p));
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(() => articles.slice(4).forEach(p => probe(p)), { timeout: 1500 });
-    } else {
-      setTimeout(() => articles.slice(4).forEach(p => probe(p)), 600);
-    }
-  }
-
-  // ── 侧边栏 ───────────────────────────────────────────
-  function openSidebar() {
-    STATE.sidebarOpen = true;
-    dom.sidebar.classList.add('open');
-    dom.sidebarOverlay.classList.remove('hidden');
-    dom.sidebarOverlay.classList.add('visible');
-  }
-  function closeSidebar() {
-    STATE.sidebarOpen = false;
-    dom.sidebar.classList.remove('open');
-    dom.sidebarOverlay.classList.add('hidden');
-    dom.sidebarOverlay.classList.remove('visible');
   }
 
   // ── 渲染: 分类 ──────────────────────────────────────
@@ -265,7 +266,7 @@
       const c = a.category || '其他';
       catCount[c] = (catCount[c] || 0) + 1;
     });
-    const ORDER = ['洞察', '战略洞察', 'AI 应用', 'AI基础设施', '安全', '技术调研', '其他'];
+    const ORDER = ['洞察', '战略洞察', 'AI应用', 'AI基础设施', '安全', '技术调研', '其他'];
     const cats = Object.keys(catCount).sort((a, b) => {
       const ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
       if (ia >= 0 && ib >= 0) return ia - ib;
@@ -279,6 +280,7 @@
       item.dataset.cat = cat;
       if (STATE.activeCategory === cat) item.classList.add('active');
       item.innerHTML = `
+        <span class="cat-dot" style="background:${getCategoryColor(cat)}"></span>
         <span class="cat-name">${escapeHtml(cat)}</span>
         <span class="cat-count">${catCount[cat]}</span>
       `;
@@ -292,20 +294,37 @@
     });
   }
 
-  // ── 渲染: 标签云 ────────────────────────────────────
+  // ── 渲染: 标签词云 ────────────────────────────────────
   function renderTagCloud() {
     dom.tagCloud.innerHTML = '';
     const tagCount = {};
     STATE.articles.forEach(a => (a.tags || []).forEach(t => {
       tagCount[t] = (tagCount[t] || 0) + 1;
     }));
+    // 找到每个 tag 对应的主分类 (取该 tag 出现次数最多的文章分类)
+    const tagCategory = {};
+    STATE.articles.forEach(a => {
+      const c = a.category || '其他';
+      (a.tags || []).forEach(t => {
+        if (!tagCategory[t]) tagCategory[t] = c;
+      });
+    });
+
     const sorted = Object.entries(tagCount)
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-      .slice(0, 24);
+      .slice(0, 30);
+    const maxCount = sorted.length ? sorted[0][1] : 1;
+    const minCount = sorted.length ? sorted[sorted.length - 1][1] : 1;
+    const MIN_FS = 12, MAX_FS = 22;
+
     sorted.forEach(([tag, count]) => {
-      const btn = el('button', 'tag-btn');
+      const btn = el('button', 'tag-cloud-item');
+      const ratio = maxCount === minCount ? 1 : (count - minCount) / (maxCount - minCount);
+      const fs = MIN_FS + ratio * (MAX_FS - MIN_FS);
+      btn.style.fontSize = fs + 'px';
+      btn.style.color = getCategoryColor(tagCategory[tag]);
       btn.textContent = tag;
-      btn.title = `${count} 篇`;
+      btn.title = `${tag} · ${count} 篇`;
       if (STATE.activeTags.includes(tag)) btn.classList.add('active');
       btn.addEventListener('click', () => {
         STATE.activeTags = STATE.activeTags.includes(tag)
@@ -333,43 +352,6 @@
     }
   }
 
-  // ── 渲染: 缩略图节点 ────────────────────────────────
-  function renderThumbEl(article, extraCls) {
-    const wrap = el('div', `thumb-wrap ${extraCls || ''}`);
-    // 先放占位, 后续探测替换
-    const placeholder = document.createElement('div');
-    placeholder.className = 'placeholder-svg';
-    placeholder.innerHTML = getCategoryPlaceholder(article.category);
-    wrap.appendChild(placeholder);
-
-    // 占位即最终 (探测成功后会被 IMG 替换)
-    // 我们用一个隐藏的 img 探测, 一旦加载成功, 用它替换 placeholder
-    const img = new Image();
-    img.alt = '';
-    img.loading = 'lazy';
-    img.decoding = 'async';
-    img.dataset.thumbFor = article.id;
-    img.style.display = 'none';
-    wrap.appendChild(img);
-    return { wrap, img, placeholder };
-  }
-
-  // 把 (img, placeholder) 节点升级为真实图 (探测成功后回调用)
-  function adoptRealImage(img, placeholder, url) {
-    img.src = url;
-    img.style.display = '';
-    img.onload = () => {
-      if (placeholder.parentNode) placeholder.remove();
-      img.style.opacity = '0';
-      img.style.transition = 'opacity 0.25s';
-      requestAnimationFrame(() => { img.style.opacity = '1'; });
-    };
-    img.onerror = () => {
-      // 探测成功但加载失败, 保留占位
-      img.remove();
-    };
-  }
-
   // ── 渲染: Hero 大卡片 ───────────────────────────────
   function renderHeroCard(article) {
     const card = el('article', 'hero-card');
@@ -378,23 +360,48 @@
     card.setAttribute('role', 'button');
     card.setAttribute('aria-label', `打开文章: ${article.title}`);
 
+    // 顶部细色条 (按 category 配色)
+    const colorBar = el('div', 'card-color-bar');
+    colorBar.style.background = getCategoryColor(article.category);
+    card.appendChild(colorBar);
+
     // 文本主体
     const body = el('div', 'hero-body');
     const badgeRow = el('div', 'hero-badge-row');
+    const catColor = getCategoryColor(article.category);
     badgeRow.innerHTML = `
-      <span class="hero-badge">精选</span>
-      <span class="hero-badge cat">${escapeHtml(article.category || '未分类')}</span>
+      <span class="hero-badge latest">最新</span>
+      <span class="hero-badge cat" style="background:${catColor}">${escapeHtml(article.category || '未分类')}</span>
       <span class="hero-date">${escapeHtml(formatDateTime(article))}</span>
     `;
     body.appendChild(badgeRow);
 
     const title = el('h3', 'hero-title');
-    title.textContent = article.title;
+    if (STATE.searchQuery) {
+      title.innerHTML = highlightText(escapeHtml(article.title), STATE.searchQuery);
+    } else {
+      title.textContent = article.title;
+    }
     body.appendChild(title);
 
     const summary = el('p', 'hero-summary');
-    summary.textContent = article.summary || '';
+    if (STATE.searchQuery) {
+      summary.innerHTML = highlightText(escapeHtml(article.summary || ''), STATE.searchQuery);
+    } else {
+      summary.textContent = article.summary || '';
+    }
     body.appendChild(summary);
+
+    // 搜索匹配片段 (仅在有 query 且命中内容时显示)
+    if (STATE.searchQuery) {
+      const idx = STATE.searchIndex[article.id];
+      const snippet = idx ? extractSnippet(idx.content, STATE.searchQuery, 60) : '';
+      if (snippet) {
+        const snipEl = el('p', 'match-snippet');
+        snipEl.innerHTML = `<span class="snip-label">匹配</span> ${highlightText(escapeHtml(snippet), STATE.searchQuery)}`;
+        body.appendChild(snipEl);
+      }
+    }
 
     // 标签
     const tagsRow = el('div', 'hero-tags');
@@ -430,12 +437,6 @@
 
     card.appendChild(body);
 
-    // 缩略图
-    const thumbWrap = el('div', 'hero-thumb');
-    const { wrap, img, placeholder } = renderThumbEl(article, 'hero');
-    thumbWrap.appendChild(wrap);
-    card.appendChild(thumbWrap);
-
     // 绑定打开
     const open = () => openReader(article);
     card.addEventListener('click', open);
@@ -443,15 +444,10 @@
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
     });
 
-    // 缩略图升级回调
-    probeThumbnail(article).then(url => {
-      if (url) adoptRealImage(img, placeholder, url);
-    });
-
     return card;
   }
 
-  // ── 渲染: 普通网格卡片 ──────────────────────────────
+  // ── 渲染: 普通网格卡片 (重设计) ──────────────────────
   function renderGridCard(article) {
     const card = el('article', 'grid-card');
     card.dataset.id = article.id;
@@ -459,28 +455,54 @@
     card.setAttribute('role', 'button');
     card.setAttribute('aria-label', `打开文章: ${article.title}`);
 
-    // 缩略图
-    const thumbWrap = el('div', 'grid-card-thumb');
-    const { wrap, img, placeholder } = renderThumbEl(article, 'grid');
-    thumbWrap.appendChild(wrap);
+    // 顶部细色条 (按 category 配色)
+    const colorBar = el('div', 'card-color-bar');
+    colorBar.style.background = getCategoryColor(article.category);
+    card.appendChild(colorBar);
 
-    // 文本
+    // 文本主体 (整张卡片就是 body)
     const body = el('div', 'grid-card-body');
 
-    // 分类徽章 (右上角)
-    const cat = el('span', 'grid-card-cat');
-    cat.textContent = article.category || '未分类';
-    body.appendChild(cat);
+    // 分类徽章 + 日期
+    const metaRow = el('div', 'grid-card-meta');
+    const catColor = getCategoryColor(article.category);
+    const catBadge = el('span', 'grid-card-cat');
+    catBadge.textContent = article.category || '未分类';
+    catBadge.style.background = catColor;
+    metaRow.appendChild(catBadge);
+    const dateEl = el('span', 'grid-card-date');
+    dateEl.textContent = formatDateTime(article);
+    metaRow.appendChild(dateEl);
+    body.appendChild(metaRow);
 
     // 标题
     const title = el('h3', 'grid-card-title');
-    title.textContent = article.title;
+    if (STATE.searchQuery) {
+      title.innerHTML = highlightText(escapeHtml(article.title), STATE.searchQuery);
+    } else {
+      title.textContent = article.title;
+    }
     body.appendChild(title);
 
     // 摘要
     const summary = el('p', 'grid-card-summary');
-    summary.textContent = article.summary || '';
+    if (STATE.searchQuery) {
+      summary.innerHTML = highlightText(escapeHtml(article.summary || ''), STATE.searchQuery);
+    } else {
+      summary.textContent = article.summary || '';
+    }
     body.appendChild(summary);
+
+    // 搜索匹配片段 (仅在有 query 且命中内容时显示)
+    if (STATE.searchQuery) {
+      const idx = STATE.searchIndex[article.id];
+      const snippet = idx ? extractSnippet(idx.content, STATE.searchQuery, 40) : '';
+      if (snippet) {
+        const snipEl = el('p', 'match-snippet');
+        snipEl.innerHTML = `<span class="snip-label">匹配</span> ${highlightText(escapeHtml(snippet), STATE.searchQuery)}`;
+        body.appendChild(snipEl);
+      }
+    }
 
     // 标签
     const tagsRow = el('div', 'grid-card-tags');
@@ -497,21 +519,20 @@
     }
     body.appendChild(tagsRow);
 
-    // 底部: 日期 · 阅读时间 · 格式徽章
+    // 底部: 阅读时间 / 附件 / 格式
     const footer = el('div', 'grid-card-footer');
-    const dt = formatDateTime(article);
-    if (dt) {
-      const d = el('span', 'grid-card-date');
-      d.textContent = dt;
-      footer.appendChild(d);
-    }
     if (article.reading_time_min) {
+      const r = el('span', 'grid-card-read');
+      r.textContent = `⏱ ${article.reading_time_min} 分钟`;
+      footer.appendChild(r);
+    }
+    if (article.word_count) {
       const sep = el('span', 'grid-card-sep');
       sep.textContent = '·';
       footer.appendChild(sep);
-      const r = el('span', 'grid-card-read');
-      r.textContent = `${article.reading_time_min} 分钟`;
-      footer.appendChild(r);
+      const w = el('span', 'grid-card-words');
+      w.textContent = `${formatNum(article.word_count)} 字`;
+      footer.appendChild(w);
     }
     // 格式徽章
     const fmts = collectFormats(article);
@@ -527,17 +548,12 @@
     }
     body.appendChild(footer);
 
-    card.appendChild(thumbWrap);
     card.appendChild(body);
 
     const open = () => openReader(article);
     card.addEventListener('click', open);
     card.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
-    });
-
-    probeThumbnail(article).then(url => {
-      if (url) adoptRealImage(img, placeholder, url);
     });
 
     return card;
@@ -555,16 +571,13 @@
     return n.toLocaleString();
   }
 
-  // 把 updated_at (ISO) 或 date (YYYY-MM-DD) 格式化成 "MM-DD HH:MM"
+  // 把 date (YYYY-MM-DD) 格式化成 "MM-DD" (只显示日期, 排序用 date 字段)
   function formatDateTime(a) {
-    const iso = a.updated_at || a.date || '';
-    if (!iso) return '';
-    // ISO: 2026-06-18T20:57:42+08:00
-    const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/);
-    if (!m) return iso;
-    const [, y, mo, d, h, mi] = m;
-    if (h && mi) return `${mo}-${d} ${h}:${mi}`;
-    return `${y}-${mo}-${d}`;
+    const d = a.date || (a.updated_at ? a.updated_at.slice(0, 10) : '');
+    if (!d) return '';
+    const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return d;
+    return `${m[2]}-${m[3]}`;
   }
 
   // ── 渲染: 文章列表 (Hero + Grid) ────────────────────
@@ -589,16 +602,15 @@
     dom.articleCount.textContent = `${total} 篇`;
     dom.topbarCount.textContent = `${total} 篇`;
 
-    // 当前筛选后的副本 (Hero 用最新 2 篇, Grid 显示其余)
+    // 排序后的列表
     const sorted = sortArticles(STATE.filtered.slice(), STATE.sortMode);
 
-    // Hero: 取最新 2 篇 (按日期降序)
-    // 注意: 如果当前筛选改了, 应该展示筛选后的最新 2 篇
-    const dateSorted = sorted.slice().sort((a, b) => (b.updated_at || b.date || '').localeCompare(a.updated_at || a.date || ''));
+    // Hero: 取最新 2 篇 (严格按 date 降序)
+    const dateSorted = sorted.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     const heroArts = dateSorted.slice(0, 2);
     const heroIds = new Set(heroArts.map(a => a.id));
 
-    // Hero: 仅当 1) 没搜索/没筛标签时, 或 2) 过滤后总数 ≥ 2 时显示
+    // Hero: 过滤后总数 >= 2 时显示
     const showHero = heroArts.length >= 2;
     if (showHero) {
       heroArts.forEach(a => dom.heroSection.appendChild(renderHeroCard(a)));
@@ -614,15 +626,15 @@
     });
   }
 
-  // ── 排序 ────────────────────────────────────────────
+  // ── 排序 (严格按文章 date 字段 YYYY-MM-DD) ───────────
   function sortArticles(arr, mode) {
     const cmp = {
-      newest:   (a, b) => (b.updated_at || b.date || '').localeCompare(a.updated_at || a.date || ''),
-      oldest:   (a, b) => (a.updated_at || a.date || '').localeCompare(b.updated_at || b.date || ''),
-      words:    (a, b) => (b.word_count || 0) - (a.word_count || 0),
-      reading:  (a, b) => (b.reading_time_min || 0) - (a.reading_time_min || 0),
-      title:    (a, b) => (a.title || '').localeCompare(b.title || ''),
-    }[mode] || ((a, b) => 0);
+      'date-desc': (a, b) => (b.date || '').localeCompare(a.date || ''),
+      'date-asc':  (a, b) => (a.date || '').localeCompare(b.date || ''),
+      'words':     (a, b) => (b.word_count || 0) - (a.word_count || 0),
+      'reading':   (a, b) => (b.reading_time_min || 0) - (a.reading_time_min || 0),
+      'title':     (a, b) => (a.title || '').localeCompare(b.title || ''),
+    }[mode] || ((a, b) => (b.date || '').localeCompare(a.date || ''));
     return arr.sort(cmp);
   }
 
@@ -631,10 +643,24 @@
     STATE.filtered = STATE.articles.filter(a => {
       const catMatch = !STATE.activeCategory || a.category === STATE.activeCategory;
       const tagMatch = STATE.activeTags.length === 0 || STATE.activeTags.every(t => (a.tags || []).includes(t));
-      const searchMatch = fuzzyMatch(a, STATE.searchQuery);
+      const searchMatch = searchMatch(a, STATE.searchQuery);
       return catMatch && tagMatch && searchMatch;
     });
     renderArticleList();
+  }
+
+  // ── 侧边栏 ───────────────────────────────────────────
+  function openSidebar() {
+    STATE.sidebarOpen = true;
+    dom.sidebar.classList.add('open');
+    dom.sidebarOverlay.classList.remove('hidden');
+    dom.sidebarOverlay.classList.add('visible');
+  }
+  function closeSidebar() {
+    STATE.sidebarOpen = false;
+    dom.sidebar.classList.remove('open');
+    dom.sidebarOverlay.classList.add('hidden');
+    dom.sidebarOverlay.classList.remove('visible');
   }
 
   // ── Reader ──────────────────────────────────────────
@@ -657,16 +683,11 @@
     (article.attachments || []).forEach(att => {
       const btn = document.createElement('a');
       btn.className = `attach-btn attach-${att.format}`;
-      // 用绝对路径 (从根开始) — 避免在 iframe 内点击时路径被解析为 iframe URL
-      // 例: manifest 里 path = "content/articles/.../x.pptx"
-      //     iframe URL = "http://.../content/articles/.../index.html"
-      //     相对路径会变成 "http://.../content/articles/.../content/articles/.../x.pptx" ❌
-      //     绝对路径 "/" 开头:  "http://.../content/articles/.../x.pptx" ✅
       btn.href = att.path.startsWith('/') ? att.path : '/' + att.path;
       btn.download = att.name;
+      btn.target = '_blank';
+      btn.rel = 'noopener noreferrer';
       btn.textContent = `📥 ${att.name}`;
-      // 不加 target=_blank — iframe 内 _blank 会被部分浏览器拦截, 导致下载到错误页
-      btn.setAttribute('rel', 'noopener');
       dom.readerAttach.appendChild(btn);
     });
 
@@ -684,7 +705,7 @@
           noticeEl.innerHTML = `
             <div class="notice-icon">📄</div>
             <p>本文档为 Word 格式</p>
-            <a href="${getWordViewerUrl(wordAtt.path)}" target="_blank" class="word-view-btn">在线查看 Word</a>
+            <a href="${getWordViewerUrl(wordAtt.path)}" target="_blank" rel="noopener noreferrer" class="word-view-btn">在线查看 Word</a>
             <p style="margin-top:8px;font-size:12px;color:#999">或点击右上角下载按钮获取文件</p>
           `;
         }
@@ -730,14 +751,11 @@
   }
 
   // ── Open Graph meta 动态切换 ──────────────────────────
-  // 用于复制链接到微信/QQ/飞书时, 接收方能看到当前文章标题和摘要
-  // 注: WeChat 抓取需要 server-side JS 渲染才能拿到动态 OG,
-  //     本函数至少保证浏览器标签页、Twitter/Slack/钉钉/飞书分享卡显示正确
   function setOpenGraphMeta(article) {
     const title = article ? article.title : '肥嘟嘟的炼金工厂 · 调研报告与白皮书';
     const desc = article
       ? (article.summary || '').slice(0, 120)
-      : '32 篇深度调研 · 涵盖 AI 基础设施 / 存储安全 / 勒索防御 / 数据安全';
+      : '35 篇深度调研 · 涵盖 AI 基础设施 / 存储安全 / 勒索防御 / 数据安全';
     const url = article
       ? `${location.origin}/${article.html_path || ''}`
       : location.origin + location.pathname;
@@ -834,6 +852,16 @@
     setTimeout(() => dom.statsOverlay.classList.add('hidden'), 200);
   }
 
+  // ── 搜索 debounce ───────────────────────────────────
+  let searchDebounceTimer = null;
+  function onSearchInput(value) {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+      STATE.searchQuery = value.trim();
+      applyFilters();
+    }, 100);
+  }
+
   // ── 事件绑定 ────────────────────────────────────────
   function bindEvents() {
     dom.btnBack.addEventListener('click', closeReader);
@@ -845,8 +873,7 @@
     dom.sidebarOverlay.addEventListener('click', closeSidebar);
 
     dom.searchInput.addEventListener('input', (e) => {
-      STATE.searchQuery = e.target.value.trim();
-      applyFilters();
+      onSearchInput(e.target.value);
     });
 
     dom.sortSelect.addEventListener('change', (e) => {
@@ -865,9 +892,9 @@
         STATE.activeCategory = null;
         STATE.activeTags = [];
         STATE.searchQuery = '';
-        STATE.sortMode = 'newest';
+        STATE.sortMode = 'date-desc';
         dom.searchInput.value = '';
-        dom.sortSelect.value = 'newest';
+        dom.sortSelect.value = 'date-desc';
         renderCategories();
         renderTagCloud();
         applyFilters();
@@ -927,27 +954,29 @@
       const article = STATE.articles.find(a => a.id === id);
       if (article) {
         renderArticleList();
-        hydrateThumbnails(STATE.articles);
         openReader(article);
+        // 后台构建搜索索引 (不阻塞)
+        buildSearchIndex();
         return;
       }
     }
 
     renderArticleList();
-    hydrateThumbnails(STATE.articles);
+    // 后台构建搜索索引 (不阻塞首屏)
+    buildSearchIndex();
   }
 
   init();
 
   // ═══════════════════════════════════════════════════════
-  // V3 增强模块 — 沿用, 不破坏
+  // V3 增强模块 — 沿用 + 调整: 移除"全文搜索覆盖层" (改用主网格内高亮),
+  //                          related/series 链接加 target=_blank
   // ═══════════════════════════════════════════════════════
   initV3Features();
 
   function initV3Features() {
     enhanceReaderWithRelated();
     enhanceHashRouter();
-    enhanceSearchWithFullText();
     addKeyboardShortcuts();
   }
 
@@ -961,7 +990,7 @@
       const article = STATE.articles.find(a => a.id === id);
       if (!article) return;
 
-      const sorted = [...STATE.articles].sort((a, b) => (a.updated_at || a.date || '').localeCompare(b.updated_at || b.date || ''));
+      const sorted = [...STATE.articles].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
       const idx = sorted.findIndex(a => a.id === id);
       const prev = idx > 0 ? sorted[idx - 1] : null;
       const next = idx < sorted.length - 1 ? sorted[idx + 1] : null;
@@ -991,7 +1020,7 @@
           html += `<div style="font-weight:700;font-size:13px;margin:14px 0 6px;color:#3a4a6b;">📚 系列：${escapeHtml(article.series)}</div>`;
           html += '<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px;">';
           for (const sa of seriesArts.slice(0, 6)) {
-            html += `<a href="#article/${sa.id}" style="padding:5px 8px;background:#eef0f5;border-radius:4px;text-decoration:none;color:#2c3a54;font-size:11.5px;">${escapeHtml(sa.title)}</a>`;
+            html += `<a href="#article/${sa.id}" target="_blank" rel="noopener noreferrer" style="padding:5px 8px;background:#eef0f5;border-radius:4px;text-decoration:none;color:#2c3a54;font-size:11.5px;">${escapeHtml(sa.title)}</a>`;
           }
           html += '</div>';
         }
@@ -1000,7 +1029,7 @@
           html += '<div style="font-weight:700;font-size:13px;margin:14px 0 6px;color:#3a4a6b;">🔗 相关文章</div>';
           html += '<div style="display:flex;flex-direction:column;gap:5px;">';
           for (const ra of relatedArts) {
-            html += `<a href="#article/${ra.id}" style="padding:5px 8px;background:#fff;border:1px solid #d8d4cc;border-radius:4px;text-decoration:none;color:#5a5a5a;font-size:11.5px;">${escapeHtml(ra.title)}</a>`;
+            html += `<a href="#article/${ra.id}" target="_blank" rel="noopener noreferrer" style="padding:5px 8px;background:#fff;border:1px solid #d8d4cc;border-radius:4px;text-decoration:none;color:#5a5a5a;font-size:11.5px;">${escapeHtml(ra.title)}</a>`;
           }
           html += '</div>';
         }
@@ -1086,89 +1115,6 @@
     if (overlay) overlay.remove();
   }
 
-  function enhanceSearchWithFullText() {
-    let fulltextIndex = null;
-    const input = document.getElementById('search-input');
-    if (!input) return;
-    let timer = null;
-
-    input.addEventListener('input', (e) => {
-      clearTimeout(timer);
-      const q = e.target.value.trim();
-      if (q.length < 2) {
-        hideCollectionView();
-        return;
-      }
-      timer = setTimeout(async () => {
-        if (q.length < 2) return;
-        if (!fulltextIndex) {
-          fulltextIndex = [];
-          for (const a of STATE.articles) {
-            try {
-              const r = await fetch(a.html_path);
-              if (!r.ok) continue;
-              const html = await r.text();
-              const text = html
-                .replace(/<script[\s\S]*?<\/script>/gi, '')
-                .replace(/<style[\s\S]*?<\/style>/gi, '')
-                .replace(/<[^>]+>/g, ' ')
-                .replace(/\s+/g, ' ')
-                .trim();
-              fulltextIndex.push({ id: a.id, text: text.slice(0, 50000) });
-            } catch (e) {}
-          }
-        }
-        const ql = q.toLowerCase();
-        const matchedIds = new Set(
-          fulltextIndex.filter(x => x.text.toLowerCase().includes(ql)).map(x => x.id)
-        );
-        for (const a of STATE.articles) {
-          if (a.title.toLowerCase().includes(ql) || (a.summary || '').toLowerCase().includes(ql)) {
-            matchedIds.add(a.id);
-          }
-        }
-        if (matchedIds.size === 0) {
-          const overlay = document.createElement('div');
-          overlay.id = 'v3-collection-overlay';
-          overlay.style.cssText = 'position:fixed;left:0;right:0;top:0;bottom:0;background:#f4f2ed;z-index:300;display:flex;align-items:center;justify-content:center;';
-          overlay.innerHTML = `<div style="text-align:center;"><h1 style="color:#3a4a6b;">🔍 没有匹配 "${escapeHtml(q)}" 的文章</h1><br><a href="#" onclick="event.preventDefault();window.location.hash='';document.getElementById('v3-collection-overlay')?.remove();" style="padding:6px 16px;background:#fff;border:1px solid #d8d4cc;border-radius:6px;text-decoration:none;color:#5a5a5a;">返回</a></div>`;
-          hideCollectionView();
-          document.body.appendChild(overlay);
-          return;
-        }
-        const title = `🔍 搜索："${q}" (${matchedIds.size} 篇)`;
-        const filtered = STATE.articles.filter(a => matchedIds.has(a.id));
-        const overlay = document.createElement('div');
-        overlay.id = 'v3-collection-overlay';
-        overlay.style.cssText = 'position:fixed;left:0;right:0;top:0;bottom:0;background:#f4f2ed;z-index:300;overflow-y:auto;padding:24px 36px;';
-        overlay.innerHTML = `
-          <div style="max-width:1280px;margin:0 auto;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #3a4a6b;">
-              <h1 style="font-size:24px;color:#3a4a6b;margin:0;">${escapeHtml(title)}</h1>
-              <a href="#" id="v3-collection-close" style="padding:6px 16px;background:#fff;border:1px solid #d8d4cc;border-radius:6px;text-decoration:none;color:#5a5a5a;">← 返回首页</a>
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">
-              ${filtered.map(a => `
-                <a href="#article/${a.id}" style="background:#fff;border:1px solid #d8d4cc;border-radius:8px;padding:14px;text-decoration:none;color:inherit;display:block;">
-                  <div style="font-size:11px;color:#9a9690;margin-bottom:6px;">${escapeHtml(a.category || '')} · ${escapeHtml(formatDateTime(a))}</div>
-                  <div style="font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:6px;line-height:1.4;">${escapeHtml(a.title)}</div>
-                  <div style="font-size:12px;color:#5a5a5a;line-height:1.5;">${escapeHtml((a.summary || '').slice(0, 120))}${(a.summary || '').length > 120 ? '…' : ''}</div>
-                </a>
-              `).join('')}
-            </div>
-          </div>
-        `;
-        hideCollectionView();
-        document.body.appendChild(overlay);
-        document.getElementById('v3-collection-close').onclick = (e) => {
-          e.preventDefault();
-          window.location.hash = '';
-          input.value = '';
-        };
-      }, 800);
-    });
-  }
-
   function addKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
       if (STATE.mode !== 'READER') return;
@@ -1176,7 +1122,7 @@
       const hash = window.location.hash;
       if (!hash.startsWith('#article/')) return;
       const id = hash.replace('#article/', '');
-      const sorted = [...STATE.articles].sort((a, b) => (a.updated_at || a.date || '').localeCompare(b.updated_at || b.date || ''));
+      const sorted = [...STATE.articles].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
       const idx = sorted.findIndex(a => a.id === id);
       if ((e.key === 'n' || e.key === 'ArrowRight') && idx >= 0 && idx < sorted.length - 1) {
         window.location.hash = '#article/' + sorted[idx + 1].id;
