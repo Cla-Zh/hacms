@@ -1234,8 +1234,11 @@
   // ── 打开问答 (跟文章 reader 类似的 iframe 框架, 但样式不同) ──
   function openQaReader(q) {
     if (!q.html_path) return;
-    window.location.hash = '#qa/' + q.id;
-    window.location.href = q.html_path;
+    // 修复: 不预先 set hash (那样会产生 [prev, prev#qa, target] 三步, back 1 步没意义)
+    // 现在只用 location.assign, 浏览器历史只有 [prev, target] 两步
+    // back 1 步直接回 prev (列表/上一题/主页), 自然 work
+    // 额外: 顶部 fixed bar 也有 ← 返回按钮 (双保险)
+    location.assign(q.html_path);
   }
 
   // ═══════════════════════════════════════════════════════
