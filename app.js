@@ -17,12 +17,18 @@
   const STATE = {
     mode: 'HOME',
     sidebarOpen: false,
+    viewMode: 'articles',  // 'articles' | 'qa' — 视图模式
     articles: [],
+    qaList: [],            // 问答列表 (从 articles 过滤 type=='qa')
     filtered: [],
+    qaFiltered: [],
     activeCategory: null,
     activeTags: [],
+    activeQaTags: [],
     searchQuery: '',
+    qaSearchQuery: '',
     sortMode: 'date-desc',
+    qaSortMode: 'date-desc',
     prevHomeScroll: 0,
     thumbCache: {},      // { articleId: 'path/to/img.png' | null }
     thumbInflight: {},   // 防重复探测
@@ -57,9 +63,20 @@
     sidebarOverlay:  $('#sidebar-overlay'),
     sidebarClose:    $('#sidebar-close'),
     menuToggle:      $('#menu-toggle'),
+    modeArticlesBtn: $('#mode-articles'),
+    modeQaBtn:       $('#mode-qa'),
+    modeArticlesCount: $('#mode-articles-count'),
+    modeQaCount:     $('#mode-qa-count'),
+    articlesView:    $('#articles-view'),
+    qaView:          $('#qa-view'),
     categoryList:    $('#category-list'),
     tagCloud:        $('#tag-cloud'),
     tagsClear:       $('#tags-clear'),
+    qaTagCloud:      $('#qa-tag-cloud'),
+    qaGrid:          $('#qa-grid'),
+    qaEmpty:         $('#qa-empty'),
+    qaSearchInput:   $('#qa-search-input'),
+    qaSortSelect:    $('#qa-sort-select'),
     topBar:          $('#top-bar'),
     topbarCount:     $('#topbar-count'),
     searchInput:     $('#search-input'),
@@ -928,6 +945,7 @@
   // ── 初始化 ──────────────────────────────────────────
   async function init() {
     bindEvents();
+    bindQaEvents();
 
     try {
       const r = await fetch('content/index/manifest.json');
@@ -941,8 +959,16 @@
 
     STATE.filtered = [...STATE.articles];
 
+    // 分离 QA 条目 (type === 'qa')
+    STATE.qaList = STATE.articles.filter(a => a.type === 'qa');
+    STATE.qaFiltered = [...STATE.qaList];
+
     // 顶栏计数
     dom.topbarCount.textContent = `${STATE.articles.length} 篇`;
+
+    // 模式按钮计数
+    if (dom.modeArticlesCount) dom.modeArticlesCount.textContent = STATE.articles.length - STATE.qaList.length;
+    if (dom.modeQaCount) dom.modeQaCount.textContent = STATE.qaList.length;
 
     renderCategories();
     renderTagCloud();
@@ -961,12 +987,256 @@
       }
     }
 
+    // 如果 URL 带 #qa/ 切换到问答模式
+    if (hash.startsWith('#qa/') || hash === '#qa') {
+      const qaId = hash.replace('#qa/', '').replace('#qa', '');
+      switchToQaView();
+      if (qaId) {
+        // 打开具体问答
+        const qa = STATE.qaList.find(q => q.id === qaId);
+        if (qa) openQaReader(qa);
+      }
+      return;
+    }
+
     renderArticleList();
     // 后台构建搜索索引 (不阻塞首屏)
     buildSearchIndex();
   }
 
   init();
+
+  // ═══════════════════════════════════════════════════════
+  // 智慧问答模块 v1
+  // ═══════════════════════════════════════════════════════
+
+  // ── 模式切换 ────────────────────────────────────────
+  function switchToArticlesView() {
+    STATE.viewMode = 'articles';
+    if (dom.articlesView) dom.articlesView.classList.remove('hidden');
+    if (dom.qaView) dom.qaView.classList.add('hidden');
+    if (dom.modeArticlesBtn) {
+      dom.modeArticlesBtn.classList.add('active');
+      dom.modeArticlesBtn.setAttribute('aria-selected', 'true');
+    }
+    if (dom.modeQaBtn) {
+      dom.modeQaBtn.classList.remove('active');
+      dom.modeQaBtn.setAttribute('aria-selected', 'false');
+    }
+    if (dom.topbarCount) {
+      dom.topbarCount.textContent = `${STATE.articles.length - STATE.qaList.length} 篇调研`;
+    }
+  }
+
+  function switchToQaView() {
+    STATE.viewMode = 'qa';
+    if (dom.articlesView) dom.articlesView.classList.add('hidden');
+    if (dom.qaView) dom.qaView.classList.remove('hidden');
+    if (dom.modeArticlesBtn) {
+      dom.modeArticlesBtn.classList.remove('active');
+      dom.modeArticlesBtn.setAttribute('aria-selected', 'false');
+    }
+    if (dom.modeQaBtn) {
+      dom.modeQaBtn.classList.add('active');
+      dom.modeQaBtn.setAttribute('aria-selected', 'true');
+    }
+    if (dom.topbarCount) {
+      dom.topbarCount.textContent = `${STATE.qaList.length} 个问答`;
+    }
+    renderQaList();
+  }
+
+  // ── 问答事件绑定 ───────────────────────────────────
+  function bindQaEvents() {
+    if (dom.modeArticlesBtn) {
+      dom.modeArticlesBtn.addEventListener('click', () => {
+        switchToArticlesView();
+        window.location.hash = '';
+      });
+    }
+    if (dom.modeQaBtn) {
+      dom.modeQaBtn.addEventListener('click', () => {
+        switchToQaView();
+        window.location.hash = '#qa';
+      });
+    }
+    if (dom.qaSearchInput) {
+      let timer = null;
+      dom.qaSearchInput.addEventListener('input', (e) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          STATE.qaSearchQuery = e.target.value.trim();
+          applyQaFilters();
+        }, 100);
+      });
+    }
+    if (dom.qaSortSelect) {
+      dom.qaSortSelect.addEventListener('change', (e) => {
+        STATE.qaSortMode = e.target.value;
+        renderQaList();
+      });
+    }
+  }
+
+  // ── 问答筛选 + 渲染 ───────────────────────────────
+  function applyQaFilters() {
+    STATE.qaFiltered = STATE.qaList.filter(q => {
+      const tagMatch = STATE.activeQaTags.length === 0 || STATE.activeQaTags.every(t => (q.qa_tags || q.tags || []).includes(t));
+      const searchMatch = !STATE.qaSearchQuery ||
+        (q.question || q.title || '').toLowerCase().includes(STATE.qaSearchQuery.toLowerCase()) ||
+        (q.summary || '').toLowerCase().includes(STATE.qaSearchQuery.toLowerCase()) ||
+        (q.qa_tags || q.tags || []).some(t => t.toLowerCase().includes(STATE.qaSearchQuery.toLowerCase()));
+      return tagMatch && searchMatch;
+    });
+    renderQaList();
+  }
+
+  function renderQaTagCloud() {
+    if (!dom.qaTagCloud) return;
+    dom.qaTagCloud.innerHTML = '';
+    const tagCount = {};
+    STATE.qaList.forEach(q => {
+      (q.qa_tags || q.tags || []).forEach(t => {
+        tagCount[t] = (tagCount[t] || 0) + 1;
+      });
+    });
+    const sorted = Object.entries(tagCount).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    if (sorted.length === 0) {
+      dom.qaTagCloud.style.display = 'none';
+      return;
+    }
+    dom.qaTagCloud.style.display = '';
+    sorted.forEach(([tag, count]) => {
+      const btn = el('button', 'qa-tag-cloud-item');
+      btn.textContent = `${tag} (${count})`;
+      btn.title = `${tag} · ${count} 个问答`;
+      if (STATE.activeQaTags.includes(tag)) btn.classList.add('active');
+      btn.addEventListener('click', () => {
+        STATE.activeQaTags = STATE.activeQaTags.includes(tag)
+          ? STATE.activeQaTags.filter(t => t !== tag)
+          : [...STATE.activeQaTags, tag];
+        renderQaTagCloud();
+        applyQaFilters();
+      });
+      dom.qaTagCloud.appendChild(btn);
+    });
+  }
+
+  function renderQaList() {
+    if (!dom.qaGrid) return;
+    dom.qaGrid.innerHTML = '';
+
+    renderQaTagCloud();
+
+    const list = STATE.qaFiltered.slice();
+    const cmp = {
+      'date-desc': (a, b) => (b.date || '').localeCompare(a.date || ''),
+      'date-asc':  (a, b) => (a.date || '').localeCompare(b.date || ''),
+    }[STATE.qaSortMode] || ((a, b) => (b.date || '').localeCompare(a.date || ''));
+    list.sort(cmp);
+
+    if (list.length === 0) {
+      dom.qaGrid.style.display = 'none';
+      if (dom.qaEmpty) dom.qaEmpty.classList.remove('hidden');
+      return;
+    }
+    dom.qaGrid.style.display = '';
+    if (dom.qaEmpty) dom.qaEmpty.classList.add('hidden');
+
+    list.forEach((q, idx) => {
+      const card = renderQaCard(q, idx + 1);
+      dom.qaGrid.appendChild(card);
+    });
+  }
+
+  function renderQaCard(q, num) {
+    const card = el('article', 'qa-card');
+    card.dataset.id = q.id;
+    card.tabIndex = 0;
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-label', `打开问答: ${q.question || q.title}`);
+
+    // Header: Q 标 + 编号 + 日期
+    const header = el('div', 'qa-card-header');
+    const qBadge = el('span', 'qa-card-q');
+    qBadge.textContent = 'Q';
+    header.appendChild(qBadge);
+    const numBadge = el('span', 'qa-card-num');
+    numBadge.textContent = `问答 #${num}`;
+    header.appendChild(numBadge);
+    const dateEl = el('span', 'qa-card-date');
+    const d = (q.date || '').slice(0, 10);
+    if (d) {
+      const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      dateEl.textContent = m ? `${m[1]}-${m[2]}-${m[3]}` : d;
+    }
+    header.appendChild(dateEl);
+    card.appendChild(header);
+
+    // 问题 (大字)
+    const question = el('h3', 'qa-card-question');
+    question.textContent = q.question || q.title || '';
+    card.appendChild(question);
+
+    // 答案预览 (前 150 字)
+    if (q.summary) {
+      const preview = el('p', 'qa-card-answer-preview');
+      preview.textContent = q.summary.length > 200 ? q.summary.slice(0, 200) + '…' : q.summary;
+      card.appendChild(preview);
+    }
+
+    // 标签
+    const tags = q.qa_tags || q.tags || [];
+    if (tags.length) {
+      const tagsRow = el('div', 'qa-card-tags');
+      tags.slice(0, 6).forEach(t => {
+        const tEl = el('span', 'qa-card-tag');
+        tEl.textContent = t;
+        tagsRow.appendChild(tEl);
+      });
+      card.appendChild(tagsRow);
+    }
+
+    // Footer: 统计 + 打开提示
+    const footer = el('div', 'qa-card-footer');
+    const stats = el('div', 'qa-card-stats');
+    if (q.references_count) {
+      const refItem = el('span', 'qa-card-stat-item');
+      refItem.textContent = `📚 ${q.references_count} 引用`;
+      stats.appendChild(refItem);
+    }
+    if (q.word_count) {
+      const wItem = el('span', 'qa-card-stat-item');
+      wItem.textContent = `📄 ${(q.word_count / 1000).toFixed(1)}k 字`;
+      stats.appendChild(wItem);
+    }
+    if (q.reading_time_min) {
+      const rItem = el('span', 'qa-card-stat-item');
+      rItem.textContent = `⏱ ${q.reading_time_min} 分钟`;
+      stats.appendChild(rItem);
+    }
+    footer.appendChild(stats);
+    const hint = el('span', 'qa-card-open-hint');
+    hint.textContent = '点击查看完整调研 →';
+    footer.appendChild(hint);
+    card.appendChild(footer);
+
+    // 点击打开
+    const open = () => openQaReader(q);
+    card.addEventListener('click', open);
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+    });
+
+    return card;
+  }
+
+  // ── 打开问答 (跟文章 reader 类似的 iframe 框架, 但样式不同) ──
+  function openQaReader(q) {
+    if (!q.html_path) return;
+    window.location.hash = '#qa/' + q.id;
+    window.location.href = q.html_path;
+  }
 
   // ═══════════════════════════════════════════════════════
   // V3 增强模块 — 沿用 + 调整: 移除"全文搜索覆盖层" (改用主网格内高亮),

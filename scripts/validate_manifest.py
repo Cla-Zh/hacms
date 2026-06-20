@@ -187,9 +187,12 @@ def validate(articles, harness, strict=False):
             full = ROOT / hp
             if not full.exists():
                 errors.append(f"{prefix} html_path 不存在: {hp}")
-        # 6. id 与 html_path 一致
+        # 6. id 与 html_path 一致 (qa 条目走 qa 目录, 其他走 articles)
         if a.get("id") and hp:
-            expected = f"content/articles/{a['id']}/index.html"
+            if a.get("type") == "qa":
+                expected = f"content/qa/{a['id']}/index.html"
+            else:
+                expected = f"content/articles/{a['id']}/index.html"
             if hp != expected:
                 errors.append(f"{prefix} html_path 应为 {expected}, 实际 {hp}")
         # 7. attachments 存在
