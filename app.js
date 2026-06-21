@@ -65,10 +65,12 @@
     menuToggle:      $('#menu-toggle'),
     modeArticlesBtn: $('#mode-articles'),
     modeQaBtn:       $('#mode-qa'),
+    modeMarketsBtn:  $('#mode-markets'),
     modeArticlesCount: $('#mode-articles-count'),
     modeQaCount:     $('#mode-qa-count'),
     articlesView:    $('#articles-view'),
     qaView:          $('#qa-view'),
+    marketsView:     $('#markets-view'),
     categoryList:    $('#category-list'),
     tagCloud:        $('#tag-cloud'),
     tagsClear:       $('#tags-clear'),
@@ -999,6 +1001,12 @@
       return;
     }
 
+    // 如果 URL 带 #markets 切换到世界金融分析模式
+    if (hash === '#markets') {
+      switchToMarketsView();
+      return;
+    }
+
     renderArticleList();
     // 后台构建搜索索引 (不阻塞首屏)
     buildSearchIndex();
@@ -1015,6 +1023,7 @@
     STATE.viewMode = 'articles';
     if (dom.articlesView) dom.articlesView.classList.remove('hidden');
     if (dom.qaView) dom.qaView.classList.add('hidden');
+    if (dom.marketsView) dom.marketsView.classList.add('hidden');
     if (dom.modeArticlesBtn) {
       dom.modeArticlesBtn.classList.add('active');
       dom.modeArticlesBtn.setAttribute('aria-selected', 'true');
@@ -1022,6 +1031,10 @@
     if (dom.modeQaBtn) {
       dom.modeQaBtn.classList.remove('active');
       dom.modeQaBtn.setAttribute('aria-selected', 'false');
+    }
+    if (dom.modeMarketsBtn) {
+      dom.modeMarketsBtn.classList.remove('active');
+      dom.modeMarketsBtn.setAttribute('aria-selected', 'false');
     }
     if (dom.topbarCount) {
       dom.topbarCount.textContent = `${STATE.articles.length - STATE.qaList.length} 篇调研`;
@@ -1032,6 +1045,7 @@
     STATE.viewMode = 'qa';
     if (dom.articlesView) dom.articlesView.classList.add('hidden');
     if (dom.qaView) dom.qaView.classList.remove('hidden');
+    if (dom.marketsView) dom.marketsView.classList.add('hidden');
     if (dom.modeArticlesBtn) {
       dom.modeArticlesBtn.classList.remove('active');
       dom.modeArticlesBtn.setAttribute('aria-selected', 'false');
@@ -1040,10 +1054,37 @@
       dom.modeQaBtn.classList.add('active');
       dom.modeQaBtn.setAttribute('aria-selected', 'true');
     }
+    if (dom.modeMarketsBtn) {
+      dom.modeMarketsBtn.classList.remove('active');
+      dom.modeMarketsBtn.setAttribute('aria-selected', 'false');
+    }
     if (dom.topbarCount) {
       dom.topbarCount.textContent = `${STATE.qaList.length} 个问答`;
     }
     renderQaList();
+  }
+
+  // 世界金融分析模式 (顶级功能域, 独立 SPA)
+  function switchToMarketsView() {
+    STATE.viewMode = 'markets';
+    if (dom.articlesView) dom.articlesView.classList.add('hidden');
+    if (dom.qaView) dom.qaView.classList.add('hidden');
+    if (dom.marketsView) dom.marketsView.classList.remove('hidden');
+    if (dom.modeArticlesBtn) {
+      dom.modeArticlesBtn.classList.remove('active');
+      dom.modeArticlesBtn.setAttribute('aria-selected', 'false');
+    }
+    if (dom.modeQaBtn) {
+      dom.modeQaBtn.classList.remove('active');
+      dom.modeQaBtn.setAttribute('aria-selected', 'false');
+    }
+    if (dom.modeMarketsBtn) {
+      dom.modeMarketsBtn.classList.add('active');
+      dom.modeMarketsBtn.setAttribute('aria-selected', 'true');
+    }
+    if (dom.topbarCount) {
+      dom.topbarCount.textContent = `世界金融分析`;
+    }
   }
 
   // ── 问答事件绑定 ───────────────────────────────────
@@ -1058,6 +1099,12 @@
       dom.modeQaBtn.addEventListener('click', () => {
         switchToQaView();
         window.location.hash = '#qa';
+      });
+    }
+    if (dom.modeMarketsBtn) {
+      dom.modeMarketsBtn.addEventListener('click', () => {
+        switchToMarketsView();
+        window.location.hash = '#markets';
       });
     }
     if (dom.qaSearchInput) {
