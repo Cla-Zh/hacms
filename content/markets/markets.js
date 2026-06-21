@@ -12,7 +12,7 @@
     const res = await fetch('./markets.json');
     DATA = await res.json();
   } catch (e) {
-    document.body.innerHTML = `<div style="padding:40px;color:#ff4757;font-family:monospace;">
+    document.body.innerHTML = `<div style="padding:40px;color:#ef4444;font-family:monospace;">
       <h1>❌ 数据加载失败</h1>
       <p>无法加载 markets.json: ${e.message}</p>
     </div>`;
@@ -29,19 +29,19 @@
   // 严重程度色
   const verdictColor = (v) => {
     const map = {
-      '严重低估': '#00ffd4', '低估': '#00d4aa', '合理': '#a0aec0',
-      '高估': '#ffa500', '泡沫': '#ff4757'
+      '严重低估': '#10b981', '低估': '#10b981', '合理': '#94a3b8',
+      '高估': '#ffa500', '泡沫': '#ef4444'
     };
-    return map[v] || '#a0aec0';
+    return map[v] || '#94a3b8';
   };
 
   const impactColor = (v) => {
-    if (v.includes('灾难')) return '#ff4757';
-    if (v.includes('极高')) return '#ff4757';
+    if (v.includes('灾难')) return '#ef4444';
+    if (v.includes('极高')) return '#ef4444';
     if (v === '高') return '#ff6b7a';
     if (v === '中' || v === '中-中') return '#ffa500';
-    if (v.includes('低')) return '#6b7a99';
-    return '#a0aec0';
+    if (v.includes('低')) return '#64748b';
+    return '#94a3b8';
   };
 
   // ── 模块 1: 全球市场状态中心 ───────────────────────
@@ -70,12 +70,12 @@
           <div class="regime-progress">
             <div class="regime-progress-bar" style="width:${r.confidence * 100}%"></div>
           </div>
-          <div style="font-size:10.5px;color:#6b7a99;margin-top:4px;">
+          <div style="font-size:10.5px;color:#64748b;margin-top:4px;">
             启动: ${r.started_at} · 预期持续 ${r.expected_duration_days} 天
             <br>历史参考: ${r.historical_reference}
           </div>
-          <div style="font-size:10.5px;color:#a0aec0;margin-top:6px;">
-            子信号: ${r.sub_signals.map(s => `<span style="color:#00d4aa">${s}</span>`).join(' · ')}
+          <div style="font-size:10.5px;color:#94a3b8;margin-top:6px;">
+            子信号: ${r.sub_signals.map(s => `<span style="color:#10b981">${s}</span>`).join(' · ')}
           </div>
           <div class="regime-candidates">
             ${candidates.map(c => `
@@ -196,9 +196,9 @@
           <div class="module-meta">${DATA.sector_rotation.as_of}</div>
         </div>
         <div class="module-body">
-          <div style="font-size:10.5px;color:#6b7a99;margin-bottom:6px;">
-            轮动路径: <span style="color:#00d4aa">${DATA.sector_rotation.rotation_path}</span>
-            <br>轮动速度: ${DATA.sector_rotation.rotation_speed} · 30 天轮动概率: <strong style="color:#00d4aa">${DATA.sector_rotation.rotation_probability_next_30d}</strong>
+          <div style="font-size:10.5px;color:#64748b;margin-bottom:6px;">
+            轮动路径: <span style="color:#10b981">${DATA.sector_rotation.rotation_path}</span>
+            <br>轮动速度: ${DATA.sector_rotation.rotation_speed} · 30 天轮动概率: <strong style="color:#10b981">${DATA.sector_rotation.rotation_probability_next_30d}</strong>
           </div>
           <div class="rotation-grid">
             ${sectors.map(s => `
@@ -230,19 +230,19 @@
         </div>
         <div class="module-body">
           <div style="margin-bottom:8px;">
-            <div style="font-size:10px;color:#00d4aa;font-weight:600;margin-bottom:4px;">↑ 机构增持方向</div>
+            <div style="font-size:10px;color:#10b981;font-weight:600;margin-bottom:4px;">↑ 机构增持方向</div>
             <div style="display:flex;flex-wrap:wrap;gap:4px;">
-              ${inc.map(s => `<span style="background:#003830;color:#00ffd4;padding:2px 6px;border-radius:8px;font-size:10px;">${s}</span>`).join('')}
+              ${inc.map(s => `<span style="background:#d1fae5;color:#10b981;padding:2px 6px;border-radius:8px;font-size:10px;">${s}</span>`).join('')}
             </div>
           </div>
           <div style="margin-bottom:8px;">
-            <div style="font-size:10px;color:#ff4757;font-weight:600;margin-bottom:4px;">↓ 机构减持方向</div>
+            <div style="font-size:10px;color:#ef4444;font-weight:600;margin-bottom:4px;">↓ 机构减持方向</div>
             <div style="display:flex;flex-wrap:wrap;gap:4px;">
               ${dec.map(s => `<span style="background:#3a0a0a;color:#ff6b7a;padding:2px 6px;border-radius:8px;font-size:10px;">${s}</span>`).join('')}
             </div>
           </div>
-          <div style="font-size:10px;color:#6b7a99;margin-top:8px;border-top:1px solid #1f2a4a;padding-top:6px;">
-            <strong style="color:#a0aec0">CEO 高可信度信号</strong>
+          <div style="font-size:10px;color:#64748b;margin-top:8px;border-top:1px solid #e5e7eb;padding-top:6px;">
+            <strong style="color:#94a3b8">CEO 高可信度信号</strong>
           </div>
           <div class="signal-list" style="margin-top:4px;">
             ${sigs.map(s => `
@@ -253,7 +253,7 @@
                 </div>
                 <div style="text-align:right;">
                   <div class="signal-action">${s.action} $${s.amount_m}M</div>
-                  <div class="signal-action" style="color:${s.signal_strength === '强' ? '#00d4aa' : '#ffa500'}">信号: ${s.signal_strength}</div>
+                  <div class="signal-action" style="color:${s.signal_strength === '强' ? '#10b981' : '#ffa500'}">信号: ${s.signal_strength}</div>
                 </div>
               </div>
             `).join('')}
@@ -277,7 +277,7 @@
           <div class="module-meta">${DATA.options_flow.as_of}</div>
         </div>
         <div class="module-body">
-          <div style="font-size:10.5px;color:#6b7a99;margin-bottom:8px;padding:6px;background:#0d1424;border-radius:4px;">
+          <div style="font-size:10.5px;color:#64748b;margin-bottom:8px;padding:6px;background:#f3f4f6;border-radius:4px;">
             <strong style="color:#06b6d4">Gamma 摘要:</strong> ${gamma.spy_gex} · QQQ ${gamma.qqq_gex}
             <br>${gamma.nq_1000_gamma_flip}
           </div>
@@ -290,7 +290,7 @@
                 </div>
                 <div style="text-align:right;">
                   <div class="signal-action">${a.size.toLocaleString()} 张</div>
-                  <div class="signal-action" style="color:#a0aec0">$${a.premium_m}M · ${a.expiry}</div>
+                  <div class="signal-action" style="color:#94a3b8">$${a.premium_m}M · ${a.expiry}</div>
                 </div>
               </div>
             `).join('')}
@@ -312,21 +312,21 @@
           <div class="module-meta">Form 4</div>
         </div>
         <div class="module-body">
-          <div style="font-size:11px;color:#a0aec0;margin-bottom:8px;">
-            <strong style="color:#00d4aa">高可信度信号统计</strong>
+          <div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">
+            <strong style="color:#10b981">高可信度信号统计</strong>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
-            <div style="background:#0d1424;padding:10px;border-radius:6px;text-align:center;">
-              <div style="font-size:24px;font-weight:700;color:#00d4aa;font-family:var(--font-num);">$290M</div>
-              <div style="font-size:10px;color:#6b7a99;">本周内部人净买入</div>
+            <div style="background:#f3f4f6;padding:10px;border-radius:6px;text-align:center;">
+              <div style="font-size:24px;font-weight:700;color:#10b981;font-family:var(--font-num);">$290M</div>
+              <div style="font-size:10px;color:#64748b;">本周内部人净买入</div>
             </div>
-            <div style="background:#0d1424;padding:10px;border-radius:6px;text-align:center;">
-              <div style="font-size:24px;font-weight:700;color:#ff4757;font-family:var(--font-num);">$27M</div>
-              <div style="font-size:10px;color:#6b7a99;">本周内部人净卖出</div>
+            <div style="background:#f3f4f6;padding:10px;border-radius:6px;text-align:center;">
+              <div style="font-size:24px;font-weight:700;color:#ef4444;font-family:var(--font-num);">$27M</div>
+              <div style="font-size:10px;color:#64748b;">本周内部人净卖出</div>
             </div>
           </div>
-          <div style="font-size:10.5px;color:#6b7a99;line-height:1.5;padding:8px;background:#0d1424;border-radius:4px;">
-            <strong style="color:#a0aec0">策略意义</strong>: CEO 增持历史胜率 85%, Zuck (META) 250M 是顶级信号
+          <div style="font-size:10.5px;color:#64748b;line-height:1.5;padding:8px;background:#f3f4f6;border-radius:4px;">
+            <strong style="color:#94a3b8">策略意义</strong>: CEO 增持历史胜率 85%, Zuck (META) 250M 是顶级信号
             <br>META/NVDA/ORCL 增持 = 内部人对 AI/基础设施长期看多
             <br>AAPL Tim Cook 减持是 10b5-1 计划, 解读需谨慎
           </div>
@@ -361,7 +361,7 @@
               <div class="swan-row">
                 <div class="swan-risk">${icon(s.event)}</div>
                 <div class="swan-name">${s.event}</div>
-                <div class="swan-impact" style="background:${impactColor(s.impact)};color:${s.impact.includes('低') ? '#a0aec0' : 'white'}">${s.impact}</div>
+                <div class="swan-impact" style="background:${impactColor(s.impact)};color:${s.impact.includes('低') ? '#94a3b8' : 'white'}">${s.impact}</div>
                 <div class="swan-prob">${(s.probability * 100).toFixed(0)}%</div>
               </div>
             `).join('')}
@@ -467,9 +467,9 @@
           <div class="committee-verdict">
             <div class="verdict-label">最终裁决</div>
             <div class="verdict-text">${v.verdict}</div>
-            <div class="verdict-score">${v.consensus_score} <span style="font-size:14px;color:#6b7a99;">/ 100</span></div>
+            <div class="verdict-score">${v.consensus_score} <span style="font-size:14px;color:#64748b;">/ 100</span></div>
             <div class="verdict-action">票数: 看多 ${v.cautious_bullish + v.strongly_bullish} · 中性 ${v.neutral} · 看空 ${v.cautious_bearish + v.strongly_bearish}</div>
-            <div class="verdict-action" style="color:#00d4aa;margin-top:8px;font-weight:600;">📌 ${v.actionable}</div>
+            <div class="verdict-action" style="color:#10b981;margin-top:8px;font-weight:600;">📌 ${v.actionable}</div>
           </div>
         </div>
       </div>
@@ -525,7 +525,7 @@
                 <div class="evo-period-name">${period}</div>
                 <div class="evo-period-score">${data.score}</div>
                 <div class="evo-period-trend ${data.trend}">${data.trend === 'up' ? '↑ 上升' : data.trend === 'down' ? '↓ 下降' : '→ 中性'}</div>
-                <div style="font-size:9px;color:#6b7a99;margin-top:2px;">${data.regime}</div>
+                <div style="font-size:9px;color:#64748b;margin-top:2px;">${data.regime}</div>
               </div>
             `).join('')}
           </div>
@@ -595,9 +595,9 @@
               <div class="liquidity-change">YoY ${fmtPct(l.m2.yoy_pct)}</div>
             </div>
           </div>
-          <div style="margin-top:8px;padding:8px;background:#0d1424;border-radius:4px;font-size:10.5px;color:#a0aec0;">
-            <strong style="color:#06b6d4">裁决</strong>: <span style="color:#ff4757;font-weight:600;">${l.verdict.state}</span> (信心度 ${(l.verdict.confidence * 100).toFixed(0)}%)
-            <br><span style="color:#6b7a99;">${l.verdict.phase}</span>
+          <div style="margin-top:8px;padding:8px;background:#f3f4f6;border-radius:4px;font-size:10.5px;color:#94a3b8;">
+            <strong style="color:#06b6d4">裁决</strong>: <span style="color:#ef4444;font-weight:600;">${l.verdict.state}</span> (信心度 ${(l.verdict.confidence * 100).toFixed(0)}%)
+            <br><span style="color:#64748b;">${l.verdict.phase}</span>
           </div>
         </div>
       </div>
@@ -633,7 +633,7 @@
                   <td>${v.ps}</td>
                   <td>${v.peg}</td>
                   <td>${v.fcf_yield}</td>
-                  <td style="color:${v.z_score > 1.5 ? '#ff4757' : (v.z_score < -1 ? '#00d4aa' : '#a0aec0')};font-weight:700;">${v.z_score > 0 ? '+' : ''}${v.z_score}</td>
+                  <td style="color:${v.z_score > 1.5 ? '#ef4444' : (v.z_score < -1 ? '#10b981' : '#94a3b8')};font-weight:700;">${v.z_score > 0 ? '+' : ''}${v.z_score}</td>
                   <td class="verdict-${v.verdict}">${v.verdict}</td>
                 </tr>
               `).join('')}
