@@ -90,22 +90,29 @@
     `;
   }
 
-  // ── 模块 2: 全球资产热力图 ───────────────────────
+  // ── 状态: 当前地域 tab (china / us / all) ───────
+  let CURRENT_REGION = 'all';
+
+  // ── 模块 2: 全球资产热力图 (按地域分组) ──────────
   function renderHeatmap() {
-    const assets = [
-      { name: 'SPX', value: 5850, change: -0.5, type: '美股' },
-      { name: 'NDX', value: 20150, change: -0.8, type: '美股' },
-      { name: 'RUT', value: 2180, change: 0.3, type: '美股' },
-      { name: 'DXY', value: 99.2, change: -0.2, type: '外汇' },
-      { name: 'UST10Y', value: 4.35, change: 0.05, type: '债券' },
-      { name: 'GOLD', value: 2420, change: 1.2, type: '商品' },
-      { name: 'WTI', value: 78.5, change: 0.8, type: '商品' },
-      { name: 'BTC', value: 98500, change: -1.5, type: '数字货币' },
-      { name: 'CSI300', value: 3920, change: 0.6, type: 'A 股' },
-      { name: 'HSI', value: 19800, change: 1.1, type: '港股' },
-      { name: 'NKY', value: 39200, change: 0.4, type: '日股' },
-      { name: 'DAX', value: 18500, change: 0.3, type: '欧股' },
+    const assetsAll = [
+      { name: 'SPX', value: 5850, change: -0.5, type: '美股', region: 'us' },
+      { name: 'NDX', value: 20150, change: -0.8, type: '美股', region: 'us' },
+      { name: 'RUT', value: 2180, change: 0.3, type: '美股', region: 'us' },
+      { name: 'DXY', value: 99.2, change: -0.2, type: '外汇', region: 'us' },
+      { name: 'UST10Y', value: 4.35, change: 0.05, type: '债券', region: 'us' },
+      { name: 'GOLD', value: 2420, change: 1.2, type: '商品', region: 'us' },
+      { name: 'WTI', value: 78.5, change: 0.8, type: '商品', region: 'us' },
+      { name: 'BTC', value: 98500, change: -1.5, type: '数字货币', region: 'us' },
+      { name: 'CSI300', value: 3920, change: 0.6, type: 'A 股', region: 'china' },
+      { name: 'SSE-COMP', value: 3120, change: 0.4, type: 'A 股', region: 'china' },
+      { name: 'SZSE-CHINEXT', value: 2050, change: 1.2, type: 'A 股', region: 'china' },
+      { name: 'HSI', value: 19800, change: 1.1, type: '港股', region: 'china' },
+      { name: 'CNY/USD', value: 7.18, change: -0.1, type: '外汇', region: 'china' },
+      { name: 'NKY', value: 39200, change: 0.4, type: '日股', region: 'other' },
+      { name: 'DAX', value: 18500, change: 0.3, type: '欧股', region: 'other' },
     ];
+    const assets = CURRENT_REGION === 'all' ? assetsAll : assetsAll.filter(a => a.region === CURRENT_REGION);
 
     const heatClass = (c) => {
       if (c > 1) return 'strong-bull';
@@ -124,7 +131,7 @@
             <span class="module-title-icon">🔥</span>
             <span>全球资产热力图 · Global Heatmap</span>
           </div>
-          <div class="module-meta">实时</div>
+          <div class="module-meta">实时 · ${CURRENT_REGION === 'china' ? 'A 股+港股' : CURRENT_REGION === 'us' ? '美股+商品+外汇' : '全部'}</div>
         </div>
         <div class="module-body">
           <div class="heatmap-grid">
@@ -141,17 +148,21 @@
     `;
   }
 
-  // ── 模块 3: 全球资金流向地图 ─────────────────────
+  // ── 模块 3: ETF 资金流向 (按地域分组) ───────────
   function renderFlows() {
-    const flows = DATA.etf_flows.flows_1w;
+    const flowsUs = DATA.etf_flows.flows_1w_us || [];
+    const flowsChina = DATA.etf_flows.flows_1w_china || [];
+    const flows = CURRENT_REGION === 'china' ? flowsChina : CURRENT_REGION === 'us' ? flowsUs : [...flowsUs, ...flowsChina];
+    const titleSuffix = CURRENT_REGION === 'china' ? ' · A 股' : CURRENT_REGION === 'us' ? ' · 美股' : ' · 美股+A 股';
+
     return `
       <div class="module module-flows">
         <div class="module-header">
           <div class="module-title">
             <span class="module-title-icon">💰</span>
-            <span>ETF 资金流向 · ETF Flow Engine</span>
+            <span>ETF 资金流向 · ETF Flow Engine${titleSuffix}</span>
           </div>
-          <div class="module-meta">1 周</div>
+          <div class="module-meta">1 周 · ${DATA.etf_flows.as_of}</div>
         </div>
         <div class="module-body">
           <table class="flow-table">
@@ -161,6 +172,7 @@
                 <th class="num">净流入 (M)</th>
                 <th class="num">AUM (B)</th>
                 <th class="num">YTD</th>
+                <th>来源</th>
               </tr>
             </thead>
             <tbody>
@@ -173,6 +185,7 @@
                   </td>
                   <td class="num">${f.aum_b}</td>
                   <td class="num ${f.ytd_return >= 0 ? 'pos' : 'neg'}">${fmtPct(f.ytd_return)}</td>
+                  <td style="font-size:9px;color:#64748b;"><a href="${f.source_url}" target="_blank" rel="noopener" style="color:#94a3b8;text-decoration:none;">${f.source_name}</a></td>
                 </tr>
               `).join('')}
             </tbody>
@@ -182,26 +195,31 @@
     `;
   }
 
-  // ── 模块 4: 行业轮动仪表盘 ─────────────────────
+  // ── 模块 4: 行业轮动仪表盘 (按地域分组) ──────────
   function renderRotation() {
-    const sectors = DATA.sector_rotation.performance
-      .sort((a, b) => b.rotation_score - a.rotation_score);
+    const usSectors = DATA.sector_rotation.us_performance || [];
+    const chinaSectors = DATA.sector_rotation.china_performance || [];
+    const sectors = CURRENT_REGION === 'china' ? chinaSectors : CURRENT_REGION === 'us' ? usSectors : [...usSectors, ...chinaSectors].sort((a, b) => b.rotation_score - a.rotation_score);
+    const sorted = CURRENT_REGION === 'all' ? sectors : [...sectors].sort((a, b) => b.rotation_score - a.rotation_score);
+    const titleSuffix = CURRENT_REGION === 'china' ? ' · A 股' : CURRENT_REGION === 'us' ? ' · 美股' : ' · 美股+A 股';
+    const pathLabel = CURRENT_REGION === 'china' ? DATA.sector_rotation.rotation_path_china : CURRENT_REGION === 'us' ? DATA.sector_rotation.rotation_path_us : `${DATA.sector_rotation.rotation_path_us} | ${DATA.sector_rotation.rotation_path_china}`;
+
     return `
       <div class="module module-rotation">
         <div class="module-header">
           <div class="module-title">
             <span class="module-title-icon">🔄</span>
-            <span>行业轮动仪表盘 · Sector Rotation Engine</span>
+            <span>行业轮动仪表盘 · Sector Rotation Engine${titleSuffix}</span>
           </div>
           <div class="module-meta">${DATA.sector_rotation.as_of}</div>
         </div>
         <div class="module-body">
           <div style="font-size:10.5px;color:#64748b;margin-bottom:6px;">
-            轮动路径: <span style="color:#10b981">${DATA.sector_rotation.rotation_path}</span>
+            轮动路径: <span style="color:#10b981">${pathLabel}</span>
             <br>轮动速度: ${DATA.sector_rotation.rotation_speed} · 30 天轮动概率: <strong style="color:#10b981">${DATA.sector_rotation.rotation_probability_next_30d}</strong>
           </div>
           <div class="rotation-grid">
-            ${sectors.map(s => `
+            ${sorted.map(s => `
               <div class="rotation-cell ${s.perf_30d > 5 ? 'accelerate' : (s.perf_30d > 0 ? 'up' : 'down')}">
                 <div class="rotation-name">${s.sector}</div>
                 <div class="rotation-perf ${s.perf_30d < 0 ? 'down' : ''}">${fmtPct(s.perf_30d)}</div>
@@ -560,9 +578,11 @@
     `;
   }
 
-  // ── 流动性引擎 ─────────────────────
+  // ── 流动性引擎 (含 A 股) ─────────────────────
   function renderLiquidity() {
     const l = DATA.liquidity_engine;
+    const fedUrl = l.fed_balance_sheet.source_url;
+    const pbcUrl = l.m2_china.source_url;
     return `
       <div class="module module-liquidity">
         <div class="module-header">
@@ -575,24 +595,34 @@
         <div class="module-body">
           <div class="liquidity-grid">
             <div class="liquidity-cell">
-              <div class="liquidity-label">美联储资产负债表</div>
+              <div class="liquidity-label">美联储资产负债表 <a href="${fedUrl}" target="_blank" style="color:#94a3b8;font-size:9px;">[FRED]</a></div>
               <div class="liquidity-value">$${l.fed_balance_sheet.value} T</div>
               <div class="liquidity-change neg">1M ${fmtM(l.fed_balance_sheet.change_1m)}% · 3M ${fmtM(l.fed_balance_sheet.change_3m)}%</div>
             </div>
             <div class="liquidity-cell">
-              <div class="liquidity-label">逆回购 (RRP)</div>
+              <div class="liquidity-label">逆回购 (RRP) <a href="${l.reverse_repo.source_url}" target="_blank" style="color:#94a3b8;font-size:9px;">[FRED]</a></div>
               <div class="liquidity-value">$${l.reverse_repo.value} B</div>
               <div class="liquidity-change neg">1M ${fmtM(l.reverse_repo.change_1m)} · 3M ${fmtM(l.reverse_repo.change_3m)}</div>
             </div>
             <div class="liquidity-cell">
-              <div class="liquidity-label">财政部 TGA</div>
+              <div class="liquidity-label">财政部 TGA <a href="${l.tga.source_url}" target="_blank" style="color:#94a3b8;font-size:9px;">[FRED]</a></div>
               <div class="liquidity-value">$${l.tga.value} B</div>
               <div class="liquidity-change pos">1M +${l.tga.change_1m} · 3M +${l.tga.change_3m}</div>
             </div>
             <div class="liquidity-cell">
-              <div class="liquidity-label">M2 货币供应</div>
-              <div class="liquidity-value">$${l.m2.value} T</div>
-              <div class="liquidity-change">YoY ${fmtPct(l.m2.yoy_pct)}</div>
+              <div class="liquidity-label">美国 M2 <a href="${l.m2_us.source_url}" target="_blank" style="color:#94a3b8;font-size:9px;">[FRED]</a></div>
+              <div class="liquidity-value">$${l.m2_us.value} T</div>
+              <div class="liquidity-change">YoY ${fmtPct(l.m2_us.yoy_pct)}</div>
+            </div>
+            <div class="liquidity-cell">
+              <div class="liquidity-label">中国 M2 <a href="${pbcUrl}" target="_blank" style="color:#94a3b8;font-size:9px;">[PBoC]</a></div>
+              <div class="liquidity-value">¥${l.m2_china.value} T</div>
+              <div class="liquidity-change pos">YoY ${fmtPct(l.m2_china.yoy_pct)} (宽松)</div>
+            </div>
+            <div class="liquidity-cell">
+              <div class="liquidity-label">全球央行总流动性 <a href="${l.global_cb_liquidity.source_url}" target="_blank" style="color:#94a3b8;font-size:9px;">[聚合]</a></div>
+              <div class="liquidity-value">$${l.global_cb_liquidity.value} T</div>
+              <div class="liquidity-change">YoY ${fmtPct(l.global_cb_liquidity.yoy_pct)}</div>
             </div>
           </div>
           <div style="margin-top:8px;padding:8px;background:#f3f4f6;border-radius:4px;font-size:10.5px;color:#94a3b8;">
@@ -604,14 +634,20 @@
     `;
   }
 
-  // ── 估值表 ─────────────────────
+  // ── 估值表 (按地域分组) ─────────────────────
   function renderValuation() {
+    const us = DATA.valuation_engine.us_indices || [];
+    const china = DATA.valuation_engine.china_indices || [];
+    const other = DATA.valuation_engine.other_indices || [];
+    const indices = CURRENT_REGION === 'china' ? china : CURRENT_REGION === 'us' ? us : [...us, ...china, ...other];
+    const titleSuffix = CURRENT_REGION === 'china' ? ' · A 股+港股' : CURRENT_REGION === 'us' ? ' · 美股' : ' · 全球';
+
     return `
       <div class="module module-valuation">
         <div class="module-header">
           <div class="module-title">
             <span class="module-title-icon">📐</span>
-            <span>估值引擎 · Valuation Engine</span>
+            <span>估值引擎 · Valuation Engine${titleSuffix}</span>
           </div>
           <div class="module-meta">${DATA.valuation_engine.as_of}</div>
         </div>
@@ -620,13 +656,13 @@
             <thead>
               <tr>
                 <th>指数</th><th>PE Fwd</th><th>PE TTM</th><th>PB</th>
-                <th>PS</th><th>PEG</th><th>FCF%</th><th>Z-Score</th><th>估值</th>
+                <th>PS</th><th>PEG</th><th>FCF%</th><th>Z-Score</th><th>估值</th><th>来源</th>
               </tr>
             </thead>
             <tbody>
-              ${DATA.valuation_engine.indices.map(v => `
+              ${indices.map(v => `
                 <tr>
-                  <td>${v.name}</td>
+                  <td><strong>${v.name}</strong><br><span style="font-size:9px;color:#94a3b8;">${v.ticker}</span></td>
                   <td>${v.pe_fwd}</td>
                   <td>${v.pe_ttm}</td>
                   <td>${v.pb}</td>
@@ -635,6 +671,7 @@
                   <td>${v.fcf_yield}</td>
                   <td style="color:${v.z_score > 1.5 ? '#ef4444' : (v.z_score < -1 ? '#10b981' : '#94a3b8')};font-weight:700;">${v.z_score > 0 ? '+' : ''}${v.z_score}</td>
                   <td class="verdict-${v.verdict}">${v.verdict}</td>
+                  <td style="font-size:9px;color:#64748b;"><a href="${v.source_url}" target="_blank" rel="noopener" style="color:#94a3b8;text-decoration:none;">${v.source_name}</a></td>
                 </tr>
               `).join('')}
             </tbody>
@@ -705,6 +742,8 @@
   function render() {
     document.getElementById('markets-ticker-bar').innerHTML = renderTopbarTickers();
     document.getElementById('markets-main').innerHTML = `
+      ${renderRegionTabBar()}
+      ${renderDataSourceBar()}
       ${renderRegime()}
       ${renderHeatmap()}
       ${renderLiquidity()}
@@ -728,6 +767,65 @@
     `;
     document.getElementById('markets-time').textContent =
       `${DATA.last_updated} · ${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })} 更新`;
+    bindRegionTabs();
+  }
+
+  // ── 地域 tab 切换条 ─────────────────────
+  function renderRegionTabBar() {
+    const tabs = [
+      { key: 'all',   label: '🌍 全球',   desc: '全部资产 · 全球视野' },
+      { key: 'china', label: '🇨🇳 A 股+港股', desc: '中证/上交所/深交所/港交所' },
+      { key: 'us',    label: '🇺🇸 美股+商品+外汇', desc: 'NYSE/NASDAQ/CBOE/FRED' },
+    ];
+    return `
+      <div class="module region-tab-bar">
+        <div class="region-tabs">
+          ${tabs.map(t => `
+            <button class="region-tab ${CURRENT_REGION === t.key ? 'active' : ''}" data-region="${t.key}">
+              <span class="region-tab-label">${t.label}</span>
+              <span class="region-tab-desc">${t.desc}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function bindRegionTabs() {
+    document.querySelectorAll('.region-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        CURRENT_REGION = btn.dataset.region;
+        render();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    });
+  }
+
+  // ── 数据源 + fetch 时间状态条 ─────────────────────
+  function renderDataSourceBar() {
+    const ds = DATA.data_sources;
+    const ts = DATA.fetch_timestamp_utc;
+    const policyLink = (cat) => {
+      const sources = ds[cat] || [];
+      if (cat === 'policy') return `<span class="ds-policy">${ds.policy}</span>`;
+      return sources.slice(0, 3).map(s =>
+        `<a href="${s.url}" target="_blank" rel="noopener" class="ds-link">${s.name}</a>`
+      ).join(' · ');
+    };
+    return `
+      <div class="module data-source-bar">
+        <div class="dsb-line">
+          <span class="dsb-label">🛰️ 数据来源</span>
+          <span class="dsb-cat"><strong>🇺🇸 美:</strong> ${policyLink('us_official')}</span>
+          <span class="dsb-cat"><strong>🇨🇳 中:</strong> ${policyLink('china_official')}</span>
+          <span class="dsb-cat"><strong>🌐 全球:</strong> ${policyLink('global')}</span>
+        </div>
+        <div class="dsb-line dsb-meta">
+          <span class="dsb-policy">📌 ${ds.policy}</span>
+          <span class="dsb-ts">⏱️ 数据快照: ${ts} UTC · 刷新频率 ${DATA.freshness_minutes || 15} 分钟</span>
+        </div>
+      </div>
+    `;
   }
 
   render();

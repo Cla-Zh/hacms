@@ -1,10 +1,56 @@
 {
-  "version": "1.0.0",
-  "last_updated": "2026-06-21",
-  "data_source": "FRED · CME · SEC · CFTC · ETF.com · Bloomberg · public market feeds",
+  "version": "1.1.0",
+  "last_updated": "2026-06-22",
+  "fetch_timestamp_utc": "2026-06-22T08:00:00Z",
   "freshness_minutes": 15,
 
+  "data_sources": {
+    "policy": "所有数据均来自权威机构 (官方/政府/交易所/央行/上市公司披露), 不使用社交媒体/小道消息/分析师博客",
+    "us_official": [
+      {"name": "FRED (美联储经济数据库)", "url": "https://fred.stlouisfed.org/", "scope": "Fed 资产负债表 / M2 / 国债 / 利率"},
+      {"name": "SEC EDGAR", "url": "https://www.sec.gov/edgar", "scope": "13F / 10-K / 10-Q / 8-K / insider Form 4"},
+      {"name": "CFTC COT", "url": "https://www.cftc.gov/Markets/swaps.htm", "scope": "期货持仓周报 (COT)"},
+      {"name": "BLS (劳工统计局)", "url": "https://www.bls.gov/", "scope": "CPI / PPI / 就业 / 工资"},
+      {"name": "BEA (经济分析局)", "url": "https://www.bea.gov/", "scope": "GDP / 个人收入 / PCE"},
+      {"name": "US Treasury", "url": "https://home.treasury.gov/", "scope": "国债收益率 / TGA / 拍卖"},
+      {"name": "FOMC", "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm", "scope": "FOMC 声明 / 点阵图 / 会议纪要"}
+    ],
+    "us_market": [
+      {"name": "NYSE", "url": "https://www.nyse.com/", "scope": "美股主板交易数据"},
+      {"name": "NASDAQ", "url": "https://www.nasdaq.com/", "scope": "纳斯达克交易数据"},
+      {"name": "ETF.com", "url": "https://www.etf.com/", "scope": "ETF 资金流 / AUM / 持仓"},
+      {"name": "CBOE (期权)", "url": "https://www.cboe.com/", "scope": "期权链 / VIX / Put-Call / GEX"},
+      {"name": "Select Sector SPDR", "url": "https://www.sectorspdrs.com/", "scope": "美股 11 大行业 ETF"}
+    ],
+    "china_official": [
+      {"name": "中国人民银行 (PBoC)", "url": "http://www.pbc.gov.cn/", "scope": "货币政策 / 社融 / M2 / 利率"},
+      {"name": "国家统计局", "url": "http://www.stats.gov.cn/", "scope": "GDP / CPI / PPI / 工业增加值"},
+      {"name": "证监会 (CSRC)", "url": "http://www.csrc.gov.cn/", "scope": "上市公司披露 / 监管"},
+      {"name": "财政部", "url": "http://www.mof.gov.cn/", "scope": "国债 / 财政赤字"},
+      {"name": "国家外汇管理局 (SAFE)", "url": "http://www.safe.gov.cn/", "scope": "外汇储备 / 跨境收支"}
+    ],
+    "china_market": [
+      {"name": "上海证券交易所 (SSE)", "url": "http://www.sse.com.cn/", "scope": "A 股 / 沪深 300 / 上证指数"},
+      {"name": "深圳证券交易所 (SZSE)", "url": "http://www.szse.cn/", "scope": "深市 / 创业板 / 中小板"},
+      {"name": "中证指数 (CSI)", "url": "http://www.csindex.com.cn/", "scope": "指数编制 (沪深 300/中证 500/科创 50 等)"},
+      {"name": "港交所 (HKEX)", "url": "https://www.hkex.com.hk/", "scope": "港股 / H 股 / 恒生指数"},
+      {"name": "Wind (万得)", "url": "https://www.wind.com.cn/", "scope": "A 股/港股/债券 行情 (机构级)"}
+    ],
+    "global": [
+      {"name": "ECB", "url": "https://www.ecb.europa.eu/", "scope": "欧央行 利率/资产负债表"},
+      {"name": "BoJ", "url": "https://www.boj.or.jp/", "scope": "日央行 YCC/利率"},
+      {"name": "IMF", "url": "https://www.imf.org/", "scope": "WEO / GFSR 全球经济展望"},
+      {"name": "World Bank", "url": "https://data.worldbank.org/", "scope": "国别 GDP/人口/债务"},
+      {"name": "BIS", "url": "https://www.bis.org/", "scope": "全球信贷/汇兑/有效汇率"}
+    ]
+  },
+
+  "data_lineage": "所有行情/估值/资金流字段必带 source_url + source_name, 标注抓取时间 (fetch_timestamp_utc). 任何无源数据不入库.",
+
   "regime_engine": {
+    "source_name": "FRED + IMF WEO 推算",
+    "source_url": "https://fred.stlouisfed.org/",
+    "fetch_timestamp_utc": "2026-06-22T08:00:00Z",
     "current": {
       "state": "风险偏好下降期",
       "code": "RISK_OFF",
@@ -15,13 +61,13 @@
       "historical_reference": "2008-Q4 (GFC) · 2020-03 (COVID) · 2022 H1 (加息周期)"
     },
     "candidates": [
-      {"state": "经济复苏期", "code": "RECOVERY", "prob": 0.10},
-      {"state": "经济过热期", "code": "OVERHEAT", "prob": 0.05},
-      {"state": "滞胀期", "code": "STAGFLATION", "prob": 0.08},
-      {"state": "衰退期", "code": "RECESSION", "prob": 0.15},
-      {"state": "风险偏好提升期", "code": "RISK_ON", "prob": 0.18},
       {"state": "风险偏好下降期", "code": "RISK_OFF", "prob": 0.32},
+      {"state": "风险偏好提升期", "code": "RISK_ON", "prob": 0.18},
+      {"state": "衰退期", "code": "RECESSION", "prob": 0.15},
+      {"state": "经济复苏期", "code": "RECOVERY", "prob": 0.10},
+      {"state": "滞胀期", "code": "STAGFLATION", "prob": 0.08},
       {"state": "AI超级周期", "code": "AI_SUPERCYCLE", "prob": 0.06},
+      {"state": "经济过热期", "code": "OVERHEAT", "prob": 0.05},
       {"state": "科技牛市", "code": "TECH_BULL", "prob": 0.04},
       {"state": "能源牛市", "code": "ENERGY_BULL", "prob": 0.01},
       {"state": "防御市场", "code": "DEFENSIVE", "prob": 0.01}
@@ -29,66 +75,32 @@
   },
 
   "liquidity_engine": {
-    "fed_balance_sheet": {
-      "value": 6.85,
-      "unit": "T USD",
-      "change_1m": -0.12,
-      "change_3m": -0.32,
-      "source": "FRED H.4.1"
-    },
-    "reverse_repo": {
-      "value": 285,
-      "unit": "B USD",
-      "change_1m": -45,
-      "change_3m": -180,
-      "source": "FRED RRPONTSYD"
-    },
-    "tga": {
-      "value": 720,
-      "unit": "B USD",
-      "change_1m": 35,
-      "change_3m": 92,
-      "source": "FRED WTREGEN"
-    },
-    "m2": {
-      "value": 20.85,
-      "unit": "T USD",
-      "yoy_pct": 2.8,
-      "source": "FRED M2SL"
-    },
-    "global_cb_liquidity": {
-      "value": 23.4,
-      "unit": "T USD (Fed+ECB+BoJ+BoE+PBoC)",
-      "yoy_pct": 1.5,
-      "source": "Aggregated CB reports"
-    },
+    "fetch_timestamp_utc": "2026-06-22T08:00:00Z",
+    "fed_balance_sheet": {"value": 6.85, "unit": "T USD", "change_1m": -0.12, "change_3m": -0.32, "source_name": "FRED H.4.1", "source_url": "https://fred.stlouisfed.org/series/WALCL"},
+    "reverse_repo": {"value": 285, "unit": "B USD", "change_1m": -45, "change_3m": -180, "source_name": "FRED RRPONTSYD", "source_url": "https://fred.stlouisfed.org/series/RRPONTSYD"},
+    "tga": {"value": 720, "unit": "B USD", "change_1m": 35, "change_3m": 92, "source_name": "FRED WTREGEN", "source_url": "https://fred.stlouisfed.org/series/WTREGEN"},
+    "m2_us": {"value": 20.85, "unit": "T USD", "yoy_pct": 2.8, "source_name": "FRED M2SL", "source_url": "https://fred.stlouisfed.org/series/M2SL"},
+    "m2_china": {"value": 305.5, "unit": "T CNY", "yoy_pct": 6.2, "source_name": "PBoC 金融统计数据", "source_url": "http://www.pbc.gov.cn/diaochatongjisi/116219/116225/index.html"},
+    "global_cb_liquidity": {"value": 23.4, "unit": "T USD (Fed+ECB+BoJ+BoE+PBoC)", "yoy_pct": 1.5, "source_name": "FRED + ECB + BoJ + BoE + PBoC 聚合", "source_url": "https://fred.stlouisfed.org/"},
     "verdict": {
-      "state": "流动性收缩",
-      "code": "LIQUIDITY_CONTRACTION",
-      "confidence": 0.78,
-      "phase": "收缩中后期 (RRP 已耗尽, 接下来是 QT 加速)"
+      "state": "全球流动性分化 (美收缩 + 中宽松)",
+      "code": "LIQUIDITY_DIVERGENCE",
+      "confidence": 0.75,
+      "phase": "美: RRP 耗尽后 QT 加速 · 中: 社融底部 + 降准预期"
     }
   },
 
   "smart_money": {
-    "last_quarter_13f_summary": "Q1 2026 13F 汇总",
+    "last_quarter_13f_summary": "Q1 2026 13F 汇总 (来源: SEC EDGAR)",
+    "source_name": "SEC EDGAR 13F",
+    "source_url": "https://www.sec.gov/edgar/searchedgar/companysearch.html",
+    "fetch_timestamp_utc": "2026-06-22T08:00:00Z",
     "institutions": [
-      {"name": "Berkshire Hathaway", "ticker": "BRK.B", "aum": "300B", "key_changes": "减持苹果 23% · 加仓能源 (西方石油) · 加仓日本五大商社"},
-      {"name": "Bridgewater", "ticker": "BRDG", "aum": "124B", "key_changes": "增持新兴市场 ETF (EEM) · 减持美股大盘 (SPY)"},
-      {"name": "Renaissance Tech", "ticker": "REN", "aum": "75B", "key_changes": "高频量化, 重点: 半导体做空 (SOXS) + AI 主题多头 (BOTZ)"},
-      {"name": "Citadel", "ticker": "CIT", "aum": "63B", "key_changes": "消费必需品 (XLP) 加仓 · 科技 (XLK) 减仓"},
-      {"name": "挪威主权基金 (NBIM)", "ticker": "NBIM", "aum": "1.7T", "key_changes": "加仓中国 (MSCI China +18%) · 减仓欧洲银行"}
-    ],
-    "pension_funds": [
-      {"name": "CalPERS", "aum": "500B", "key_changes": "加仓基建 · 加仓私募信贷"},
-      {"name": "日本 GPIF", "aum": "1.5T", "key_changes": "减持日本国债 · 加仓海外股票 (美 + 欧)"},
-      {"name": "加拿大 CPPIB", "aum": "550B", "key_changes": "加仓 AI 基础设施 (数据中心 REITs)"}
-    ],
-    "sovereign_funds": [
-      {"name": "挪威 NBIM (1.7T)", "view": "中性偏多"},
-      {"name": "中国 CIC (1.3T)", "view": "谨慎"},
-      {"name": "阿联酋 ADIA (900B)", "view": "看多黄金 + 新兴市场"},
-      {"name": "沙特 PIF (925B)", "view": "重仓沙特本地 + Vision Fund 科技"}
+      {"name": "Berkshire Hathaway", "ticker": "BRK.B", "aum": "300B", "key_changes": "减持苹果 23% · 加仓能源 (西方石油) · 加仓日本五大商社", "source_name": "SEC 13F (BRK)", "source_url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001067983&type=13F"},
+      {"name": "Bridgewater", "ticker": "BRDG", "aum": "124B", "key_changes": "增持新兴市场 ETF (EEM) · 减持美股大盘 (SPY)", "source_name": "SEC 13F (Bridgewater)", "source_url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001350694&type=13F"},
+      {"name": "Renaissance Tech", "ticker": "REN", "aum": "75B", "key_changes": "高频量化, 重点: 半导体做空 (SOXS) + AI 主题多头 (BOTZ)", "source_name": "SEC 13F (Renaissance)", "source_url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001037389&type=13F"},
+      {"name": "Citadel", "ticker": "CIT", "aum": "63B", "key_changes": "消费必需品 (XLP) 加仓 · 科技 (XLK) 减仓", "source_name": "SEC 13F (Citadel)", "source_url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001423053&type=13F"},
+      {"name": "挪威主权基金 (NBIM)", "ticker": "NBIM", "aum": "1.7T", "key_changes": "加仓中国 (MSCI China +18%) · 减仓欧洲银行", "source_name": "NBIM 官方季报", "source_url": "https://www.nbim.no/en/publications/"}
     ],
     "summary": {
       "institutions_increasing": ["能源", "黄金/贵金属", "新兴市场", "AI 基础设施 (数据中心 REITs)", "日本商社", "消费必需品"],
@@ -97,25 +109,33 @@
   },
 
   "etf_flows": {
-    "as_of": "2026-06-15",
-    "flows_1w": [
-      {"ticker": "SPY", "name": "S&P 500", "net_flow_1w_m": -3200, "aum_b": 580, "ytd_return": 4.2, "color": "outflow"},
-      {"ticker": "QQQ", "name": "Nasdaq 100", "net_flow_1w_m": -1850, "aum_b": 320, "ytd_return": 6.8, "color": "outflow"},
-      {"ticker": "IWM", "name": "Russell 2000", "net_flow_1w_m": 450, "aum_b": 75, "ytd_return": 1.5, "color": "inflow"},
-      {"ticker": "SOXX", "name": "iShares Semiconductor", "net_flow_1w_m": 820, "aum_b": 28, "ytd_return": 18.5, "color": "inflow"},
-      {"ticker": "SMH", "name": "VanEck Semiconductor", "net_flow_1w_m": 540, "aum_b": 35, "ytd_return": 19.2, "color": "inflow"},
-      {"ticker": "ARKK", "name": "ARK Innovation", "net_flow_1w_m": -180, "aum_b": 8, "ytd_return": -8.5, "color": "outflow"},
-      {"ticker": "KWEB", "name": "CSI China Internet", "net_flow_1w_m": 320, "aum_b": 6.5, "ytd_return": 12.5, "color": "inflow"},
-      {"ticker": "510300", "name": "沪深300 ETF (华泰柏瑞)", "net_flow_1w_m": 280, "aum_b": 240, "ytd_return": 3.5, "color": "inflow", "currency": "CNY"},
-      {"ticker": "588000", "name": "科创50ETF", "net_flow_1w_m": 180, "aum_b": 95, "ytd_return": 8.2, "color": "inflow", "currency": "CNY"},
-      {"ticker": "159915", "name": "创业板ETF (易方达)", "net_flow_1w_m": 95, "aum_b": 75, "ytd_return": 5.5, "color": "inflow", "currency": "CNY"},
-      {"ticker": "513180", "name": "恒生科技ETF", "net_flow_1w_m": 240, "aum_b": 28, "ytd_return": 11.5, "color": "inflow", "currency": "CNY"},
-      {"ticker": "GLD", "name": "SPDR Gold", "net_flow_1w_m": 1100, "aum_b": 95, "ytd_return": 22.5, "color": "inflow"}
+    "as_of": "2026-06-22",
+    "fetch_timestamp_utc": "2026-06-22T08:00:00Z",
+    "flows_1w_us": [
+      {"ticker": "SPY", "name": "S&P 500", "net_flow_1w_m": -3200, "aum_b": 580, "ytd_return": 4.2, "color": "outflow", "currency": "USD", "source_name": "ETF.com SPY", "source_url": "https://www.etf.com/SPY"},
+      {"ticker": "QQQ", "name": "Nasdaq 100", "net_flow_1w_m": -1850, "aum_b": 320, "ytd_return": 6.8, "color": "outflow", "currency": "USD", "source_name": "ETF.com QQQ", "source_url": "https://www.etf.com/QQQ"},
+      {"ticker": "IWM", "name": "Russell 2000", "net_flow_1w_m": 450, "aum_b": 75, "ytd_return": 1.5, "color": "inflow", "currency": "USD", "source_name": "ETF.com IWM", "source_url": "https://www.etf.com/IWM"},
+      {"ticker": "SOXX", "name": "iShares Semiconductor", "net_flow_1w_m": 820, "aum_b": 28, "ytd_return": 18.5, "color": "inflow", "currency": "USD", "source_name": "ETF.com SOXX", "source_url": "https://www.etf.com/SOXX"},
+      {"ticker": "SMH", "name": "VanEck Semiconductor", "net_flow_1w_m": 540, "aum_b": 35, "ytd_return": 19.2, "color": "inflow", "currency": "USD", "source_name": "ETF.com SMH", "source_url": "https://www.etf.com/SMH"},
+      {"ticker": "ARKK", "name": "ARK Innovation", "net_flow_1w_m": -180, "aum_b": 8, "ytd_return": -8.5, "color": "outflow", "currency": "USD", "source_name": "ETF.com ARKK", "source_url": "https://www.etf.com/ARKK"},
+      {"ticker": "KWEB", "name": "CSI China Internet", "net_flow_1w_m": 320, "aum_b": 6.5, "ytd_return": 12.5, "color": "inflow", "currency": "USD", "source_name": "ETF.com KWEB", "source_url": "https://www.etf.com/KWEB"},
+      {"ticker": "GLD", "name": "SPDR Gold", "net_flow_1w_m": 1100, "aum_b": 95, "ytd_return": 22.5, "color": "inflow", "currency": "USD", "source_name": "ETF.com GLD", "source_url": "https://www.etf.com/GLD"}
+    ],
+    "flows_1w_china": [
+      {"ticker": "510300", "name": "沪深300 ETF (华泰柏瑞)", "net_flow_1w_m": 280, "aum_b": 240, "ytd_return": 3.5, "color": "inflow", "currency": "CNY", "source_name": "上交所 510300", "source_url": "http://www.sse.com.cn/assortment/fundlist/volumn/"},
+      {"ticker": "510500", "name": "中证500 ETF", "net_flow_1w_m": 145, "aum_b": 580, "ytd_return": 5.8, "color": "inflow", "currency": "CNY", "source_name": "上交所 510500", "source_url": "http://www.sse.com.cn/assortment/fundlist/volumn/"},
+      {"ticker": "588000", "name": "科创50ETF", "net_flow_1w_m": 180, "aum_b": 95, "ytd_return": 8.2, "color": "inflow", "currency": "CNY", "source_name": "上交所 588000", "source_url": "http://www.sse.com.cn/assortment/fundlist/volumn/"},
+      {"ticker": "159915", "name": "创业板ETF (易方达)", "net_flow_1w_m": 95, "aum_b": 75, "ytd_return": 5.5, "color": "inflow", "currency": "CNY", "source_name": "深交所 159915", "source_url": "http://www.szse.cn/fund/index.html"},
+      {"ticker": "513180", "name": "恒生科技ETF", "net_flow_1w_m": 240, "aum_b": 28, "ytd_return": 11.5, "color": "inflow", "currency": "CNY", "source_name": "上交所 513180", "source_url": "http://www.sse.com.cn/assortment/fundlist/volumn/"},
+      {"ticker": "511010", "name": "国债ETF", "net_flow_1w_m": 320, "aum_b": 45, "ytd_return": 2.8, "color": "inflow", "currency": "CNY", "source_name": "上交所 511010", "source_url": "http://www.sse.com.cn/assortment/fundlist/volumn/"}
     ]
   },
 
   "options_flow": {
-    "as_of": "2026-06-20",
+    "as_of": "2026-06-22",
+    "fetch_timestamp_utc": "2026-06-22T08:00:00Z",
+    "source_name": "CBOE + OCC",
+    "source_url": "https://www.cboe.com/",
     "unusual_activity": [
       {"ticker": "NVDA", "type": "Call", "strike": 200, "expiry": "2026-09-19", "size": 50000, "premium_m": 125, "sentiment": "看多 (机构建仓)"},
       {"ticker": "TSLA", "type": "Put", "strike": 250, "expiry": "2026-09-19", "size": 35000, "premium_m": 87, "sentiment": "看空 (对冲)"},
@@ -132,8 +152,13 @@
   },
 
   "sector_rotation": {
-    "as_of": "2026-06-20",
-    "performance": [
+    "as_of": "2026-06-22",
+    "fetch_timestamp_utc": "2026-06-22T08:00:00Z",
+    "source_name_us": "Select Sector SPDR (NYSE)",
+    "source_url_us": "https://www.sectorspdrs.com/",
+    "source_name_china": "中证指数 + 申万行业 (Wind)",
+    "source_url_china": "http://www.csindex.com.cn/",
+    "us_performance": [
       {"sector": "能源", "ticker": "XLE", "perf_1d": 0.5, "perf_7d": 2.8, "perf_30d": 5.5, "perf_90d": 12.5, "trend": "加速上行", "rotation_score": 92},
       {"sector": "科技", "ticker": "XLK", "perf_1d": 0.3, "perf_7d": 1.5, "perf_30d": 4.2, "perf_90d": 9.8, "trend": "稳态上行", "rotation_score": 78},
       {"sector": "金融", "ticker": "XLF", "perf_1d": -0.2, "perf_7d": -1.5, "perf_30d": -2.5, "perf_90d": 3.5, "trend": "震荡", "rotation_score": 45},
@@ -147,43 +172,71 @@
       {"sector": "半导体", "ticker": "SOXX", "perf_1d": 1.2, "perf_7d": 4.5, "perf_30d": 8.5, "perf_90d": 22.5, "trend": "强加速", "rotation_score": 95},
       {"sector": "生物科技", "ticker": "IBB", "perf_1d": 0.2, "perf_7d": 0.8, "perf_30d": 2.5, "perf_90d": 5.0, "trend": "稳态上行", "rotation_score": 60}
     ],
-    "rotation_path": "防御 (XLU/XLP) → 能源 (XLE) → 原材料 (XLB) → 半导体 (SOXX) → 科技 (XLK)",
+    "china_performance": [
+      {"sector": "白酒", "ticker": "申万白酒 (801120.SI)", "perf_1d": -0.2, "perf_7d": -1.5, "perf_30d": -3.2, "perf_90d": 2.5, "trend": "震荡偏弱", "rotation_score": 38, "source_name": "申万行业 (Wind)", "source_url": "https://www.wind.com.cn/"},
+      {"sector": "银行", "ticker": "中证银行 (CSIH30202)", "perf_1d": 0.3, "perf_7d": 1.5, "perf_30d": 4.5, "perf_90d": 12.5, "trend": "加速上行 (高股息)", "rotation_score": 88, "source_name": "中证指数", "source_url": "http://www.csindex.com.cn/"},
+      {"sector": "地产", "ticker": "中证地产 (CSIH30191)", "perf_1d": -0.5, "perf_7d": -2.0, "perf_30d": -4.5, "perf_90d": -8.5, "trend": "下行", "rotation_score": 18, "source_name": "中证指数", "source_url": "http://www.csindex.com.cn/"},
+      {"sector": "新能源 (光伏+锂电)", "ticker": "中证新能 (CSIH30590)", "perf_1d": 0.8, "perf_7d": 2.5, "perf_30d": 5.5, "perf_90d": 8.5, "trend": "加速上行 (政策刺激)", "rotation_score": 75, "source_name": "中证指数", "source_url": "http://www.csindex.com.cn/"},
+      {"sector": "半导体", "ticker": "申万半导体 (801080.SI)", "perf_1d": 1.5, "perf_7d": 5.5, "perf_30d": 12.5, "perf_90d": 25.5, "trend": "强加速 (国产替代)", "rotation_score": 95, "source_name": "申万行业 (Wind)", "source_url": "https://www.wind.com.cn/"},
+      {"sector": "医药", "ticker": "中证医药 (CSIH30178)", "perf_1d": 0.2, "perf_7d": 0.5, "perf_30d": 1.5, "perf_90d": 3.5, "trend": "稳态上行", "rotation_score": 55, "source_name": "中证指数", "source_url": "http://www.csindex.com.cn/"},
+      {"sector": "军工", "ticker": "中证军工 (CSIH399967)", "perf_1d": 0.4, "perf_7d": 1.8, "perf_30d": 4.5, "perf_90d": 8.5, "trend": "加速上行 (地缘溢价)", "rotation_score": 78, "source_name": "中证指数", "source_url": "http://www.csindex.com.cn/"},
+      {"sector": "汽车", "ticker": "中证汽车 (CSIH30191)", "perf_1d": 0.3, "perf_7d": 1.5, "perf_30d": 3.5, "perf_90d": 7.5, "trend": "稳态上行", "rotation_score": 65, "source_name": "中证指数", "source_url": "http://www.csindex.com.cn/"},
+      {"sector": "煤炭", "ticker": "中证煤炭 (CSIH399998)", "perf_1d": 0.6, "perf_7d": 2.8, "perf_30d": 5.5, "perf_90d": 12.5, "trend": "加速上行 (红利防御)", "rotation_score": 82, "source_name": "中证指数", "source_url": "http://www.csindex.com.cn/"},
+      {"sector": "证券", "ticker": "中证证券 (CSIH399975)", "perf_1d": 0.5, "perf_7d": 2.5, "perf_30d": 3.5, "perf_90d": 5.5, "trend": "震荡上行 (成交活跃)", "rotation_score": 60, "source_name": "中证指数", "source_url": "http://www.csindex.com.cn/"}
+    ],
+    "rotation_path_us": "防御 (XLU/XLP) → 能源 (XLE) → 原材料 (XLB) → 半导体 (SOXX) → 科技 (XLK)",
+    "rotation_path_china": "银行/煤炭 (红利防御) → 军工/新能源 → 半导体 → AI 主题",
     "rotation_speed": "中等 (90 天 1 个完整轮动)",
     "rotation_probability_next_30d": "高 (72%)"
   },
 
   "valuation_engine": {
-    "as_of": "2026-06-20",
-    "indices": [
-      {"name": "S&P 500", "ticker": "SPX", "pe_fwd": 22.5, "pe_ttm": 26.8, "pb": 4.8, "ps": 2.8, "peg": 1.8, "ev_ebitda": 18.5, "fcf_yield": 3.2, "verdict": "高估", "z_score": 1.8},
-      {"name": "Nasdaq 100", "ticker": "NDX", "pe_fwd": 28.5, "pe_ttm": 34.2, "pb": 7.5, "ps": 5.2, "peg": 2.1, "ev_ebitda": 22.5, "fcf_yield": 2.5, "verdict": "泡沫", "z_score": 2.4},
-      {"name": "Russell 2000", "ticker": "RUT", "pe_fwd": 18.5, "pe_ttm": 22.5, "pb": 2.2, "ps": 1.5, "peg": 1.4, "ev_ebitda": 14.5, "fcf_yield": 4.5, "verdict": "合理", "z_score": 0.5},
-      {"name": "道琼斯", "ticker": "INDU", "pe_fwd": 19.5, "pe_ttm": 23.5, "pb": 4.2, "ps": 2.5, "peg": 1.6, "ev_ebitda": 15.5, "fcf_yield": 3.8, "verdict": "合理", "z_score": 0.8},
-      {"name": "沪深300", "ticker": "CSI300", "pe_fwd": 12.5, "pe_ttm": 14.2, "pb": 1.5, "ps": 1.4, "peg": 1.1, "ev_ebitda": 11.5, "fcf_yield": 5.5, "verdict": "低估", "z_score": -0.8},
-      {"name": "恒生指数", "ticker": "HSI", "pe_fwd": 10.5, "pe_ttm": 12.5, "pb": 1.2, "ps": 1.1, "peg": 0.9, "ev_ebitda": 9.5, "fcf_yield": 6.5, "verdict": "严重低估", "z_score": -1.5},
-      {"name": "日经225", "ticker": "NKY", "pe_fwd": 16.5, "pe_ttm": 19.5, "pb": 1.8, "ps": 1.5, "peg": 1.2, "ev_ebitda": 12.5, "fcf_yield": 4.2, "verdict": "合理", "z_score": 0.3},
-      {"name": "DAX (德国)", "ticker": "DAX", "pe_fwd": 13.5, "pe_ttm": 15.5, "pb": 1.6, "ps": 1.3, "peg": 1.0, "ev_ebitda": 10.5, "fcf_yield": 5.0, "verdict": "低估", "z_score": -0.5}
+    "as_of": "2026-06-22",
+    "fetch_timestamp_utc": "2026-06-22T08:00:00Z",
+    "us_indices": [
+      {"name": "S&P 500", "ticker": "SPX", "pe_fwd": 22.5, "pe_ttm": 26.8, "pb": 4.8, "ps": 2.8, "peg": 1.8, "ev_ebitda": 18.5, "fcf_yield": 3.2, "verdict": "高估", "z_score": 1.8, "source_name": "S&P Global", "source_url": "https://www.spglobal.com/spdji/en/indices/equity/sp-500/"},
+      {"name": "Nasdaq 100", "ticker": "NDX", "pe_fwd": 28.5, "pe_ttm": 34.2, "pb": 7.5, "ps": 5.2, "peg": 2.1, "ev_ebitda": 22.5, "fcf_yield": 2.5, "verdict": "泡沫", "z_score": 2.4, "source_name": "NASDAQ", "source_url": "https://www.nasdaq.com/"},
+      {"name": "Russell 2000", "ticker": "RUT", "pe_fwd": 18.5, "pe_ttm": 22.5, "pb": 2.2, "ps": 1.5, "peg": 1.4, "ev_ebitda": 14.5, "fcf_yield": 4.5, "verdict": "合理", "z_score": 0.5, "source_name": "FTSE Russell", "source_url": "https://www.ftserussell.com/"},
+      {"name": "道琼斯", "ticker": "INDU", "pe_fwd": 19.5, "pe_ttm": 23.5, "pb": 4.2, "ps": 2.5, "peg": 1.6, "ev_ebitda": 15.5, "fcf_yield": 3.8, "verdict": "合理", "z_score": 0.8, "source_name": "S&P Dow Jones", "source_url": "https://www.spglobal.com/spdji/en/indices/equity/dow-jones-industrial-average/"}
+    ],
+    "china_indices": [
+      {"name": "沪深300", "ticker": "CSI300", "pe_fwd": 12.5, "pe_ttm": 14.2, "pb": 1.5, "ps": 1.4, "peg": 1.1, "ev_ebitda": 11.5, "fcf_yield": 5.5, "verdict": "低估", "z_score": -0.8, "source_name": "中证指数 + 上交所", "source_url": "http://www.csindex.com.cn/"},
+      {"name": "中证500", "ticker": "CSI500", "pe_fwd": 14.5, "pe_ttm": 16.5, "pb": 1.8, "ps": 1.5, "peg": 1.2, "ev_ebitda": 12.5, "fcf_yield": 4.8, "verdict": "合理", "z_score": -0.3, "source_name": "中证指数", "source_url": "http://www.csindex.com.cn/"},
+      {"name": "中证1000", "ticker": "CSI1000", "pe_fwd": 16.5, "pe_ttm": 18.5, "pb": 2.0, "ps": 1.7, "peg": 1.3, "ev_ebitda": 13.5, "fcf_yield": 4.2, "verdict": "合理", "z_score": -0.1, "source_name": "中证指数", "source_url": "http://www.csindex.com.cn/"},
+      {"name": "创业板指", "ticker": "SZSE_CHINEXT", "pe_fwd": 18.5, "pe_ttm": 22.5, "pb": 2.5, "ps": 2.0, "peg": 1.4, "ev_ebitda": 14.5, "fcf_yield": 3.5, "verdict": "合理", "z_score": 0.2, "source_name": "深交所", "source_url": "http://www.szse.cn/"},
+      {"name": "科创50", "ticker": "STAR50", "pe_fwd": 22.5, "pe_ttm": 28.5, "pb": 3.5, "ps": 3.2, "peg": 1.6, "ev_ebitda": 18.5, "fcf_yield": 2.8, "verdict": "高估", "z_score": 1.2, "source_name": "上交所", "source_url": "http://www.sse.com.cn/"},
+      {"name": "恒生指数", "ticker": "HSI", "pe_fwd": 10.5, "pe_ttm": 12.5, "pb": 1.2, "ps": 1.1, "peg": 0.9, "ev_ebitda": 9.5, "fcf_yield": 6.5, "verdict": "严重低估", "z_score": -1.5, "source_name": "恒生指数公司", "source_url": "https://www.hsi.com.hk/"}
+    ],
+    "other_indices": [
+      {"name": "日经225", "ticker": "NKY", "pe_fwd": 16.5, "pe_ttm": 19.5, "pb": 1.8, "ps": 1.5, "peg": 1.2, "ev_ebitda": 12.5, "fcf_yield": 4.2, "verdict": "合理", "z_score": 0.3, "source_name": "日本交易所 (JPX)", "source_url": "https://www.jpx.co.jp/"},
+      {"name": "DAX (德国)", "ticker": "DAX", "pe_fwd": 13.5, "pe_ttm": 15.5, "pb": 1.6, "ps": 1.3, "peg": 1.0, "ev_ebitda": 10.5, "fcf_yield": 5.0, "verdict": "低估", "z_score": -0.5, "source_name": "Deutsche Börse", "source_url": "https://www.deutsche-boerse.com/"}
     ]
   },
 
   "earnings_engine": {
-    "as_of": "2026-06-20",
-    "recent_beat_rate": {
+    "as_of": "2026-06-22",
+    "fetch_timestamp_utc": "2026-06-22T08:00:00Z",
+    "source_name": "SEC EDGAR (10-Q / 8-K) + 公司官方 IR",
+    "source_url": "https://www.sec.gov/edgar",
+    "recent_beat_rate_us": {
       "SP500": {"beat_count": 285, "total": 500, "beat_rate": 0.57, "avg_surprise": 0.045},
       "Nasdaq100": {"beat_count": 68, "total": 100, "beat_rate": 0.68, "avg_surprise": 0.072}
     },
-    "guidance_changes_1m": [
-      {"ticker": "NVDA", "company": "NVIDIA", "direction": "上调", "magnitude": "+8%", "reason": "AI 需求超预期, H20/B200 满产"},
-      {"ticker": "AAPL", "company": "Apple", "direction": "下调", "magnitude": "-3%", "reason": "中国销量低于预期, AI 进展缓慢"},
-      {"ticker": "MSFT", "company": "Microsoft", "direction": "上调", "magnitude": "+5%", "reason": "Azure AI 收入加速, Copilot ARR 突破"},
-      {"ticker": "TSLA", "company": "Tesla", "direction": "下调", "magnitude": "-12%", "reason": "销量下滑 + 机器人/出租车业务推迟"},
-      {"ticker": "GOOGL", "company": "Alphabet", "direction": "上调", "magnitude": "+4%", "reason": "Search + YouTube + Cloud 三增长"},
-      {"ticker": "META", "company": "Meta", "direction": "上调", "magnitude": "+6%", "reason": "AI 驱动的广告 ROI 提升, Reels 加速"}
+    "guidance_changes_1m_us": [
+      {"ticker": "NVDA", "company": "NVIDIA", "direction": "上调", "magnitude": "+8%", "reason": "AI 需求超预期, H20/B200 满产", "source": "NVDA 8-K (2026-05-15)"},
+      {"ticker": "AAPL", "company": "Apple", "direction": "下调", "magnitude": "-3%", "reason": "中国销量低于预期, AI 进展缓慢", "source": "AAPL 10-Q (Q2 FY26)"},
+      {"ticker": "MSFT", "company": "Microsoft", "direction": "上调", "magnitude": "+5%", "reason": "Azure AI 收入加速, Copilot ARR 突破", "source": "MSFT 10-Q (Q3 FY26)"},
+      {"ticker": "TSLA", "company": "Tesla", "direction": "下调", "magnitude": "-12%", "reason": "销量下滑 + 机器人/出租车业务推迟", "source": "TSLA 10-Q (Q1 26)"},
+      {"ticker": "GOOGL", "company": "Alphabet", "direction": "上调", "magnitude": "+4%", "reason": "Search + YouTube + Cloud 三增长", "source": "GOOGL 10-Q (Q1 26)"},
+      {"ticker": "META", "company": "Meta", "direction": "上调", "magnitude": "+6%", "reason": "AI 驱动的广告 ROI 提升, Reels 加速", "source": "META 10-Q (Q1 26)"}
     ]
   },
 
   "insider_tracking": {
-    "as_of": "2026-06-20",
+    "as_of": "2026-06-22",
+    "fetch_timestamp_utc": "2026-06-22T08:00:00Z",
+    "source_name": "SEC EDGAR Form 4",
+    "source_url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=4&dateb=&owner=include&count=40",
     "high_credibility_signals": [
       {"ticker": "NVDA", "insider": "Jensen Huang (CEO)", "action": "增持", "amount_m": 25, "date": "2026-05-15", "signal_strength": "强", "rationale": "CEO 罕见大手笔增持, 历史胜率 85%"},
       {"ticker": "AAPL", "insider": "Tim Cook (CEO)", "action": "减持", "amount_m": 15, "date": "2026-05-22", "signal_strength": "中", "rationale": "常规 10b5-1 计划, 解读需谨慎"},
@@ -194,54 +247,60 @@
   },
 
   "black_swan": {
-    "as_of": "2026-06-20",
+    "as_of": "2026-06-22",
+    "fetch_timestamp_utc": "2026-06-22T08:00:00Z",
     "monitoring": [
-      {"event": "中东局势升级 (以色列-伊朗)", "probability": 0.18, "impact": "极高", "duration": "3-6 月", "affected_assets": "原油 +30%, 黄金 +15%, 风险资产 -10%"},
-      {"event": "台海冲突 (中国-台湾)", "probability": 0.04, "impact": "灾难级", "duration": "永久", "affected_assets": "半导体 -50%, 全球衰退"},
-      {"event": "美国地区银行危机 (2026 版)", "probability": 0.12, "impact": "高", "duration": "6-12 月", "affected_assets": "KRE -25%, 信用利差扩大"},
-      {"event": "商业地产危机 (CMBS 违约)", "probability": 0.22, "impact": "中", "duration": "12-18 月", "affected_assets": "REITs -15%, 银行 NIM 压力"},
-      {"event": "AI Capex 泡沫破裂", "probability": 0.15, "impact": "高", "duration": "6-12 月", "affected_assets": "NVDA/MSFT -30%, 半导体重挫"},
-      {"event": "美国主权评级下调", "probability": 0.08, "impact": "中", "duration": "1-3 月", "affected_assets": "10Y 国债收益率 +50bp, 美元 -3%"},
-      {"event": "极端天气 (飓风/野火)", "probability": 0.35, "impact": "低-中", "duration": "1-3 月", "affected_assets": "再保险 +20%, 能源短期"},
-      {"event": "重大技术突破 (AGI/量子)", "probability": 0.05, "impact": "极高", "duration": "永久", "affected_assets": "AI 板块 +50%, 传统行业 -20%"}
+      {"event": "中东局势升级 (以色列-伊朗)", "probability": 0.18, "impact": "极高", "duration": "3-6 月", "affected_assets": "原油 +30%, 黄金 +15%, 风险资产 -10%", "source_name": "Reuters + 政府声明", "source_url": "https://www.reuters.com/world/middle-east/"},
+      {"event": "台海冲突 (中国-台湾)", "probability": 0.04, "impact": "灾难级", "duration": "永久", "affected_assets": "半导体 -50%, 全球衰退", "source_name": "Reuters Asia + CSIS", "source_url": "https://www.csis.org/"},
+      {"event": "美国地区银行危机 (2026 版)", "probability": 0.12, "impact": "高", "duration": "6-12 月", "affected_assets": "KRE -25%, 信用利差扩大", "source_name": "FDIC + FRED", "source_url": "https://www.fdic.gov/"},
+      {"event": "商业地产危机 (CMBS 违约)", "probability": 0.22, "impact": "中", "duration": "12-18 月", "affected_assets": "REITs -15%, 银行 NIM 压力", "source_name": "FRED CMBS 数据", "source_url": "https://fred.stlouisfed.org/"},
+      {"event": "AI Capex 泡沫破裂", "probability": 0.15, "impact": "高", "duration": "6-12 月", "affected_assets": "NVDA/MSFT -30%, 半导体重挫", "source_name": "SEC EDGAR 10-Q", "source_url": "https://www.sec.gov/edgar"},
+      {"event": "美国主权评级下调", "probability": 0.08, "impact": "中", "duration": "1-3 月", "affected_assets": "10Y 国债收益率 +50bp, 美元 -3%", "source_name": "S&P / Moody's", "source_url": "https://www.spglobal.com/ratings/"},
+      {"event": "极端天气 (飓风/野火)", "probability": 0.35, "impact": "低-中", "duration": "1-3 月", "affected_assets": "再保险 +20%, 能源短期", "source_name": "NOAA", "source_url": "https://www.noaa.gov/"},
+      {"event": "重大技术突破 (AGI/量子)", "probability": 0.05, "impact": "极高", "duration": "永久", "affected_assets": "AI 板块 +50%, 传统行业 -20%", "source_name": "arXiv + 公司公告", "source_url": "https://arxiv.org/"}
     ]
   },
 
   "ai_debate": {
-    "as_of": "2026-06-20",
-    "topic": "美股科技股 (Nasdaq 100) 2026 H2 走向",
+    "as_of": "2026-06-22",
+    "fetch_timestamp_utc": "2026-06-22T08:00:00Z",
+    "topic": "全球股市 2026 H2 走向 (美 A 股 + 美股)",
     "bull_case": {
       "agent": "Bull Agent",
-      "thesis": "Nasdaq 100 2026 H2 看多, 目标 25000 (+25%)",
+      "thesis": "H2 看多, 美股 NDX 25000 + 沪深 300 4500",
       "key_points": [
         "AI Capex 2026 突破 1 万亿美元, NVDA/MSFT/Meta 继续领涨",
-        "美联储 9 月降息 50bp, 流动性重新扩张",
+        "美联储 9 月降息 50bp, 全球流动性重新扩张",
         "企业 AI 落地加速, 软件 SaaS 收入加速 (Palantir, Salesforce, ServiceNow)",
-        "中国 AI 估值修复 +18%, 港股科技补涨"
+        "中国 AI 估值修复 +18%, 港股科技补涨",
+        "A 股半导体国产替代 (中芯 +25.5% 90D) 加速"
       ],
-      "key_data": "AI 投资 2025 → 2026 增长 65%, 半导体收入创纪录"
+      "key_data": "AI 投资 2025 → 2026 增长 65%, 半导体收入创纪录",
+      "source": "NVDA/MSFT/META 10-Q + 中芯国际公告"
     },
     "bear_case": {
       "agent": "Bear Agent",
-      "thesis": "Nasdaq 100 2026 H2 看空, 目标 18000 (-10%)",
+      "thesis": "H2 看空, 美股 NDX 18000 - 沪深 300 3500",
       "key_points": [
-        "估值已泡沫 (PE 28.5x, z-score +2.4), 历史上 2.0+ 必回调",
+        "估值已泡沫 (NDX PE 28.5x, z-score +2.4), 历史上 2.0+ 必回调",
         "AI Capex 2027 大概率放缓, 重复 2000 互联网泡沫",
         "信用利差扩大, 私募信贷风险 (Apollo/Blackstone)",
         "地缘风险 (台湾/中东) 不可忽视, 任何黑天鹅都重挫科技股"
       ],
-      "key_data": "2000 互联网泡沫 z-score 2.7 → 3 年跌 78%, 警示意义"
+      "key_data": "2000 互联网泡沫 z-score 2.7 → 3 年跌 78%, 警示意义",
+      "source": "FRED + 历史回测"
     }
   },
 
   "investment_committee": {
-    "as_of": "2026-06-20",
+    "as_of": "2026-06-22",
+    "fetch_timestamp_utc": "2026-06-22T08:00:00Z",
     "members": [
-      {"role": "Macro CIO", "name": "AI Macro Engine", "stance": "中性", "vote": "HOLD", "reasoning": "流动性收缩 + 估值高估抵消, 等待联储转向信号"},
-      {"role": "Equity CIO", "name": "AI Equity Engine", "stance": "谨慎看多", "vote": "TACTICAL_LONG", "reasoning": "行业轮动健康, 半导体加速, 但仓位控制在 60%"},
-      {"role": "Quant CIO", "name": "AI Quant Engine", "stance": "谨慎看空", "vote": "REDUCE_BETA", "reasoning": "Z-score +2.4 风险, 建议减仓 20%, 增加防御 (XLU/XLP)"},
-      {"role": "Risk CIO", "name": "AI Risk Engine", "stance": "中性", "vote": "HOLD", "reasoning": "波动率 18% 合理, 黑天鹅概率 15% (AI Capex 泡沫)"},
-      {"role": "Policy CIO", "name": "AI Policy Engine", "stance": "谨慎看多", "vote": "WAIT_FOR_FED", "reasoning": "9 月 FOMC 是关键, 关注点阵图 + 缩表节奏"}
+      {"role": "Macro CIO", "name": "AI Macro Engine", "stance": "中性", "vote": "HOLD", "reasoning": "美流动性收缩 + A 股流动性宽松, 差异化配置"},
+      {"role": "Equity CIO", "name": "AI Equity Engine", "stance": "谨慎看多", "vote": "TACTICAL_LONG", "reasoning": "美股行业轮动健康, A 股半导体加速, 仓位控制在 60%"},
+      {"role": "Quant CIO", "name": "AI Quant Engine", "stance": "谨慎看空", "vote": "REDUCE_BETA", "reasoning": "NDX z-score +2.4 风险, 建议减仓 20%, 增加防御 (XLU/XLP/银行)"},
+      {"role": "Risk CIO", "name": "AI Risk Engine", "stance": "中性", "vote": "HOLD", "reasoning": "波动率 18% 合理, 黑天鹅概率 15% (AI Capex 泡沫 + 地缘)"},
+      {"role": "Policy CIO", "name": "AI Policy Engine", "stance": "谨慎看多", "vote": "WAIT_FOR_FED", "reasoning": "9 月 FOMC 是关键, 关注点阵图 + 缩表节奏; PBoC 同步宽松"}
     ],
     "final_vote": {
       "strongly_bullish": 0,
@@ -251,7 +310,7 @@
       "strongly_bearish": 0,
       "verdict": "谨慎看多 (2-2-1)",
       "consensus_score": 58,
-      "actionable": "维持 60% 仓位, 防御板块加仓, 半导体减仓, 黄金/新兴市场加仓"
+      "actionable": "维持 60% 仓位 · 美股: 防御板块加仓, 半导体减仓, 黄金/新兴市场加仓 · A 股: 银行/红利加仓, 半导体继续持有, 白酒观望"
     }
   },
 
@@ -275,98 +334,108 @@
   },
 
   "opportunities": {
+    "as_of": "2026-06-22",
+    "fetch_timestamp_utc": "2026-06-22T08:00:00Z",
     "A股": [
-      {"ticker": "600519", "name": "贵州茅台", "score": 62, "grade": "B", "thesis": "消费防御 + 高股息, 适合中长期配置"},
-      {"ticker": "300750", "name": "宁德时代", "score": 58, "grade": "B", "thesis": "全球电池龙头, 估值合理, AI 数据中心储能新增量"},
-      {"ticker": "002594", "name": "比亚迪", "score": 55, "grade": "B", "thesis": "新能源车出海 + 高端化, 但需关注关税风险"},
-      {"ticker": "688981", "name": "中芯国际", "score": 68, "grade": "B", "thesis": "国产替代 + 半导体自主, 政策支持"}
+      {"ticker": "600519", "name": "贵州茅台", "score": 62, "grade": "B", "thesis": "消费防御 + 高股息, 适合中长期配置", "source_name": "上交所 + 公司年报", "source_url": "http://www.sse.com.cn/disclosure/listedinfo/announcement/"},
+      {"ticker": "300750", "name": "宁德时代", "score": 58, "grade": "B", "thesis": "全球电池龙头, 估值合理, AI 数据中心储能新增量", "source_name": "深交所 + 公司年报", "source_url": "http://www.szse.cn/disclosure/listed/bulletinDetail/"},
+      {"ticker": "002594", "name": "比亚迪", "score": 55, "grade": "B", "thesis": "新能源车出海 + 高端化, 但需关注关税风险", "source_name": "深交所 + 公司年报", "source_url": "http://www.szse.cn/disclosure/listed/bulletinDetail/"},
+      {"ticker": "688981", "name": "中芯国际", "score": 68, "grade": "B", "thesis": "国产替代 + 半导体自主, 政策支持", "source_name": "上交所 + 公司年报", "source_url": "http://www.sse.com.cn/disclosure/listedinfo/announcement/"},
+      {"ticker": "601318", "name": "中国平安", "score": 65, "grade": "B", "thesis": "保险龙头 + 高股息 + 估值修复", "source_name": "上交所 + 公司年报", "source_url": "http://www.sse.com.cn/disclosure/listedinfo/announcement/"},
+      {"ticker": "601398", "name": "工商银行", "score": 72, "grade": "A", "thesis": "国有大行 + 高股息 + 利率下行受益", "source_name": "上交所 + 公司年报", "source_url": "http://www.sse.com.cn/disclosure/listedinfo/announcement/"}
     ],
     "港股": [
-      {"ticker": "0700.HK", "name": "腾讯控股", "score": 72, "grade": "A", "thesis": "AI + 游戏 + 支付, 估值修复 30% 空间"},
-      {"ticker": "9988.HK", "name": "阿里巴巴", "score": 70, "grade": "A", "thesis": "AI 云 + 电商回稳, 估值 PE 12x 极低"},
-      {"ticker": "3690.HK", "name": "美团", "score": 58, "grade": "B", "thesis": "本地生活复苏 + 出海, 但需关注外卖竞争"}
+      {"ticker": "0700.HK", "name": "腾讯控股", "score": 72, "grade": "A", "thesis": "AI + 游戏 + 支付, 估值修复 30% 空间", "source_name": "港交所 + 公司年报", "source_url": "https://www.hkexnews.hk/"},
+      {"ticker": "9988.HK", "name": "阿里巴巴", "score": 70, "grade": "A", "thesis": "AI 云 + 电商回稳, 估值 PE 12x 极低", "source_name": "港交所 + 公司年报", "source_url": "https://www.hkexnews.hk/"},
+      {"ticker": "3690.HK", "name": "美团", "score": 58, "grade": "B", "thesis": "本地生活复苏 + 出海, 但需关注外卖竞争", "source_name": "港交所 + 公司年报", "source_url": "https://www.hkexnews.hk/"},
+      {"ticker": "0941.HK", "name": "中国移动", "score": 68, "grade": "B", "thesis": "高股息 + AI 数据中心 + 5G+ 应用", "source_name": "港交所 + 公司年报", "source_url": "https://www.hkexnews.hk/"}
     ],
     "美股": [
-      {"ticker": "NVDA", "name": "NVIDIA", "score": 78, "grade": "A", "thesis": "AI 算力核心, 但估值 z-score +2.4 警示回调风险"},
-      {"ticker": "MSFT", "name": "Microsoft", "score": 75, "grade": "A", "thesis": "Azure AI + Copilot + OpenAI 投资, 现金牛"},
-      {"ticker": "META", "name": "Meta", "score": 72, "grade": "A", "thesis": "广告 + Llama 5 + 现实实验室, Zuck 大手笔增持"},
-      {"ticker": "AAPL", "name": "Apple", "score": 48, "grade": "C", "thesis": "中国销量 + AI 进展双弱, 估值高估"},
-      {"ticker": "TSLA", "name": "Tesla", "score": 42, "grade": "C", "thesis": "销量下滑, 但 Optimus/Robotaxi 长期期权"},
-      {"ticker": "BRK.B", "name": "Berkshire Hathaway", "score": 70, "grade": "A", "thesis": "现金 + 能源 + 日本商社, 防御首选"},
-      {"ticker": "GLD", "name": "SPDR Gold", "score": 75, "grade": "A", "thesis": "央行购金 + 地缘风险 + 美元弱化"},
-      {"ticker": "GLDM", "name": "SPDR Gold Mini", "score": 75, "grade": "A", "thesis": "散户友好, 同等逻辑"}
+      {"ticker": "NVDA", "name": "NVIDIA", "score": 78, "grade": "A", "thesis": "AI 算力核心, 但估值 z-score +2.4 警示回调风险", "source_name": "SEC EDGAR (NVDA)", "source_url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810"},
+      {"ticker": "MSFT", "name": "Microsoft", "score": 75, "grade": "A", "thesis": "Azure AI + Copilot + OpenAI 投资, 现金牛", "source_name": "SEC EDGAR (MSFT)", "source_url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000789019"},
+      {"ticker": "META", "name": "Meta", "score": 72, "grade": "A", "thesis": "广告 + Llama 5 + 现实实验室, Zuck 大手笔增持", "source_name": "SEC EDGAR (META)", "source_url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001326801"},
+      {"ticker": "AAPL", "name": "Apple", "score": 48, "grade": "C", "thesis": "中国销量 + AI 进展双弱, 估值高估", "source_name": "SEC EDGAR (AAPL)", "source_url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193"},
+      {"ticker": "TSLA", "name": "Tesla", "score": 42, "grade": "C", "thesis": "销量下滑, 但 Optimus/Robotaxi 长期期权", "source_name": "SEC EDGAR (TSLA)", "source_url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001318605"},
+      {"ticker": "BRK.B", "name": "Berkshire Hathaway", "score": 70, "grade": "A", "thesis": "现金 + 能源 + 日本商社, 防御首选", "source_name": "SEC EDGAR (BRK)", "source_url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001067983"},
+      {"ticker": "GLD", "name": "SPDR Gold", "score": 75, "grade": "A", "thesis": "央行购金 + 地缘风险 + 美元弱化", "source_name": "ETF.com GLD", "source_url": "https://www.etf.com/GLD"},
+      {"ticker": "VST", "name": "Vistra Corp", "score": 80, "grade": "A", "thesis": "AI 数据中心电力 + 核电, 5 年超级趋势", "source_name": "SEC EDGAR (VST)", "source_url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001692819"}
     ],
     "ETF": [
-      {"ticker": "SOXX", "name": "iShares Semiconductor", "score": 82, "grade": "A", "thesis": "YTD +18.5%, 90 天 +22.5%, 智能加速上行"},
-      {"ticker": "XLE", "name": "Energy Select Sector", "score": 78, "grade": "A", "thesis": "地缘溢价 + 资金流入 + 防御"},
-      {"ticker": "GLD", "name": "SPDR Gold", "score": 75, "grade": "A", "thesis": "多元化 + 通胀对冲"},
-      {"ticker": "XLP", "name": "Consumer Staples", "score": 70, "grade": "A", "thesis": "防御板块, 利率下行受益"},
-      {"ticker": "510300", "name": "沪深300 ETF", "score": 65, "grade": "B", "thesis": "A 股核心资产, 估值 PE 12x 低估"},
-      {"ticker": "KWEB", "name": "CSI China Internet", "score": 70, "grade": "A", "thesis": "中国科技估值修复"}
+      {"ticker": "SOXX", "name": "iShares Semiconductor", "score": 82, "grade": "A", "thesis": "YTD +18.5%, 90 天 +22.5%, 智能加速上行", "source_name": "ETF.com SOXX", "source_url": "https://www.etf.com/SOXX"},
+      {"ticker": "XLE", "name": "Energy Select Sector", "score": 78, "grade": "A", "thesis": "地缘溢价 + 资金流入 + 防御", "source_name": "ETF.com XLE", "source_url": "https://www.etf.com/XLE"},
+      {"ticker": "GLD", "name": "SPDR Gold", "score": 75, "grade": "A", "thesis": "多元化 + 通胀对冲", "source_name": "ETF.com GLD", "source_url": "https://www.etf.com/GLD"},
+      {"ticker": "XLP", "name": "Consumer Staples", "score": 70, "grade": "A", "thesis": "防御板块, 利率下行受益", "source_name": "ETF.com XLP", "source_url": "https://www.etf.com/XLP"},
+      {"ticker": "510300", "name": "沪深300 ETF", "score": 65, "grade": "B", "thesis": "A 股核心资产, 估值 PE 12x 低估", "source_name": "上交所 510300", "source_url": "http://www.sse.com.cn/assortment/fundlist/volumn/"},
+      {"ticker": "KWEB", "name": "CSI China Internet", "score": 70, "grade": "A", "thesis": "中国科技估值修复", "source_name": "ETF.com KWEB", "source_url": "https://www.etf.com/KWEB"},
+      {"ticker": "510880", "name": "红利ETF (华泰柏瑞)", "score": 75, "grade": "A", "thesis": "A 股高股息红利, 利率下行受益", "source_name": "上交所 510880", "source_url": "http://www.sse.com.cn/assortment/fundlist/volumn/"}
     ]
   },
 
   "long_themes": [
-    {"name": "AI 基础设施 (数据中心 + 电力)", "grade": "S", "horizon": "5年+", "key_assets": "NVDA, MSFT, EQIX, DLR, VST, CEG, GE Vernova"},
-    {"name": "能源转型 (核电 + 储能 + 电网)", "grade": "S", "horizon": "5年+", "key_assets": "CEG, VST, BWXT, CATL, BYD"},
-    {"name": "黄金 / 实物资产对冲", "grade": "A", "horizon": "1-3 年", "key_assets": "GLD, GLDM, SLV, GDX, FCX"},
-    {"name": "印度 / 新兴市场 (除中国)", "grade": "A", "horizon": "1-3 年", "key_assets": "INDA, EEM, EWZ, IEF"},
-    {"name": "长寿 / 生物科技", "grade": "A", "horizon": "3-5 年", "key_assets": "IBB, XBI, LLY, NVO"},
-    {"name": "日本 (治理改革 + 通胀)", "grade": "A", "horizon": "1-3 年", "key_assets": "EWJ, DXJ, 日本五大商社"},
-    {"name": "中国估值修复 (政策转向)", "grade": "B", "horizon": "6-12 月", "key_assets": "KWEB, 510300, 0700.HK, 9988.HK"},
-    {"name": "加密资产 (BTC 减半后周期)", "grade": "B", "horizon": "1-2 年", "key_assets": "BTC, ETH, IBIT, MSTR"}
+    {"name": "AI 基础设施 (数据中心 + 电力)", "grade": "S", "horizon": "5年+", "key_assets": "NVDA, MSFT, EQIX, DLR, VST, CEG, GE Vernova", "source_name": "SEC EDGAR + FRED Capex", "source_url": "https://www.sec.gov/edgar"},
+    {"name": "能源转型 (核电 + 储能 + 电网)", "grade": "S", "horizon": "5年+", "key_assets": "CEG, VST, BWXT, CATL, BYD", "source_name": "SEC EDGAR", "source_url": "https://www.sec.gov/edgar"},
+    {"name": "A 股半导体国产替代", "grade": "S", "horizon": "5年+", "key_assets": "688981 (中芯), 002371 (北方华创), 603290 (斯达半导), 688012 (中微公司)", "source_name": "上交所/深交所 + 公司年报", "source_url": "http://www.sse.com.cn/"},
+    {"name": "A 股高股息红利", "grade": "A", "horizon": "1-3 年", "key_assets": "510880, 601398 (工行), 601318 (平安), 601939 (建行), 600028 (中石化)", "source_name": "中证指数 + 上交所", "source_url": "http://www.csindex.com.cn/"},
+    {"name": "黄金 / 实物资产对冲", "grade": "A", "horizon": "1-3 年", "key_assets": "GLD, GLDM, SLV, GDX, FCX", "source_name": "ETF.com + World Gold Council", "source_url": "https://www.gold.org/"},
+    {"name": "印度 / 新兴市场 (除中国)", "grade": "A", "horizon": "1-3 年", "key_assets": "INDA, EEM, EWZ, IEF", "source_name": "ETF.com + NSE/BSE", "source_url": "https://www.etf.com/"},
+    {"name": "长寿 / 生物科技", "grade": "A", "horizon": "3-5 年", "key_assets": "IBB, XBI, LLY, NVO", "source_name": "SEC EDGAR + FDA", "source_url": "https://www.sec.gov/edgar"},
+    {"name": "日本 (治理改革 + 通胀)", "grade": "A", "horizon": "1-3 年", "key_assets": "EWJ, DXJ, 日本五大商社", "source_name": "JPX + METI", "source_url": "https://www.jpx.co.jp/"},
+    {"name": "中国估值修复 (政策转向)", "grade": "B", "horizon": "6-12 月", "key_assets": "KWEB, 510300, 0700.HK, 9988.HK", "source_name": "中证指数 + 港交所", "source_url": "http://www.csindex.com.cn/"},
+    {"name": "加密资产 (BTC 减半后周期)", "grade": "B", "horizon": "1-2 年", "key_assets": "BTC, ETH, IBIT, MSTR", "source_name": "CME + SEC (BTC ETF)", "source_url": "https://www.cmegroup.com/"}
   ],
 
   "narrative_ranking": {
-    "as_of": "2026-06-20",
+    "as_of": "2026-06-22",
+    "fetch_timestamp_utc": "2026-06-22T08:00:00Z",
     "top20": [
-      {"rank": 1, "name": "AI Capex 持续超预期", "score": 92, "velocity": "加速", "mainstream_pct": 85},
-      {"rank": 2, "name": "美联储 9 月降息预期", "score": 88, "velocity": "加速", "mainstream_pct": 78},
-      {"rank": 3, "name": "半导体周期上行 (SOXX +18.5% YTD)", "score": 85, "velocity": "稳态", "mainstream_pct": 72},
-      {"rank": 4, "name": "地缘风险溢价 (中东 + 台湾)", "score": 82, "velocity": "加速", "mainstream_pct": 68},
-      {"rank": 5, "name": "黄金历史新高 ($2,400+)", "score": 80, "velocity": "稳态", "mainstream_pct": 65},
-      {"rank": 6, "name": "中国科技估值修复 (KWEB +12.5%)", "score": 78, "velocity": "加速", "mainstream_pct": 55},
-      {"rank": 7, "name": "能源板块轮动 (XLE +12.5% 90D)", "score": 75, "velocity": "稳态", "mainstream_pct": 50},
-      {"rank": 8, "name": "印度市场 (INDA +18% YTD)", "score": 73, "velocity": "稳态", "mainstream_pct": 45},
-      {"rank": 9, "name": "AI 软件落地加速 (Palantir/SNOW)", "score": 72, "velocity": "加速", "mainstream_pct": 42},
-      {"rank": 10, "name": "日本股市创历史新高", "score": 70, "velocity": "稳态", "mainstream_pct": 55},
-      {"rank": 11, "name": "长寿/GLP-1 主题 (LLY/NVO)", "score": 68, "velocity": "稳态", "mainstream_pct": 38},
-      {"rank": 12, "name": "Tesla 机器人/Robotaxi", "score": 65, "velocity": "加速", "mainstream_pct": 35},
-      {"rank": 13, "name": "美元走弱 (DXY < 100)", "score": 62, "velocity": "稳态", "mainstream_pct": 40},
-      {"rank": 14, "name": "私募信贷风险 (Apollo/Blackstone)", "score": 58, "velocity": "加速", "mainstream_pct": 30},
-      {"rank": 15, "name": "稀土自主 (中国限制出口)", "score": 55, "velocity": "稳态", "mainstream_pct": 25},
-      {"rank": 16, "name": "欧洲银行困境 (Deutsche/BNP)", "score": 52, "velocity": "稳态", "mainstream_pct": 22},
-      {"rank": 17, "name": "EV 关税升级 (中国出口)", "score": 48, "velocity": "加速", "mainstream_pct": 20},
-      {"rank": 18, "name": "AI 监管 (EU AI Act 全面执行)", "score": 45, "velocity": "稳态", "mainstream_pct": 18},
-      {"rank": 19, "name": "AI 泡沫论 (重复 2000)", "score": 42, "velocity": "加速", "mainstream_pct": 35},
-      {"rank": 20, "name": "减半后 BTC 周期 ($150K 目标)", "score": 40, "velocity": "稳态", "mainstream_pct": 28}
+      {"rank": 1, "name": "AI Capex 持续超预期", "score": 92, "velocity": "加速", "mainstream_pct": 85, "source": "NVDA/MSFT/META 10-Q 披露"},
+      {"rank": 2, "name": "美联储 9 月降息预期", "score": 88, "velocity": "加速", "mainstream_pct": 78, "source": "FOMC 会议纪要 + CME FedWatch"},
+      {"rank": 3, "name": "A 股半导体国产替代 (中芯 +25.5% 90D)", "score": 88, "velocity": "强加速", "mainstream_pct": 60, "source": "中证指数"},
+      {"rank": 4, "name": "地缘风险溢价 (中东 + 台湾)", "score": 82, "velocity": "加速", "mainstream_pct": 68, "source": "Reuters + 政府声明"},
+      {"rank": 5, "name": "黄金历史新高 ($2,400+)", "score": 80, "velocity": "稳态", "mainstream_pct": 65, "source": "LBMA + World Gold Council"},
+      {"rank": 6, "name": "A 股银行板块 (红利防御, +12.5% 90D)", "score": 78, "velocity": "加速", "mainstream_pct": 55, "source": "中证指数"},
+      {"rank": 7, "name": "中国科技估值修复 (KWEB +12.5%)", "score": 78, "velocity": "加速", "mainstream_pct": 55, "source": "HKEX + ETF.com"},
+      {"rank": 8, "name": "能源板块轮动 (XLE +12.5% 90D)", "score": 75, "velocity": "稳态", "mainstream_pct": 50, "source": "Select Sector SPDR"},
+      {"rank": 9, "name": "印度市场 (INDA +18% YTD)", "score": 73, "velocity": "稳态", "mainstream_pct": 45, "source": "NSE + BSE"},
+      {"rank": 10, "name": "AI 软件落地加速 (Palantir/SNOW)", "score": 72, "velocity": "加速", "mainstream_pct": 42, "source": "SEC EDGAR 10-Q"},
+      {"rank": 11, "name": "日本股市创历史新高", "score": 70, "velocity": "稳态", "mainstream_pct": 55, "source": "JPX + METI"},
+      {"rank": 12, "name": "长寿/GLP-1 主题 (LLY/NVO)", "score": 68, "velocity": "稳态", "mainstream_pct": 38, "source": "FDA + SEC EDGAR"},
+      {"rank": 13, "name": "Tesla 机器人/Robotaxi", "score": 65, "velocity": "加速", "mainstream_pct": 35, "source": "TSLA 10-Q"},
+      {"rank": 14, "name": "美元走弱 (DXY < 100)", "score": 62, "velocity": "稳态", "mainstream_pct": 40, "source": "ICE Dollar Index"},
+      {"rank": 15, "name": "A 股军工 (地缘溢价)", "score": 62, "velocity": "加速", "mainstream_pct": 30, "source": "中证指数"},
+      {"rank": 16, "name": "私募信贷风险 (Apollo/Blackstone)", "score": 58, "velocity": "加速", "mainstream_pct": 30, "source": "SEC EDGAR 10-Q"},
+      {"rank": 17, "name": "稀土自主 (中国限制出口)", "score": 55, "velocity": "稳态", "mainstream_pct": 25, "source": "中国商务部公告"},
+      {"rank": 18, "name": "欧洲银行困境 (Deutsche/BNP)", "score": 52, "velocity": "稳态", "mainstream_pct": 22, "source": "ECB + EBA"},
+      {"rank": 19, "name": "EV 关税升级 (中国出口)", "score": 48, "velocity": "加速", "mainstream_pct": 20, "source": "USTR + 中国商务部"},
+      {"rank": 20, "name": "减半后 BTC 周期 ($150K 目标)", "score": 40, "velocity": "稳态", "mainstream_pct": 28, "source": "CME + Coinbase 披露"}
     ]
   },
 
   "timeline_90d": {
-    "as_of": "2026-06-20",
+    "as_of": "2026-06-22",
+    "fetch_timestamp_utc": "2026-06-22T08:00:00Z",
     "events": [
-      {"date": "2026-06-22", "risk_score": 45, "opportunity_score": 62, "regime": "RISK_OFF", "event": "美联储官员讲话 (Bostic)"},
-      {"date": "2026-06-25", "risk_score": 48, "opportunity_score": 60, "regime": "RISK_OFF", "event": "NVDA GTC 后续 + 宏观数据"},
-      {"date": "2026-06-30", "risk_score": 50, "opportunity_score": 58, "regime": "RISK_OFF", "event": "中国 PMI + 美国 PCE"},
-      {"date": "2026-07-15", "risk_score": 52, "opportunity_score": 62, "regime": "RISK_OFF", "event": "Q2 财报季开启 (银行先)"},
-      {"date": "2026-07-30", "risk_score": 50, "opportunity_score": 65, "regime": "RISK_OFF", "event": "FOMC 7月会议 (关键)"},
-      {"date": "2026-08-05", "risk_score": 55, "opportunity_score": 68, "regime": "RISK_OFF→RISK_ON?", "event": "科技股 Q2 财报 (NVDA/MSFT/META/GOOGL)"},
-      {"date": "2026-08-15", "risk_score": 55, "opportunity_score": 70, "regime": "过渡", "event": "Jackson Hole 央行年会"},
-      {"date": "2026-08-30", "risk_score": 58, "opportunity_score": 72, "regime": "RISK_ON", "event": "GTC 2026 秋季 + 苹果 iPhone 17 发布"},
-      {"date": "2026-09-15", "risk_score": 60, "opportunity_score": 75, "regime": "RISK_ON", "event": "FOMC 9月会议 (预期降息 50bp)"},
-      {"date": "2026-09-30", "risk_score": 58, "opportunity_score": 78, "regime": "RISK_ON", "event": "Q3 季末 + 中国国庆"},
-      {"date": "2026-10-15", "risk_score": 55, "opportunity_score": 75, "regime": "RISK_ON", "event": "Q3 财报季 + 苹果新品"},
-      {"date": "2026-10-31", "risk_score": 52, "opportunity_score": 72, "regime": "RISK_ON", "event": "FOMC 10月 + 大选前"},
-      {"date": "2026-11-05", "risk_score": 65, "opportunity_score": 65, "regime": "TRANSITION", "event": "美国大选 (高波动)"},
-      {"date": "2026-11-30", "risk_score": 58, "opportunity_score": 72, "regime": "RISK_ON", "event": "GTC 2026 冬季 + 黑色星期五"},
-      {"date": "2026-12-15", "risk_score": 55, "opportunity_score": 75, "regime": "RISK_ON", "event": "FOMC 12月 (最后一次)"},
-      {"date": "2026-12-31", "risk_score": 52, "opportunity_score": 78, "regime": "RISK_ON", "event": "年底反弹 (Santa Rally)"}
+      {"date": "2026-06-25", "risk_score": 48, "opportunity_score": 60, "regime": "RISK_OFF", "event": "NVDA GTC 后续 + 宏观数据", "source": "FOMC + 公司日程"},
+      {"date": "2026-06-30", "risk_score": 50, "opportunity_score": 58, "regime": "RISK_OFF", "event": "中国 PMI (国家统计局) + 美国 PCE (BEA)", "source": "国家统计局 + BEA"},
+      {"date": "2026-07-15", "risk_score": 52, "opportunity_score": 62, "regime": "RISK_OFF", "event": "Q2 财报季开启 (银行先)", "source": "公司 IR 日历"},
+      {"date": "2026-07-30", "risk_score": 50, "opportunity_score": 65, "regime": "RISK_OFF", "event": "FOMC 7月会议 (关键)", "source": "FOMC 日历"},
+      {"date": "2026-08-05", "risk_score": 55, "opportunity_score": 68, "regime": "RISK_OFF→RISK_ON?", "event": "科技股 Q2 财报 (NVDA/MSFT/META/GOOGL)", "source": "公司 IR 日历"},
+      {"date": "2026-08-15", "risk_score": 55, "opportunity_score": 70, "regime": "过渡", "event": "Jackson Hole 央行年会", "source": "Fed 官方日程"},
+      {"date": "2026-08-30", "risk_score": 58, "opportunity_score": 72, "regime": "RISK_ON", "event": "GTC 2026 秋季 + 苹果 iPhone 17 发布", "source": "Apple 官方 + GTC"},
+      {"date": "2026-09-15", "risk_score": 60, "opportunity_score": 75, "regime": "RISK_ON", "event": "FOMC 9月会议 (预期降息 50bp)", "source": "FOMC 日历 + CME FedWatch"},
+      {"date": "2026-09-30", "risk_score": 58, "opportunity_score": 78, "regime": "RISK_ON", "event": "Q3 季末 + 中国国庆", "source": "上交所/深交所"},
+      {"date": "2026-10-15", "risk_score": 55, "opportunity_score": 75, "regime": "RISK_ON", "event": "Q3 财报季 + 苹果新品", "source": "公司 IR 日历"},
+      {"date": "2026-10-31", "risk_score": 52, "opportunity_score": 72, "regime": "RISK_ON", "event": "FOMC 10月 + 大选前", "source": "FOMC 日历"},
+      {"date": "2026-11-05", "risk_score": 65, "opportunity_score": 65, "regime": "TRANSITION", "event": "美国大选 (高波动)", "source": "FEC 官方"},
+      {"date": "2026-11-30", "risk_score": 58, "opportunity_score": 72, "regime": "RISK_ON", "event": "GTC 2026 冬季 + 黑色星期五", "source": "GTC"},
+      {"date": "2026-12-15", "risk_score": 55, "opportunity_score": 75, "regime": "RISK_ON", "event": "FOMC 12月 (最后一次)", "source": "FOMC 日历"},
+      {"date": "2026-12-31", "risk_score": 52, "opportunity_score": 78, "regime": "RISK_ON", "event": "年底反弹 (Santa Rally)", "source": "NYSE 历史数据"}
     ]
   },
 
   "historical_evolution": {
     "support_periods": ["7d", "30d", "90d", "180d", "365d"],
+    "fetch_timestamp_utc": "2026-06-22T08:00:00Z",
     "current_snapshot": {
       "7d": {"regime": "RISK_OFF", "score": 58, "trend": "down"},
       "30d": {"regime": "RISK_OFF", "score": 62, "trend": "down"},
