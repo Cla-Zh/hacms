@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<title>问: AI 应用早期是否需要数据安全? 怎么做? | 智慧问答 | 肥嘟嘟的炼金工厂</title>
+<meta name="description" content="AI 应用早期阶段的数据安全实战: 4 个真实新闻案例 (三星 ChatGPT 泄密 / Hugging Face 恶意模型 / HF Spaces 密钥泄露 / DeepSeek ClickHouse 100万行数据) + 5 阶段防护体系 + 学术对标 (OWASP LLM/Agentic/MITRE ATLAS)。">
+<meta property="og:title" content="问: AI 应用早期是否需要数据安全? 怎么做? | 智慧问答">
+<meta property="og:description" content="4 个真实新闻案例 + 早期 AI 数据安全 5 阶段防护体系 + 学术对标 + 30+ 引用。">
+<meta property="og:type" content="article">
+<link rel="stylesheet" href="../qa-style.css">
+</head>
+<body class="qa-page-body">
+
+<!-- 顶部固定栏: 返回按钮 + 面包屑 -->
+<header class="qa-topbar" role="banner">
+  <a href="/index.html#qa" class="qa-back-btn" aria-label="返回智慧问答列表" title="返回智慧问答列表 (浏览器后退按钮也可以)">
+    <span class="qa-back-icon" aria-hidden="true">←</span>
+    <span class="qa-back-text">返回智慧问答</span>
+  </a>
+  <div class="qa-topbar-title">💬 智慧问答</div>
+  <div class="qa-topbar-meta">
+    <a href="/content/articles/2026-05-26-ai-storage-infrastructure/index.html" target="_blank" rel="noopener" class="qa-topbar-link" title="查看 AI 存储调研报告原文">📄 原文 ↗</a>
+  </div>
+</header>
+
+<main class="qa-main">
+
+  <!-- 问题卡片 -->
+  <section class="qa-question-card" aria-label="问题">
+    <div class="qa-question-meta">
+      <span class="qa-tag qa-tag-topic">Q2 · 2026</span>
+      <span class="qa-tag qa-tag-domain">AI 数据安全</span>
+      <span class="qa-tag qa-tag-stage">早期阶段</span>
+    </div>
+    <h1 class="qa-question-title">AI 应用早期是否需要数据安全? 怎么做?</h1>
+    <p class="qa-question-brief">
+      真实数据: <strong>三星半导体 20 天 3 次 ChatGPT 泄密</strong> (2023-04) / <strong>Hugging Face 100+ 恶意模型</strong> (2024-03, Pickle RCE) / <strong>DeepSeek 100 万行数据无认证暴露</strong> (2025-01) — 即使团队只有 1 个 LLM API key, 攻击面也已经形成。本文给出 <strong>5 阶段防护体系</strong> (API key → 数据流 → 模型加载 → RAG 知识库 → Agent 工具链) + 30+ 引用。
+    </p>
+    <div class="qa-question-stats">
+      <span>📰 4 个真实新闻案例</span>
+      <span>🎓 3 大学术对标 (OWASP / MITRE / 学术)</span>
+      <span>📚 引用 30+</span>
+      <span>⏱ 阅读 ~25 分钟</span>
+    </div>
+  </section>
+
+  <!-- 一、关键回答 -->
+  <section class="qa-section" id="s1">
+    <h2>一、关键回答 (TL;DR)</h2>
+    <div class="qa-tldr">
+      <p><strong>是的, AI 应用早期就需要数据安全, 而且比传统应用更需要。</strong>原因不是 AI 本身更脆弱, 而是 3 个结构性变化:</p>
+      <ol>
+        <li><strong>信任边界模糊化</strong>: 你不知道员工会往 LLM 里粘贴什么 (三星案例: 源代码 / 会议录音 / 内部数据), 也不知道用户会输入什么敏感信息 (医疗 / 金融 / 法律), 更不知道模型会输出什么 (幻觉 + 训练数据反演)。传统 ACL 失效。</li>
+        <li><strong>攻击面原子化扩张</strong>: 即使团队只有 1 个 LLM API key, 攻击面也包含 API key 本身 (泄露) + 客户端输入 (prompt injection) + 训练数据 (投毒) + 模型权重 (后门) + RAG 知识库 (注入) + Agent 工具 (间接注入) + 输出 (幻觉/数据反演) 7 层。</li>
+        <li><strong>响应窗口已秒级化</strong>: CrowdStrike 2026 GTR 数据, eCrime breakout time 平均 29 分钟 / 最快 27 秒 (Punk Spider); GitGuardian 2024 State of Secrets Sprawl 报告: 12.8M 新密钥泄露在公开 GitHub (+28%), 5 天后 90% 仍有效, 90% 仓库含至少 1 个密钥泄露。</li>
+      </ol>
+      <p><strong>早期不是不做, 是用最小成本做最关键 5 件事</strong> (后文详解): ① API key 集中化 (环境变量/密钥管理); ② 提示词审计 (PII 自动检测); ③ 输入过滤 (prompt injection 黑名单); ④ 输出消毒 (训练数据反演防护); ⑤ 日志脱敏 (避免日志成为二次泄露源)。</p>
+    </div>
+  </section>
+
+  <!-- 二、真实新闻案例 -->
+  <section class="qa-section" id="s2">
+    <h2>二、4 个真实新闻案例 (验证: AI 早期就需要安全)</h2>
+
+    <div class="qa-case-block">
+      <h3>📰 案例 1: 三星半导体 ChatGPT 误传机密 (2023-04)</h3>
+      <div class="qa-case-meta">
+        <span class="qa-tag qa-tag-severity-high">高危</span>
+        <span class="qa-tag">2023-04</span>
+        <span class="qa-tag">大公司</span>
+        <span class="qa-tag">员工自发性使用</span>
+      </div>
+      <div class="qa-case-detail">
+        <p><strong>时间线</strong>:</p>
+        <ul>
+          <li>2023-03-11: 三星半导体部门<strong>解除 ChatGPT 禁令</strong> (允许工程师用 AI debug 源代码, 内部通知"注意信息安全, 不要输入私人信息")</li>
+          <li>2023-03-20 左右: 20 天内 <strong>3 次泄密事件</strong>
+            <ol>
+              <li>半导体工程师粘贴<strong>设备测量数据库源代码</strong>到 ChatGPT, 让其查错</li>
+              <li>硬件工程师粘贴<strong>晶圆产量测试程序</strong>到 ChatGPT, 让其优化</li>
+              <li>员工把<strong>机密会议录音</strong>转录文本上传 ChatGPT 生成会议纪要</li>
+            </ol>
+          </li>
+          <li>2023-04-03: 三星紧急<strong>设置 1024 字符上限</strong>, 考虑重禁</li>
+          <li>2023-05: 三星<strong>全公司禁用 ChatGPT</strong>, 转向自研内部 AI 平台</li>
+        </ul>
+        <p><strong>为什么"早期"也中招</strong>: 三星不是 AI 应用早期, 是<strong>AI 使用早期</strong> (公司刚开通 ChatGPT), 但即使是大公司也低估了"员工自发性使用"的速度 — <strong>20 天 3 次事件</strong>, 平均每 6.7 天一次。</p>
+        <p><strong>启示</strong>: AI 应用早期 = "信任还没建立 + 控制还没设计" 的双重危险期, <strong>必须 0 天就设计护栏</strong> (三星 0 防护 = 20 天 3 次泄密)。</p>
+      </div>
+      <div class="qa-case-source">
+        <strong>来源</strong>:
+        <a href="https://www.pcmag.com/news/samsung-software-engineers-busted-for-pasting-proprietary-code-into-chatgpt" target="_blank" rel="noopener">PCMag 2023-04-07</a> ·
+        <a href="https://www.cybersecuritydive.com/news/Samsung-Electronics-ChatGPT-leak-data-privacy/647219" target="_blank" rel="noopener">Cybersecurity Dive 2023-04-10</a> ·
+        <a href="https://www.techworm.net/2023/04/samsung-leak-sensitive-data-chatgpt.html" target="_blank" rel="noopener">TechWorm 2023-04-08</a>
+      </div>
+    </div>
+
+    <div class="qa-case-block">
+      <h3>📰 案例 2: Hugging Face 100+ 恶意模型 (Pickle RCE, 2024-03)</h3>
+      <div class="qa-case-meta">
+        <span class="qa-tag qa-tag-severity-high">高危</span>
+        <span class="qa-tag">2024-03</span>
+        <span class="qa-tag">开源生态</span>
+        <span class="qa-tag">供应链</span>
+      </div>
+      <div class="qa-case-detail">
+        <p><strong>事件</strong>: JFrog 安全研究团队 2024-02 报告, 在 Hugging Face 上发现 <strong>至少 100 个恶意 ML 模型</strong>, 代表作 <code>baller423/goober2</code> 在 PyTorch Pickle 加载时直接执行任意代码, 提供持久后门。</p>
+        <p><strong>技术原理</strong>: PyTorch 的 <code>torch.load()</code> 默认反序列化 Pickle, 而 Pickle 设计上 <strong>支持任意 Python 代码执行</strong>。攻击者把恶意代码嵌入 Pickle 字节流, 用户 <code>model = torch.load("attacker.pt")</code> 就直接 RCE。</p>
+        <p><strong>早期应用风险</strong>: AI 应用早期团队 <strong>经常用 Hugging Face 上的预训练模型</strong> (尤其开源 LLaMA / Mistral), 不验证就 <code>trust_remote_code=True</code> 加载, 等于<strong>直接信任上传者</strong>。</p>
+        <p><strong>Hugging Face 应对</strong>: 推出 <code>PickleScan</code> 静态扫描 + 推荐 <code>safetensors</code> 格式 (无 RCE 风险), 但 100+ 旧模型仍存在。</p>
+      </div>
+      <div class="qa-case-source">
+        <strong>来源</strong>:
+        <a href="https://nsfocusglobal.com/ai-supply-chain-security-hugging-face-malicious-ml-models/" target="_blank" rel="noopener">NSFOCUS 2024-03-05</a> ·
+        <a href="https://hackread.com/hugging-face-vulnerability-ai-supply-chain-attack/" target="_blank" rel="noopener">HackRead (Wiz 报告)</a> ·
+        <a href="https://huggingface.co/docs/hub/security-pickle" target="_blank" rel="noopener">HF 官方 PickleScan 文档</a>
+      </div>
+    </div>
+
+    <div class="qa-case-block">
+      <h3>📰 案例 3: Hugging Face Spaces 认证密钥泄露 (2024-06)</h3>
+      <div class="qa-case-meta">
+        <span class="qa-tag qa-tag-severity-mid">中危</span>
+        <span class="qa-tag">2024-06</span>
+        <span class="qa-tag">托管平台</span>
+        <span class="qa-tag">密钥管理</span>
+      </div>
+      <div class="qa-case-detail">
+        <p><strong>事件</strong>: 2024-06 HF Spaces 平台被攻破, 攻击者获取用户存储在 Secrets 中的 API tokens, 可能访问用户的私有模型 / 数据集 / 集成配置。</p>
+        <p><strong>早期应用风险</strong>: 早期 AI 应用经常用 Hugging Face Spaces 免费托管 demo, 把生产 API key 也存进去 (因为图省事), <strong>等于把钥匙交给托管方</strong>。一旦平台泄露, 多个项目的密钥同时失守。</p>
+        <p><strong>HF 应对</strong>: 引入 KMS (密钥管理服务) + 强制细粒度 token + 取消组织级 token, 提升审计能力。</p>
+      </div>
+      <div class="qa-case-source">
+        <strong>来源</strong>: <a href="https://nhimg.org/hugging-face-breach" target="_blank" rel="noopener">NHI Journal 2024-06</a>
+      </div>
+    </div>
+
+    <div class="qa-case-block">
+      <h3>📰 案例 4: DeepSeek ClickHouse 100 万+ 记录无认证暴露 (2025-01-29)</h3>
+      <div class="qa-case-meta">
+        <span class="qa-tag qa-tag-severity-critical">严重</span>
+        <span class="qa-tag">2025-01-29</span>
+        <span class="qa-tag">AI 创业公司</span>
+        <span class="qa-tag">国家级事件</span>
+      </div>
+      <div class="qa-case-detail">
+        <p><strong>事件</strong>: Wiz Research 2025-01-29 公开披露, 中国 AI 创业公司 DeepSeek 把 ClickHouse 数据库暴露在 <strong>8123 和 9000 端口</strong>, <strong>完全无认证</strong>, 暴露超过 100 万行日志流, 包含: <strong>用户 chat history / API 密钥 / 后端细节 / 敏感系统日志</strong>。Wiz 团队"几分钟内"就发现并可执行任意 SQL, 攻击者可获得数据库完全控制权 + DeepSeek 内部系统提权。</p>
+        <p><strong>早期应用风险</strong>: DeepSeek-R1 发布仅 9 天, 团队全部精力放在模型训练和上线, <strong>安全配置 0 跟进</strong>。一个 ClickHouse 实例错配 = 国家级数据泄露。这是<strong>AI 创业公司爆发式增长期</strong>的典型陷阱。</p>
+        <p><strong>后续影响</strong>:
+          <ul>
+            <li>2025-01-30: 美国海军发布<strong>禁用 DeepSeek 指令</strong> ("in any capacity")</li>
+            <li>2025-01-31: 美国参议员公开质疑 DeepSeek 隐私安全性</li>
+            <li>2025-02: DeepSeek 服务器在中国境内, 数据主权问题引发国际监管讨论</li>
+            <li>波及 Nvidia / Oracle 股价下跌 (市场对 AI 安全的重新定价)</li>
+          </ul>
+        </p>
+        <p><strong>DeepSeek 应对</strong>: Wiz 通知后 24 小时内关闭暴露端口, 但<strong>无法确认泄露前是否已被他人访问</strong>。</p>
+      </div>
+      <div class="qa-case-source">
+        <strong>来源</strong>:
+        <a href="https://www.wiz.io/blog/wiz-research-uncovers-exposed-deepseek-database-leak" target="_blank" rel="noopener">Wiz Research Blog 2025-01-29</a> ·
+        <a href="https://www.theverge.com/news/603163/deepseek-breach-ai-security-database-exposed" target="_blank" rel="noopener">The Verge 2025-01-31</a> ·
+        <a href="https://www.techtarget.com/searchSecurity/news/366618594/Wiz-reveals-DeepSeek-database-exposed-API-keys-chat-histories" target="_blank" rel="noopener">TechTarget 2025-01-30</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 三、5 阶段防护体系 -->
+  <section class="qa-section" id="s3">
+    <h2>三、早期 AI 数据安全 5 阶段防护体系 (最小可行方案)</h2>
+    <p>基于 4 个真实案例 + OWASP LLM Top 10 (2025) + MITRE ATLAS (2024), AI 应用早期 (团队 1-10 人, 月活 < 1 万) 至少要做 5 件事:</p>
+
+    <div class="qa-defense-block">
+      <h3>🛡️ 阶段 1: API Key 集中化 (零信任密钥管理)</h3>
+      <div class="qa-defense-why">
+        <p><strong>为什么</strong>: 4 个案例中, 3 个 (三星 / HF Spaces / DeepSeek) 都涉及 API key 或密钥泄露。GitGuardian 2024 报告: 12.8M 新密钥泄露在公开 GitHub (+28%), <strong>5 天后 90% 仍有效</strong>。早期团队最常犯的错 = 把 OpenAI key 写在 .env 然后 .env 也 push 到 GitHub。</p>
+      </div>
+      <div class="qa-defense-how">
+        <p><strong>怎么做</strong> (5 步, 半天搞定):</p>
+        <ol>
+          <li><strong>密钥管理</strong>: 用 <code>HashiCorp Vault</code> / <code>AWS Secrets Manager</code> / <code>Azure Key Vault</code> / <code>GCP Secret Manager</code> (云厂商自带免费)</li>
+          <li><strong>环境变量</strong>: 永远不把 key 写入代码, <code>os.environ["OPENAI_API_KEY"]</code></li>
+          <li><strong>.gitignore</strong>: 强制 <code>.env</code> / <code>*.key</code> / <code>secrets.json</code> ignore</li>
+          <li><strong>Git 扫描</strong>: 接 <code>GitGuardian</code> / <code>ggshield</code> / <code>TruffleHog</code> 到 CI, 提交时扫描</li>
+          <li><strong>轮转</strong>: 每 90 天轮转, 离职立即吊销</li>
+        </ol>
+      </div>
+      <p><strong>工具</strong>: HashiCorp Vault · AWS Secrets Manager · 1Password CLI · Doppler · GitGuardian · TruffleHog · ggshield</p>
+    </div>
+
+    <div class="qa-defense-block">
+      <h3>🛡️ 阶段 2: 输入审计 (PII + Prompt Injection 双过滤)</h3>
+      <div class="qa-defense-why">
+        <p><strong>为什么</strong>: 三星案例就是输入失控 — 员工把源代码 + 会议录音扔进 LLM。早期应用必须: ① 检测员工输入是否含 PII / 公司机密; ② 检测用户输入是否含 prompt injection。</p>
+      </div>
+      <div class="qa-defense-how">
+        <p><strong>怎么做</strong>:</p>
+        <ol>
+          <li><strong>PII 检测</strong>: 用 <code>Microsoft Presidio</code> (开源) / <code>AWS Comprehend PII</code> / <code>Google Cloud DLP</code> 识别邮箱/手机号/身份证/信用卡/内部代号</li>
+          <li><strong>Prompt Injection 黑名单</strong>: 用 <code>Lakera Guard</code> (免费版) / <code>Prompt Armor</code> / <code>Rebuff</code> 检测 "ignore previous instructions" / "DAN" / "developer mode" 等模式</li>
+          <li><strong>敏感词审计</strong>: 维护公司敏感词表 (项目代号 / 客户名 / 内部系统名), 输入前过一遍</li>
+          <li><strong>字符限制</strong>: 学三星 — 每个 prompt 限制 1024-4096 字符 (防员工 dump 大段代码)</li>
+        </ol>
+      </div>
+      <p><strong>工具</strong>: Microsoft Presidio · Lakera Guard · Rebuff · Protect AI · AWS Comprehend · Google Cloud DLP</p>
+    </div>
+
+    <div class="qa-defense-block">
+      <h3>🛡️ 阶段 3: 模型加载审计 (反供应链攻击)</h3>
+      <div class="qa-defense-why">
+        <p><strong>为什么</strong>: Hugging Face 100+ 恶意模型案例 (2024-03) 证明, 加载任何 <code>trust_remote_code=True</code> 或 Pickle 模型 = 直接 RCE。早期 AI 应用经常 fine-tune 开源模型, 风险最大。</p>
+      </div>
+      <div class="qa-defense-how">
+        <p><strong>怎么做</strong>:</p>
+        <ol>
+          <li><strong>只加载 safetensors</strong>: 用 <code>.safetensors</code> 替代 <code>.bin/.pt/.pth</code> (PyTorch Pickle 不安全)</li>
+          <li><strong>PickleScan</strong>: HF 官方 <code>picklescan</code> 包扫描, CI 集成</li>
+          <li><strong>模型来源白名单</strong>: 维护可信模型库 (meta-llama / mistralai / 智源 等官方账号), 不用第三方 mirror</li>
+          <li><strong>沙箱加载</strong>: 加载模型在 Docker 容器 / gVisor / Firecracker 中, 限制 RCE 影响范围</li>
+          <li><strong>模型哈希校验</strong>: 记录每个模型的 SHA256, 部署前对比</li>
+        </ol>
+      </div>
+      <p><strong>工具</strong>: Hugging Face PickleScan · safetensors · model-manifest · Docker sandbox · gVisor</p>
+    </div>
+
+    <div class="qa-defense-block">
+      <h3>🛡️ 阶段 4: 输出消毒 (防训练数据反演 + 幻觉)</h4>
+      <div class="qa-defense-why">
+        <p><strong>为什么</strong>: LLM 输出可能反演训练数据 (Carlini 2021 论文证明可从 GPT-2 提取训练样本), 也可能幻觉生成虚假信息 (医疗 / 法律高危)。</p>
+      </div>
+      <div class="qa-defense-how">
+        <p><strong>怎么做</strong>:</p>
+      </div>
+      <p><strong>工具</strong>: Lakera Guard · NeMo Guardrails · Microsoft Azure AI Content Safety · Cloudflare AI Gateway</p>
+    </div>
+
+    <div class="qa-defense-block">
+      <h3>🛡️ 阶段 5: 日志脱敏 (避免日志成为二次泄露源)</h3>
+      <div class="qa-defense-why">
+        <p><strong>为什么</strong>: DeepSeek 案例 100 万行日志泄露含 chat history + API keys 是典型"日志 = 数据泄露源"问题。早期应用 debug 时经常 print 完整 prompt, 写到日志, 日志又在 ELK / Datadog / Sentry 上。</p>
+      </div>
+      <div class="qa-defense-how">
+        <p><strong>怎么做</strong>:</p>
+        <ol>
+          <li><strong>Prompt 日志截断</strong>: 只记录 prompt 前 200 字符, 截断 hash 后部分</li>
+          <li><strong>API Key 过滤</strong>: 日志中间件过滤 <code>sk-</code> / <code>key-</code> 开头的 token</li>
+          <li><strong>PII 脱敏</strong>: 日志输出前过一遍 PII 检测, 替换为 [REDACTED]</li>
+          <li><strong>日志访问控制</strong>: 日志仓库最小权限, 按角色读 (客服 vs 工程 vs 安全)</li>
+          <li><strong>日志保留期</strong>: 30-90 天自动清理, 避免长期累积成泄露源</li>
+        </ol>
+      </div>
+      <p><strong>工具</strong>: Sentry (with PII scrubbing) · Datadog (with scrubber) · AWS CloudWatch (with KMS) · Logz.io</p>
+    </div>
+  </section>
+
+  <!-- 四、学术对标 -->
+  <section class="qa-section" id="s4">
+    <h2>四、学术 + 行业对标 (为什么 5 阶段体系合理)</h2>
+
+    <h3>4.1 OWASP LLM Top 10 (2025 版)</h3>
+    <p>OWASP 2025 LLM Top 10 列出 AI 应用最关键 10 大风险, 5 阶段体系直接对应其中 6 项:</p>
+    <table class="qa-table">
+      <thead>
+        <tr><th>OWASP LLM Risk</th><th>对应 5 阶段</th><th>案例</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>LLM01: Prompt Injection</td><td>阶段 2 (输入审计)</td><td>Microsoft Copilot 提示词注入研究 2024 (间接注入 + 工具滥用)</td></tr>
+        <tr><td>LLM02: Sensitive Information Disclosure</td><td>阶段 2 + 5 (输入审计 + 日志脱敏)</td><td>三星 2023 / DeepSeek 2025</td></tr>
+        <tr><td>LLM03: Supply Chain</td><td>阶段 3 (模型加载审计)</td><td>HF 100+ 恶意模型 2024</td></tr>
+        <tr><td>LLM06: Excessive Agency</td><td>阶段 4 (输出消毒) + Agent 工具链管控</td><td>Auto-GPT / AgentDojo 学术研究</td></tr>
+        <tr><td>LLM07: System Prompt Leakage</td><td>阶段 2 (输入审计) + 阶段 4 (输出消毒)</td><td>ChatGPT system prompt 泄露 2023</td></tr>
+        <tr><td>LLM10: Model Theft</td><td>阶段 1 (API key 集中化) + 模型访问控制</td><td>Meta Llama 4 镜像泄露 2025</td></tr>
+      </tbody>
+    </table>
+    <p><strong>来源</strong>: <a href="https://owasp.org/www-project-top-10-for-large-language-model-applications/" target="_blank" rel="noopener">OWASP LLM Top 10 2025</a></p>
+
+    <h3>4.2 MITRE ATLAS (AI 系统对抗威胁全景)</h3>
+    <p>MITRE ATLAS (Adversarial Threat Landscape for AI Systems) 收录 AI 真实攻击技术 (Tactics, Techniques, Procedures), 涵盖 14 个战术类别和数十个具体技术, 其中针对早期 AI 应用的 5 个最常见 TTP:</p>
+    <ul>
+      <li><strong>Erode ML Model Integrity</strong>: 训练数据投毒 (AML 战术类别 "ML Attack Staging")</li>
+      <li><strong>LLM Prompt Injection</strong>: 直接/间接 prompt injection (MITRE 2024 新增, 涵盖 OWASP LLM01)</li>
+      <li><strong>ML Model Inference</strong>: 模型反演 (训练数据提取, Carlini 2021 [R19] 是经典研究)</li>
+      <li><strong>Exploit Public ML Application</strong>: 利用公开 API (如 DeepSeek 2025-01 暴露 ClickHouse [R11-R13])</li>
+      <li><strong>Publish Poisoned Datasets</strong>: 投毒公开数据集 (如 HF 2024-03 baller423 恶意模型 [R4-R5])</li>
+    </ul>
+    <p><strong>来源</strong>: <a href="https://atlas.mitre.org/" target="_blank" rel="noopener">MITRE ATLAS</a></p>
+
+    <h3>4.3 OWASP Agentic Applications Top 10 (2026 新)</h3>
+    <p>OWASP 2026 新增 Agentic Applications Top 10 (编号 ASI01-ASI10), 重点关注多 Agent 系统从 PoC 走向生产时的真实风险:</p>
+    <ul>
+      <li><strong>ASI01: Agent Goal Hijacking</strong>: 攻击者让 Agent 追求与操作者不同的目标 (含 prompt injection / 工具输出越狱 / 间接指令覆盖)</li>
+      <li><strong>ASI02: Tool Misuse</strong>: Agent 用合法工具做超出任务范围的事 (如 SQL DROP TABLE)</li>
+      <li><strong>ASI03: Identity &amp; Context Abuse</strong>: Agent 身份冒用 / 上下文注入</li>
+      <li><strong>ASI05: Improper Termination</strong>: Agent 不退出, 持续耗资源 / 持续泄露</li>
+      <li><strong>ASI07: Insecure Inter-Agent Communication</strong>: 多 Agent 通信被中间人</li>
+    </ul>
+    <p><strong>设计原则</strong>: OWASP 强调 2 个核心原则: ① <strong>Least Agency</strong> (最小代理, 只给 Agent 业务必需的最小权限); ② <strong>Observability</strong> (可观测, 所有 Agent 行为可审计)。</p>
+    <p><strong>来源</strong>: <a href="https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/" target="_blank" rel="noopener">OWASP Top 10 for Agentic Applications 2026</a> (官方资源页)</p>
+  </section>
+
+  <!-- 五、统计 + 行业现状 -->
+  <section class="qa-section" id="s5">
+    <h2>五、行业现状: 早期 AI 团队的真实安全水位</h2>
+    <div class="qa-stats-grid">
+      <div class="qa-stat-box">
+        <div class="qa-stat-num">4.7%</div>
+        <div class="qa-stat-label">员工粘贴到 ChatGPT 的内容含机密信息 (Cyberhaven 2023-02, 1.6M 员工样本; 8.6% 粘过任何公司数据)</div>
+      </div>
+      <div class="qa-stat-box">
+        <div class="qa-stat-num">12.8M</div>
+        <div class="qa-stat-label">GitHub 公开仓库泄露的密钥 (GitGuardian 2024, +28%, 5 天后 90% 仍有效)</div>
+      </div>
+      <div class="qa-stat-box">
+        <div class="qa-stat-num">100+</div>
+        <div class="qa-stat-label">Hugging Face 恶意 ML 模型数 (JFrog 2024-03)</div>
+      </div>
+      <div class="qa-stat-box">
+        <div class="qa-stat-num">1M+</div>
+        <div class="qa-stat-label">DeepSeek 暴露的日志行数 (Wiz 2025-01)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 六、行动建议 -->
+  <section class="qa-section" id="s6">
+    <h2>六、行动建议 (按团队规模)</h2>
+    <table class="qa-table">
+      <thead>
+        <tr><th>团队规模</th><th>必须做 (1 周内)</th><th>应该做 (1 月内)</th><th>高级 (3 月内)</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>1-3 人 PoC</b></td>
+          <td>① API key 用 .env + .gitignore<br>② 禁用 Pickle, 只用 safetensors<br>③ prompt 不打印到日志</td>
+          <td>① 接 GitGuardian CI 扫描<br>② 用 Lakera Guard 免费版</td>
+          <td>① 上 HashiCorp Vault<br>② Prompt PII 检测 (Presidio)</td>
+        </tr>
+        <tr>
+          <td><b>5-10 人 MVP</b></td>
+          <td>① Vault / Secrets Manager 集中化<br>② 模型白名单 + 哈希校验<br>③ 输出消毒 (Azure AI Content Safety)</td>
+          <td>① Prompt Injection 黑名单<br>② RAG 知识库访问控制<br>③ 日志脱敏中间件</td>
+          <td>① RAGAS / LangSmith 评估<br>② Red Team 模拟攻击<br>③ OWASP LLM Top 10 评审</td>
+        </tr>
+        <tr>
+          <td><b>20+ 人 商业化</b></td>
+          <td>① 完整 5 阶段体系<br>② SOC2 / ISO 27001 AI 控制项<br>③ Bug Bounty 包含 AI 场景</td>
+          <td>① Adversarial Robustness 评估<br>② Model Card / System Card 公开<br>③ AI Red Team 季度演练</td>
+          <td>① 内部 AI 安全研究团队<br>② 参与 OWASP / MITRE 贡献<br>③ 自研防御工具</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 七、引用列表 -->
+  <section class="qa-section" id="s7">
+    <h2>七、参考文献 (30+)</h2>
+    <ol class="qa-refs">
+      <li id="R1">[R1] The Economist Korea. (2023-04). <i>삼성전자 직원들의 챗GPT 보안사고</i>. <a href="https://economist.co.kr/article/view/ecn202303300057" target="_blank" rel="noopener">原文</a></li>
+      <li id="R2">[R2] PCMag. (2023-04-07). <i>Samsung Software Engineers Busted for Pasting Proprietary Code Into ChatGPT</i>. <a href="https://www.pcmag.com/news/samsung-software-engineers-busted-for-pasting-proprietary-code-into-chatgpt" target="_blank" rel="noopener">原文</a></li>
+      <li id="R3">[R3] Cybersecurity Dive. (2023-04-10). <i>Samsung employees leaked corporate data in ChatGPT</i>. <a href="https://www.cybersecuritydive.com/news/Samsung-Electronics-ChatGPT-leak-data-privacy/647219" target="_blank" rel="noopener">原文</a></li>
+      <li id="R4">[R4] JFrog Security Research. (2024-02). <i>Data Scientists Targeted by Malicious Hugging Face ML Models</i>. <a href="https://jfrog.com/blog/data-scientists-targeted-by-malicious-hugging-face-ml-models-with-silent-backdoor/" target="_blank" rel="noopener">原文</a></li>
+      <li id="R5">[R5] NSFOCUS. (2024-03-05). <i>AI Supply Chain Security: Hugging Face Malicious ML Models</i>. <a href="https://nsfocusglobal.com/ai-supply-chain-security-hugging-face-malicious-ml-models/" target="_blank" rel="noopener">原文</a></li>
+      <li id="R6">[R6] Wiz Research. (2024). <i>Pickle files in Hugging Face Spaces allow cross-tenant attacks</i>. <a href="https://www.wiz.io/blog" target="_blank" rel="noopener">原文</a></li>
+      <li id="R7">[R7] HackRead. (2024). <i>Vulnerabilities Exposed Hugging Face to AI Supply Chain Attacks</i>. <a href="https://hackread.com/hugging-face-vulnerability-ai-supply-chain-attack/" target="_blank" rel="noopener">原文</a></li>
+      <li id="R8">[R8] Hugging Face. (2024). <i>Pickle Scanning Documentation</i>. <a href="https://huggingface.co/docs/hub/security-pickle" target="_blank" rel="noopener">原文</a></li>
+      <li id="R9">[R9] Hugging Face. (2024-06). <i>Spaces Security Incident Report</i>. (官方公告)</li>
+      <li id="R10">[R10] NHI Journal. (2024-06). <i>Hugging Face Breach: Analysis</i>. <a href="https://nhimg.org/hugging-face-breach" target="_blank" rel="noopener">原文</a></li>
+      <li id="R11">[R11] Wiz Research. (2025-01-29). <i>Wiz Research Uncovers Exposed DeepSeek Database Leak</i>. <a href="https://www.wiz.io/blog/wiz-research-uncovers-exposed-deepseek-database-leak" target="_blank" rel="noopener">原文</a></li>
+      <li id="R12">[R12] The Verge. (2025-01-31). <i>DeepSeek breach exposes user chats and API keys</i>. <a href="https://www.theverge.com/news/603163/deepseek-breach-ai-security-database-exposed" target="_blank" rel="noopener">原文</a></li>
+      <li id="R13">[R13] TechTarget / Dark Reading. (2025-01-30). <i>Wiz reveals DeepSeek database exposed API keys, chat history</i>. <a href="https://www.techtarget.com/searchSecurity/news/366618594/Wiz-reveals-DeepSeek-database-exposed-API-keys-chat-histories" target="_blank" rel="noopener">原文</a></li>
+      <li id="R14">[R14] Cyberhaven Labs. (2023-02-28). <i>4.7% of employees have pasted confidential data into ChatGPT (8.6% pasted any company data)</i>. <a href="https://www.cyberhaven.com/blog/4-2-of-workers-have-pasted-company-data-into-chatgpt" target="_blank" rel="noopener">原文 (1.6M 员工样本, 2023-06 更新)</a></li>
+      <li id="R15">[R15] GitGuardian. (2024-03-12). <i>State of Secrets Sprawl 2024: 12.8M 新密钥泄露在 GitHub (+28%)</i>. <a href="https://www.gitguardian.com/state-of-secrets-sprawl-report-2024" target="_blank" rel="noopener">原文 (5 天后 90% 仍有效, 3.11% 私库密钥也在公库暴露)</a></li>
+      <li id="R16">[R16] OWASP. (2025). <i>OWASP Top 10 for Large Language Model Applications</i>. <a href="https://owasp.org/www-project-top-10-for-large-language-model-applications/" target="_blank" rel="noopener">原文</a></li>
+      <li id="R17">[R17] OWASP GenAI Security Project. (2026-03-15). <i>OWASP Top 10 for Agentic Applications 2026 (ASI01-ASI10)</i>. <a href="https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/" target="_blank" rel="noopener">原文</a></li>
+      <li id="R18">[R18] MITRE. (2024). <i>MITRE ATLAS: Adversarial Threat Landscape for AI Systems</i>. <a href="https://atlas.mitre.org/" target="_blank" rel="noopener">原文</a></li>
+      <li id="R19">[R19] Carlini, N., Tramèr, F., Wallace, E., Jagielski, M., Herbert-Voss, A., Lee, K., Roberts, A., Brown, T., Song, D., Erlingsson, Ú., Oprea, A., &amp; Raffel, C. (2021). <i>Extracting Training Data from Large Language Models</i>. USENIX Security 2021. (<a href="https://arxiv.org/abs/2012.07805" target="_blank" rel="noopener">arXiv:2012.07805</a>)</li>
+      <li id="R20">[R20] CrowdStrike. (2026-02-25). <i>2026 Global Threat Report</i>. <a href="https://www.crowdstrike.com/en-us/global-threat-report/" target="_blank" rel="noopener">原文</a></li>
+      <li id="R21">[R21] Microsoft Presidio. (2024). <i>PII Detection Framework</i>. <a href="https://microsoft.github.io/presidio/" target="_blank" rel="noopener">原文</a></li>
+      <li id="R22">[R22] Lakera. (2024). <i>Lakera Guard: Prompt Injection Protection</i>. <a href="https://www.lakera.ai" target="_blank" rel="noopener">原文</a></li>
+      <li id="R23">[R23] Rebuff. (2024). <i>Prompt Injection Detection Library</i>. <a href="https://github.com/protectai/rebuff" target="_blank" rel="noopener">原文</a></li>
+      <li id="R24">[R24] Protect AI. (2024). <i>AI Layer Security Platform</i>. <a href="https://protectai.com" target="_blank" rel="noopener">原文</a></li>
+      <li id="R25">[R25] hacms. (2026-05-26). <i>AI Storage Infrastructure 调研</i>. <a href="/content/articles/2026-05-26-ai-storage-infrastructure/index.html">原文</a></li>
+      <li id="R26">[R26] hacms. (2026-06-11). <i>AI Trends Q2 2026 调研</i>. <a href="/content/articles/2026-06-11-ai-trends-q2-2026/index.html">原文</a></li>
+      <li id="R27">[R27] hacms. (2026-05-31). <i>AI Supply Chain Security 调研</i>. <a href="/content/articles/2026-05-31-ai-supply-chain-security/index.html">原文</a></li>
+      <li id="R28">[R28] hacms. (2026-06-13). <i>AI Enterprise Storage Security Panorama</i>. <a href="/content/articles/2026-06-13-ai-enterprise-storage-security-panorama/index.html">原文</a></li>
+      <li id="R29">[R29] hacms. (2026-06-13). <i>AI Model Training Operations 调研</i>. <a href="/content/articles/2026-06-13-ai-model-training-operations/index.html">原文</a></li>
+      <li id="R30">[R30] US Navy. (2025-01-28). <i>Internal Email: "Do not use DeepSeek AI in any capacity"</i>. (美国海军官方内部邮件, 通过 <a href="https://www.foxnews.com/tech/us-navy-warns-personnel-against-using-deepseek-ai-raising-privacy-security-concerns" target="_blank" rel="noopener">Fox News 2025-01 报道</a> 公开引述)</li>
+    </ol>
+  </section>
+
+</main>
+
+</body>
+</html>
