@@ -265,17 +265,20 @@
   function renderCategories() {
     dom.categoryList.innerHTML = '';
 
+    // 调研文章 (排除 QA 智慧问答系列)
+    const reportArticles = STATE.articles.filter(a => a.series !== '智慧问答' && a.type !== 'qa');
+
     // "全部" 项
     const allItem = el('button', 'cat-item');
     allItem.dataset.cat = '';
     if (!STATE.activeCategory) allItem.classList.add('active');
     allItem.innerHTML = `
       <span class="cat-name">全部文章</span>
-      <span class="cat-count">${STATE.articles.length}</span>
+      <span class="cat-count">${reportArticles.length}</span>
     `;
     allItem.addEventListener('click', () => {
       STATE.activeCategory = null;
-      renderCategories();
+      renderSidebar();
       applyFilters();
       if (window.innerWidth < 1024) closeSidebar();
     });
@@ -283,7 +286,7 @@
 
     // 各分类项
     const catCount = {};
-    STATE.articles.forEach(a => {
+    reportArticles.forEach(a => {
       const c = a.category || '其他';
       catCount[c] = (catCount[c] || 0) + 1;
     });
@@ -307,7 +310,7 @@
       `;
       item.addEventListener('click', () => {
         STATE.activeCategory = STATE.activeCategory === cat ? null : cat;
-        renderCategories();
+        renderSidebar();
         applyFilters();
         if (window.innerWidth < 1024) closeSidebar();
       });
@@ -319,12 +322,14 @@
   function renderTagCloud() {
     dom.tagCloud.innerHTML = '';
     const tagCount = {};
-    STATE.articles.forEach(a => (a.tags || []).forEach(t => {
+    // 调研视图排除 QA
+    const reportArticles = STATE.articles.filter(a => a.series !== '智慧问答' && a.type !== 'qa');
+    reportArticles.forEach(a => (a.tags || []).forEach(t => {
       tagCount[t] = (tagCount[t] || 0) + 1;
     }));
     // 找到每个 tag 对应的主分类 (取该 tag 出现次数最多的文章分类)
     const tagCategory = {};
-    STATE.articles.forEach(a => {
+    reportArticles.forEach(a => {
       const c = a.category || '其他';
       (a.tags || []).forEach(t => {
         if (!tagCategory[t]) tagCategory[t] = c;
@@ -661,7 +666,9 @@
 
   // ── 应用筛选 ────────────────────────────────────────
   function applyFilters() {
+    // 调研视图排除 QA 智慧问答系列
     STATE.filtered = STATE.articles.filter(a => {
+      if (a.series === '智慧问答' || a.type === 'qa') return false;
       const catMatch = !STATE.activeCategory || a.category === STATE.activeCategory;
       const tagMatch = STATE.activeTags.length === 0 || STATE.activeTags.every(t => (a.tags || []).includes(t));
       const searchOK = searchMatch(a, STATE.searchQuery);
@@ -916,8 +923,7 @@
         STATE.sortMode = 'date-desc';
         dom.searchInput.value = '';
         dom.sortSelect.value = 'date-desc';
-        renderCategories();
-        renderTagCloud();
+        renderSidebar();
         applyFilters();
       });
     }
@@ -963,8 +969,8 @@
 
     STATE.filtered = [...STATE.articles];
 
-    // 分离 QA 条目 (type === 'qa')
-    STATE.qaList = STATE.articles.filter(a => a.type === 'qa');
+    // 分离 QA 条目 (series === '智慧问答')
+    STATE.qaList = STATE.articles.filter(a => a.series === '智慧问答' || a.type === 'qa');
     STATE.qaFiltered = [...STATE.qaList];
 
     // 顶栏计数
@@ -974,8 +980,7 @@
     if (dom.modeArticlesCount) dom.modeArticlesCount.textContent = STATE.articles.length - STATE.qaList.length;
     if (dom.modeQaCount) dom.modeQaCount.textContent = STATE.qaList.length;
 
-    renderCategories();
-    renderTagCloud();
+    renderSidebar();
 
     // 如果 URL 带 hash, 直接打开对应文章
     const hash = window.location.hash;
@@ -1009,7 +1014,7 @@
       return;
     }
 
-    renderArticleList();
+    applyFilters();
     // 后台构建搜索索引 (不阻塞首屏)
     buildSearchIndex();
   }
@@ -1019,6 +1024,96 @@
   // ═══════════════════════════════════════════════════════
   // 智慧问答模块 v1
   // ═══════════════════════════════════════════════════════
+
+  // ── 侧边栏统一渲染 (按 viewMode 分发) ──────────────
+  function renderSidebar() {
+    if (!dom.categoryList) return;
+    if (STATE.viewMode === 'articles') {
+      renderCategories();      // 调研分类 (已排除 QA)
+      renderTagCloud();        // 调研 tag (排除 QA)
+    } else if (STATE.viewMode === 'qa') {
+      renderQaSidebar();       // QA 视图专属目录
+    } else if (STATE.viewMode === 'markets') {
+      renderMarketsSidebar();  // 金融市场视图专属目录
+    }
+  }
+
+  // QA 视图侧边栏: 按 series/qa_tags 聚合
+  function renderQaSidebar() {
+    dom.categoryList.innerHTML = '';
+    const total = STATE.qaList.length;
+    const allItem = el('button', 'cat-item active');
+    allItem.innerHTML = `
+      <span class="cat-name">全部问答</span>
+      <span class="cat-count">${total}</span>
+    `;
+    allItem.addEventListener('click', () => {
+      STATE.activeQaTags = [];
+      renderQaTagCloud();
+      applyQaFilters();
+      if (window.innerWidth < 1024) closeSidebar();
+    });
+    dom.categoryList.appendChild(allItem);
+
+    // 按 qa_tags 聚合 (前 12 个最热门)
+    const tagCount = {};
+    STATE.qaList.forEach(q => (q.qa_tags || q.tags || []).forEach(t => {
+      tagCount[t] = (tagCount[t] || 0) + 1;
+    }));
+    const sortedTags = Object.entries(tagCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 12);
+    sortedTags.forEach(([tag, count]) => {
+      const item = el('button', 'cat-item');
+      if (STATE.activeQaTags.includes(tag)) item.classList.add('active');
+      item.innerHTML = `
+        <span class="cat-name">${escapeHtml(tag)}</span>
+        <span class="cat-count">${count}</span>
+      `;
+      item.addEventListener('click', () => {
+        STATE.activeQaTags = STATE.activeQaTags.includes(tag)
+          ? STATE.activeQaTags.filter(t => t !== tag)
+          : [...STATE.activeQaTags, tag];
+        renderQaSidebar();
+        renderQaTagCloud();
+        applyQaFilters();
+        if (window.innerWidth < 1024) closeSidebar();
+      });
+      dom.categoryList.appendChild(item);
+    });
+  }
+
+  // 金融市场视图侧边栏: 按资产类型 / 地域聚合
+  function renderMarketsSidebar() {
+    dom.categoryList.innerHTML = '';
+    const items = [
+      { name: '全球概览', icon: '🌍', count: 1, key: 'global' },
+      { name: '美股 + 商品 + 外汇', icon: '🇺🇸', count: 1, key: 'us' },
+      { name: '中国 A 股 + 港股', icon: '🇨🇳', count: 1, key: 'china' }
+    ];
+    const intro = el('div', 'sidebar-intro');
+    intro.style.cssText = 'padding:10px 12px;font-size:12px;color:var(--text-3);line-height:1.5;border-bottom:1px solid var(--border);margin-bottom:8px;';
+    intro.innerHTML = '📈 <strong>世界金融分析</strong><br>实时多市场数据 · 27 个权威机构';
+    dom.categoryList.appendChild(intro);
+
+    items.forEach(it => {
+      const item = el('button', 'cat-item');
+      item.innerHTML = `
+        <span class="cat-dot" style="background:linear-gradient(135deg,#2563eb,#7c3aed);"></span>
+        <span class="cat-name">${it.icon} ${it.name}</span>
+        <span class="cat-count">${it.count}</span>
+      `;
+      item.addEventListener('click', () => {
+        // 通知 markets iframe 切 region (postMessage)
+        const iframe = document.getElementById('markets-iframe');
+        if (iframe && iframe.contentWindow) {
+          iframe.contentWindow.postMessage({ type: 'region', region: it.key }, '*');
+        }
+        if (window.innerWidth < 1024) closeSidebar();
+      });
+      dom.categoryList.appendChild(item);
+    });
+  }
 
   // ── 模式切换 ────────────────────────────────────────
   function switchToArticlesView() {
@@ -1041,6 +1136,7 @@
     if (dom.topbarCount) {
       dom.topbarCount.textContent = `${STATE.articles.length - STATE.qaList.length} 篇调研`;
     }
+    renderSidebar();
   }
 
   function switchToQaView() {
@@ -1064,6 +1160,7 @@
       dom.topbarCount.textContent = `${STATE.qaList.length} 个问答`;
     }
     renderQaList();
+    renderSidebar();
   }
 
   // 世界金融分析模式 (顶级功能域, 独立 SPA)
@@ -1087,6 +1184,7 @@
     if (dom.topbarCount) {
       dom.topbarCount.textContent = `世界金融分析`;
     }
+    renderSidebar();
   }
 
   // ── 问答事件绑定 ───────────────────────────────────
