@@ -13,6 +13,7 @@
 (function () {
   'use strict';
 
+
   // ── 全局状态 ──────────────────────────────────────────
   const STATE = {
     mode: 'HOME',
@@ -167,8 +168,9 @@
   }
 
   const formatIcon = (fmt) => {
+    if (!fmt) return '附件';
     const icons = { docx:'Word', doc:'Word', pptx:'PPT', ppt:'PPT', pdf:'PDF', xlsx:'Excel', xls:'Excel' };
-    return icons[fmt] || fmt.toUpperCase();
+    return icons[fmt] || String(fmt).toUpperCase();
   };
 
   const isWordDoc = (fmt) => fmt === 'docx' || fmt === 'doc';
@@ -662,8 +664,8 @@
     STATE.filtered = STATE.articles.filter(a => {
       const catMatch = !STATE.activeCategory || a.category === STATE.activeCategory;
       const tagMatch = STATE.activeTags.length === 0 || STATE.activeTags.every(t => (a.tags || []).includes(t));
-      const searchMatch = searchMatch(a, STATE.searchQuery);
-      return catMatch && tagMatch && searchMatch;
+      const searchOK = searchMatch(a, STATE.searchQuery);
+      return catMatch && tagMatch && searchOK;
     });
     renderArticleList();
   }
