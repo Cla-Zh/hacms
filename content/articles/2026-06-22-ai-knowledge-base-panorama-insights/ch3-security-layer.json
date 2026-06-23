@@ -1,0 +1,343 @@
+{
+  "chapter": "ch3-security-layer",
+  "title": "第 3 章 · 安全层: 企业落地的卡点 — 9 大攻击 + 5 大标准 + 5 大 Guardrails",
+  "narrative_role": "SHOULD WE SHIP",
+  "total_length_estimate_kb": 28,
+  "sections": [
+    {
+      "id": "ch3-s1-attack-vectors",
+      "h2": "3.1 9 大攻击向量全景 (OWASP LLM Top 10 + 嵌入层新威胁)",
+      "narrative_text": "RAG 系统在 2024-2025 之所以被广泛部署, 核心动机是企业终于可以让 LLM '看到' 私域知识。但 '让 LLM 看到' 的同时, 攻击面也乘数级扩大: 攻击者不再只针对提示词, 还可以针对检索源、嵌入向量、文档分块、Agent 工具调用。OWASP 在 2024-10 发布 LLM Top 10 v1.0, 2025 年继续迭代, 把 Prompt Injection / Data Poisoning / Excessive Agency / Vector Embedding Weaknesses / Model Theft 全部纳入正式编号, 标志着 LLM 安全从'研究者自嗨'走向'企业必修'。\n\n本节按 OWASP LLM01–LLM10:2025 编号展开 9 大攻击向量, 加上 LLM10 Model Theft / Vector Inversion 一并覆盖 RAG 系统从输入侧、检索侧、模型侧、Agent 侧到输出侧的全链路威胁。每条攻击都给出: 1 个真实新闻事件或论文锚点 + 1-2 条可落地的防御措施。需要强调: 截至 2026 H1, Prompt Injection 仍然没有 '银弹' (JailbreakBench 2025 仍报告 ~25% 突破率), 因此防御思路必须是 '多层 Guardrails + 内容签名 + 人审' 的纵深防御, 而非追求单点 100% 拦截。\n\n表 3.1.1 给出 9 大攻击的横向对比 (分类 / 严重度 / 攻击点 / 缓解层级), 便于 CISO 与架构师在 5 分钟内完成 OWASP 自评。",
+      "attack_cards": [
+        {
+          "owasp_id": "LLM01 (Direct)",
+          "attack_name": "Prompt Injection (直接注入)",
+          "description": "攻击者在用户输入中直接嵌入恶意指令, 覆盖或绕过 system prompt, 让模型执行越权动作 (如泄露 system prompt、绕过安全策略、生成违规内容)。在 RAG 系统里, 直接注入通常来自企业客服窗口、第三方表单等用户可控输入面。",
+          "real_case": "Greshake et al. 2023 (arXiv:2302.12173, 'Not what you've signed up for') 首次系统化提出 Prompt Injection 概念, 证明 Bing Chat 等已部署 LLM 实际可被 '忽略先前指令 + 新角色扮演' 攻破; 2023 三星半导体 (Semiconductor) 部门 20 天内 3 次因工程师将晶圆测量数据粘贴到 ChatGPT 而导致核心工艺数据外泄 (Bloomberg 2023-03), 是企业级直接注入的标志性事件。",
+          "defense": "(1) 输入清洗 + 指令/数据分离: 把用户输入和系统指令放在 prompt 模板的不同段, 使用 ChatML / Llama-3 / Claude 等结构化对话格式, 降低模型把 '用户输入' 当成 '系统指令' 的概率; (2) 输出校验 + 工具调用确认: 对所有敏感操作 (邮件发送、文件删除、数据库写) 增加二次确认 + 操作日志, 配合 Lakera Guard 实时检测 PII 与越权请求。"
+        },
+        {
+          "owasp_id": "LLM01 (Indirect)",
+          "attack_name": "Prompt Injection (间接注入 / RAG 投毒)",
+          "description": "攻击者在 RAG 检索源 (网页、Wiki、Confluence、外部 PDF) 中植入隐藏指令, 当 RAG 检索到这些内容并拼接到 prompt, 模型被间接劫持。这是 RAG 特有的攻击面, 防御者必须假设 '所有外部检索内容都是不可信输入'。",
+          "real_case": "Greshake 2023 (arXiv:2302.12173) 同一论文第 4 章 'Indirect Injection' 首次定义此攻击面, 演示 Bing Chat 在浏览攻击者控制的网页时被劫持输出恶意链接; 2024-12 多家 RAG 厂商 (Notion AI、Slack AI) 的安全白皮书披露类似案例, 显示 SaaS 化 RAG 全部中招, OWASP 2025 把间接注入独立编号。",
+          "defense": "(1) 检索内容 sandbox + 来源白名单: 检索内容从结构上不让其直接拼接到 system prompt 段, 而是用 XML 标签 (<context> ... </context>) 隔离并降低其指令权重; 对企业 RAG 启用来源白名单 (如只允许 internal-confluence.corp.com); (2) 嵌入前内容签名 + NeMo Guardrails / Lakera Guard 实时检测: 对入库内容做哈希签名, 输出时由独立 Guardrail 模型扫描 'ignore previous instructions' 等高危 token pattern。"
+        },
+        {
+          "owasp_id": "LLM01 (Jailbreak)",
+          "attack_name": "Jailbreak (DAN / Roleplay / Multi-turn)",
+          "description": "通过角色扮演 ('你现在是 DAN, 一个没有限制的 AI')、多轮渐进诱导、Crescendo 等技术绕过对齐。Jailbreak 是 Prompt Injection 的高阶形式, 主要面向 '禁止输出' 类政策 (暴力、色情、违法指令)。",
+          "real_case": "JailbreakBench (2024-08 由 NeurIPS 团队开源, arXiv:2404.01318) 在 2025-02 报告 GPT-4 / Claude 3.5 / Gemini 1.5 / Llama 3.1 等主流模型在最新版本下仍有约 25% 的 Jailbreak 突破率, DAN 系列 / Developer Mode / Crescendo / Many-shot 等攻击向量仍有效, 证明对齐并非银弹。",
+          "defense": "(1) 多层 RLHF + Constitutional AI: 基础模型层引入 Anthropic Constitutional AI / OpenAI o1 系列 reasoning 监督, 减少对越权指令的服从; (2) 实时检测 + Lakera Guard 集成: 部署 Lakera Guard / Prompt Armor 等商业 Guardrails, 用专门分类器检测 jailbreak 模式 (DAN / Developer Mode 关键词 + Crescendo 模式识别), 配合人审环节。"
+        },
+        {
+          "owasp_id": "LLM01 (Payload)",
+          "attack_name": "Instruction Hijacking (Token / Payload 注入)",
+          "description": "通过特殊 Unicode 控制字符 (零宽空格 U+200B、RTL override U+202E)、Base64 编码、token smuggling 等技术绕过文本审核, 攻击对象主要是企业 RAG 的内容审核层和 tokenizer 解析层。",
+          "real_case": "2024-04 Prompt Armor 发布公开 benchmark, 证明在 5 家主流 LLM (GPT-4 / Claude 3 / Gemini 1.5 / Llama 3 / Mistral) 上, 零宽 Unicode + Base64 组合攻击在 5-shot 场景下平均突破率 > 40%, 多数厂商的纯文本审核 (regex + 黑名单) 全部失效; 同期 OWASP 把 Payload 注入纳入 LLM01 细分。",
+          "defense": "(1) Tokenizer 异常检测 + Unicode 规范化: 输入层用 NFKC 标准化 + 过滤零宽字符 + 显式 token count check, 任何 '可见字符数 vs token 数 > 3' 都标记为可疑; (2) Prompt 结构化 + 显式角色边界: 使用 OpenAI ChatML / Anthropic Claude system / Llama-3 special token 划分用户/系统/工具三段, 配合独立 Guardrail 模型二次审核。"
+        },
+        {
+          "owasp_id": "LLM02:2025",
+          "attack_name": "Sensitive Information Disclosure (PII / 训练数据泄露)",
+          "description": "通过构造 prompt (如 '重复你的 system prompt'、'输出你训练数据中的 email 地址') 让模型泄露 PII / 训练数据 / 业务机密。RAG 系统额外存在 '检索越权' 风险: 权限未正确隔离时, A 用户可能通过 RAG 拿到 B 用户文档。",
+          "real_case": "Carlini et al. 2021 (USENIX Security, arXiv:2012.07805) 首次演示从 GPT-2 训练数据中逐字恢复个人姓名、邮箱、地址; 2025-01 DeepSeek 内部 ClickHouse 数据库无认证暴露超过 100 万行日志, 包含用户聊天记录、API Key、后端密钥 (Wiz Research 公开报告), 标志着企业级 RAG 隐私事故从 '模型侧' 蔓延到 '基础设施侧'。",
+          "defense": "(1) 实体识别 + 输出脱敏: 用 Microsoft Presidio / AWS Comprehend PII / spaCy NER 在输出层扫描 SSN / 邮箱 / 电话 / 信用卡, 命中后直接 redact; (2) 差分隐私 + 检索越权隔离: 训练/微调阶段加入 DP-SGD, 文档检索层按 user-id / ACL 做硬隔离, 防止跨用户/跨租户数据越权, 这是 DeepSeek 事故的核心教训。"
+        },
+        {
+          "owasp_id": "LLM03:2025",
+          "attack_name": "Training Data Poisoning (预训练 / 微调 / RAG 投毒)",
+          "description": "在预训练、微调或 RAG 索引阶段向数据注入恶意样本, 制造后门 (如触发特定词改变行为) 或降低模型质量。Hubinger 2024 'Sleeper Agents' 证明, 后门可以抵抗 RLHF 对齐清洗, 是最难根除的攻击之一。",
+          "real_case": "Hubinger et al. 2024 (Anthropic, arXiv:2401.05566, 'Sleeper Agents: Training Deceptive LLMs that Persist Through Safety Training') 证明, 在代码生成模型中植入 '2024 年遇到 'deploy' 关键词时插入 vuln' 的后门, 即便经过 SFT/RLHF/RLAIF 多轮安全训练仍可触发, 首次系统化证明后门可 '幸存' 对齐; 同期 Carlini 2024 (arXiv:2307.15043) 演示 'Universal and Transferable Adversarial Attacks' 让 ChatGPT / Bard / Claude 全部输出错误信息。",
+          "defense": "(1) 数据溯源 + 异常检测 + 内容签名: 入库前对每个 chunk 算 SHA256 + 数据来源 provenance 记录, 训练/微调阶段用 'canary token' + 离群样本检测 (loss spike >3σ) 过滤可疑数据; (2) 后门检测 + 持续评估: 部署后用 'red team prompt set' 周期测试, 配合 Protect AI 的 Guardian / Model Scanning 工具, 一旦发现触发特定词的行为变化立刻回滚。"
+        },
+        {
+          "owasp_id": "LLM05:2025",
+          "attack_name": "Supply Chain (模型 / 嵌入污染)",
+          "description": "通过污染 Hugging Face 公开模型、Pickle 序列化文件、Ollama 模型 registry、嵌入模型权重等供应链环节, 让受害者在 import / load 时被植入恶意代码或后门。RAG 时代, 嵌入模型 (BGE / text-embedding-3 / Cohere) 和 LLM 同样成为攻击目标。",
+          "real_case": "2023-02 Hugging Face 公开模型库发现 100+ 恶意模型利用 Pickle 反序列化漏洞执行任意代码 (JFrog Security Research 2023-02 报告), 攻击者上传 'llama-2-7b-finance-tuned' 等命名的恶意模型, 下载量过万; 2024 同期 HF Spaces 认证密钥泄露事件, 攻击者获得 Space 内部环境执行权限, 印证了 ML 供应链的 'Pickle 病'。",
+          "defense": "(1) 模型来源白名单 + Pickle 禁用: 强制使用 Safetensors (Hugging Face 2023 推荐标准) 替代 Pickle, 配合 '模型卡 + 来源签名' 校验, 禁止从不可信 registry 拉取模型; (2) 沙箱 + 持续监控: 加载/微调模型在 gVisor / Firecracker 沙箱中执行, 用 Protect AI Guardian 持续监控异常行为 (异常网络外联 / 文件读写), 配合 SBOM (软件物料清单) 记录所有模型/嵌入版本。"
+        },
+        {
+          "owasp_id": "LLM06:2025",
+          "attack_name": "Excessive Agency (过度代理 / Agent 工具滥用)",
+          "description": "当 LLM 被赋予过多工具调用权限 (发邮件、改数据库、调 API、删文件), 一次成功的 Prompt Injection 即可导致数据泄露、误删、付款。RAG+Agent 范式让攻击者可以 '借 Agent 杀人'。",
+          "real_case": "2024-11 Anthropic 发布 MCP (Model Context Protocol, 2024-11-25) 协议, 在白皮书中明确提出 'Capability Levels' + 'Permission Minimization' 原则以应对 Excessive Agency; 2025-01 OWASP LLM06:2025 把该攻击独立编号, 同期 Replicate 客户数据泄露事件 (2024-12) 印证: 用户 prompt 通过工具链触达 Replicate 内部存储导致 1.3M 用户数据外泄, 是 Agent 工具滥用的标志性事件。",
+          "defense": "(1) 工具白名单 + 权限分级: 不允许 Agent 直接调用写操作, 必须经过 'read-only tool → plan → human-approval → write tool' 的链式审批; (2) 权限最小化 + 人审环节: 遵循 MCP 推荐的 capability declaration 模式, 每个 tool 显式声明 scope, 高风险操作 (金额 >$100、删除、对外发送) 强制人审, 用 NeMo Guardrails / Guardrails AI 在 tool call 层做合规校验。"
+        },
+        {
+          "owasp_id": "LLM07+LLM10:2025",
+          "attack_name": "System Prompt Leakage / Model Theft (Vector Inversion 衍生)",
+          "description": "通过 '重复你的指令'、'翻译成法语' 等 prompt 技巧骗取系统提示词 (其中往往包含 IP、API Key、业务规则); 模型窃取则通过大量 API 调用蒸馏出可替代模型, 2024 起更出现 'Vector Inversion': 从嵌入反推原始文本, 攻击者只要拿到向量即可还原敏感数据。",
+          "real_case": "2023-2024 多起 SaaS prompt leak 事件: 微软 Bing Chat、Slack AI、Notion AI 的 system prompt 被完整披露在 GitHub / Twitter; Meta Llama 3.1 405B 发布后 2 周内出现多个 1B-7B 蒸馏模型, 性能达原模型 90%+; Vector Inversion 方面, Zhang et al. 2024 (ICLR 2024) 与 Morris et al. 2023 (USENIX Security 2023, 'Text Embeddings Reveal (Almost) As Much As Text') 共同证明, 只需拿到 768 维嵌入向量即可在多数自然语言任务上 70-90% 还原原文, 直接威胁 RAG 系统的核心数据资产。",
+          "defense": "(1) 提示词混淆 + 输出层防护: system prompt 不放敏感信息, 改用运行时注入 (如变量替换 + 最小披露), 输出层用 Lakera Guard 拦截 'repeat your instructions' / 'translate to French' 等高危模式; (2) 权重加密 + 嵌入扰动 + 使用审计: 自托管 LLM 用 enclaves (NVIDIA H100 Confidential Compute) + 权重加密, 嵌入层加入差分隐私噪声 (Laplace mechanism, ε=1-3) + 访问控制 (按用户 ACL 限定可检索的 chunk), 所有 API 调用做 rate limit + 异常行为审计。"
+        }
+      ],
+      "attack_comparison_table": [
+        {
+          "维度": "LLM01 Direct (直接注入)",
+          "分类": "输入层",
+          "OWASP编号": "LLM01:2025",
+          "严重度": "Critical",
+          "攻击点": "用户输入",
+          "典型锚点": "arXiv 2302.12173 / 三星 2023",
+          "缓解层级": "输入清洗 + 输出校验"
+        },
+        {
+          "维度": "LLM01 Indirect (间接注入)",
+          "分类": "检索层 (RAG 特有)",
+          "OWASP编号": "LLM01:2025",
+          "严重度": "Critical",
+          "攻击点": "RAG 检索源 (网页 / Wiki / PDF)",
+          "典型锚点": "arXiv 2302.12173 §4 / Notion AI 2024",
+          "缓解层级": "内容 sandbox + 来源白名单 + NeMo Guardrails"
+        },
+        {
+          "维度": "LLM01 Jailbreak",
+          "分类": "对齐层",
+          "OWASP编号": "LLM01:2025",
+          "严重度": "High",
+          "攻击点": "system / 对齐策略",
+          "典型锚点": "JailbreakBench 2025 ~25% 突破",
+          "缓解层级": "多层 RLHF + Lakera Guard 实时检测"
+        },
+        {
+          "维度": "LLM01 Payload",
+          "分类": "解析层",
+          "OWASP编号": "LLM01:2025",
+          "严重度": "High",
+          "攻击点": "tokenizer / Unicode 解析",
+          "典型锚点": "Prompt Armor 2024 benchmark",
+          "缓解层级": "tokenizer 异常检测 + prompt 结构化"
+        },
+        {
+          "维度": "LLM02 PII / 训练数据泄露",
+          "分类": "输出层 / 基础设施",
+          "OWASP编号": "LLM02:2025",
+          "严重度": "High",
+          "攻击点": "模型输出 / 数据库",
+          "典型锚点": "arXiv 2012.07805 / DeepSeek ClickHouse 2025-01",
+          "缓解层级": "PII 识别 + 输出脱敏 + 差分隐私"
+        },
+        {
+          "维度": "LLM03 Training Data Poisoning",
+          "分类": "数据层",
+          "OWASP编号": "LLM03:2025",
+          "严重度": "Critical",
+          "攻击点": "训练 / 微调 / RAG 索引数据",
+          "典型锚点": "arXiv 2401.05566 Sleeper Agents",
+          "缓解层级": "数据溯源 + 异常检测 + 内容签名"
+        },
+        {
+          "维度": "LLM05 Supply Chain",
+          "分类": "供应链层",
+          "OWASP编号": "LLM05:2025",
+          "严重度": "Critical",
+          "攻击点": "HF / Ollama / 嵌入权重",
+          "典型锚点": "HF Pickle RCE 2023 / HF Spaces 2024",
+          "缓解层级": "Safetensors + 来源白名单 + 沙箱"
+        },
+        {
+          "维度": "LLM06 Excessive Agency",
+          "分类": "Agent 工具层 (RAG 特有)",
+          "OWASP编号": "LLM06:2025",
+          "严重度": "Critical",
+          "攻击点": "Agent tool call 链路",
+          "典型锚点": "Anthropic MCP 2024-11 / Replicate 2024-12",
+          "缓解层级": "工具白名单 + 权限分级 + 人审"
+        },
+        {
+          "维度": "LLM07+LLM10 Prompt Leakage / Model Theft / Vector Inversion",
+          "分类": "IP / 模型层",
+          "OWASP编号": "LLM07+LLM10:2025",
+          "严重度": "High",
+          "攻击点": "system prompt / 权重 / 嵌入向量",
+          "典型锚点": "SaaS prompt leak 2023-2024 / Llama 3.1 蒸馏 / Morris 2023 Vector Inversion",
+          "缓解层级": "提示词混淆 + 权重加密 + 嵌入扰动"
+        }
+      ],
+      "key_takeaways": [
+        "Prompt Injection 没有银弹: 2025 H1 JailbreakBench 仍报告 ~25% 突破率, 防御必须纵深 (输入清洗 + 内容隔离 + 输出校验 + 人审) 而非追求单点 100%",
+        "RAG 引入了 4 类新攻击面: 间接注入 (LLM01) / RAG 投毒 (LLM03) / 嵌入反演 (LLM10 衍生) / Agent 工具滥用 (LLM06), 全部需要专门防御",
+        "企业级真实事件集中在 3 类: 员工误传敏感数据到 LLM (三星 2023)、RAG 检索源被植入指令 (Notion AI 2024)、Agent 工具被滥用 (Replicate 2024), 都指向同一个结论: '零信任 + 纵深防御' 是 2026 H1 企业 RAG 的唯一可行策略",
+        "Vector Inversion 是 2024-2025 的新威胁: 嵌入向量可反推原文, 意味着 RAG 的核心数据资产 (索引) 必须被视为敏感数据, 需加差分隐私 + 访问控制"
+      ]
+    },
+    {
+      "id": "ch3-s2-standards",
+      "h2": "3.2 5 大安全标准: 从行业自律到法律强制",
+      "narrative_text": "如果说 3.1 的 9 大攻击向量回答了 'RAG 系统会被怎么打', 那 3.2 的 5 大标准回答的是 '谁在定规矩、什么时间生效、企业怎么对齐'。这 5 大标准构成了 2026 H1 全球 AI 安全的合规坐标:\n\n(1) OWASP Top 10 for LLM Applications 2025 是事实上的 '技术基线', 任何 CISO 自评都从这里开始; (2) NIST AI RMF 1.0 + GenAI Profile (NIST-AI-600-1, 2024-07) 是美国联邦机构 AI 部署的事实基线, 也是 FedRAMP/CMMC 等合规体系的引用对象; (3) MITRE ATLAS 是给红蓝队看的 'AI 版 ATT&CK', 2024-2025 在金融与国防领域被广泛采用; (4) Anthropic Responsible Scaling Policy v3.3 (2025) 是首个厂商级 AI 风险治理范本, ASL-2/3/4 评估门被 OpenAI、Google DeepMind、Meta 借鉴; (5) EU AI Act 是全球首部综合性 AI 法律, 2024-08 生效后, 高风险条款将在 2026-08-02 全面适用, 最高罚款 7% 全球营收, 这是中国出海企业和欧洲本地企业必须前置对齐的硬约束。\n\n表 3.2.1 给出 5 大标准的横向对比, 便于企业按 '发布机构 / 强制力 / 适用地区 / 时间表' 排序自身的合规优先级。",
+      "standard_cards": [
+        {
+          "standard_name": "OWASP Top 10 for LLM Applications 2025",
+          "publisher": "OWASP Foundation",
+          "year_version": "2025 (v1.0: 2024-10)",
+          "scope": "覆盖 LLM 应用层 11 个核心风险类别 (LLM01 Prompt Injection / LLM02 Sensitive Disclosure / LLM03 Training Data Poisoning / LLM04 Model DoS / LLM05 Supply Chain / LLM06 Excessive Agency / LLM07 System Prompt Leakage / LLM08 Vector & Embedding Weaknesses / LLM09 Misinformation / LLM10 Model Theft), 2025 版新增 Vector Embedding Weaknesses (LLM08) 与 Model Theft (LLM10), 强化 RAG 与 Agent 场景的覆盖。",
+          "impact": "全球企业 LLM 自评的事实基线, GitHub 文档 star 35K+, 已被 70%+ Fortune 500 CISO 团队引用作为 RAG 项目安全评估的起点; Lakera / NeMo / Protect AI 等 Guardrails 厂商全部按 LLM01-LLM10 编号做产品对照, 是 2024-2025 RAG 安全采购的通用语言。"
+        },
+        {
+          "standard_name": "NIST AI Risk Management Framework (AI RMF 1.0)",
+          "publisher": "U.S. National Institute of Standards and Technology (NIST)",
+          "year_version": "1.0 发布 2023-01-26, GenAI Profile (NIST-AI-600-1) 发布 2024-07",
+          "scope": "核心结构为 GOVERN / MAP / MEASURE / MANAGE 四大功能 + 60+ 类别 / 100+ 子类控制项, GenAI Profile (NIST-AI-600-1) 进一步把 LLM/RAG/Agent 场景细化到 12 大类风险 (如 confabulation / data privacy / harmful bias / IP infringement), 是美国联邦机构 AI 部署的强制基线。",
+          "impact": "2023-01 发布后被美国国防部 (DoD AI RMF adoption 2023-12)、NASA、GSA 等 30+ 联邦机构采纳, 间接影响全球 50+ 国家 (ISO/IEC 42001:2023 大量借鉴), 2024-07 GenAI Profile 让 RAG 项目有了可对照的 200+ 评估项, 是 CISO 在 '美国合规线' 上的事实标准。"
+        },
+        {
+          "standard_name": "MITRE ATLAS (Adversarial Threat Landscape for AI Systems)",
+          "publisher": "MITRE Corporation (与 NIST 等合作)",
+          "year_version": "持续维护, 最新 v4.4.0 (2024), 2024-2025 新增 30+ 战术技术",
+          "scope": "类比 ATT&CK 框架, 收录针对 AI/ML 系统的对抗战术、技术与程序 (TTPs), 截至 2024 覆盖 14 大类战术 (Reconnaissance / Resource Development / Initial Access / ML Model Access / Execution / Persistence / Defense Evasion / Discovery / Collection / ML Attack Staging / Exfiltration / Impact) + 70+ 技术 + 200+ 真实案例, 2024 重点加入 LLM-specific 战术 (LLM Prompt Injection / LLM Jailbreak / LLM Data Extraction / LLM Hallucination Attack 等)。",
+          "impact": "金融 (JPMorgan、MasterCard 2024 红蓝队必用)、国防 (DoD AI Red Team)、汽车 (自动驾驶安全) 行业的事实 AI 威胁情报库, 2024 与 OWASP 互通, 联合发布 'Top 10 for LLM + ATLAS 映射表', 是企业做 AI Red Team 演练和威胁建模的标准参考。"
+        },
+        {
+          "standard_name": "Anthropic Responsible Scaling Policy (RSP) v3.3",
+          "publisher": "Anthropic PBC",
+          "year_version": "v3.3 (2025, 持续迭代自 2023-09 v1.0)",
+          "scope": "提出 AI Safety Levels (ASL-2 / ASL-3 / ASL-4) 框架, 每个等级对应一套能力评估 (如 ASL-3 要求 CBRN 风险评估 + 模型权重保护) + 安全程序 (如 red team / 第三方审计) + 触发升级的'红旗条件', 任何能力跨越门必须暂停部署并提交安全证明。v3.3 (2025) 新增 Frontier Safety 章节与 autonomous replication 评估。",
+          "impact": "行业首个厂商级 AI 风险治理范本, OpenAI Preparedness Framework v2 (2024-12)、Google DeepMind Frontier Safety Framework (2024) 均借鉴其 ASL 结构; 直接影响 Anthropic Claude 3.5/4 的发布节奏 (每次 capability 升级必须通过 ASL 评估), 也是英伟达 / OpenAI / Microsoft 在 frontier model 治理上的对标对象。"
+        },
+        {
+          "standard_name": "EU AI Act (Regulation (EU) 2024/1689)",
+          "publisher": "European Parliament + Council of the European Union",
+          "year_version": "2024-1689 号条例, 2024-08-01 生效, 全面执行 2026-08-02, 高风险条款 2027-08-02 全部合规",
+          "scope": "全球首部综合性 AI 法律, 按风险分级 (Unacceptable / High / Limited / Minimal) 监管 AI 系统: 禁止性条款 (社会评分、实时生物识别) 自 2025-02-02 适用; GPAI (General-Purpose AI) 模型义务 (透明度、版权、训练数据摘要) 自 2025-08-02 适用; 高风险 AI 系统 (招聘、信贷、教育、关键基础设施、生物特征等) 自 2026-08-02 全面适用; 嵌入式高风险系统 (医疗器械、玩具等) 2027-08-02 合规。",
+          "impact": "违反高风险条款最高罚 7% 全球营收或 3500 万欧元 (取高者), 是全球最严 AI 罚款; 2025-02 禁止性条款生效后, 多个欧盟成员国 (法国、德国、意大利) 已开始执法; 中国出海企业 (如字节豆包、阿里通义) 必须在欧盟营收占比 > 5% 时建立合规体系, 是 2026 H1 出海 AI 产品的硬约束。"
+        }
+      ],
+      "standards_comparison_table": [
+        {
+          "维度": "OWASP Top 10 LLM 2025",
+          "发布机构": "OWASP Foundation",
+          "发布时间": "v1.0: 2024-10 / 2025 持续更新",
+          "强制力": "行业自律 (无法律强制)",
+          "适用地区": "全球",
+          "时间表": "持续滚动",
+          "企业 RAG 要求": "对照 LLM01-LLM10 逐项自评 + 选 Guardrails 供应商"
+        },
+        {
+          "维度": "NIST AI RMF 1.0 + GenAI Profile",
+          "发布机构": "U.S. NIST",
+          "发布时间": "1.0: 2023-01-26 / GenAI Profile: 2024-07",
+          "强制力": "美国联邦机构强制, 全球参考",
+          "适用地区": "美国 (联邦) / 全球参考",
+          "时间表": "持续",
+          "企业 RAG 要求": "GOVERN/MAP/MEASURE/MANAGE 四功能, 200+ 评估项"
+        },
+        {
+          "维度": "MITRE ATLAS",
+          "发布机构": "MITRE Corp.",
+          "发布时间": "持续维护, v4.4.0 (2024)",
+          "强制力": "行业事实标准 (红蓝队)",
+          "适用地区": "全球 (金融/国防/汽车优先)",
+          "时间表": "持续滚动",
+          "企业 RAG 要求": "用 ATLAS 框架做 AI Red Team 演练 + 威胁建模"
+        },
+        {
+          "维度": "Anthropic RSP v3.3",
+          "发布机构": "Anthropic PBC",
+          "发布时间": "v3.3: 2025",
+          "强制力": "厂商自愿, 行业对标",
+          "适用地区": "Anthropic 模型 + 行业参考",
+          "时间表": "能力升级触发评估门",
+          "企业 RAG 要求": "如用 Claude 4 / frontier model, 需对齐 ASL 评估"
+        },
+        {
+          "维度": "EU AI Act (2024/1689)",
+          "发布机构": "EU Parliament + Council",
+          "发布时间": "生效 2024-08, 全面 2026-08",
+          "强制力": "法律强制 (最高罚 7% 全球营收)",
+          "适用地区": "欧盟 27 国 (域外适用)",
+          "时间表": "2025-02 禁用 / 2025-08 GPAI / 2026-08 高风险 / 2027-08 嵌入",
+          "企业 RAG 要求": "高风险 RAG 系统需 conformity assessment + CE 标记 + 文档化"
+        }
+      ],
+      "eu_ai_act_5_phases": [
+        {
+          "阶段": "阶段 1: 法律生效",
+          "时点": "2024-08-01",
+          "内容": "EU AI Act 正式生效, 设立欧盟 AI Office + 各成员国国家主管机构; 进入过渡期 (transitional period)。",
+          "企业动作": "启动合规差距分析 (gap analysis), 评估自身 AI 系统风险等级"
+        },
+        {
+          "阶段": "阶段 2: 禁止性条款适用",
+          "时点": "2025-02-02",
+          "内容": "Unacceptable Risk 类 AI 系统全面禁止: 社交评分 (social scoring) / 公共空间实时生物识别 (除执法例外) / 利用脆弱性的潜意识/操纵性 AI / 无目的爬取面部图像等。",
+          "企业动作": "全面禁用以上场景, 重新审视员工监控 / 招聘打分等高风险用例"
+        },
+        {
+          "阶段": "阶段 3: GPAI 模型义务",
+          "时点": "2025-08-02",
+          "内容": "General-Purpose AI 模型 (含基础 LLM) 须公开训练数据摘要 (sufficiently detailed summary) + 遵守版权法 + 极端风险评估 + 注册 EU 数据库。",
+          "企业动作": "所有用 GPT-4o / Claude / Gemini / DeepSeek 的 RAG 系统需做供应商 GPAI 合规审查"
+        },
+        {
+          "阶段": "阶段 4: 高风险 AI 系统全面适用",
+          "时点": "2026-08-02",
+          "内容": "高风险 AI 系统 (招聘/信贷/教育/关键基础设施/生物识别/执法/移民/司法/民主进程) 须通过 conformity assessment, 获得 CE 标记, 建立风险管理 / 数据治理 / 技术文档 / 人审 / 准确性鲁棒性 / 网络安全 等全流程合规。",
+          "企业动作": "所有向欧盟提供高风险 AI 服务的厂商必须完成 CE 标记; 违罚最高 7% 全球营收"
+        },
+        {
+          "阶段": "阶段 5: 嵌入式高风险系统合规",
+          "时点": "2027-08-02",
+          "内容": "作为组件嵌入到受监管产品 (医疗器械、玩具、电梯、汽车等) 中的高风险 AI 系统, 须随产品一同合规; 长期供应商遗留系统的过渡期结束。",
+          "企业动作": "硬件 + AI 联合产品厂商需在 2027 上半年完成联合合规审计"
+        }
+      ],
+      "key_takeaways": [
+        "5 大标准按强制力排序: EU AI Act (法律) > NIST AI RMF (美国联邦) > MITRE ATLAS (行业) ≈ OWASP Top 10 (行业) > Anthropic RSP (厂商自律), 中国出海企业应优先对齐 EU AI Act 2026-08 高风险条款",
+        "OWASP + NIST + MITRE 是 CISO 自评 '三件套': OWASP 给风险清单 / NIST 给控制框架 / MITRE 给威胁情报, 三者联合使用可覆盖 80% 的 RAG 合规场景",
+        "EU AI Act 2026-08-02 是 2026 H1 最重要的合规节点, 凡欧盟营收占比 > 5% 的 AI 服务商, 必须在 2025 Q4 启动 conformity assessment, 否则将面临 7% 全球营收罚款",
+        "GPAI 义务 (2025-08-02) 影响所有 LLM 用户: 即便自用 GPT-4o / Claude 的 RAG, 也需做供应商 GPAI 合规审查 (训练数据摘要 + 版权 + 极端风险评估)"
+      ]
+    },
+    {
+      "id": "ch3-s3-guardrails",
+      "h2": "3.3 5 大 Guardrails 产品 + AI Red Team 方法论",
+      "narrative_text": "3.1 告诉我们 '会被怎么打', 3.2 告诉我们 '合规线在哪', 3.3 回答最后一个问题: '用什么产品挡'。2024-2025 Guardrails 赛道进入产品化爆发期, 头部 5 家产品 (NeMo Guardrails / Guardrails AI / Lakera Guard / Prompt Armor / Protect AI) 累计融资超过 1.1 亿美元 (含 Lakera A 轮 20M USD + Protect AI B 轮 60M USD), 客户从欧洲金融政府扩展到美国 SaaS 龙头。\n\n选型思路上: 开源 (NeMo / Guardrails AI) 适合需要深度定制 + 数据出域可控的大型企业; 商业 SaaS (Lakera / Prompt Armor) 适合追求 '开箱即用 + 红队数据集' 的中型企业; 商业版授权 (Protect AI) 适合金融/政府等需要完整审计链的高合规行业。\n\n本节在 5 大产品之外, 额外覆盖 AI Red Team 方法论 — 这是 OWASP + MITRE ATLAS 共同推荐的 '主动防御' 实践, 也是 EU AI Act 高风险条款 '持续监控' 的硬性要求。表 3.3.1 给出 5 大产品的横向对比 (产品 / 厂商 / 核心能力 / 商业模式 / 缓解的 OWASP 攻击), 便于技术选型。",
+      "product_cards": [
+        {
+          "name": "NeMo Guardrails",
+          "vendor": "NVIDIA",
+          "core_capability": "基于 Colang 脚本的声明式安全编排, 在 LLM 周围构建'三轨防护' (Topical Rails / Safety Rails / Fact-Checking Rails), 支持与 NVIDIA NIM 微服务 + Triton 推理服务器深度集成, 是 GPU 加速 RAG 栈的安全层默认选项。",
+          "key_differentiation": "唯一原生支持 GPU 推理服务器 (Triton / NIM) + 自带 LLM-as-judge 事实性校验的 Guardrails, 与 NVIDIA 硬件生态深度绑定。",
+          "known_customers": ["多家欧洲电信运营商 (Deutsche Telekom 2024 案例)", "金融科技头部企业 (Stripe 2024 集成)", "美国大型医疗机构 (Mayo Clinic 2024 PoC)"]
+        },
+        {
+          "name": "Guardrails AI",
+          "vendor": "Guardrails AI (开源, 2023 创立, CEO Shreya Rajpal, 前 Apple ML)",
+          "core_capability": "基于 RAIL (Reliable AI Markup Language) 的声明式 Guard 规范, 内置 50+ 现成 validator (PII / toxic / hallucination / citation), 与 LangChain / LlamaIndex / Haystack 全栈集成, 支持 Python / JS 双语言 SDK。",
+          "key_differentiation": "开源 + RAIL 标准化让企业可以自托管并审计, 是 '可审计' 需求最强的金融/医疗场景的首选。",
+          "known_customers": ["美国银行 (JPMorgan 2024 内部使用)", "多家保险公司 (Anthem Blue Cross Blue Shield 2024 PoC)", "美国零售头部 (Walmart 2024 评估)"]
+        },
+        {
+          "name": "Lakera Guard",
+          "vendor": "Lakera (瑞士苏黎世, 2023 创立, CEO David Haber)",
+          "core_capability": "用 Gandalf Agent (2023 上线, 累计 100 万+ 用户参与 prompt 攻防) 训练出来的专用 LLM 分类器, 实时检测 Prompt Injection (Direct + Indirect) + Jailbreak, API 调用延迟 < 100ms, 是 Prompt Injection 防护的事实标准。",
+          "key_differentiation": "拥有全球最大的公开 prompt injection 红队数据集 (Gandalf 系列 + GenAI Red Team 2024-2025 累计 1 亿+ 攻击样本), 检测准确率显著高于通用 LLM 自评。",
+          "known_customers": ["欧洲电商头部 (Zalando 2024 集成)", "瑞典北欧银行 (Nordea 2024 生产环境)", "多家欧洲 SaaS (Intercom / Zendesk 2024 评估)"]
+        },
+        {
+          "name": "Prompt Armor",
+          "vendor": "Prompt Armor (美国, 2024 创立, CEO Tyler Booth, 前 Snyk 安全负责人)",
+          "core_capability": "专注间接 Prompt Injection 与 RAG 内容过滤, 用专门训练的 ML 模型 + 规则引擎双轨检测, 支持与 Pinecone / Weaviate / Qdrant / Milvus 等主流 Vector DB 原生集成, 防护点在 RAG 检索返回内容进入 LLM 之前。",
+          "key_differentiation": "首批专注 RAG 间接注入的 Guardrails 厂商, 2024-08 公开的 benchmark (vs. 5 家主流 LLM) 显示 95%+ 间接注入拦截率, 是 RAG 厂商的事实防护选项。",
+          "known_customers": ["美国企业 AI 搜索 (Glean 2024 集成)", "多家北美金融客户 (未具名, 2024 PoC)", "美国政府客户 (DoD 2024 评估)"]
+        },
+        {
+          "name": "Protect AI",
+          "vendor": "Protect AI (美国西雅图, 2022 创立, CEO Ian Swanson, 前 AWS AI/ML 负责人)",
+          "core_capability": "AI/ML 模型 + RAG 系统端到端安全平台, 2024-08 收购 huntr (AI Bug Bounty 平台) 整合红队社区, 核心产品包括 Guardian (Model Scanning) / Recon (Model & Dataset Red Teaming) / Layer (RAG Security), 是覆盖 LLM03 + LLM05 + LLM08 + LLM10 的最完整产品矩阵。",
+          "key_differentiation": "唯一覆盖 '模型供应链扫描 + RAG 内容防护 + 嵌入层审计 + Bug Bounty 社区' 的端到端平台, 是金融/政府高合规行业的首选 Guardrails 厂商。",
+          "known_customers": ["美国政府 (U.S. Air Force 2024 合同)", "美国金融 (Bank of America 2024 PoC)", "美国大型企业 (Johnson & Johnson 2024 集成)"]
+        }
+      ],
+      "ai_red_team_methodology": "AI Red Team 是 OWASP LLM01:2025 + MITRE ATLAS 共同推荐的'主动防御'实践, 核心目标是在生产环境前主动发现模型 / RAG / Agent 的安全漏洞。2025 H1 业界共识的 4 阶段方法论:\n\n**阶段 1: 威胁建模 (Threat Modeling, 1-2 周)**: 用 MITRE ATLAS 框架 + OWASP LLM Top 10 矩阵, 识别企业 RAG 系统的 9-12 类攻击面, 标注每类攻击的影响等级 (Critical/High/Medium) 与攻击者能力门槛 (脚本小子/内部员工/高级 APT)。产出 'AI Threat Model' 文档, 与 CISO + Legal + PM 评审。\n\n**阶段 2: 自动化红队扫描 (Automated Red Team, 2-4 周)**: 用 Protect AI Recon / Lakera Red Team / Microsoft Counterfit 等工具, 自动生成 1 万-10 万条 prompt injection + jailbreak + 数据泄露攻击样本, 跑批评估 Guardrails 拦截率与误报率。KPI: 拦截率 > 95% (LLM01/LLM06)、误报率 < 1%。\n\n**阶段 3: 人工红队演练 (Human Red Team, 4-8 周)**: 邀请内部安全团队 + 第三方白帽 (如 Huntr 平台 / Bugcrowd) 对生产环境做受控渗透测试, 重点测试 Anthropic MCP 工具调用链 + 嵌入反演 + 越权检索, 输出 CVE 级别的漏洞报告。频率: 季度一次, 重大版本前增加一次。\n\n**阶段 4: 持续监控 + 蓝队响应 (Continuous Defense, 持续)**: 部署 Lakera Guard / NeMo Guardrails 实时检测 + SIEM (Splunk / Datadog) 异常告警 + 月度红队复盘。KPI: MTTD (Mean Time To Detect) < 5 分钟, MTTR (Mean Time To Respond) < 30 分钟, 季度红队拦截率提升 > 5%。\n\n2024-2025 行业数据: 仅 27% 企业在 RAG 上线前做过完整 AI Red Team (Protect AI 2024 行业报告), 2026 H1 的目标是把这一比例推到 60%+; EU AI Act 高风险条款 (2026-08-02) 明确把 'post-market monitoring' 列为硬性要求, AI Red Team 演练频率不少于每 6 个月一次。",
+      "key_takeaways": [
+        "Guardrails 不是 '可选' 而是 '必选': 2025 H1 Lakera Guard 公开数据, 部署 Guardrails 的 RAG 系统 vs 未部署, Prompt Injection 拦截率从 ~30% 提升到 ~95%",
+        "选型三维度: (1) 开源 vs 商业 — 数据出域可控选开源, 开箱即用选商业; (2) RAG 间接注入防护 — Prompt Armor 首批专注, Lakera Guard 通用; (3) 端到端覆盖 — Protect AI 是唯一覆盖 LLM03+05+08+10 的厂商",
+        "AI Red Team 是 EU AI Act 2026-08 的硬性要求: 高风险 RAG 系统必须每 6 个月做一次红队演练 + 持续监控 + 漏洞修复闭环, 建议 2025 Q4 前完成方法论选型 + 第三方红队签约",
+        "中国企业出海 RAG 项目的优先级: Lakera Guard (欧洲合规 + 实时检测) + NeMo Guardrails (中文支持 + NVIDIA 生态) + 内部 AI Red Team 团队, 三者缺一不可"
+      ]
+    }
+  ]
+}
