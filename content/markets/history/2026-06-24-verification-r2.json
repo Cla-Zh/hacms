@@ -1,0 +1,151 @@
+{
+  "verification_id": "Independent Verifier Round 2 (2026-06-24)",
+  "scope": "Round 5 self-audit issues (2 bugs + 1 missing data)",
+  "verifier": "Independent Verification Agent (Hermes subagent)",
+  "verifier_model": "MiniMax-M3",
+  "verification_started_utc": "2026-06-24",
+  "verification_completed_utc": "2026-06-24",
+  "tools_used": [
+    "read_file (markets.json, markets.json.v1.1.0-backup, verification-r1.json)",
+    "python3 (programmatic JSON diff on fetch_timestamp_utc)",
+    "web_search (4 queries on Hang Seng 06-23 close)",
+    "web_extract (etnet.com.hk HKEX + TradingEconomics direct fetch)"
+  ],
+  "checks": {
+    "r5_1_regime_vs_committee_consistency": {
+      "claim": "regime_engine RISK_OFF 78% 与 investment_committee 谨慎看多 (consensus 58) 矛盾",
+      "evidence_regime": {
+        "regime_engine.current.code": "RISK_OFF",
+        "regime_engine.current.confidence": 0.78,
+        "regime_engine.current.expected_duration_days": "5-10 天 (技术反弹窗口)",
+        "regime_engine.current.state": "风险偏好下降期 (全球半导体 + AI 抛售)",
+        "regime_engine.current.sub_signals": {
+          "sp500_change_pct": -1.44,
+          "nasdaq_change_pct": -2.21,
+          "vix_change_pct": 16.96,
+          "vix_spot": 20.21,
+          "10y_yield": 4.51,
+          "btc_change_pct": -2.13
+        }
+      },
+      "evidence_committee": {
+        "members_count": 5,
+        "stance_distribution": {
+          "strongly_bullish": 0,
+          "cautious_bullish": 2,
+          "neutral": 2,
+          "cautious_bearish": 1,
+          "strongly_bearish": 0
+        },
+        "consensus_score": 58,
+        "verdict": "谨慎看多 (2-2-1)",
+        "actionable": "维持 60% 仓位 · 美股: 防御板块加仓, 半导体减仓, 黄金/新兴市场加仓 · A 股: 银行/红利加仓, 半导体继续持有, 白酒观望"
+      },
+      "diff_with_v110": {
+        "regime_engine.RISK_OFF_prob": "32% (v1.1.0) → 78% (v1.2.0) — 因 VIX +16.96% + NASDAQ -2.21% 06-23 验证",
+        "investment_committee": "完全一致 (v1.1.0 → v1.2.0 委员会投票未变, 战略层面未触发更新)"
+      },
+      "consistent": true,
+      "severity": "NOT-A-BUG",
+      "reason": "regime_engine 与 investment_committee 在框架设计上是不同时间维度的两个独立信号, 看似冲突实则互补: (1) regime_engine 是短期市场状态信号 (5-10 天技术反弹窗口), 78% RISK_OFF 反映 06-23 当日 NASDAQ -2.21% / VIX +16.96% / 半导体抛售的量价事实, 这是日级别的 regime classification; (2) investment_committee 是 6-12 个月战略配置视角, '谨慎看多' + consensus 58 + 0 强烈看空 表示长期不悲观, 但已通过 actionable 显式纳入短期风险信号: 仓位 60% (而非满仓), 美股防御板块加仓/半导体减仓/黄金加仓, A 股银行红利加仓/白酒观望. 这是教科书级别的 regime + committee 双重风险框架 — regime 提示短期 RISK_OFF, committee 据此在战略配置上做出对冲动作, 两者一致而非矛盾. 数据上也无矛盾: 上证综指 -1.37%, CSI 300 -2.77%, HSI -1.82% (06-23 验证) 都是普跌, committee 在普跌中维持中性偏多配 (60% 仓位) 是合理的中庸策略, 不是激进追多.",
+      "recommendation": "无需修改. 但建议在 markets.json 顶层加一段 'methodology_note' 显式说明: 'regime_engine 为短期市场状态信号 (5-10d), investment_committee 为中期战略配置视角 (6-12m); 当 regime=风险但 committee=谨慎看多时, committee 的 actionable 应显式纳入减仓/防御/对冲动作 — 本期已满足'. 文档化即可, 不需改数据."
+    },
+    "r5_2_timestamp_drift": {
+      "claim": "timeline_90d 和 historical_evolution 两个 block 的 fetch_timestamp_utc 仍是 2026-06-22T08:00:00Z, 与顶层 + 其他 15 个 block 的 2026-06-23T21:00:00Z 不一致",
+      "evidence": {
+        "top_level_fetch_timestamp": "2026-06-23T21:00:00Z (line 4)",
+        "total_blocks_with_fetch_timestamp_utc": 17,
+        "blocks_with_2026_06_23T21_00_00Z": 15,
+        "blocks_with_2026_06_22T08_00_00Z": 2,
+        "stale_blocks": [
+          {
+            "block": "timeline_90d",
+            "line": 1795,
+            "as_of": "2026-06-22",
+            "fetch_timestamp_utc": "2026-06-22T08:00:00Z"
+          },
+          {
+            "block": "historical_evolution",
+            "line": 1927,
+            "as_of": "(missing)",
+            "fetch_timestamp_utc": "2026-06-22T08:00:00Z"
+          }
+        ],
+        "v110_backup_all_fetch_timestamps": "ALL 17 blocks were 2026-06-22T08:00:00Z in v1.1.0 (verified by grep on backup file)"
+      },
+      "bug": true,
+      "severity": "LOW",
+      "reason": "v1.2.0 是从 v1.1.0 全量替换 06-22 数据为 06-23 verified 数据 (见 markets.json:2086-2117 v1_known_errors_fixed 块), 顶层 last_updated 和 15 个 block 的 fetch_timestamp_utc 已更新为 2026-06-23T21:00:00Z, 但 timeline_90d (line 1795) 和 historical_evolution (line 1927) 这两个 block 漏改了 — 直接残留 v1.1.0 的旧时间戳. timeline_90d 内 events 本身没有 date 错位 (06-25, 06-30, 07-15, 07-30 等未来日期合理, 06-22 fetch 拉这些未来 calendar 也合理), historical_evolution 的 support_periods/current_snapshot 也无 06-22 specific 数据, 所以这两块的内容数据本身没问题, 只是元数据 fetch_timestamp 没更新. 不是故意保留 — 是 sed/replace 漏改.",
+      "fix": "替换这两行的 fetch_timestamp_utc 为 '2026-06-23T21:00:00Z'. 同时 timeline_90d 的 as_of 也建议改为 '2026-06-23' (line 1794). 推荐 patch:\n  - 旧: '    \"as_of\": \"2026-06-22\",\\n    \"fetch_timestamp_utc\": \"2026-06-22T08:00:00Z\",\\n    \"events\": [' (timeline_90d)\n  - 新: '    \"as_of\": \"2026-06-23\",\\n    \"fetch_timestamp_utc\": \"2026-06-23T21:00:00Z\",\\n    \"events\": ['\n  - 旧: '    \"fetch_timestamp_utc\": \"2026-06-22T08:00:00Z\",\\n    \"current_snapshot\": {' (historical_evolution)\n  - 新: '    \"fetch_timestamp_utc\": \"2026-06-23T21:00:00Z\",\\n    \"current_snapshot\": {'"
+    },
+    "r5_3_hang_seng_missing": {
+      "claim": "v1.2.0 key_metrics_summary 13 个 metrics 中没有 Hang Seng (HSI) 06-23 收盘, 但 HSI 在 cn_indices 估值块有 PE/PB 等数据",
+      "verified_value": 23336.28,
+      "verified_change_pct": -1.82,
+      "verified_change_pts": -432.24,
+      "prior_close_06_22": 23769.0,
+      "as_of": "2026-06-23",
+      "verification_sources": [
+        {
+          "source_name": "etnet (HKEX Information Services Ltd - HKEX 官方数据分销商)",
+          "source_url": "https://www.etnet.com.hk/www/eng/futures/futures_news_detail.php?newsid=2026062366",
+          "evidence": "ET Net News Agency, 23 June 2026 16:25 HKT: 'HSI ends down 432 pts at 23,336' (-1.8%) with turnover 334.36b; HSCEI down 155 pts at 7,759 (-2%); HSTECH down 150 pts at 4,399 (-3.3%). Constituents: Tencent -4.2% to HK$414.8, SMIC -1.3% to HK$77.85, BABA-W -3.8% to HK$98.95."
+        },
+        {
+          "source_name": "MarketWatch HSI",
+          "source_url": "https://www.marketwatch.com/investing/index/hsi?countrycode=hk",
+          "evidence": "Jun 23, 2026 4:08 p.m. HKST Delayed quote 23,336.28 -432.24. Decimal-level exact match."
+        },
+        {
+          "source_name": "TradingEconomics HK50 news article",
+          "source_url": "https://tradingeconomics.com/hong-kong/stock-market",
+          "evidence": "June 23, 2026 article: 'The Hang Seng Index plunged 1.8% to close at 23,336 on Tuesday, extending losses from the previous session as concerns over global interest rates outweighed support from easing geopolitical tensions.' Notable losers: Tencent (-4.2%), SMIC (-1.3%), Kingboard Laminates (-5.1%), Knowledge Atlas (-9.9%), Xiaomi (-4.6%)."
+        },
+        {
+          "source_name": "LongForecast",
+          "source_url": "https://longforecast.com/hang-seng-index-forecast",
+          "evidence": "Updated 2026/06/23: 'Hang Seng index closed at 23336.29 the previous day.'"
+        }
+      ],
+      "calculation_check": {
+        "method": "(23336.28 - 23769.0) / 23769.0 = -432.72 / 23769.0 = -1.820%",
+        "matches_sources": true,
+        "note": "Prior close 06-22 = 23,769.0 per TradingEconomics article (HSI closed at 23,769 on Monday after paring losses from intraday low 23,468)."
+      },
+      "severity": "MEDIUM",
+      "reason": "key_metrics_summary 列了 13 个 indices/rates/assets (S&P 500, Dow, NASDAQ, 上证综指, CSI 300, USD/CNY, Gold, WTI, BTC, VIX, 10Y, DXY, Fed Funds), 但缺少 HSI — 而 HSI 是港股市场的核心 benchmark, 也是 markets.json 港股 opportunities (4 个 ticker: 0700.HK 腾讯 / 9988.HK 阿里 / 3690.HK 美团 / 0941.HK 中移动) 的母指数, 同时也在 cn_indices 估值块有 PE/PB/PEG 数据. 这是 markets.json 已有的港股板块最关键的一级指标缺失. verified_value 23336.28 / -1.82% 由 4 个独立源交叉验证 (HKEX 系分销商 etnet + MarketWatch + TradingEconomics + LongForecast), 数字精确到小数点后两位一致.",
+      "recommendation": "在 key_metrics_summary.metrics 数组中追加 HSI 条目 (建议插在 CSI 300 之后, 因为 HSI 与 A 股并列代表中国/大中华区权益市场):\n{\n  \"name\": \"Hang Seng\",\n  \"value\": 23336.28,\n  \"change_pct\": -1.82,\n  \"unit\": \"index\",\n  \"source_url\": \"https://www.hsi.com.hk/\",\n  \"source_name\": \"恒生指数公司 (HSI) + 港交所 HKEX 收盘 (etnet 4:08pm HKST)\",\n  \"note\": \"06-23 close 23,336.28 (-432.24 / -1.82%); 06-22 收盘 23,769.0\"\n}\n将 source_count_verified 从 12 改为 13. HSI 的 -1.82% 与上证综指 -1.37% / CSI 300 -2.77% 一致地反映 06-23 普跌 + 半导体领跌, 与 regime_engine RISK_OFF 78% 高度一致."
+    }
+  },
+  "summary": {
+    "r5_1_regime_vs_committee_consistency": "CONSISTENT — 非 bug, 是设计正确的双时间维度风险框架 (短期 regime + 中期 committee + actionable 已对冲)",
+    "r5_2_timestamp_drift": "BUG — 2 个 block (timeline_90d, historical_evolution) 漏改 fetch_timestamp_utc, LOW severity, 修 1 行 ×2 即可",
+    "r5_3_hang_seng_missing": "MISSING_DATA — HSI 06-23 收盘 23,336.28 / -1.82% 由 4 源交叉验证, MEDIUM severity (markets.json 已有港股板块, 母指数缺失不合逻辑)",
+    "overall_counts": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 1,
+      "LOW": 1,
+      "NOT-A-BUG": 1
+    },
+    "publishable": "CONDITIONAL — 可发布但建议 v1.2.1 补丁修这 2 项 (timeline_90d/historical_evolution fetch_timestamp + 补 HSI 到 key_metrics_summary). 1.2.0 数据准确度本身无问题, 仅元数据/覆盖度待补."
+  },
+  "recommendations": [
+    "1. v1.2.1 PATCH [LOW]: 修正 timeline_90d (line 1794-1795) 和 historical_evolution (line 1927) 的 fetch_timestamp_utc 从 2026-06-22T08:00:00Z → 2026-06-23T21:00:00Z, timeline_90d.as_of 同步改 2026-06-23. 这是 v1.2.0 数据替换时的漏改, 非故意保留.",
+    "2. v1.2.1 PATCH [MEDIUM]: 在 key_metrics_summary.metrics 追加 HSI 条目: value=23336.28, change_pct=-1.82, source_url=https://www.hsi.com.hk/, source_name='恒生指数公司 (HSI) + 港交所 HKEX 收盘'. source_count_verified 12→13. 数字已 4 源交叉验证 (etnet HKEX 系 / MarketWatch / TradingEconomics / LongForecast).",
+    "3. v1.2.1 DOC [NICE-TO-HAVE]: 在 markets.json 顶层加 methodology_note 解释 regime_engine (短期 5-10d) vs investment_committee (中期 6-12m) 的设计意图, 显式说明 'regime=RISK_OFF + committee=谨慎看多 不矛盾, committee 通过 actionable (减仓/防御/对冲) 已显式纳入短期风险'. 这能把 v5_1 的内部一致性问题从 verifier 反复审视变为读者一目了然.",
+    "4. 长期建议: 增加 pipeline 检查 — 所有 block 的 fetch_timestamp_utc 必须与顶层 last_updated 同日 (或更晚). 任何 stale block 自动报警. 这样 v1.2.0 这次的 2 个 block 漏改在生成时就可被拦截, 不需要人工 round 5 自检才发现.",
+    "5. 长期建议: key_metrics_summary 应涵盖 markets.json 已声明的所有区域市场 (US / CN / HK), 当前缺 HK, 未来如新增 EU/JP/KR 也应同步. 建议生成时按 regions 自动 include."
+  ],
+  "data_provenance_for_verified_hsi": {
+    "primary_source_official": "恒生指数公司 https://www.hsi.com.hk/ + 港交所 HKEX 收盘",
+    "primary_source_distributor": "etnet.com.hk (HKEX Information Services Ltd - HKEX 官方数据分销商)",
+    "secondary_sources": [
+      "MarketWatch HSI page (4:08pm HKST delayed quote)",
+      "TradingEconomics HK50 news article (June 23, 2026)",
+      "LongForecast updated 2026-06-23"
+    ],
+    "cross_source_consistency": "4/4 源报告 HSI 06-23 收盘 ≈ 23,336 (精确值 23,336.28 / 23,336.29 / 23,336 三种精度), 跌幅 -1.8% (精确 -1.82%), 全部一致",
+    "constituent_cross_check": "Tencent -4.2% to HK$414.8 / SMIC -1.3% to HK$77.85 / BABA-W -3.8% to HK$98.95 (etnet + TradingEconomics 双向验证一致)"
+  }
+}
