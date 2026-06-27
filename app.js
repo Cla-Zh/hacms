@@ -960,7 +960,7 @@
     bindQaEvents();
 
     try {
-      const r = await fetch('content/index/manifest.json');
+      const r = await fetch('content/index/manifest-light.json').then(r => r.ok ? r : fetch('content/index/manifest.json'));
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data = await r.json();
       STATE.articles = Array.isArray(data) ? data : [];
