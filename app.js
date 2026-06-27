@@ -955,15 +955,76 @@
   }
 
   // ── 初始化 ──────────────────────────────────────────
+  // 客户端 manifest 版本缓存 key (versioned cache buster)
+  // 服务器 manifest v2 schema: { _meta: { version, ... }, articles: [...] }
+  // 客户端只缓存版本号, 每次启动对比, 不一致则强制绕过 fetch 缓存
+  const MANIFEST_VERSION_KEY = 'hacms.manifest.version';
+
+  // 解析 manifest 响应 — 兼容 v1 (裸数组) 和 v2 ({ _meta, articles })
+  function parseManifestResponse(data) {
+    if (Array.isArray(data)) {
+      // v1: 裸数组
+      return { articles: data, version: null };
+    }
+    if (data && typeof data === 'object' && Array.isArray(data.articles)) {
+      // v2: 包装对象
+      return {
+        articles: data.articles,
+        version: data._meta && data._meta.version || null,
+      };
+    }
+    // fallback: 未知格式
+    return { articles: [], version: null };
+  }
+
+  // 强制绕过浏览器 HTTP 缓存 — 通过 URL 加 ?v=<version>
+  function bustCache(url, version) {
+    if (!version) return url;
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}v=${encodeURIComponent(version)}`;
+  }
+
   async function init() {
     bindEvents();
     bindQaEvents();
 
+    // 读取上次缓存的版本号 — 用于下次启动对比
+    let cachedVersion = null;
     try {
-      const r = await fetch('content/index/manifest-light.json').then(r => r.ok ? r : fetch('content/index/manifest.json'));
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const data = await r.json();
-      STATE.articles = Array.isArray(data) ? data : [];
+      cachedVersion = localStorage.getItem(MANIFEST_VERSION_KEY);
+    } catch (e) { /* localStorage 不可用 */ }
+
+    try {
+      // 第一步: 拿 light manifest (用 cache-busting 绕过 HTTP 缓存)
+      const lightUrl = bustCache('content/index/manifest-light.json', cachedVersion);
+      let r = await fetch(lightUrl, { cache: 'no-store' }).then(r => r.ok ? r : null);
+      // 第二步: light 失败 → 拿 full manifest
+      if (!r) {
+        const fullUrl = bustCache('content/index/manifest.json', cachedVersion);
+        r = await fetch(fullUrl, { cache: 'no-store' }).then(r => r.ok ? r : null);
+      }
+      if (!r) throw new Error('manifest-light.json 和 manifest.json 都 404');
+
+      const raw = await r.json();
+      const parsed = parseManifestResponse(raw);
+      STATE.articles = parsed.articles;
+
+      // 第三步: 版本对比 + 缓存
+      const serverVersion = parsed.version;
+      if (serverVersion) {
+        if (cachedVersion && cachedVersion !== serverVersion) {
+          // 版本不一致 — 清掉浏览器缓存的 HTML / JS / CSS, 触发完整刷新
+          console.info(`[hacms] manifest 版本变更: ${cachedVersion} → ${serverVersion}, 强制刷新`);
+          try {
+            if ('caches' in window) {
+              caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+            }
+          } catch (e) { /* ignore */ }
+        }
+        try {
+          localStorage.setItem(MANIFEST_VERSION_KEY, serverVersion);
+        } catch (e) { /* ignore */ }
+      }
     } catch (e) {
       STATE.articles = [];
       console.warn('[肥嘟嘟的炼金工厂] manifest.json 加载失败:', e.message);
