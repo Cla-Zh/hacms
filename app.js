@@ -82,6 +82,8 @@
     qaSortSelect:    $('#qa-sort-select'),
     topBar:          $('#top-bar'),
     topbarCount:     $('#topbar-count'),
+    footerArticleCount: $('#footer-article-count'),
+    footerQaCount:   $('#footer-qa-count'),
     searchInput:     $('#search-input'),
     sortSelect:      $('#sort-select'),
     statsBtn:        $('#stats-btn'),
@@ -979,6 +981,10 @@
     // 模式按钮计数
     if (dom.modeArticlesCount) dom.modeArticlesCount.textContent = STATE.articles.length - STATE.qaList.length;
     if (dom.modeQaCount) dom.modeQaCount.textContent = STATE.qaList.length;
+
+    // 底栏计数 (动态)
+    if (dom.footerArticleCount) dom.footerArticleCount.textContent = STATE.articles.length - STATE.qaList.length;
+    if (dom.footerQaCount) dom.footerQaCount.textContent = STATE.qaList.length;
 
     renderSidebar();
 
