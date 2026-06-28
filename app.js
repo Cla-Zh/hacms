@@ -984,7 +984,27 @@
     return `${url}${sep}v=${encodeURIComponent(version)}`;
   }
 
-  async function init() {
+  
+
+  // ── 启动诊断 (临时调试手机看不到新文章问题) ─────────
+  console.info(
+    '%c[hacms 诊断]',
+    'background:#d4a574;color:white;padding:2px 6px;border-radius:3px;font-weight:bold',
+    '\n  app.js 时间戳: ' + new Date().toISOString() +
+    '\n  manifest-light.json URL: ' + bustCache('content/index/manifest-light.json', null) +
+    '\n  已加载文章数: ' + STATE.articles.length +
+    '\n  已过滤非 QA: ' + STATE.filtered.length +
+    '\n  当前排序: ' + STATE.sortMode +
+    '\n  最新 3 篇: ' + STATE.articles
+      .slice()
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+      .slice(0, 3)
+      .map(a => '[' + a.date + '] ' + a.title.slice(0, 40))
+      .join('\n           ') +
+    '\n  localStorage 版本: ' + localStorage.getItem('hacms.manifest.version')
+  );
+
+async function init() {
     bindEvents();
     bindQaEvents();
 
