@@ -279,7 +279,7 @@ ssh user@server "sudo mv /tmp/hacms-deploy.sh /usr/local/bin/ && sudo chmod +x /
 | `git pull` 失败: "Permission denied" | 仓库所有者不是当前用户 | `sudo chown -R $USER:$USER /var/www/hacms` |
 | `git pull` 失败: "diverged" | 本地有冲突 | `git fetch origin && git reset --hard origin/main` ⚠️ **会丢本地改动** |
 | 移动端 Hero 不显示 | `style.css` 缓存 | 硬刷新; 检查 `?v=<commit>` 是否更新 |
-| 移动端文章列表少 2 张 | 历史 bug (已修 commit `83d2358`) | 确保已 `git pull` 到该 commit 之后 |
+| 移动端文章列表少 2 张 | 历史 bug (已修 commit `83d2358` / `542c18c`) | 确保已 `git pull` 到该 commit 之后; 检查 `style.css` 有没有**两处** 680px media query (CSS 后定义覆盖前定义, 后写的 `display: none` 会覆盖前面的修复) |
 
 ### 5. AI Agent 部署清单 (Deployment Checklist)
 
