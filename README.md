@@ -128,6 +128,193 @@ npx serve .
 3. 编辑 `content/index/manifest.json`，加入新的 article 条目
 4. 更新完成，前端自动渲染
 
+## 🚀 部署指南 (面向 AI Agent / 运维人员)
+
+> **本节为可机读 (machine-readable) 部署规范**. 任何 AI 收到 "部署 hacms" / "更新 hacms" 指令, **必须按本节步骤执行**, 不要自创流程.
+
+### 架构概览
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  GitHub (github.com/Cla-Zh/hacms)                            │
+│  ↓ git push (开发者/Agent)                                    │
+│  ↓ git pull (服务器端, 手动或 cron)                          │
+│  ┌──────────────────────────────────────────────┐           │
+│  │ Linux 服务器 (如 Ubuntu 22.04+)                │           │
+│  │ Nginx 监听 :8081                               │           │
+│  │ 静态目录: /var/www/hacms (或自定义)            │           │
+│  └──────────────────────────────────────────────┘           │
+│  ↓ HTTP                                                      │
+│  终端用户浏览器: http://<server-ip>:8081/                    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**关键特性**: **完全静态, 无后端运行时** (no Node.js / Python / DB 进程). Nginx 直接 serve 文件即可.
+
+### 1. 服务器一次性初始化 (First-Time Setup)
+
+> 仅在**新服务器**首次部署时执行. 已部署过的服务器跳过本节, 直接看 §2 增量更新.
+
+```bash
+# (a) 安装 Nginx (Ubuntu/Debian)
+sudo apt update && sudo apt install -y nginx git
+
+# (b) 创建部署目录 (推荐 /var/www/hacms)
+sudo mkdir -p /var/www/hacms
+sudo chown -R $USER:$USER /var/www/hacms   # 当前用户可写
+
+# (c) 克隆仓库
+cd /var/www/hacms
+git clone https://github.com/Cla-Zh/hacms.git .
+
+# (d) 配置 Nginx 站点
+sudo tee /etc/nginx/sites-available/hacms <<'EOF'
+server {
+    listen 8081 default_server;
+    listen [::]:8081 default_server;
+    server_name _;
+
+    root /var/www/hacms;
+    index index.html;
+
+    # ── 关键: 禁用缓存, 保证前端 cache-bust 机制生效 ──
+    add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+    add_header Pragma "no-cache" always;
+    add_header Expires "0" always;
+
+    # ── 静态资源缓存 (7 天) ──
+    location ~* \.(css|js|png|jpg|jpeg|gif|svg|woff2?|ttf)$ {
+        expires 7d;
+        add_header Cache-Control "public, max-age=604800";
+    }
+
+    # ── 文章目录允许 iframe 同源 ──
+    location /content/ {
+        add_header X-Frame-Options "SAMEORIGIN" always;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # ── 安全头 ──
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+}
+EOF
+
+# (e) 启用站点
+sudo ln -sf /etc/nginx/sites-available/hacms /etc/nginx/sites-enabled/hacms
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t                                      # 校验配置
+sudo systemctl reload nginx
+
+# (f) 开放端口 (如果启用 ufw)
+sudo ufw allow 8081/tcp 2>/dev/null || true
+```
+
+**验证**: 浏览器访问 `http://<server-ip>:8081/` 应看到主页.
+
+### 2. 增量更新 (Routine Update)
+
+> **每次 Agent 完成 commit + push 后**, 服务器端只需 2 步:
+
+```bash
+cd /var/www/hacms
+git pull origin main
+sudo systemctl reload nginx   # 让 Nginx 重新读取静态文件 (可选, 多数情况不需)
+```
+
+**可选: 自动化 cron** (每 5 分钟自动 pull):
+
+```bash
+# (a) 编辑 crontab
+crontab -e
+
+# (b) 添加 (注意 PATH 必须包含 git)
+*/5 * * * * cd /var/www/hacms && /usr/bin/git pull origin main >> /var/log/hacms-pull.log 2>&1
+```
+
+### 3. 一键部署脚本 (推荐)
+
+> 桌面端已存在 `hacms-deploy.sh` (位于 `~/Desktop/`), 整合上述步骤:
+
+```bash
+#!/bin/bash
+# hacms-deploy.sh — 服务器侧一键拉取最新代码
+set -e
+
+REPO_DIR="/var/www/hacms"
+BRANCH="main"
+
+echo "=== hacms 部署开始 ==="
+cd "$REPO_DIR" || { echo "❌ 目录不存在: $REPO_DIR"; exit 1; }
+
+echo "→ git pull..."
+git pull origin "$BRANCH"
+
+echo "→ nginx reload..."
+sudo systemctl reload nginx
+
+echo "=== ✅ 部署完成 ==="
+echo "访问: http://$(curl -s ifconfig.me 2>/dev/null || echo '<server-ip>'):8081/"
+```
+
+部署到服务器:
+```bash
+scp hacms-deploy.sh user@server:/tmp/
+ssh user@server "sudo mv /tmp/hacms-deploy.sh /usr/local/bin/ && sudo chmod +x /usr/local/bin/hacms-deploy.sh"
+```
+
+之后服务器端只需执行: `hacms-deploy.sh`
+
+### 4. 故障排查 (Troubleshooting)
+
+| 现象 | 根因 | 修复 |
+|---|---|---|
+| 浏览器看到旧版本 | Nginx 缓存 或 CDN 缓存 | `Ctrl+Shift+R` 硬刷新; 检查 `add_header Cache-Control "no-cache"` |
+| 主页 JS 不工作 | `app.js` 路径错 | 查看 `<script src="app.js?v=<commit>">` 是否能直接访问 |
+| 文章 iframe 显示空白 | 路径错 或 文件不存在 | 检查 `content/articles/<slug>/index.html` 是否存在 |
+| 端口 8081 拒绝连接 | Nginx 未启动 或 防火墙 | `sudo systemctl status nginx`; `sudo ufw allow 8081` |
+| `git pull` 失败: "Permission denied" | 仓库所有者不是当前用户 | `sudo chown -R $USER:$USER /var/www/hacms` |
+| `git pull` 失败: "diverged" | 本地有冲突 | `git fetch origin && git reset --hard origin/main` ⚠️ **会丢本地改动** |
+| 移动端 Hero 不显示 | `style.css` 缓存 | 硬刷新; 检查 `?v=<commit>` 是否更新 |
+| 移动端文章列表少 2 张 | 历史 bug (已修 commit `83d2358`) | 确保已 `git pull` 到该 commit 之后 |
+
+### 5. AI Agent 部署清单 (Deployment Checklist)
+
+> **收到 "部署 hacms" / "更新 hacms" 任务时, 逐项打勾**:
+
+- [ ] 1. **拉取最新代码**: `cd /var/www/hacms && git pull origin main`
+- [ ] 2. **验证 commit**: `git log -1 --oneline` (确认是预期的 commit hash)
+- [ ] 3. **验证关键文件**:
+  - [ ] `index.html?v=<commit>` 存在 (cache-bust 机制)
+  - [ ] `content/index/manifest.json` 存在且 JSON 合法 (`python3 -m json.tool < manifest.json`)
+  - [ ] `style.css` 和 `app.js` 存在
+- [ ] 4. **重载 Nginx**: `sudo systemctl reload nginx`
+- [ ] 5. **HTTP 探活**:
+  ```bash
+  curl -sI http://localhost:8081/ | head -5
+  # 期望: HTTP/1.1 200 OK
+  # 期望: Cache-Control: no-cache, no-store, must-revalidate
+  curl -s http://localhost:8081/content/index/manifest.json | head -c 200
+  # 期望: 看到 JSON 开头 `{`
+  ```
+- [ ] 6. **报告**: 向用户报告最新 commit hash + 部署时间 + 访问 URL
+
+### 6. 重要约束 (CRITICAL CONSTRAINTS)
+
+> **违反任一条会导致部署失败, 必须遵守**:
+
+1. **🚫 禁止尝试登录服务器执行 SSH**: 本系统设计为**手动 pull + reload** 模式. Agent **不应** ssh 到服务器, 不应远程执行命令. 如需服务器操作, 让人类用户执行 `hacms-deploy.sh`.
+2. **🚫 禁止删除 `_archive/` 和 `.bak` 文件**: 这些是历史备份, 删了无法回滚.
+3. **🚫 禁止修改 `.harness/harness.json`** 除非用户明确要求: 这是 Agent 行为宪法, 改动会导致所有 Agent 行为漂移.
+4. **🚫 禁止在 `manifest.json` 添加未实际存在的文章**: 前端会渲染空卡片.
+5. **✅ 所有文章目录必须遵循 `YYYY-MM-DD-topic-slug/` 命名规范**, 方便排序.
+6. **✅ 修改前端 (`index.html` / `style.css` / `app.js`) 后必须 commit + push**, 报告 hash 给用户.
+
+---
+
 ## 前端功能说明
 
 - **主页视图（List State）：** 展示所有文章卡片，支持分类筛选、标签筛选和实时模糊搜索
