@@ -1,0 +1,53 @@
+{
+  "poc": "KV cache math feasibility + cluster capacity",
+  "math_analysis": {
+    "attempt": "K_B1 + K_B2 where both share prefix",
+    "problem_1_position_encoding": "RoPE makes K_i a function of position, K_B1[i] + K_B2[i] has no physical meaning",
+    "problem_2_attention_nonlinearity": "softmax(QK^T/sqrt(d)) is not linearly decomposable",
+    "problem_3_multi_head_inconsistency": "Different heads have different attention patterns across batches",
+    "verdict": "KV tensors CANNOT be summed linearly. Industry uses prefix matching + selective recomputation (CacheBlend 15% re-derivation), not summation"
+  },
+  "kv_size_per_model_gb": {
+    "Llama-3-8B": {
+      "1024": 0.13,
+      "8192": 1.07,
+      "32768": 4.29,
+      "131072": 17.18,
+      "1048576": 137.44
+    },
+    "Llama-3-70B": {
+      "1024": 0.34,
+      "8192": 2.68,
+      "32768": 10.74,
+      "131072": 42.95,
+      "1048576": 343.6
+    },
+    "Qwen2-72B": {
+      "1024": 0.34,
+      "8192": 2.68,
+      "32768": 10.74,
+      "131072": 42.95,
+      "1048576": 343.6
+    },
+    "Llama-3-405B": {
+      "1024": 0.53,
+      "8192": 4.23,
+      "32768": 16.91,
+      "131072": 67.65,
+      "1048576": 541.17
+    },
+    "DeepSeek-V3": {
+      "1024": 4.09,
+      "8192": 32.75,
+      "32768": 131.0,
+      "131072": 523.99,
+      "1048576": 4191.89
+    }
+  },
+  "cluster_capacity_128_nodes": {
+    "hbm_tb": 80.0,
+    "nvme_pb": 12.8,
+    "50pct_nvme_tb": 6400
+  },
+  "verdict": "H4 (KV 叠加) 数学不可行, 应该走 prefix matching + KVQuant 压缩"
+}

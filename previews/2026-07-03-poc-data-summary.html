@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PoC 数据可视化摘要 · hacms</title>
+<style>
+  :root{
+    --bg:#f4f2ed;--bg-2:#ebe7df;--surface:#fff;--surface-2:#faf8f3;
+    --border:#d8d4cc;--border-2:#e6e2d8;
+    --text:#1a1a1a;--text2:#5a5a5a;--text3:#9a9690;
+    --accent:#3a4a6b;--accent-dark:#2c3a54;--accent-light:#eef0f5;
+    --good:#5fb3a1;--warn:#d4a574;--bad:#c97b7b;--info:#4a7fb8;
+    --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Helvetica Neue",Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.75}
+  .wrap{max-width:1180px;margin:0 auto;padding:48px 36px 80px}
+  header.page{margin-bottom:36px;padding-bottom:18px;border-bottom:2px solid var(--accent)}
+  header.page h1{font-size:30px;font-weight:800;margin:0 0 8px;letter-spacing:-0.3px}
+  header.page h1 .hl{background:linear-gradient(180deg,transparent 60%,#fff3b0 60%);padding:0 4px}
+  header.page .subtitle{font-size:14px;color:var(--text3);margin:0;font-weight:400}
+  header.page .subtitle b{color:var(--text2);font-weight:600}
+  .meta-bar{display:flex;flex-wrap:wrap;gap:18px;margin-top:14px;font-size:13px;color:var(--text2)}
+  .meta-bar span b{color:var(--accent);font-weight:600}
+  section.poc{margin:42px 0 0;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:28px 30px 32px;box-shadow:0 1px 0 rgba(58,74,107,.04)}
+  section.poc h2{font-size:22px;font-weight:700;margin:0 0 6px;padding:0 0 0 14px;border-left:5px solid var(--accent);color:var(--text);letter-spacing:-0.2px}
+  section.poc h2 .num{display:inline-block;width:32px;height:32px;line-height:32px;text-align:center;background:var(--accent);color:#fff;border-radius:50%;font-size:14px;font-weight:700;margin-right:10px;vertical-align:middle}
+  section.poc .lede{font-size:14px;color:var(--text2);margin:10px 0 22px;padding-left:14px}
+  section.poc h3{font-size:15px;font-weight:700;color:var(--accent-dark);margin:24px 0 10px;letter-spacing:.2px;text-transform:uppercase}
+  /* layout */
+  .row{display:grid;grid-template-columns:1.05fr 1fr;gap:28px;align-items:start}
+  @media (max-width:980px){.row{grid-template-columns:1fr}}
+  /* table */
+  table{width:100%;border-collapse:collapse;font-size:13.5px;background:var(--surface);font-variant-numeric:tabular-nums}
+  thead th{background:var(--accent);color:#fff;text-align:left;padding:8px 10px;font-weight:600;font-size:12.5px;letter-spacing:.2px}
+  thead th.num, tbody td.num{text-align:right;font-variant-numeric:tabular-nums}
+  tbody td{padding:7px 10px;border-bottom:1px solid var(--border-2);color:var(--text)}
+  tbody tr:nth-child(even) td{background:var(--surface-2)}
+  tbody td .pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:600}
+  .pill.ok{background:rgba(95,179,161,.15);color:#2f6f5f}
+  .pill.warn{background:rgba(212,165,116,.18);color:#7a5a30}
+  .pill.bad{background:rgba(201,123,123,.18);color:#7a3030}
+  /* callout */
+  .callout{margin-top:18px;padding:14px 18px;border-left:4px solid var(--accent);background:var(--accent-light);border-radius:0 6px 6px 0;font-size:14px;color:var(--text)}
+  .callout b{color:var(--accent-dark)}
+  .callout.good{border-color:var(--good);background:rgba(95,179,161,.10)}
+  .callout.warn{border-color:var(--warn);background:rgba(212,165,116,.10)}
+  .callout.bad{border-color:var(--bad);background:rgba(201,123,123,.10)}
+  /* svg chart */
+  .chart{background:var(--surface-2);border:1px solid var(--border-2);border-radius:6px;padding:8px;display:block;width:100%;height:auto}
+  .chart .axis{stroke:#b8b3a8;stroke-width:1}
+  .chart .grid{stroke:var(--border-2);stroke-width:1;stroke-dasharray:2 3}
+  .chart .axis-label{font-size:11px;fill:var(--text2);font-family:var(--font)}
+  .chart .title{font-size:13px;font-weight:700;fill:var(--accent-dark);font-family:var(--font)}
+  .chart .bar{fill:var(--accent);transition:fill .15s}
+  .chart .bar.alt{fill:var(--info)}
+  .chart .bar.warn{fill:var(--warn)}
+  .chart .bar.bad{fill:var(--bad)}
+  .chart .bar.good{fill:var(--good)}
+  .chart .bar-label{font-size:10.5px;fill:var(--text);font-family:var(--font);font-variant-numeric:tabular-nums}
+  .chart .line{stroke:var(--accent);stroke-width:2.5;fill:none}
+  .chart .line.alt{stroke:var(--bad);stroke-dasharray:4 3}
+  .chart .point{fill:var(--accent);stroke:#fff;stroke-width:1.5}
+  .chart .legend{font-size:11px;fill:var(--text2);font-family:var(--font)}
+  .chart .threshold{stroke:var(--bad);stroke-dasharray:5 4;stroke-width:1.2}
+  /* math box */
+  .math{background:var(--surface-2);border:1px solid var(--border-2);border-radius:6px;padding:16px 20px;margin-top:14px;font-family:"SF Mono",Consolas,Menlo,monospace;font-size:13.5px;color:var(--text2);line-height:1.9}
+  .math .eq{display:block;padding:4px 0;color:var(--accent-dark)}
+  .math .eq .hl{background:#fff3b0;padding:0 3px;border-radius:2px;color:var(--text);font-weight:600}
+  .math .lbl{color:var(--text3);font-size:12px}
+  /* footer link */
+  .src{margin-top:14px;font-size:12.5px;color:var(--text3);padding-left:14px}
+  .src a{color:var(--accent);border-bottom:1px solid rgba(58,74,107,.25)}
+  .src a:hover{border-bottom-color:var(--accent)}
+  /* toc */
+  .toc{margin:0 0 28px;padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:13.5px}
+  .toc b{color:var(--accent-dark);margin-right:8px}
+  .toc a{color:var(--accent);margin-right:18px;border-bottom:1px solid rgba(58,74,107,.18)}
+  .toc a:hover{border-bottom-color:var(--accent)}
+  footer.page{margin-top:48px;padding-top:18px;border-top:1px solid var(--border);font-size:12.5px;color:var(--text3);text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="page">
+  <h1>PoC 数据可视化摘要 <span class="hl">·  KV 集群假设验证</span></h1>
+  <p class="subtitle">来源: <b>previews/poc{1,2,3}-*.json</b> · 验证 <b>KV 集群 idea review</b> 的 5 项假设 · 生成时间 2026-07-03</p>
+  <div class="meta-bar">
+    <span>PoC 数量 <b>3</b></span>
+    <span>SVG 图表 <b>3</b></span>
+    <span>视图尺寸 <b>800×460</b></span>
+    <span>主题 <b>hacms 蓝白学术</b></span>
+  </div>
+</header>
+
+<nav class="toc">
+  <b>目录</b>
+  <a href="#poc1">PoC-1 EAGLE 利用率</a>
+  <a href="#poc2">PoC-2 RDMA vs NVMe 延迟</a>
+  <a href="#poc3">PoC-3 KV 数学不可叠加</a>
+</nav>
+
+<!-- ============ PoC-1 ============ -->
+<section class="poc" id="poc1">
+  <h2><span class="num">1</span>PoC-1 · EAGLE draft utilization on 8×310P</h2>
+  <p class="lede">8 张 Ascend 310P 跑 EAGLE 投机解码, 在 1000 TPS 目标下的真实占用率最高 <b>7.2%</b> (Qwen2-72B), 多数场景 &lt; 3%.</p>
+
+  <div class="row">
+    <!-- table -->
+    <div>
+      <h3>5 个 EAGLE 组合 · 1000 TPS 占用率</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Target / Draft 组合</th>
+            <th class="num">Draft B</th>
+            <th class="num">NPU 数</th>
+            <th class="num">占用率 @1k TPS</th>
+            <th>结论</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Llama-3.1-8B / EAGLE-LLaMA3.1-Instruct-8B</td><td class="num">0.25B</td><td class="num">8</td><td class="num">1.70%</td><td><span class="pill ok">OK</span></td></tr>
+          <tr><td>Vicuna-7B / EAGLE-Vicuna-7B-v1.3</td><td class="num">0.36B</td><td class="num">8</td><td class="num">2.45%</td><td><span class="pill ok">OK</span></td></tr>
+          <tr><td>Llama-2-13B / EAGLE-LLaMA2-Instruct-13B</td><td class="num">0.41B</td><td class="num">8</td><td class="num">2.80%</td><td><span class="pill ok">OK</span></td></tr>
+          <tr><td>Qwen2-72B / EAGLE-Qwen2-72B</td><td class="num">1.05B</td><td class="num">8</td><td class="num">7.16%</td><td><span class="pill warn">偏高</span></td></tr>
+          <tr><td>Mixtral-8x7B / EAGLE-X1</td><td class="num">0.39B</td><td class="num">8</td><td class="num">2.66%</td><td><span class="pill ok">OK</span></td></tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin-top:22px">硬件规格对比</h3>
+      <table>
+        <thead>
+          <tr><th>指标</th><th class="num">Ascend 310P</th><th class="num">H100 SXM (参考)</th><th class="num">差距</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>INT8 TOPS</td><td class="num">22</td><td class="num">1,979</td><td class="num">90×</td></tr>
+          <tr><td>FP16 TOPS</td><td class="num">11</td><td class="num">989</td><td class="num">90×</td></tr>
+          <tr><td>内存带宽 (GB/s)</td><td class="num">200</td><td class="num">3,350</td><td class="num">17×</td></tr>
+          <tr><td>TDP (W)</td><td class="num">75</td><td class="num">700</td><td class="num">9.3×</td></tr>
+          <tr><td>价格 (USD)</td><td class="num">$1,500</td><td class="num">$30,000</td><td class="num">20×</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- chart -->
+    <div>
+      <h3>EAGLE 利用率柱状图</h3>
+      <svg class="chart" viewBox="0 0 800 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="EAGLE 利用率柱状图">
+        <text class="title" x="400" y="22" text-anchor="middle">8×Ascend 310P 跑 EAGLE @ 1000 TPS 占用率 (%)</text>
+        <text class="legend" x="400" y="40" text-anchor="middle">红虚线 = 50% 健康阈值 · 蓝条 = 实际占用率</text>
+
+        <!-- y axis: 0..10% -->
+        <line class="axis" x1="80" y1="70" x2="80" y2="400"/>
+        <line class="axis" x1="80" y1="400" x2="760" y2="400"/>
+        <!-- grid lines at 2,4,6,8,10 -->
+        <line class="grid" x1="80" y1="340" x2="760" y2="340"/>
+        <line class="grid" x1="80" y1="280" x2="760" y2="280"/>
+        <line class="grid" x1="80" y1="220" x2="760" y2="220"/>
+        <line class="grid" x1="80" y1="160" x2="760" y2="160"/>
+        <line class="grid" x1="80" y1="100" x2="760" y2="100"/>
+        <text class="axis-label" x="70" y="404" text-anchor="end">0</text>
+        <text class="axis-label" x="70" y="344" text-anchor="end">2%</text>
+        <text class="axis-label" x="70" y="284" text-anchor="end">4%</text>
+        <text class="axis-label" x="70" y="224" text-anchor="end">6%</text>
+        <text class="axis-label" x="70" y="164" text-anchor="end">8%</text>
+        <text class="axis-label" x="70" y="104" text-anchor="end">10%</text>
+        <text class="axis-label" x="40" y="235" text-anchor="middle" transform="rotate(-90,40,235)">占用率 (1000 TPS)</text>
+
+        <!-- 50% threshold at y=70 (would be off chart, replace with annotation) -->
+        <text class="axis-label" x="755" y="76" text-anchor="end" style="fill:var(--text3)">↑ 100% 顶部</text>
+
+        <!-- bars: scale 1% = 30px, max 10% = 300px (y=70→400) -->
+        <!-- combo 1: 1.7% → height 51 -->
+        <rect class="bar" x="115" y="349" width="90" height="51" rx="2"/>
+        <text class="bar-label" x="160" y="342" text-anchor="middle">1.70%</text>
+        <text class="axis-label" x="160" y="418" text-anchor="middle">Llama-3.1-8B</text>
+        <text class="axis-label" x="160" y="432" text-anchor="middle">0.25B draft</text>
+
+        <!-- combo 2: 2.45% → 73.5 -->
+        <rect class="bar" x="240" y="326.5" width="90" height="73.5" rx="2"/>
+        <text class="bar-label" x="285" y="319" text-anchor="middle">2.45%</text>
+        <text class="axis-label" x="285" y="418" text-anchor="middle">Vicuna-7B</text>
+        <text class="axis-label" x="285" y="432" text-anchor="middle">0.36B draft</text>
+
+        <!-- combo 3: 2.80% → 84 -->
+        <rect class="bar" x="365" y="316" width="90" height="84" rx="2"/>
+        <text class="bar-label" x="410" y="308" text-anchor="middle">2.80%</text>
+        <text class="axis-label" x="410" y="418" text-anchor="middle">Llama-2-13B</text>
+        <text class="axis-label" x="410" y="432" text-anchor="middle">0.41B draft</text>
+
+        <!-- combo 4: 7.16% → 214.8 -->
+        <rect class="bar warn" x="490" y="185.2" width="90" height="214.8" rx="2"/>
+        <text class="bar-label" x="535" y="178" text-anchor="middle">7.16%</text>
+        <text class="axis-label" x="535" y="418" text-anchor="middle">Qwen2-72B</text>
+        <text class="axis-label" x="535" y="432" text-anchor="middle">1.05B draft</text>
+
+        <!-- combo 5: 2.66% → 79.8 -->
+        <rect class="bar" x="615" y="320.2" width="90" height="79.8" rx="2"/>
+        <text class="bar-label" x="660" y="313" text-anchor="middle">2.66%</text>
+        <text class="axis-label" x="660" y="418" text-anchor="middle">Mixtral-8x7B</text>
+        <text class="axis-label" x="660" y="432" text-anchor="middle">0.39B draft</text>
+
+        <!-- annotation: 1.7% callout -->
+        <line x1="160" y1="349" x2="160" y2="60" stroke="var(--text3)" stroke-dasharray="2 2" stroke-width="1"/>
+        <text class="axis-label" x="160" y="56" text-anchor="middle" style="fill:var(--accent-dark);font-weight:600">标题档 (1.7%)</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="callout bad">
+    <b>关键洞察:</b> H2 假设「8-12 张 NPU 做投机解码」严重<b>过配置</b>. 5 个组合中有 4 个 &lt; 3%, 最高的 Qwen2-72B 也只到 7.16%. 真实需求 <b>1-2 张 310P</b> 即可服务 1000 TPS, 余下 6 张可释放给 target LLM 推理. 推论: 投机解码的 NPU 子集群规模应独立计算, 不应套用主推理集群比例.
+  </div>
+  <p class="src">原始数据: <a href="previews/poc1-eagle-utilization.json">previews/poc1-eagle-utilization.json</a> · JSON 字段: eagle_combos[].utilization_at_1000tps · hardware_specs</p>
+</section>
+
+<!-- ============ PoC-2 ============ -->
+<section class="poc" id="poc2">
+  <h2><span class="num">2</span>PoC-2 · RDMA vs NVMe KV transfer latency</h2>
+  <p class="lede">7 个存储 tier 在传输 40 GB KV cache 时的延迟对比. <b>RDMA-GPU (1.5μs)</b> 比 <b>本地 NVMe SSD (80μs)</b> 快 <b>53×</b>, 比 TCP/IP 快 <b>33×</b>.</p>
+
+  <div class="row">
+    <!-- table -->
+    <div>
+      <h3>7 个 tier 延迟 + 40 GB 传输耗时</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>存储 Tier</th>
+            <th class="num">延迟 (μs)</th>
+            <th class="num">带宽 (GB/s)</th>
+            <th class="num">40 GB 耗时 (ms)</th>
+            <th>典型用途</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>GPU HBM (本地)</td><td class="num">0.5</td><td class="num">5,000</td><td class="num">64.0</td><td>主推理</td></tr>
+          <tr><td>CPU DRAM (本地)</td><td class="num">1.0</td><td class="num">400</td><td class="num">800.0</td><td>prefix cache L1</td></tr>
+          <tr><td>RDMA 跨节点 GPU-GPU</td><td class="num">1.5</td><td class="num">200</td><td class="num">1,600.0</td><td>Mooncake Transfer Engine</td></tr>
+          <tr><td>RDMA-attached 远端 NVMe</td><td class="num">5.0</td><td class="num">100</td><td class="num">3,200.0</td><td>GPUDirect Storage</td></tr>
+          <tr><td>TCP/IP 跨节点 (无 RDMA)</td><td class="num">50.0</td><td class="num">10</td><td class="num">32,000.0</td><td><span class="pill bad">反模式</span></td></tr>
+          <tr><td>本地 NVMe SSD</td><td class="num">80.0</td><td class="num">14</td><td class="num">22,857.2</td><td>传统 KV tier 2</td></tr>
+          <tr><td>远端对象存储 (S3)</td><td class="num">10,000.0</td><td class="num">1</td><td class="num">320,010.0</td><td>冷数据</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:12px;color:var(--text3);margin:6px 0 0">注: 任务描述提到 6 tier, 实际 JSON 含 7 tier. 全部列出以保证数据完整.</p>
+    </div>
+
+    <!-- chart: dual bar+line for 40GB transfer time -->
+    <div>
+      <h3>延迟 vs 40 GB 传输耗时 (log scale)</h3>
+      <svg class="chart" viewBox="0 0 800 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="RDMA vs NVMe 延迟与 40GB 传输时间">
+        <text class="title" x="400" y="22" text-anchor="middle">7 个 Tier · 延迟 (μs) 与 40 GB 传输耗时 (ms)</text>
+        <text class="legend" x="400" y="40" text-anchor="middle">蓝柱 = 延迟 (μs) · 红虚线 = 40 GB 传输耗时 (ms, log) · 数据点 = 实际值</text>
+
+        <!-- left y-axis: 延迟 (linear, 0..100) -->
+        <line class="axis" x1="100" y1="70" x2="100" y2="400"/>
+        <text class="axis-label" x="92" y="68" text-anchor="end">100μs</text>
+        <text class="axis-label" x="92" y="158" text-anchor="end">75</text>
+        <text class="axis-label" x="92" y="238" text-anchor="end">50</text>
+        <text class="axis-label" x="92" y="318" text-anchor="end">25</text>
+        <text class="axis-label" x="92" y="404" text-anchor="end">0</text>
+        <text class="axis-label" x="40" y="235" text-anchor="middle" transform="rotate(-90,40,235)">延迟 (μs)</text>
+
+        <!-- right y-axis: 40GB ms (log, 60..320000) -->
+        <line class="axis" x1="760" y1="70" x2="760" y2="400"/>
+        <text class="axis-label" x="770" y="74" text-anchor="start">320,000ms</text>
+        <text class="axis-label" x="770" y="170" text-anchor="start">32,000</text>
+        <text class="axis-label" x="770" y="265" text-anchor="start">3,200</text>
+        <text class="axis-label" x="770" y="335" text-anchor="start">800</text>
+        <text class="axis-label" x="770" y="404" text-anchor="start">64</text>
+        <text class="axis-label" x="790" y="235" text-anchor="middle" transform="rotate(90,790,235)">40 GB 耗时 (ms, log)</text>
+
+        <!-- bottom axis -->
+        <line class="axis" x1="100" y1="400" x2="760" y2="400"/>
+
+        <!-- 7 groups, x positions: 150, 240, 330, 420, 510, 600, 690 -->
+        <!-- bar height in px from y=400 (0μs) to y=70 (100μs): height = latency * 3.3 -->
+        <!-- group 1: HBM 0.5μs → 1.65px (too small) -->
+        <rect class="bar" x="135" y="398.35" width="30" height="1.65" rx="1"/>
+        <text class="bar-label" x="150" y="392" text-anchor="middle">0.5</text>
+        <!-- group 2: DRAM 1.0μs -->
+        <rect class="bar" x="225" y="396.7" width="30" height="3.3" rx="1"/>
+        <text class="bar-label" x="240" y="390" text-anchor="middle">1.0</text>
+        <!-- group 3: RDMA-GPU 1.5μs -->
+        <rect class="bar" x="315" y="395.05" width="30" height="4.95" rx="1"/>
+        <text class="bar-label" x="330" y="389" text-anchor="middle">1.5</text>
+        <!-- group 4: RDMA-NVMe 5μs -->
+        <rect class="bar" x="405" y="383.5" width="30" height="16.5" rx="1"/>
+        <text class="bar-label" x="420" y="377" text-anchor="middle">5</text>
+        <!-- group 5: TCP 50μs -->
+        <rect class="bar warn" x="495" y="235" width="30" height="165" rx="2"/>
+        <text class="bar-label" x="510" y="228" text-anchor="middle">50</text>
+        <!-- group 6: NVMe 80μs -->
+        <rect class="bar bad" x="585" y="136" width="30" height="264" rx="2"/>
+        <text class="bar-label" x="600" y="129" text-anchor="middle">80</text>
+        <!-- group 7: S3 10000μs - off chart, draw truncated -->
+        <rect class="bar bad" x="675" y="70" width="30" height="330" rx="2"/>
+        <text class="bar-label" x="690" y="63" text-anchor="middle" style="fill:var(--bad);font-weight:600">10,000</text>
+
+        <!-- x labels -->
+        <text class="axis-label" x="150" y="418" text-anchor="middle">HBM</text>
+        <text class="axis-label" x="240" y="418" text-anchor="middle">DRAM</text>
+        <text class="axis-label" x="330" y="418" text-anchor="middle">RDMA-GPU</text>
+        <text class="axis-label" x="420" y="418" text-anchor="middle">RDMA-NVMe</text>
+        <text class="axis-label" x="510" y="418" text-anchor="middle">TCP/IP</text>
+        <text class="axis-label" x="600" y="418" text-anchor="middle">NVMe</text>
+        <text class="axis-label" x="690" y="418" text-anchor="middle">S3</text>
+
+        <!-- 40GB transfer time as line+points on log right axis -->
+        <!-- mapping: 64→y=400, 800→y=335, 3200→y=265, 32000→y=170, 320000→y=70 -->
+        <!-- group1: 64 → 400 -->
+        <circle class="point" cx="165" cy="400" r="4"/>
+        <text class="bar-label" x="172" y="430" text-anchor="start" style="fill:var(--bad)">64ms</text>
+        <!-- group2: 800 → 335 -->
+        <circle class="point" cx="255" cy="335" r="4"/>
+        <text class="bar-label" x="262" y="330" text-anchor="start" style="fill:var(--bad)">800</text>
+        <!-- group3: 1600 → between 335 and 265, log: log10(1600)=3.20, between 800(2.9) and 3200(3.5): (3.20-2.9)/(3.5-2.9) = 0.5, y=335-70*0.5=300 -->
+        <circle class="point" cx="345" cy="300" r="4"/>
+        <text class="bar-label" x="352" y="295" text-anchor="start" style="fill:var(--bad)">1600</text>
+        <!-- group4: 3200 → 265 -->
+        <circle class="point" cx="435" cy="265" r="4"/>
+        <text class="bar-label" x="442" y="260" text-anchor="start" style="fill:var(--bad)">3200</text>
+        <!-- group5: 32000 → 170 -->
+        <circle class="point" cx="525" cy="170" r="4"/>
+        <text class="bar-label" x="532" y="165" text-anchor="start" style="fill:var(--bad)">32000</text>
+        <!-- group6: 22857 → log10=4.36, between 32000(4.5,y170) and 320000(5.5,y70): (4.36-4.5)/(5.5-4.5)=-0.14 → y=170+0.14*100=184 -->
+        <circle class="point" cx="615" cy="184" r="4"/>
+        <text class="bar-label" x="622" y="188" text-anchor="start" style="fill:var(--bad)">22857</text>
+        <!-- group7: 320010 → 70 -->
+        <circle class="point" cx="705" cy="70" r="4"/>
+        <text class="bar-label" x="712" y="74" text-anchor="start" style="fill:var(--bad)">320k</text>
+
+        <polyline class="line alt" points="165,400 255,335 345,300 435,265 525,170 615,184 705,70"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <b>关键洞察:</b> H5 假设「网络打本地 SSD」是 <b>反模式</b> — 本地 NVMe 单跳延迟 (80μs) 比 RDMA-远端-NVMe (5μs) 还慢 <b>16×</b>. 业界主流路径是 <b>远端 RDMA-SSD → GPU VRAM</b> (Mooncake / GPUDirect Storage), 不再把 KV 锁在本地盘. 推论: KV 集群的存储拓扑应以 <b>RDMA fabric 为中心</b> 重新设计, 本地 NVMe 仅作 L0 写入缓冲.
+  </div>
+  <p class="src">原始数据: <a href="previews/poc2-rdma-latency.json">previews/poc2-rdma-latency.json</a> · JSON 字段: tier_data{}.latency_us · kv_transfer_40gb{}.total_ms</p>
+</section>
+
+<!-- ============ PoC-3 ============ -->
+<section class="poc" id="poc3">
+  <h2><span class="num">3</span>PoC-3 · KV cache 数学不可叠加 + 容量爆炸</h2>
+  <p class="lede">三层证据否定「KV tensor 线性求和」方案: <b>RoPE 位置编码</b> + <b>softmax 非线性</b> + <b>多 head 不一致</b>. 同时给出 5 个模型在 128k 上下文下的单实例 KV 容量.</p>
+
+  <div class="row">
+    <!-- math + table -->
+    <div>
+      <h3>数学证明 · 3 个不可叠加的根因</h3>
+      <div class="math">
+        <span class="lbl">尝试:</span> <span class="eq">K<sub>merged</sub>[i] = K<sub>B1</sub>[i] + K<sub>B2</sub>[i]  (假设 B1, B2 共享 prefix)</span>
+
+        <span class="lbl">问题 1 · RoPE 位置编码:</span>
+        <span class="eq">K<sub>i</sub> = RoPE(x<sub>i</sub>, pos<sub>i</sub>)  ⇒  K<sub>B1</sub>[i] 和 K<sub>B2</sub>[i] 来自不同 <span class="hl">绝对/相对位置</span></span>
+        <span class="eq" style="padding-left:24px">→ K<sub>B1</sub>[i] + K<sub>B2</sub>[i] 在物理上 <span class="hl">无意义</span></span>
+
+        <span class="lbl">问题 2 · Attention 非线性:</span>
+        <span class="eq">Attn(Q, K) = softmax(QK<sup>T</sup> / √d) · V</span>
+        <span class="eq" style="padding-left:24px">softmax(·) 不可线性分解, 因此 sum-of-K 不等于 sum-of-attn</span>
+
+        <span class="lbl">问题 3 · Multi-head 不一致:</span>
+        <span class="eq">不同 head 在不同 batch 上学到不同 attention pattern</span>
+        <span class="eq" style="padding-left:24px">→ 跨 batch 求 K 缺乏一致坐标系</span>
+
+        <span class="lbl" style="display:block;margin-top:8px;color:var(--accent-dark);font-weight:600">结论:</span>
+        <span class="eq" style="color:var(--text)">业界走 <b>prefix matching + CacheBlend (15% 重导)</b>, 不做 tensor 求和.</span>
+      </div>
+
+      <h3 style="margin-top:22px">单实例 KV 容量 (GB) · 5 个模型</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>模型</th>
+            <th class="num">1k ctx</th>
+            <th class="num">8k ctx</th>
+            <th class="num">32k ctx</th>
+            <th class="num">128k ctx</th>
+            <th class="num">1M ctx</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Llama-3-8B</td><td class="num">0.13</td><td class="num">1.07</td><td class="num">4.29</td><td class="num">17.18</td><td class="num">137.44</td></tr>
+          <tr><td>Llama-3-70B</td><td class="num">0.34</td><td class="num">2.68</td><td class="num">10.74</td><td class="num"><b>42.95</b></td><td class="num">343.60</td></tr>
+          <tr><td>Qwen2-72B</td><td class="num">0.34</td><td class="num">2.68</td><td class="num">10.74</td><td class="num"><b>42.95</b></td><td class="num">343.60</td></tr>
+          <tr><td>Llama-3-405B</td><td class="num">0.53</td><td class="num">4.23</td><td class="num">16.91</td><td class="num"><b>67.65</b></td><td class="num">541.17</td></tr>
+          <tr><td>DeepSeek-V3 (MoE)</td><td class="num">4.09</td><td class="num">32.75</td><td class="num">131.00</td><td class="num"><b style="color:var(--bad)">523.99</b></td><td class="num">4,191.89</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:12px;color:var(--text3);margin:6px 0 0">粗体为任务指定的关键值 (128k ctx 单实例). 128 节点集群 HBM 80 TB, NVMe 12.8 PB.</p>
+    </div>
+
+    <!-- chart: KV capacity bar chart at 128k context -->
+    <div>
+      <h3>128k 上下文 · 单实例 KV 容量爆炸</h3>
+      <svg class="chart" viewBox="0 0 800 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="KV 容量爆炸柱状图">
+        <text class="title" x="400" y="22" text-anchor="middle">5 个模型 · 128k 上下文单实例 KV cache (GB)</text>
+        <text class="legend" x="400" y="40" text-anchor="middle">红虚线 = 80 GB (H100 单卡 HBM) · 蓝条 = 实际占用</text>
+
+        <!-- y axis 0..600 GB, scale: 1 GB = 0.5px, 600 GB = 300px (y=400→100) -->
+        <line class="axis" x1="80" y1="70" x2="80" y2="400"/>
+        <line class="axis" x1="80" y1="400" x2="760" y2="400"/>
+        <line class="grid" x1="80" y1="350" x2="760" y2="350"/>
+        <line class="grid" x1="80" y1="300" x2="760" y2="300"/>
+        <line class="grid" x1="80" y1="250" x2="760" y2="250"/>
+        <line class="grid" x1="80" y1="200" x2="760" y2="200"/>
+        <line class="grid" x1="80" y1="150" x2="760" y2="150"/>
+        <line class="grid" x1="80" y1="100" x2="760" y2="100"/>
+        <text class="axis-label" x="70" y="404" text-anchor="end">0</text>
+        <text class="axis-label" x="70" y="354" text-anchor="end">100</text>
+        <text class="axis-label" x="70" y="304" text-anchor="end">200</text>
+        <text class="axis-label" x="70" y="254" text-anchor="end">300</text>
+        <text class="axis-label" x="70" y="204" text-anchor="end">400</text>
+        <text class="axis-label" x="70" y="154" text-anchor="end">500</text>
+        <text class="axis-label" x="70" y="104" text-anchor="end">600 GB</text>
+        <text class="axis-label" x="40" y="235" text-anchor="middle" transform="rotate(-90,40,235)">KV cache (GB)</text>
+
+        <!-- 80 GB HBM threshold: 80 * 0.5 = 40px above 400 = y=360 -->
+        <line class="threshold" x1="80" y1="360" x2="760" y2="360"/>
+        <text class="axis-label" x="755" y="356" text-anchor="end" style="fill:var(--bad);font-weight:600">← 80 GB H100 HBM 上限</text>
+
+        <!-- bars: width 90, x positions: 130, 250, 370, 490, 610 -->
+        <!-- Llama-3-8B: 17.18 GB → 8.59px (tiny) -->
+        <rect class="bar" x="130" y="391.41" width="90" height="8.59" rx="2"/>
+        <text class="bar-label" x="175" y="385" text-anchor="middle">17.18</text>
+        <text class="axis-label" x="175" y="418" text-anchor="middle">Llama-3-8B</text>
+
+        <!-- Llama-3-70B: 42.95 GB → 21.5px -->
+        <rect class="bar" x="250" y="378.5" width="90" height="21.5" rx="2"/>
+        <text class="bar-label" x="295" y="372" text-anchor="middle"><b>42.95</b></text>
+        <text class="axis-label" x="295" y="418" text-anchor="middle">Llama-3-70B</text>
+
+        <!-- Qwen2-72B: 42.95 GB -->
+        <rect class="bar alt" x="370" y="378.5" width="90" height="21.5" rx="2"/>
+        <text class="bar-label" x="415" y="372" text-anchor="middle"><b>42.95</b></text>
+        <text class="axis-label" x="415" y="418" text-anchor="middle">Qwen2-72B</text>
+
+        <!-- Llama-3-405B: 67.65 GB → 33.8px -->
+        <rect class="bar warn" x="490" y="366.2" width="90" height="33.8" rx="2"/>
+        <text class="bar-label" x="535" y="360" text-anchor="middle"><b>67.65</b></text>
+        <text class="axis-label" x="535" y="418" text-anchor="middle">Llama-3-405B</text>
+
+        <!-- DeepSeek-V3: 523.99 GB → 261.99px (off chart top) -->
+        <rect class="bar bad" x="610" y="100" width="90" height="300" rx="2"/>
+        <!-- arrow showing it goes way beyond -->
+        <line x1="655" y1="100" x2="655" y2="80" stroke="var(--bad)" stroke-width="1.5"/>
+        <polygon points="650,82 660,82 655,72" fill="var(--bad)"/>
+        <text class="bar-label" x="655" y="62" text-anchor="middle" style="fill:var(--bad);font-weight:700">523.99</text>
+        <text class="axis-label" x="655" y="418" text-anchor="middle">DeepSeek-V3</text>
+
+        <!-- annotation for 43GB callout -->
+        <line x1="295" y1="378" x2="295" y2="56" stroke="var(--text3)" stroke-dasharray="2 2" stroke-width="1"/>
+        <text class="axis-label" x="295" y="52" text-anchor="middle" style="fill:var(--accent-dark);font-weight:600">任务指定: 43 GB</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="callout bad">
+    <b>关键洞察:</b> H4 假设「KV 跨请求叠加」数学上 <b>不可行</b> — RoPE 让 K 携带位置信息, softmax 阻断线性分解, 多 head 模式不一致. 即使绕开数学, <b>单实例 128k 容量</b> 也很恐怖: Llama-3-70B = <b>43 GB</b> (≈ 半个 H100 80GB HBM), 405B = <b>68 GB</b> (单卡 HBM 装不下), DeepSeek-V3 = <b>524 GB</b> (要 7 张 H100 才装得下). 推论: KV 集群必须走 <b>prefix matching + 压缩 (KVQuant) + 分层存储 (HBM→DRAM→RDMA-NVMe→S3)</b> 路线, 而不是叠 K 张量.
+  </div>
+  <p class="src">原始数据: <a href="previews/poc3-kv-math.json">previews/poc3-kv-math.json</a> · JSON 字段: math_analysis{problem_*}, kv_size_per_model_gb{}.131072, cluster_capacity_128_nodes</p>
+</section>
+
+<footer class="page">
+  hacms 蓝白学术主题 · viewBox 800×460 · 中文 · 数据快照于 2026-07-03 · 与 KV 集群 idea review 假设评级互证
+</footer>
+
+</div>
+</body>
+</html>

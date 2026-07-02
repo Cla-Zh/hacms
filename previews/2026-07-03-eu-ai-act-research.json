@@ -1,0 +1,559 @@
+{
+  "report_title": "EU AI Act (2026-08 生效) 对 AI 存储的合规要求 + D6 数据血缘方案合规优势",
+  "research_date": "2026-07-03",
+  "important_caveat": "EU AI Act 高风险条款原定 2026-08-02 生效；2026-05-07 Digital Omnibus 政治协议 + 2026-06-16 议会批准 (423-57-174) 将 Annex III 高风险义务延迟到 2026-12-02 (Council 尚未正式通过, 截至 2026-07-03). GPAI + 罚则仍按 2026-08-02 启动. 因此严格来说, 合规日期存在 16 个月滑动窗口, 但 2026-08-02 仍是企业应准备的硬截止日 (最坏情况假设).",
+  "key_data_points": {
+    "regulation": "Regulation (EU) 2024/1689",
+    "official_oj_publication": "2024-07-12 (OJEU), 2024-08-01 entered into force",
+    "high_risk_effective_date_original": "2026-08-02",
+    "high_risk_effective_date_omnibus": "2026-12-02 (provisional, pending Council adoption)",
+    "g_p_a_i_effective_date": "2026-08-02 (GPAI 执法权激活, 罚款机制生效)",
+    "embedded_product_ai_date": "2027-08-02 (Annex I 受监管产品中的 AI)",
+    "max_fine_high_risk": "EUR 15M or 3% global turnover (Art. 99)",
+    "max_fine_prohibited": "EUR 35M or 7% global turnover (Art. 99)",
+    "min_log_retention": ">= 6 months (Art. 12 + Art. 19 + Art. 26(6))",
+    "tech_doc_retention": "10 years from market placement (Art. 18)"
+  },
+
+  "1_eu_ai_act_storage_related_articles": {
+    "summary": "EU AI Act 在 5 个核心条款明确要求数据/日志/记录的'保留 + 完整性 + 可追溯', 适用于高风险 AI 系统的存储层.",
+    "articles": [
+      {
+        "article": "Art. 10",
+        "subject": "Data and data governance",
+        "storage_requirement": "训练/验证/测试数据集的代表性、统计属性、偏差检测; 数据血缘 + 数据质量 + 数据来源必须记录",
+        "url": "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-10"
+      },
+      {
+        "article": "Art. 11 + Annex IV",
+        "subject": "Technical documentation",
+        "storage_requirement": "上市前必须准备 Annex IV 9 节文档; 必须随生命周期更新; 必须可被国家主管机关 (NCA) 调取",
+        "url": "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-11"
+      },
+      {
+        "article": "Art. 12",
+        "subject": "Record-keeping (automatic logging)",
+        "storage_requirement": "高风险 AI 系统必须'Technically allow for the automatic recording of events (logs) over the lifetime of the system'; 用于 (a) 识别风险 (Art. 79), (b) post-market monitoring, (c) deployer 监督. Annex III point 1(a) 远程生物识别系统强制字段: 每次使用起止时间、参考数据库、命中输入数据、Art. 14(5) 验证自然人身份",
+        "url": "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-12"
+      },
+      {
+        "article": "Art. 18",
+        "subject": "Documentation keeping (10 年)",
+        "storage_requirement": "技术文档 + 质量管理体系文档 + Notified Body 决定 + EU 符合性声明: 上市后保留 10 年; 'at the disposal of NCAs' (可主动调取, 不能冷藏); 公司破产义务不灭失",
+        "url": "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-18"
+      },
+      {
+        "article": "Art. 19",
+        "subject": "Automatically generated logs (provider)",
+        "storage_requirement": "Provider 必须保留 Art. 12 产生的自动日志 'for a period appropriate to the intended purpose, of at least 6 months', 除非欧盟/成员国法律另有规定 (尤其 GDPR); 金融机构日志须并入金融服务法文档",
+        "url": "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-19"
+      },
+      {
+        "article": "Art. 26(5)(6)",
+        "subject": "Deployer obligations (operational monitoring + log retention)",
+        "storage_requirement": "Deployer 监测运行, 出现严重事件暂停使用并通知 NCA + provider; 至少 6 个月保留日志; 公共机构/行使公权力单位 1 年",
+        "url": "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-26"
+      },
+      {
+        "article": "Art. 72",
+        "subject": "Post-market monitoring",
+        "storage_requirement": "Provider 实施 post-market monitoring system, 主动+系统化收集/记录/分析性能数据; 反馈进 Art. 9 风险管理",
+        "url": "https://artificialintelligenceact.eu/implementation-timeline"
+      },
+      {
+        "article": "Art. 73",
+        "subject": "Serious incident reporting",
+        "storage_requirement": "15 天内上报严重事件, 需要 incident logs + 决策轨迹",
+        "url": "https://artificialintelligenceact.eu/article/73/"
+      },
+      {
+        "article": "Art. 99",
+        "subject": "Penalties",
+        "storage_requirement": "高风险不合规: EUR 15M 或 3% 全球营业额; 禁令违反: EUR 35M 或 7%; 错误信息: EUR 7.5M 或 1%",
+        "url": "https://artificialintelligenceact.eu/article/99/"
+      }
+    ]
+  },
+
+  "2_logging_technical_requirements": {
+    "minimum_retention": ">= 6 个月 (Art. 12/19/26(6)); 1 年 for public authority deployers (Art. 26(6))",
+    "longer_stacking_obligations": [
+      "MiFID II 交易记录: 5 年 (Art. 19(2) 显式规定并入金融机构内部治理文档)",
+      "MDR (医疗设备) 技术文档: 至少 10 年",
+      "IVDR (体外诊断): 至少 15 年 (覆盖 AI Act 10 年)",
+      "GDPR Art. 30 ROPA: 处理活动持续期间",
+      "PLD (产品责任指令): 10 年"
+    ],
+    "granularity_required_for_remote_biometric_identification_art_12_3": [
+      "a) 每次使用的起止日期/时间",
+      "b) 输入数据所比对的参考数据库",
+      "c) 触发匹配的输入数据",
+      "d) 参与结果验证的自然人身份 (Art. 14(5))"
+    ],
+    "granularity_required_for_financial_credit_ai": {
+      "per_decision_audit_record_fields": [
+        "输入时间戳",
+        "输出时间戳",
+        "决策涉及自然人身份",
+        "参考数据/数据库",
+        "生效的策略版本",
+        "输出结果"
+      ],
+      "source_url": "https://www.deepinspect.ai/blog/eu-ai-act-article-19-logging"
+    },
+    "integrity_requirement": "Art. 12 + Art. 19 未明确指定技术, 但 Art. 18 'at the disposal of NCAs' + Art. 74 NCA 调取权要求 logs 必须 tamper-evident (可验证未篡改). ISMS.online, sota.io, AIAuditRef, DeepInspect 第三方一致建议: append-only + 加密签名 + 不可改写存储",
+    "jurisdiction_requirement": "Art. 74 NCA 调取 logs 期望'司法管辖可达' (jurisdictionally accessible). 部署在美国 CLOUD Act 管辖下的 logs 可能被美国 DOJ 强制披露 -> GDPR 数据最小化冲突. 多个咨询机构 (sota.io 等) 建议 logs 部署在 EU 主权云",
+    "source_urls": [
+      "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-12",
+      "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-18",
+      "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-19",
+      "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-26",
+      "https://www.deepinspect.ai/blog/eu-ai-act-article-19-logging",
+      "https://sota.io/blog/eu-ai-act-art-18-documentation-keeping-obligations-2026",
+      "https://sota.io/blog/eu-ai-act-art12-art19-record-keeping-log-storage-cloud-act-exposure-developer-guide-2026"
+    ]
+  },
+
+  "3_industry_compliance_vendors": {
+    "positioning": "EU AI Act 催生 AI Governance Platform 品类 (Gartner 定义). 主流玩家 = Data Governance/Catalog 平台 + AI/Model 治理模块 + Privacy/GRC. 所有主流玩家都是美国 C-Corp -> CLOUD Act 风险.",
+    "vendors": [
+      {
+        "name": "OneTrust",
+        "ai_module": "OneTrust AI Governance",
+        "headquarters": "Atlanta, US (C-Corp, Series C)",
+        "strengths": [
+          "广覆盖 governance 平台 (privacy + GRC + AI + ethics + ESG)",
+          "成熟 EU AI Act 模板 + NIST RMF + ISO 42001",
+          "Fortune 500 客户群, 含金融/医疗/SaaS/零售"
+        ],
+        "weaknesses": [
+          "企业级定价, 续约涨 10-80% 报告 (Enzuzo)",
+          "UX 陡峭, 客户支持 post-contract 反馈差",
+          "CLOUD Act 风险高"
+        ],
+        "url": "https://www.onetrust.com"
+      },
+      {
+        "name": "Collibra",
+        "ai_module": "Collibra AI Governance",
+        "headquarters": "Brussels, Belgium -> US C-Corp; NYSE: CLBR",
+        "strengths": [
+          "端到端 lineage from source data -> model training -> inference -> deployment",
+          "支持 EU AI Act 模板 + NIST AI RMF + EU AI Act 风险评估",
+          "整合 AWS / Azure / Google / Databricks / SAP / MLflow",
+          "金融/医疗 regulated 行业强"
+        ],
+        "weaknesses": [
+          "CLOUD Act 风险 (Delaware C-Corp, 数据治理元数据是 CLOUD Act 暴露'地图')"
+        ],
+        "url": "https://www.collibra.com/products/ai-governance"
+      },
+      {
+        "name": "BigID",
+        "ai_module": "BigID Next (AI Data Catalog + AI SPM)",
+        "headquarters": "New York, US (C-Corp)",
+        "strengths": [
+          "Forrester 数据发现 DSPM 排名 #1",
+          "AI-native 控制 (AI SPM, Shadow AI, Vendor AI Assessment) 2025-11 上线",
+          "端到端数据生命周期管理 (含 AI-safe cleansing)"
+        ],
+        "weaknesses": [
+          "扫描慢, 误报率高, 需人工 review (Enzuzo)",
+          "UX 复杂, 部署需大量数据工程资源",
+          "CLOUD Act 风险高"
+        ],
+        "url": "https://bigid.com/catalog"
+      },
+      {
+        "name": "Immuta",
+        "ai_module": "Immuta Data Security Platform",
+        "headquarters": "Boston, US; McLean VA",
+        "strengths": [
+          "动态 policy 强制 + 细粒度访问控制",
+          "联邦/医疗/政府场景成熟"
+        ],
+        "weaknesses": [
+          "聚焦访问控制层, 不是端到端 AI governance",
+          "CLOUD Act 风险"
+        ],
+        "url": "https://www.immuta.com"
+      },
+      {
+        "name": "Alation",
+        "ai_module": "Alation Data Catalog + Alation AI Agent SDK (含 lineage tool)",
+        "headquarters": "Redwood City, US (C-Corp)",
+        "strengths": [
+          "数据目录领头羊, 列级 lineage",
+          "Alation AI Agent SDK 提供 lineage/aggregated context/data quality tools 给 agent",
+          "支持 Snowflake / Databricks / BigQuery"
+        ],
+        "weaknesses": [
+          "部分 ML 功能仅在云端可用 (on-prem 部署受限)",
+          "CLOUD Act 风险中等 (有 on-prem 路径, 可降低 CLOUD 风险)"
+        ],
+        "url": "https://github.com/Alation/alation-ai-agent-sdk/blob/main/guides/tools/lineage.md"
+      },
+      {
+        "name": "Atlan",
+        "ai_module": "Atlan Active Metadata Platform (Context Engineering Studio)",
+        "headquarters": "Singapore HQ; Delaware C-Corp; 印度工程 hub (Gurgaon)",
+        "strengths": [
+          "EU AI Act 营销: 自动化生成 Art. 12 决策轨迹, 列级 lineage, 访问控制记录",
+          "Context Layer = Agent-ready 上下文, 直接接 LLM",
+          "客户: Mastercard, Workday, General Motors, CME Group, HubSpot, FOX, Virgin Media O2, Elastic, $10T+ 市值"
+        ],
+        "weaknesses": [
+          "纯云 SaaS, 无 on-prem 路径 (sota.io CLOUD Act 评分 21/25)",
+          "Insider 风险高, 因为 metadata 是'数据地图'"
+        ],
+        "url": "https://atlan.com/know/eu-ai-act-compliance"
+      }
+    ],
+    "critical_industry_insight": "CLOUD Act exposure 反讽: 用于'记录合规元数据'的工具本身就是合规风险. 工具积累的元数据 = 数据资产地图, 强制披露给美国 DOJ 等于泄露整个 GDPR 治理架构. sota.io CLOUD Act 评分: Collibra/Alation/Atlan/BigID 全部 >=18/25.",
+    "source_urls": [
+      "https://sota.io/blog/eu-data-governance-tools-comparison-finale-gdpr-cloud-act-2026",
+      "https://sota.io/blog/atlan-eu-alternative-gdpr-cloud-act-active-metadata-2026",
+      "https://aicompliancevendors.com/compare/collibra-ai-governance-vs-onetrust-ai-governance",
+      "https://www.enzuzo.com/alternatives/onetrust-vs-bigid",
+      "https://www.gartner.com/reviews/market/ai-governance-platforms",
+      "https://www.collibra.com/resources/collibra-ai-governance-staying-compliant-with-the-eu-ai-act"
+    ]
+  },
+
+  "4_d6_in_band_vs_openlineage_out_of_band": {
+    "in_band_data_lineage_definition": "Lineage metadata 在数据本身的写入路径中产生并存储 — 每次数据写操作时, 血缘信息作为数据 cell / object 的不可分一部分被记录 (类似 content-addressable storage: hash = lineage proof). 出问题'数据本身'就'自证'. 篡改 = 改动 hash, 验签立刻失败.",
+    "out_of_band_data_lineage_definition": "Lineage metadata 由独立的后台服务/管道 (Marquez, DataHub, OpenMetadata) 在 job 完成时通过 HTTP 异步发送; 与数据存储物理分离. OpenLineage 是行业标准.",
+    "key_openlineage_design_choices": {
+      "architecture": "OpenLineage spec + Marquez reference backend (CNCF/LF AI & Data)",
+      "event_types": [
+        "RunEvent (START, COMPLETE, FAIL, ABORT)",
+        "DatasetEvent (static lineage, OpenLineage 0.29.2+)",
+        "JobEvent (static lineage)"
+      ],
+      "transports": "HTTP (Marquez) + 文件 (air-gapped)",
+      "tamper_protection": "spec 不强制; Expanso 等实现可选 Ed25519 签名 (signed events)",
+      "out_of_band_risk": "Marquez 元数据独立于数据 -> 后台可'回忆' lineage -> 可被回填 / 篡改 / 后置生成 (forensic 上不可信)",
+      "source_url": "https://openlineage.io/"
+    },
+    "in_band_advantages_for_eu_ai_act_compliance": [
+      "Art. 12 自动日志要求 -> 写入时生成, 不依赖外部进程存活",
+      "Art. 18 'at the disposal of NCAs' -> 血缘随数据自证, 不需要单独调取元数据库",
+      "Art. 19 完整性要求 -> content hash 就是 lineage proof (Merkle / IPFS-style)",
+      "Art. 74 NCA 现场检查 -> 检查员读数据本身就拿到完整血缘, 不需要凭据访问元数据服务",
+      "GDPR 数据最小化冲突 -> 一次性生成, 不需要持久化中间 metadata 服务"
+    ],
+    "in_band_disadvantages": [
+      "存储开销增加 (每个 cell 携带 hash + metadata)",
+      "写入路径变慢 (~5-15% 开销 per 多个 IPFS/Content-Addressable Storage 基准)",
+      "改写 schema 困难 (append-only 友好, 改写不友好)"
+    ],
+    "verdict": "D6 in-band 血缘在 EU AI Act 框架下比 OpenLineage out-of-band 更可信: 监管者不需要相信厂商'独立元数据库'未被回填/篡改; 数据本身的 hash chain 是自证证据. 但开销大, 适合高价值/高风险 AI 工作流, 不适合低价值批量数据.",
+    "d6_specific_evidence_status": "WARN: 'D6' 单元格存储产品本身 (假设为 in-band cell-based lineage) 在公开 web 搜索中没有找到直接的 EU AI Act 合规案例或专门产品页面. 数据点来自通用 cell-based architecture + content-addressable storage + tamper-evident log 三个独立领域的交叉证据. 用户应补充 D6 产品的具体技术白皮书/独立测试数据.",
+    "openlineage_recent_features_closing_the_gap": [
+      "OpenLineage 0.29.2+ 支持 DatasetEvent + JobEvent (static lineage), 减少对运行时事件的依赖",
+      "Expanso Edge 等实现支持 Ed25519 signed events, 出站侧签名 (但仍是 out-of-band)",
+      "Marquez 后端 WORM 模式可降低篡改风险"
+    ],
+    "tamper_evident_tech_benchmark": [
+      "Merkle tree (Trillian) -> 批量审计高效, 修改立即可检测",
+      "Hash chain (prev_hash linking) -> 顺序简单, O(n) 验证",
+      "Ed25519 / ECDSA 签名 -> 防抵赖",
+      "External anchoring (区块链 / RFC 3161 TSA) -> 第三方时间戳, 防本地回滚"
+    ],
+    "source_urls": [
+      "https://openlineage.io/",
+      "https://openlineage.io/blog/static-lineage",
+      "https://github.com/OpenLineage/OpenLineage",
+      "https://docs.expanso.io/use-cases/data-lineage",
+      "https://inferensys.com/guides/digital-provenance-and-content-authenticity/how-to-design-a-tamper-evident-logging-system-for-ai-workflows",
+      "https://dev.to/veritaschain/building-tamper-evident-audit-trails-a-developers-guide-to-cryptographic-logging-for-ai-systems-4o64",
+      "https://suhasbhairav.com/blog/how-to-build-tamper-evident-audit-trails"
+    ]
+  },
+
+  "5_china_ai_regulations": {
+    "framework": "中国 AI 治理是'分层多部'模式, 与 EU 单一综合性法律不同. 核心三件套: 1) 算法推荐管理 (2022-03-01 生效), 2) 深度合成 (2023-01-10 生效), 3) 生成式 AI 服务管理暂行办法 (2023-08-15 生效). 法规位阶均为部门规章 (departmental rule), 不是 NPC 法律或国务院行政法规.",
+    "key_regulations": [
+      {
+        "name": "互联网信息服务算法推荐管理规定 (Algorithmic Recommendation Provisions)",
+        "issuance": "国家网信办 + 工信部 + 公安部 + 市场监管总局, 2021-12-31 公布, 2022-03-01 实施",
+        "filing_obligation": "具有舆论属性或社会动员能力的算法推荐服务提供者, 10 个工作日内通过 CAC 算法备案系统填报, 变更 10 日内, 终止 20 日内",
+        "log_requirement": "Art. 28: 依法留存网络日志, 配合安全评估和监督检查",
+        "url": "https://www.cac.gov.cn/2022-01/04/c_1642894606364259.htm"
+      },
+      {
+        "name": "互联网信息服务深度合成管理规定 (Deep Synthesis Provisions)",
+        "issuance": "网信办 + 工信部 + 公安部, 2022-11-25 公布, 2023-01-10 实施",
+        "filing_obligation": "Art. 19: 深度合成服务提供者按算法推荐规定 10 工作日内备案; 显著位置标明备案编号",
+        "log_requirement": "Art. 16 (per CN118631475A patent text quote): 深度合成服务提供者应'采取技术措施添加不影响用户使用的标识, 并依照法律、行政法规和国家有关规定保存日志信息'",
+        "data_quality": "Art. 12: 训练数据合法/正当, 涉及个人信息须遵守 PIPL",
+        "url": "https://www.chinalawtranslate.com/en/deep-synthesis/"
+      },
+      {
+        "name": "生成式人工智能服务管理暂行办法 (Generative AI Interim Measures)",
+        "issuance": "网信办 + 发改委 + 教育部 + 科技部 + 工信部 + 公安部 + 广电总局, 7 部委联合; 2023-07-13 公布, 2023-08-15 实施",
+        "scope": "向中华人民共和国境内公众提供生成文本/图片/音频/视频等服务; 排除企业内研/对内工具 (与 4 月草案相比最大变化)",
+        "training_data_obligation": "Art. 7: 合法来源 + 不侵权 + 取得个信同意 + 提高质量 (真实性/准确性/客观性/多样性)",
+        "filing_obligation": "Art. 17: 舆论属性/社会动员能力 -> 算法备案 + 安全评估 (按算法推荐管理 + 互联网信息服务安全评估规定)",
+        "log_retention": "aigovernance.com 引用: 'user inputs alongside AI-generated outputs for a minimum of 6 months' (6 个月用户输入+输出保留). 注意: 这是二级源, 暂行办法正文未明文规定 6 个月 (Art. 9-15 在服务规范章, 主要讲内容生产者责任/标识/投诉), 6 个月 表述可能来自配套深度合成 Art. 16 或 PIPL 实务.",
+        "labeling": "Art. 12 + 配套《人工智能生成合成内容标识办法》: 显式标识 AI 生成内容, 嵌入元数据 (数字水印/C2PA 类)",
+        "url": "https://www.gov.cn/zhengce/zhengceku/202307/content_6891752.htm"
+      }
+    ],
+    "eu_vs_china_comparison": {
+      "scope": "EU 单一 Regulation 2024/1689, 通用 AI + 高风险 + GPAI 一体管辖; 中国分层多部, 针对特定 AI 类型",
+      "filing_vs_declaration": "EU: 上市前 conformity assessment + 文档保留 10 年; 中国: 备案 (filing) + 安全评估, 备案是行政程序, 不是市场准入许可",
+      "log_retention": "EU 6 个月 (Art. 12/19/26(6)) 明文 + 长期堆叠 (MiFID II 5 年, MDR 10 年, IVDR 15 年); 中国 6 个月 (二级源解读, 暂行办法正文需进一步核证)",
+      "training_data": "EU Art. 10 数据治理 (relevant/representative/error-free + bias 检测); 中国 Art. 7 合法性 + 质量 (真实性/准确性/客观性/多样性), 强调 IP + 个信合规",
+      "high_risk_taxonomy": "EU Annex III 明确 8 类高风险场景; 中国无 'high-risk' 概念, 用'舆论属性/社会动员能力'触发备案",
+      "penalties": "EU 营业额比例 (3-7%) + 绝对金额 (EUR 15M-35M); 中国 1-10 万元罚款 (细则) + 责令改正/暂停, 威慑力远低于 EU",
+      "technical_documentation": "EU Annex IV 9 节详细; 中国 算法备案填报字段 + 自行安全评估, 颗粒度低",
+      "post_market_monitoring": "EU Art. 72 强制主动 + 系统化; 中国 安全评估 + 监督检查, 周期性, 频次低"
+    },
+    "source_urls": [
+      "https://www.gov.cn/zhengce/zhengceku/202307/content_6891752.htm",
+      "https://www.cac.gov.cn/2022-01/04/c_1642894606364259.htm",
+      "https://www.chinalawtranslate.com/en/deep-synthesis/",
+      "https://www.loc.gov/item/global-legal-monitor/2023-04-25/china-provisions-on-deep-synthesis-technology-enter-into-effect",
+      "https://aigovernance.com/entry/china-generative-ai-regulations-interim-measures",
+      "https://comparativeai.org/en/rules/china/generative-ai-interim-measures/",
+      "https://www.lexology.com/library/detail.aspx?g=3c7273cf-8f85-4702-af70-6edf394ff1c3",
+      "https://aigovernance.com/entry/china-algorithm-recommendation-regulations"
+    ]
+  },
+
+  "6_d6_target_industries": {
+    "criteria": "D6 (in-band 血缘) 价值最大 = 数据价值高 + 合规驱动强 + 审计要求严 + 部署预算足. 越偏 batch analytics 价值越低.",
+    "industries": [
+      {
+        "industry": "金融 (Financial Services / Banking / Insurance)",
+        "compliance_drivers": [
+          "EU AI Act Art. 19(2) 显式要求 AI 日志并入金融服务法文档",
+          "MiFID II 5 年记录保留 (Art. 16(7) + RTS 22)",
+          "EU DORA (Digital Operational Resilience Act, 2025-01-17 生效) ICT 事件 + 第三方风险报告",
+          "GDPR + Schrems II (美国云服务商 Schrems II 风险)",
+          "US SR 11-7 (Model Risk Management) + OCC 2011-12"
+        ],
+        "use_cases_for_d6": [
+          "信贷评分决策审计 (EU AI Act Annex III par. 5(b))",
+          "反洗钱 (AML) 模型推理轨迹",
+          "算法交易可重建性 (MAR Art. 17)",
+          "保险风险定价歧视检测"
+        ],
+        "tamper_evidence_value": "极高. 监管检查 + 法律举证需要'自证'血缘, 不能依赖厂商元数据库",
+        "d6_differentiator": "in-band 血缘允许银行在不暴露内部'模型黑盒'给第三方元数据服务商前提下, 满足监管; 同时不依赖单一存储位置 (满足 Schrems II)",
+        "url": "https://financialregulations.eu/blog/eu-ai-act-financial-services-guide"
+      },
+      {
+        "industry": "医疗 (Healthcare / Pharma / Medical Devices)",
+        "compliance_drivers": [
+          "EU AI Act Art. 6(1) + Annex I: AI 作为医疗器械 (SaMD) 安全组件 -> 高风险",
+          "MDR (Regulation 2017/745) 10 年技术文档 + IVDR 15 年",
+          "EU AI Act Art. 18 10 年 + IVDR 15 年 -> 选最大值 15 年",
+          "HIPAA (US) + GDPR Art. 9 特殊类别个人数据",
+          "FDA 21 CFR Part 11 (电子记录 + 电子签名)",
+          "GxP (GMP/GCP/GLP) ALCOA+ 数据完整性原则"
+        ],
+        "use_cases_for_d6": [
+          "放射学 AI 推理 (CT/MRI) 输入图像 + 模型版本 + 输出 hash chain",
+          "AI 临床决策支持 (CDS) - 决策可重建给医生复审",
+          "药物研发模型 (molecular generation) provenance",
+          "AI 体外诊断 (IVD) 决策轨迹"
+        ],
+        "tamper_evidence_value": "极高. 患者安全 + FDA Part 11 + GxP ALCOA+ 都要求 'Attributable, Legible, Contemporaneous, Original, Accurate' + Complete, Consistent, Enduring, Available. in-band hash chain 直接实现 'Original + Enduring'",
+        "d6_differentiator": "SaMD 长期 (15 年 IVDR) 保留 + 数据完整性 + GDPR 双重合规, in-band 显著降低跨系统血缘断裂风险",
+        "url": "https://auroratrust.ai/blog/sectors/eu-ai-act-healthcare-ai",
+        "url2": "https://www.deepinspect.ai/blog/healthcare-eu-ai-act"
+      },
+      {
+        "industry": "政务 (Government / Public Sector)",
+        "compliance_drivers": [
+          "EU AI Act Art. 26(6) 公共机构 1 年日志 (vs 普通 6 月) + Art. 27 强制 FRIA (Fundamental Rights Impact Assessment) 用于公共服务 AI",
+          "Art. 49: 公共机构 deployer 必须在 EU 数据库注册高风险系统",
+          "GDPR + ePrivacy",
+          "数据本地化要求 (许多 EU 成员国公共部门数据不可出 EU)",
+          "NIS2 (关键基础设施)",
+          "US FedRAMP (美国政务合规)",
+          "CLOUD Act 司法管辖 (美国工具对美国政务机构有主权风险)"
+        ],
+        "use_cases_for_d6": [
+          "福利资格评估 AI (social benefits eligibility)",
+          "AI 司法辅助 (administration of justice, Annex III par. 8)",
+          "边境管控 / 移民 (migration, Annex III par. 7)",
+          "公共采购合同中的 AI 审计"
+        ],
+        "tamper_evidence_value": "极高. 公民对政府 AI 决定有合法质疑权; 任何 AI 决定都可能被行政复议/法院挑战. in-band 血缘可以做到'当场出示'审计证据, 不依赖任何第三方",
+        "d6_differentiator": "公共部门对 CLOUD Act 风险零容忍. in-band 血缘 + 内容寻址可以做到'完全不依赖外部元数据服务', 政府可以自建自管",
+        "url": "https://www.aiactblog.nl/en/posts/eu-ai-act-public-sector-2025"
+      },
+      {
+        "industry": "能源 (Energy / Utilities / Critical Infrastructure)",
+        "compliance_drivers": [
+          "EU AI Act Annex III par. 2: 关键基础设施 (含电网/能源) -> 高风险",
+          "NIS2 Directive (2024-10-18 transposed) 关键基础设施实体 + ICT 风险",
+          "EU AI Act Art. 6(1) + Annex I (能源组件受 EU 法规覆盖, 如机械/压力设备)",
+          "NERC CIP (北美电力可靠性公司关键基础设施保护) - 美国市场",
+          "IEC 62443 (工业自动化网络安全)",
+          "2026 年 2 月 之前 EU Commission 可能发布能源部门 AI 准则"
+        ],
+        "use_cases_for_d6": [
+          "智能电网负荷预测模型",
+          "AI 动态电价 (algorithmic pricing 监管要求透明度 + 公平)",
+          "电网控制 AI (grid control)",
+          "可再生能源出力预测 (renewable forecasting)",
+          "客户信用评分 / 客户分段 (Annex III par. 5(b))"
+        ],
+        "tamper_evidence_value": "高. 电网关键基础设施对国家 + 公民双重责任; 任何 AI 决策错误可能导致停电 + 经济损失; 监管需要'复现'AI 决策时序",
+        "d6_differentiator": "电网 OT/IT 边界, 血缘链需要在 SCADA/EMS/DMS 系统内嵌, in-band 天然适合边缘部署; 离线/弱网场景下数据自证 (out-of-band 失败, 边缘网络不稳)",
+        "url": "https://www.innobu.com/en/articles/ai-regulation-energy-utilities-compliance-guide.html",
+        "url2": "https://www.bakerbotts.com/thought-leadership/publications/2026/march/the-eu-ai-act"
+      },
+      {
+        "industry": "次优目标 (Secondary Targets)",
+        "industries": [
+          "电信 (NIS2 + EU AI Act 高风险如果做内容推荐/客户分析)",
+          "教育 (Annex III par. 3: 招生/评分 AI)",
+          "HR / 就业 (Annex III par. 4: 招聘/解雇/绩效 AI)",
+          "法律服务 (Annex III par. 8: 司法辅助)",
+          "电商 (价格歧视, EU AI Act Art. 5 ban on manipulative + 中国算法推荐)"
+        ]
+      }
+    ]
+  },
+
+  "7_strategic_insights_for_user": {
+    "key_advantages_of_d6_for_eu_ai_act_compliance": [
+      "1. 自证血缘: 数据携带 hash chain, 监管检查时不需要'相信'厂商元数据库, in-band 自证完整链路",
+      "2. CLOUD Act 风险规避: 不依赖美国 C-Corp 元数据服务, in-band 血缘随数据主权移动",
+      "3. Art. 12 自动生成: 数据写入时同步生成, 不依赖后台服务存活",
+      "4. GDPR 数据最小化: 不需要单独持久化含个人信息的元数据库, 减少 GDPR 处理面",
+      "5. 多监管域兼容: 一次 in-band 血缘同时满足 EU AI Act + MiFID II + MDR/IVDR + GDPR + NIS2, 减少多系统重复投资"
+    ],
+    "key_advantages_of_d6_for_china_ai_compliance": [
+      "1. 算法备案 (CAC filing) 需要'训练数据 + 模型版本'可追溯 -> in-band 血缘直接支撑备案填报",
+      "2. 深度合成 Art. 16 强制标识 + 日志 -> in-band 携带标识 metadata, 不依赖外部水印服务",
+      "3. 安全评估 (Art. 17) 需要重现生成内容 + 输入 -> in-band 哈希链天然可重现",
+      "4. 6 个月 (或更长) 日志保留 -> in-band 内容寻址, 写入即存证"
+    ],
+    "competitive_weakness_to_address": [
+      "D6 写入开销 vs OpenLineage 异步: D6 写入路径慢, 不适合超大规模高吞吐 batch; OpenLineage 异步更轻量",
+      "D6 'D' 系列产品在公开 web 几乎找不到独立 EU AI Act 部署案例 -> 需要用户补充白皮书/参考客户",
+      "OpenLineage 是 CNCF 行业标准 + Marquez reference backend 免费 -> D6 需要差异化: 强调'forensic self-evidence'而非'lineage metadata'"
+    ],
+    "go_to_market_recommendation": [
+      "优先: 金融 (信贷) + 医疗 (SaMD) -> 数据价值高 + 合规驱动强 + 决策举证书需要",
+      "次优: 政务 (FRIA 强制) + 能源关键基础设施 -> 主权风险 + 长保留期需求",
+      "慎入: 通用 AI 训练 (GPAI 训练数据可追溯用 OpenLineage 即可, 投入产出比不高)",
+      "慎入: 营销/推荐 (低风险, EU AI Act 透明义务够, in-band 投入过重)"
+    ]
+  },
+
+  "data_quality_notes": {
+    "high_confidence_data": [
+      "EU AI Act 法规号 Regulation (EU) 2024/1689 (EUR-Lex OJ L 2024/1689) - 官方",
+      "Art. 12 + 19 + 26(6) 6 个月日志 - 多源一致",
+      "Art. 18 10 年技术文档 - 多源一致",
+      "Art. 99 三档罚款 (EUR 35M/7%, EUR 15M/3%, EUR 7.5M/1%) - 多源一致",
+      "中国 3 部 AI 法规名称 + 实施日期 - 官方网信办",
+      "EU AI Act 进入 force 日期 2024-08-01 - 官方 EC",
+      "厂商名称 + 总部位置 - 公司官网 + Crunchbase/PeerSpot/Gartner"
+    ],
+    "medium_confidence_data": [
+      "Omnibus 2026-05-07 政治协议 + 2026-06-16 议会批准 (423-57-174) - 多个二级源一致, 但'正式 Council 批准'尚未完成",
+      "Annex III 高风险义务新日期 2026-12-02 - 'pending formal adoption', 任何企业规划都应保留 2026-08-02 应急计划"
+    ],
+    "low_confidence_or_corroboration_needed": [
+      "D6 产品具体技术规格 + 客户案例 - 公开 web 搜索未找到, 用户需提供一手材料",
+      "D6 in-band 血缘的写入开销具体数据 - 通用 content-addressable 基准 5-15%, D6 需实测",
+      "中国 6 个月日志保留是暂行办法正文还是配套规定 - aigovernance.com 引用, 暂行办法正文 (gov.cn) 未明文规定 6 个月, 可能在深度合成 Art. 16 + PIPL 实践"
+    ]
+  },
+
+  "all_source_urls_deduplicated": [
+    "https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=OJ:L_202401689",
+    "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
+    "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-10",
+    "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-11",
+    "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-12",
+    "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-18",
+    "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-19",
+    "https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-26",
+    "https://ai-act-service-desk.ec.europa.eu/en/ai-act/timeline/timeline-implementation-eu-ai-act",
+    "https://artificialintelligenceact.eu/implementation-timeline",
+    "https://artificialintelligenceact.eu/article/99/",
+    "https://artificialintelligenceact.eu/article/73/",
+    "https://commission.europa.eu/news-and-media/news/ai-act-enters-force-2024-08-01_en",
+    "https://www.matheson.com/insights/eu-ai-act-finalised",
+    "https://www.specira.ai/blog/eu-ai-act-compliance-requirements-2026",
+    "https://www.legalithm.com/en/ai-act-guide/article-19",
+    "https://www.legalithm.com/en/blog/eu-ai-act-penalties-fines-explained",
+    "https://www.aiauditref.com/guides/eu-ai-act/article-12",
+    "https://agentliability.eu/articles/eu-ai-act-article-12-logging-recordkeeping-deployer-obligations",
+    "https://agledger.ai/compliance/eu-ai-act/article-12/",
+    "https://www.isms.online/iso-42001/eu-ai-act/article-12",
+    "https://www.artificial-intelligence-act.com/Artificial_Intelligence_Act_Article_19.html",
+    "https://www.deepinspect.ai/blog/eu-ai-act-article-19-logging",
+    "https://sota.io/blog/eu-ai-act-art-18-documentation-keeping-obligations-2026",
+    "https://sota.io/blog/eu-ai-act-art12-art19-record-keeping-log-storage-cloud-act-exposure-developer-guide-2026",
+    "https://sota.io/blog/eu-ai-act-high-risk-ai-monitoring-post-market-surveillance-2026",
+    "https://sota.io/blog/eu-ai-act-art26-deployer-obligations-saas-compliance-guide-2026",
+    "https://sota.io/blog/eu-data-governance-tools-comparison-finale-gdpr-cloud-act-2026",
+    "https://sota.io/blog/atlan-eu-alternative-gdpr-cloud-act-active-metadata-2026",
+    "https://sota.io/blog/eu-ai-act-article-16-provider-obligations-high-risk-ai-developer-guide",
+    "https://accuroai.co/blog/eu-ai-act-delayed-december-2027-digital-omnibus",
+    "https://uniwise.eu/resources/blog/the-eu-ai-act-and-assessment-december-2027-is-not-a-snooze-button",
+    "https://elevateconsult.com/insights/eu-ai-act-timeline-2026-deadlines/",
+    "https://aicompliancevendors.com/compare/collibra-ai-governance-vs-onetrust-ai-governance",
+    "https://www.peerspot.com/products/comparisons/immuta_vs_onetrust-datagovernance",
+    "https://www.enzuzo.com/alternatives/onetrust-vs-bigid",
+    "https://www.gartner.com/reviews/market/ai-governance-platforms",
+    "https://www.collibra.com/resources/collibra-ai-governance-staying-compliant-with-the-eu-ai-act",
+    "https://www.collibra.com/blog/enterprise-ai-governance-how-to-scale-safe-and-compliant-ai-across-the-organization",
+    "https://bigid.com/catalog",
+    "https://home.bigid.com/demo-eu-ai-act",
+    "https://github.com/Alation/alation-ai-agent-sdk/blob/main/guides/tools/lineage.md",
+    "https://atlan.com/know/eu-ai-act-compliance",
+    "https://atlan.com/open-lineage",
+    "https://openlineage.io/",
+    "https://openlineage.io/blog/static-lineage",
+    "https://github.com/OpenLineage/OpenLineage",
+    "https://docs.expanso.io/use-cases/data-lineage",
+    "https://docs.expanso.io/guides/pipelines/lineage",
+    "https://www.astronomer.io/docs/astro/remote-execution-configure-openlineage",
+    "https://jaehyeon.me/blog/2026-05-22-end-to-end-data-lineage",
+    "https://www.snowflake.com/en/data-governance/data-lineage/tracking/",
+    "https://data.world/blog/what-is-data-lineage/",
+    "https://intervision.com/blog-ai-sovereignty-data-lineage-and-blockchain/",
+    "https://inferensys.com/guides/digital-provenance-and-content-authenticity/how-to-design-a-tamper-evident-logging-system-for-ai-workflows",
+    "https://inferensys.com/glossary/tool-calling-and-api-execution/audit-logging-for-tool-use/tamper-evident-logs",
+    "https://dev.to/veritaschain/building-tamper-evident-audit-trails-algorithmic-trading-a-deep-dive-into-hash-chains-and-3lh6",
+    "https://dev.to/veritaschain/building-tamper-evident-audit-trails-a-developers-guide-to-cryptographic-logging-for-ai-systems-4o64",
+    "https://suhasbhairav.com/blog/how-to-build-tamper-evident-audit-trails",
+    "https://www.gov.cn/zhengce/zhengceku/202307/content_6891752.htm",
+    "https://www.cac.gov.cn/2022-01/04/c_1642894606364259.htm",
+    "https://www.chinalawtranslate.com/en/deep-synthesis/",
+    "https://www.loc.gov/item/global-legal-monitor/2023-04-25/china-provisions-on-deep-synthesis-technology-enter-into-effect",
+    "https://aigovernance.com/entry/china-generative-ai-regulations-interim-measures",
+    "https://aigovernance.com/entry/china-algorithm-recommendation-regulations",
+    "https://comparativeai.org/en/rules/china/generative-ai-interim-measures/",
+    "https://regulations.ai/regulations/china-2023-7-generative-ai",
+    "https://www.lexology.com/library/detail.aspx?g=3c7273cf-8f85-4702-af70-6edf394ff1c3",
+    "https://patents.google.com/patent/CN118631475A/en",
+    "https://auroratrust.ai/blog/sectors/eu-ai-act-healthcare-ai",
+    "https://www.deepinspect.ai/blog/healthcare-eu-ai-act",
+    "https://aihealthcarecompliance.com/resources/applicable-laws/eu-ai-act",
+    "https://financialregulations.eu/blog/eu-ai-act-financial-services-guide",
+    "https://www.innobu.com/en/articles/ai-regulation-energy-utilities-compliance-guide.html",
+    "https://www.bakerbotts.com/thought-leadership/publications/2026/march/the-eu-ai-act",
+    "https://www.aiactblog.nl/en/posts/eu-ai-act-public-sector-2025",
+    "https://www.aiactblog.nl/en/posts/article-26-deployer-obligations-eu-ai-act-checklist",
+    "https://www.griddynamics.com/blog/eu-ai-act-compliance",
+    "https://qubittool.com/blog/ai-compliance-2026-eu-ai-act-china-technical-guide",
+    "https://akave.com/blog/ai-regulation-2025-navigating-the-eu-ai-act-californias-frontier-law-and-the-future-of-governance",
+    "https://annexa.eu/blog/eu-ai-act-annex-iv-documentation/",
+    "https://www.euaiact.com/annex/4",
+    "https://www.spektr.com/blog/eu-ai-act-timeline-enforcement-fines-and-how-to-prepare",
+    "https://actproof.ai/blog/eu-ai-act-fines-penalties-compliance",
+    "https://innooforge.ia-gouvernance.com/ai-act-compliance-guide.html"
+  ]
+}
