@@ -118,7 +118,8 @@ hr{border:none;border-top:2px dashed var(--border);margin:36px 0}
     <li><a href="../../../previews/poc2-rdma-latency.json">poc2-rdma-latency.json</a> — RDMA vs NVMe 7 tier 延迟</li>
     <li><a href="../../../previews/poc3-kv-math.json">poc3-kv-math.json</a> — KV 数学不可叠加证明 + 容量爆炸</li>
     <li><a href="../../../previews/2026-07-03-poc-data-summary.html">poc-data-summary.html</a> — 3 个 PoC 数据可视化</li>
-    <li><a href="../../../previews/2026-07-03-poc-diff1-npu-embedding.md">poc-diff1-npu-embedding.md</a> — DIFF-1 完整 PoC 设计 (28KB)</li>
+    <li><a href="../../../previews/2026-07-03-poc-diff1-npu-embedding.md">poc-diff1-design</a> (DIFF-1 NPU embedding-on-write PoC)</li>
+    <li><a href="../../../previews/2026-07-03-poc-diff2-converged-training-inference.md">poc-diff2-design</a> (DIFF-2 训练+推理统一 PoC, v1.1 新增)</li>
     <li><a href="../../../previews/2026-07-03-eu-ai-act-research.json">eu-ai-act-research.json</a> — EU AI Act 9 条款图谱 + 中国 3 部 AI 法规</li>
   </ol>
   <p style="font-size:13px;color:var(--text3);margin-top:8px">之前的 previews/ 目录 <b>保留不删</b>, 本文章是终版 + 单一入口.</p>
@@ -523,7 +524,11 @@ hr{border:none;border-top:2px dashed var(--border);margin:36px 0}
 
 <h2 id="poc-design"><span class="num">5</span>DIFF-1 完整 PoC 设计</h2>
 
-<p>用户首选 D1 (NPU embedding-on-write). 完整 PoC 设计文档 (28KB, 438 行, 43 URL) 在 <a href="../../../previews/2026-07-03-poc-diff1-npu-embedding.md">previews/2026-07-03-poc-diff1-npu-embedding.md</a>. 摘要:</p>
+<p>用户首选 D1 (NPU embedding-on-write) 和 D2 (训练+推理统一存储). 完整 PoC 设计文档:</p>
+<ul>
+  <li><b>D1</b> (28KB, 438 行, 43 URL): <a href="../../../previews/2026-07-03-poc-diff1-npu-embedding.md">previews/2026-07-03-poc-diff1-npu-embedding.md</a></li>
+  <li><b>D2</b> (40KB, 511 行, 47 URL): <a href="../../../previews/2026-07-03-poc-diff2-converged-training-inference.md">previews/2026-07-03-poc-diff2-converged-training-inference.md</a> (v1.1 新增)</li>
+</ul>
 
 <h3>5.1 8 节结构</h3>
 <ol>
@@ -548,6 +553,57 @@ hr{border:none;border-top:2px dashed var(--border);margin:36px 0}
     <li><b>75W TDP</b>, <b>$1,500</b> 单价</li>
   </ul>
   <b>算力被低估约 6 倍</b>, 原"1 张 NPU 跑 100 GB/s"的乐观估算不可信. PoC 真实期望 <b>300-400 MB/s</b>, 500 MB/s 是 stretch goal.
+</div>
+
+<h2 id="poc-design-d2"><span class="num">5.5</span>DIFF-2 完整 PoC 设计 (v1.1 新增)</h2>
+
+<h3>5.5.1 D2 vs D1 — 不同价值方向</h3>
+
+<table>
+<thead><tr><th>维度</th><th>D1 (NPU embedding-on-write)</th><th>D2 (训练+推理统一存储)</th></tr></thead>
+<tbody>
+<tr><td><b>核心价值</b></td><td>计算 (NPU 跑 embedding)</td><td>数据流 (checkpoint 不走网络)</td></tr>
+<tr><td><b>硬件核心</b></td><td>NPU 算力</td><td>本地 SSD + PCIe 直连</td></tr>
+<tr><td><b>变现场景</b></td><td>Pre-vectorized Storage</td><td>Converged Training+Inference 一体机</td></tr>
+<tr><td><b>主要竞品</b></td><td>VAST InsightEngine / Pinecone</td><td>DDN A3I / WekaFS</td></tr>
+<tr><td><b>PoC 难度</b></td><td>1-2 周单节点</td><td>4-8 周多节点 (需真模型)</td></tr>
+</tbody>
+</table>
+
+<h3>5.5.2 9 节结构 (跟 D1 同样详尽)</h3>
+
+<ol>
+<li><b>PoC 目标</b> — 3 falsifiable 假设: ① PCIe 直连延迟 &lt; 1ms (vs NFS &gt; 10ms) ② SSD 写带宽 = 6.75 GB/s ③ 256 节点训练 step 延迟开销 &lt; 5%</li>
+<li><b>硬件清单</b> — BOM $65.6k/节点, 1 训练 + 1 推理 = $131.2k: Atlas 300I Duo + 4×Kioxia CM7-R 7.68TB (checkpoint) + 2×Solidigm D5-P5336 122TB (模型库) + 1TB DDR5 + 2×ConnectX-7 400GbE</li>
+<li><b>软件栈</b> — 5 层: PyTorch+DeepSpeed+HCCL / HDF5+Safetensors / io_uring+SPDK / vLLM-Ascend+MindIE / HCCL Collective+权重发现服务</li>
+<li><b>测试数据集</b> — 3 个真实模型: Llama-3-8B (16GB) / Qwen2-72B (145GB) / DeepSeek-V3 (1.3TB)</li>
+<li><b>测试场景</b> — 5a-5e: 同节点 PCIe / 跨节点 RDMA / 增量 checkpoint / 256 节点 stress / NFS 对照</li>
+<li><b>验收标准</b> — 5 个量化: 单节点 checkpoint 写 8B &lt; 1s / 推理拉 8B &lt; 100ms / 跨节点 72B &lt; 5s / 256 节点 step 延迟 &lt; 5% / DWPD &lt; 5</li>
+<li><b>失败判据</b> — FMEA 5 类: 延迟 / 带宽 / 一致性 / 调度 / 成本</li>
+<li><b>D1+D2+D6 对比</b> — 三者不冲突可叠加, 栈图 + 3 种组合 (D1+D2 流水线 / D2+D6 合规 / D1+D2+D6 完整 AI 数据栈)</li>
+<li><b>3 阶段路线图</b> — 阶段 1 单节点 (1-2 月) / 阶段 2 4 节点 (3-4 月) / 阶段 3 256 节点生产 (5-6 月, 跑 LLaMA-Factory + vLLM 联合)</li>
+</ol>
+
+<h3>5.5.3 D1 + D2 + D6 叠加战略</h3>
+
+<div class="callout green">
+  <div class="label">🟢 三个 DIFF 可以叠加, 不冲突</div>
+  <ul>
+    <li><b>D1 + D2</b>: NPU 跑 embedding + checkpoint 落本地 SSD → 完整 AI 数据流水线 (训练数据准备 → 训练 → 推理加载)</li>
+    <li><b>D2 + D6</b>: 训练 checkpoint 落盘时 in-band 抓 provenance → 合规 + 高性能 (EU AI Act 6 个月日志不增加延迟)</li>
+    <li><b>D1 + D2 + D6</b>: <b>完整 AI 数据栈</b> — 任何模型从数据准备到推理部署到合规审计一站式</li>
+  </ul>
+</div>
+
+<h3>5.5.4 D2 关键风险</h3>
+
+<div class="callout red">
+  <div class="label">🔴 D2 必须验证的 3 件事</div>
+  <ol>
+    <li><b>PCIe 带宽 vs SSD 写入匹配</b>: 训练 step 完成时 HCCL all-reduce → SSD 写, 如果 SSD 写入慢于 step 间隔, 训练停顿. <b>CM7-R 6.75 GB/s 写 vs 典型 70B 训练 step ~10 GB / 30s = 0.33 GB/s 远低于 6.75 GB/s, 应该够</b>.</li>
+    <li><b>SSD endurance</b>: 70B 模型 100GB checkpoint, 256 节点每天 100 次训练 = 25.6 TB/天 写, 5 DWPD × 30 TB = 150 TB/天 写, <b>够用</b>. 但 671B (1.3TB) × 100 次 = 130 TB/天 写, <b>快超 DWPD</b>, 需要分层.</li>
+    <li><b>推理节点发现 checkpoint</b>: 训练完成后 1 秒内推理节点要能拉权重, 需要 <b>轻量级服务发现</b> (类似 etcd + watch), 不能阻塞主训练流.</li>
+  </ol>
 </div>
 
 <hr>
@@ -736,10 +792,11 @@ hr{border:none;border-top:2px dashed var(--border);margin:36px 0}
     <a href="../../../previews/poc2-rdma-latency.json">poc2-rdma</a> ·
     <a href="../../../previews/poc3-kv-math.json">poc3-kv-math</a> ·
     <a href="../../../previews/2026-07-03-poc-data-summary.html">poc-data-summary</a> ·
-    <a href="../../../previews/2026-07-03-poc-diff1-npu-embedding.md">poc-diff1-design</a> ·
+    <a href="../../../previews/2026-07-03-poc-diff1-npu-embedding.md">poc-diff1</a> ·
+    <a href="../../../previews/2026-07-03-poc-diff2-converged-training-inference.md">poc-diff2</a> ·
     <a href="../../../previews/2026-07-03-eu-ai-act-research.json">eu-ai-act</a>
   </p>
-  <p class="rev">修订: v1.0 — 8 份产出合成终版. 上传 hacms content/articles/2026-07-03-storage-for-ai-strategy/, previews/ 目录保留不删. 5/5 假设审查 / 7 个差异化 / 3 个推荐 PoC / EU AI Act 9 条款图谱.</p>
+  <p class="rev">修订: v1.0 → v1.1 (2026-07-03) — 新增 D2 (训练+推理统一) 完整 PoC 设计 (40KB, 511 行, 47 URL) + D1+D2+D6 叠加战略 + D2 关键风险 (PCIe 带宽/SSD endurance/服务发现). previews/ 目录保留 9 份原始产出.</p>
 </div>
 
 </div>
