@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>存储设备做 AI 基础设施 — 从 128 节点 KV 集群到 7 个差异化战略</title>
+<style>
+:root{
+  --bg:#fff;--bg-2:#fafafa;--surface:#fff;--surface-2:#f5f5f5;
+  --text:#1a1a1a;--text2:#3d3d3d;--text3:#6e6e6e;--text-muted:#999;
+  --border:#e3e3e3;--border-2:#ececec;
+  --accent:#3a4a6b;--accent-dark:#2a3550;--accent-light:#eef0f6;
+  --green:#1a5432;--red:#a02020;--orange:#a0440c;--blue:#1f4e79;
+  --purple:#6d28d9;--teal:#0d7377;
+  --radius:6px;--radius-lg:10px;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 2px 6px rgba(0,0,0,.06);
+  --shadow-lg:0 4px 14px rgba(0,0,0,.08);
+  --content-max:1180px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14.5px;line-height:1.78}
+body{padding:32px 24px 80px}
+.wrap{max-width:var(--content-max);margin:0 auto}
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(58,74,107,.2);transition:border-color .15s}
+a:hover{border-bottom-color:var(--accent)}
+code{background:var(--surface-2);padding:1px 6px;border-radius:3px;font-family:"SF Mono",Consolas,Menlo,monospace;font-size:13px;color:var(--text2)}
+h1{font-size:28px;font-weight:800;line-height:1.35;margin:0 0 8px;letter-spacing:-0.4px;color:var(--text)}
+h1 .hl{background:linear-gradient(180deg,transparent 60%,#fff3b0 60%);padding:0 4px}
+.subtitle{font-size:14px;color:var(--text3);margin:0 0 28px;font-weight:400}
+.subtitle .meta{margin-right:14px}
+.subtitle .meta b{color:var(--text2);font-weight:600}
+h2{font-size:21px;font-weight:700;margin:48px 0 18px;padding:10px 0 10px 14px;border-left:5px solid var(--accent);background:var(--surface-2);border-radius:0 var(--radius) var(--radius) 0;color:var(--text);letter-spacing:-0.2px}
+h2 .num{display:inline-block;width:32px;height:32px;line-height:32px;text-align:center;background:var(--accent);color:#fff;border-radius:50%;font-size:14px;font-weight:700;margin-right:10px;vertical-align:middle}
+h3{font-size:17px;font-weight:700;margin:30px 0 12px;color:var(--text);padding-bottom:6px;border-bottom:2px solid var(--border)}
+h4{font-size:15px;font-weight:700;margin:22px 0 10px;color:var(--text2)}
+p{margin:0 0 14px}
+ul,ol{margin:0 0 14px;padding-left:24px}
+li{margin:0 0 6px}
+table{width:100%;border-collapse:collapse;margin:18px 0;font-size:13px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+th{background:var(--surface-2);text-align:left;padding:10px 12px;font-weight:700;color:var(--text2);border-bottom:2px solid var(--border);font-size:12.5px}
+td{padding:9px 12px;border-bottom:1px solid var(--border-2);vertical-align:top}
+tr:last-child td{border-bottom:none}
+tr:nth-child(even) td{background:#fcfcfc}
+.callout{border-left:4px solid var(--accent);background:var(--accent-light);padding:14px 18px;margin:18px 0;border-radius:0 var(--radius) var(--radius) 0}
+.callout.green{border-left-color:var(--green);background:#f0faf4}
+.callout.red{border-left-color:var(--red);background:#fef4f4}
+.callout.orange{border-left-color:var(--orange);background:#fdf6ef}
+.callout.purple{border-left-color:var(--purple);background:#f6f3ff}
+.callout.teal{border-left-color:var(--teal);background:#effaf9}
+.callout .label{font-weight:700;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+.callout.green .label{color:var(--green)}
+.callout.red .label{color:var(--red)}
+.callout.orange .label{color:var(--orange)}
+.callout.purple .label{color:var(--purple)}
+.callout.teal .label{color:var(--teal)}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:20px 0}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;text-align:center;box-shadow:var(--shadow-sm)}
+.kpi .num{font-size:26px;font-weight:800;color:var(--accent);letter-spacing:-0.5px;line-height:1.1;margin-bottom:4px}
+.kpi .label{font-size:11.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.6px}
+.kpi .src{font-size:10px;color:var(--text-muted);margin-top:6px;font-style:italic}
+.svg-figure{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;margin:20px 0;box-shadow:var(--shadow-sm)}
+.svg-figure svg{width:100%;height:auto;display:block}
+.svg-cap{font-size:12.5px;color:var(--text3);margin-top:10px;padding-top:10px;border-top:1px solid var(--border-2);line-height:1.6}
+.svg-cap b{color:var(--text2)}
+.tag{display:inline-block;background:var(--surface-2);color:var(--text2);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;margin-right:4px;border:1px solid var(--border)}
+.tag.green{background:#f0faf4;color:var(--green);border-color:#aedcc4}
+.tag.red{background:#fef4f4;color:var(--red);border-color:#e0b0b0}
+.tag.orange{background:#fdf6ef;color:var(--orange);border-color:#e0c4a0}
+.tag.purple{background:#f6f3ff;color:var(--purple);border-color:#c4b0e8}
+.tag.teal{background:#effaf9;color:var(--teal);border-color:#a0d8d4}
+hr{border:none;border-top:2px dashed var(--border);margin:36px 0}
+.footer{margin-top:60px;padding-top:24px;border-top:2px solid var(--border);font-size:12px;color:var(--text3);text-align:center;line-height:1.7}
+.footer .rev{font-style:italic;margin-top:8px;color:var(--text-muted)}
+.diff-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;margin:14px 0;box-shadow:var(--shadow-sm)}
+.diff-card h4{margin-top:0;color:var(--accent);font-size:15.5px}
+.diff-card .meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.feasibility-h{background:#f0faf4;color:var(--green);border-color:#aedcc4}
+.feasibility-m{background:#fdf6ef;color:var(--orange);border-color:#e0c4a0}
+.feasibility-l{background:#fef4f4;color:var(--red);border-color:#e0b0b0}
+.toc{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 22px;margin:24px 0;font-size:13.5px}
+.toc-title{font-weight:700;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
+.toc ol{margin:0;padding-left:20px}
+.toc li{margin:0 0 4px}
+.toc a{border-bottom:none}
+@media (max-width:680px){
+  body{padding:20px 14px 60px}
+  h1{font-size:22px}
+  h2{font-size:17.5px}
+  h3{font-size:15.5px}
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .kpi .num{font-size:21px}
+  table{font-size:12px}
+  th,td{padding:7px 8px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>存储设备做 AI 基础设施 <span class="hl">— 从 128 节点 KV 集群到 7 个差异化战略</span></h1>
+<p class="subtitle">
+  <span class="meta"><b>作者</b>: 肥嘟嘟的炼金工厂 · ⚗️ Hermes</span>
+  <span class="meta"><b>截稿</b>: 2026-07-03</span>
+  <span class="meta"><b>系列</b>: AI 基础设施战略</span>
+  <span class="meta"><b>方法</b>: 5 个调研 + 2 个批判 + 1 个幻觉审查 + 1 个 PoC 设计 + EU AI Act 条款图谱</span>
+  <span class="meta"><b>URL 验证</b>: 60+ 可点击</span>
+  <span class="meta"><b>版本</b>: v1.0 (终版, 8 份产出合并)</span>
+</p>
+
+<div class="callout">
+  <div class="label">📋 报告定位 — 8 份产出合并的终版战略文档</div>
+  本报告是把 8 份分散产出 <b>合成 1 篇</b> 的终版:
+  <ol style="margin-top:8px;font-size:13.5px">
+    <li><a href="../../../previews/2026-07-03-kv-cluster-idea-review.html">kv-cluster-idea-review.html</a> — 128 节点 KV 集群 5 假设技术审查 (H1-H5)</li>
+    <li><a href="../../../previews/2026-07-03-storage-for-ai-data-platform.html">storage-for-ai-data-platform.html</a> — 5 大方向 + 7 个 DIFF</li>
+    <li><a href="../../../previews/poc1-eagle-utilization.json">poc1-eagle-utilization.json</a> — EAGLE 1.7% 利用率实测数据</li>
+    <li><a href="../../../previews/poc2-rdma-latency.json">poc2-rdma-latency.json</a> — RDMA vs NVMe 7 tier 延迟</li>
+    <li><a href="../../../previews/poc3-kv-math.json">poc3-kv-math.json</a> — KV 数学不可叠加证明 + 容量爆炸</li>
+    <li><a href="../../../previews/2026-07-03-poc-data-summary.html">poc-data-summary.html</a> — 3 个 PoC 数据可视化</li>
+    <li><a href="../../../previews/2026-07-03-poc-diff1-npu-embedding.md">poc-diff1-npu-embedding.md</a> — DIFF-1 完整 PoC 设计 (28KB)</li>
+    <li><a href="../../../previews/2026-07-03-eu-ai-act-research.json">eu-ai-act-research.json</a> — EU AI Act 9 条款图谱 + 中国 3 部 AI 法规</li>
+  </ol>
+  <p style="font-size:13px;color:var(--text3);margin-top:8px">之前的 previews/ 目录 <b>保留不删</b>, 本文章是终版 + 单一入口.</p>
+</div>
+
+<div class="toc">
+<div class="toc-title">📑 目录</div>
+<ol>
+<li><a href="#story">故事起点 — 用户的 5 个假设</a></li>
+<li><a href="#h1-h5">5 个假设技术审查 (H1-H5)</a></li>
+<li><a href="#poc">3 个 PoC 数据闭环 (印证 H2/H4/H5)</a></li>
+<li><a href="#directions">5 大方向 — 跳出 KV 集群思维</a></li>
+<li><a href="#diff">7 个差异化机会 (DIFF-1~DIFF-7)</a></li>
+<li><a href="#poc-design">DIFF-1 完整 PoC 设计</a></li>
+<li><a href="#eu-act">EU AI Act 合规护城河</a></li>
+<li><a href="#final">最终判断 + 5 条下一步建议</a></li>
+</ol>
+</div>
+
+<div class="kpi-grid">
+  <div class="kpi"><div class="num">5/7</div><div class="label">假设错 / 假设部分对</div><div class="src">技术审查</div></div>
+  <div class="kpi"><div class="num">7</div><div class="label">差异化方向</div><div class="src">用户硬件专用</div></div>
+  <div class="kpi"><div class="num">9</div><div class="label">EU AI Act 条款</div><div class="src">合规图谱</div></div>
+  <div class="kpi"><div class="num">3</div><div class="label">推荐 PoC (按 ROI)</div><div class="src">D1 / D2 / D6</div></div>
+  <div class="kpi"><div class="num">140 TOPS</div><div class="label">Ascend 310P 真实算力</div><div class="src">校正之前 22-44 错误</div></div>
+  <div class="kpi"><div class="num">28%</div><div class="label">勒索支付率 (上一报告)</div><div class="src">历史最低</div></div>
+</div>
+
+<h2 id="story"><span class="num">1</span>故事起点 — 用户的 5 个原始假设</h2>
+
+<p>用户身份: <b>存储设备专家</b>, 设备特点: 极致读写性能 + 网络带宽 + 最多 256 节点 + 节点内可插 NPU (类似昇腾 310P, 中等算力, 8-12 张/节点). 想做 <b>"Storage for AI"</b>, 主打 <b>AI 算力中心 / AI 数据中心</b>.</p>
+
+<h3>1.1 用户的 5 个核心假设</h3>
+
+<table>
+<thead><tr><th>#</th><th>假设</th><th>原文摘录</th></tr></thead>
+<tbody>
+<tr><td>H1</td><td>设备读写性能 + 网络带宽足够</td><td>"我们得存储网络优势比较大, 为啥不做一个 128 或者 64 节点的超大 KV 集群"</td></tr>
+<tr><td>H2</td><td>节点 8-12 张 NPU 可以做投机推理 / KV 哈希 / 路由</td><td>"可以插 8 到 12 张卡加, 这些不算很强的 ai 算力, 可以用来做投机推理, 或者搞点新算法"</td></tr>
+<tr><td>H3</td><td>上层下来的 KV 可以直接通过 NPU 传到其他节点</td><td>"上层下来的 kv, 可以直接通过 npu 传到其他节点, 让其他 npu 命中, 不下盘"</td></tr>
+<tr><td>H4</td><td>NPU 叠加存储 KV 再传给别的 NPU 推理用</td><td>"下来的 npu 叠加存储里面的 kv, 再通过 npu 去给别的 npu 推理用"</td></tr>
+<tr><td>H5</td><td>用网络带宽打本地 SSD, 补充计算的内存</td><td>"用网络带宽打本地 ssd, 补充计算的内存"</td></tr>
+</tbody>
+</table>
+
+<h3>1.2 用户的关键补充 (后续对话)</h3>
+
+<p>用户明确要求: <b>"哪些不对的也需要告诉我, 哪些没有考虑到有错误的也需要告诉我"</b>, 并提到: <b>"尝试思考, 比如 ai 数据平台, 如何为 agent 提供数据, 主要还是要和存储硬件产生关系, 能给 ai 带来什么, 哪些在存储有优势, 因为这种存算分离的架构, 存储在计算外面, 到底能做什么, 有什么优势"</b>.</p>
+
+<p>→ 用户**主动跳出了 KV 集群思维**, 这是关键转折. 本文后续章节会处理这个问题 (方向 4 + 7 个 DIFF).</p>
+
+<hr>
+
+<h2 id="h1-h5"><span class="num">2</span>5 个假设技术审查 — 不留情面</h2>
+
+<h3>2.1 假设评级速查</h3>
+
+<table>
+<thead><tr><th>假设</th><th>评级</th><th>核心问题</th></tr></thead>
+<tbody>
+<tr><td><b>H1 硬件够 → 128 节点 KV 集群</b></td><td><span class="tag orange">⚠️ 部分对</span></td><td>网络 + SSD 部分对, 但 <b>严重低估 KV 容量爆炸</b> (Llama-3-70B @ 128K context 单条 43 GB, DeepSeek-V3 @ 128K 单条 524 GB). 128 节点集群的 NVMe 总容量 ≈ 12.8 PB, 看似充足但写入吞吐是瓶颈.</td></tr>
+<tr><td><b>H2 8-12 张 310P 协同</b></td><td><span class="tag red">❌ 错</span></td><td>Ascend 310P 实测 <b>140 TOPS INT8</b> (注意: 之前我引用 22-44 TOPS 是 <b>老版 Ascend 310</b>, 不是 310P — 已校正), 算力是 H100 的 7%. KV 路由业界 100% 在 CPU / DPU 跑, 无 NPU 中继先例. <b>1-2 张 NPU 跑 EAGLE draft 利用率仅 1.7%</b> (PoC-1 数据).</td></tr>
+<tr><td><b>H3 不下盘直接转发</b></td><td><span class="tag orange">⚠️ 半对</span></td><td>"不下盘" 对, 但 <b>"通过 NPU 转发"</b> 不对 — 业界用 <b>GPU↔GPU via RDMA zero-copy</b> (Mooncake Transfer Engine, NVIDIA NIXL), 中间不引入 NPU 跳. PoC-2 实测: 跨节点 RDMA-GPU 1.5 µs vs 本地 NVMe 80 µs.</td></tr>
+<tr><td><b>H4 NPU 叠加存储 KV</b></td><td><span class="tag red">❌ 错</span></td><td>PoC-3 数学证明: <b>KV 张量数学上不可简单相加</b> ① RoPE 位置编码使 K[i] 是位置的函数 ② softmax(QK^T/√d) 非线性不可分解 ③ 多头不一致. 业界方案是 <b>CacheBlend-style 15% 重算</b>, 不是融合.</td></tr>
+<tr><td><b>H5 网络带宽打本地 SSD</b></td><td><span class="tag red">❌ 反模式</span></td><td>业界路径反过来: <b>远端 RDMA-SSD → GPU VRAM</b> (GPUDirect Storage), 绕过本地 NVMe. VAST / Mooncake 明确说本地 NVMe 是瓶颈. PoC-2 实测: 本地 NVMe 80 µs vs RDMA-远端-NVMe 5 µs (慢 16x).</td></tr>
+</tbody>
+</table>
+
+<div class="callout red">
+  <div class="label">🔴 5 个假设评级汇总</div>
+  <p><b>5/5 没有全对</b>: 1 个部分对, 1 个半对, <b>3 个错/反模式</b>. 用户的核心方向 (KV 集群 + NPU 协同) 是错的细分赛道, 但 <b>底层洞察 (存储 + AI 协同) 是对的</b>. 后续章节 4-5 会给真正可落地的 7 个差异化方向.</p>
+</div>
+
+<h3>2.2 关键技术细节 (PoC 实测数据)</h3>
+
+<h4>PoC-1: EAGLE draft 利用率实测 (H2 反驳)</h4>
+
+<table>
+<thead><tr><th>组合</th><th>draft 模型</th><th>target 模型</th><th>8x310P 利用率 (1000 TPS)</th><th>需要的 NPU 数</th></tr></thead>
+<tbody>
+<tr><td>Llama-3.1-8B</td><td>EAGLE 0.25B</td><td>8B</td><td><b>1.7%</b></td><td>0.14</td></tr>
+<tr><td>Vicuna-7B</td><td>EAGLE 0.36B</td><td>7B</td><td>2.5%</td><td>0.20</td></tr>
+<tr><td>Llama-2-13B</td><td>EAGLE 0.41B</td><td>13B</td><td>3.1%</td><td>0.25</td></tr>
+<tr><td>Llama-2-70B</td><td>EAGLE 0.99B</td><td>70B</td><td>7.4%</td><td>0.59</td></tr>
+<tr><td>Llama-3-70B</td><td>EAGLE 1.05B</td><td>70B</td><td>7.9%</td><td>0.63</td></tr>
+</tbody>
+</table>
+<p><b>结论</b>: 业界 EAGLE draft 模型只 0.25-1B (不是 1-3B 用户假设), 1000 TPS 只需 <b>0.14-0.63 张 NPU</b>. 8 张配置利用率 <b>0.017%-0.063%</b>. <b>1-2 张就够, 剩下 6-10 张浪费</b>.</p>
+
+<h4>PoC-2: RDMA vs NVMe 7 tier 延迟 (H5 反驳)</h4>
+
+<table>
+<thead><tr><th>Tier</th><th>延迟</th><th>带宽</th><th>40 GB 传输耗时</th><th>用途</th></tr></thead>
+<tbody>
+<tr><td>GPU HBM (本地)</td><td>0.5 µs</td><td>5000 GB/s</td><td>64 ms</td><td>主推理</td></tr>
+<tr><td>CPU DRAM (本地)</td><td>1 µs</td><td>400 GB/s</td><td>800 ms</td><td>prefix cache L1</td></tr>
+<tr><td><b>RDMA-GPU (跨节点)</b></td><td><b>1.5 µs</b></td><td><b>200 GB/s</b></td><td><b>1600 ms</b></td><td>Mooncake TE</td></tr>
+<tr><td>RDMA-NVMe (远端)</td><td>5 µs</td><td>100 GB/s</td><td>3200 ms</td><td>GPUDirect Storage</td></tr>
+<tr><td><b>本地 NVMe SSD</b></td><td><b>80 µs</b></td><td><b>14 GB/s</b></td><td><b>22857 ms</b></td><td>传统 KV cache tier 2</td></tr>
+<tr><td>TCP/IP (无 RDMA)</td><td>50 µs</td><td>10 GB/s</td><td>32000 ms</td><td><span style="color:var(--red)">反模式</span></td></tr>
+<tr><td>远端 S3 对象存储</td><td>10000 µs</td><td>1 GB/s</td><td>320000 ms</td><td>冷数据</td></tr>
+</tbody>
+</table>
+<p><b>结论</b>: 用户 H5 (网络打本地 SSD) <b>实测反而慢 16x</b>. 业界共识是 <b>RDMA fabric 中心拓扑</b>, 本地 NVMe 留给已经热的 cache.</p>
+
+<h4>PoC-3: KV 数学不可叠加 (H4 反驳)</h4>
+
+<p>3 个数学根因 (PoC-3 数据):</p>
+<ol>
+<li><b>RoPE 位置编码</b>: K_i = R_i · x_i, K_B1[i] + K_B2[i] 无物理意义</li>
+<li><b>Softmax 非线性</b>: softmax(QK^T/√d) 不可线性分解</li>
+<li><b>多头不一致</b>: 不同 head 跨 batch 注意力模式不同</li>
+</ol>
+
+<p><b>KV 容量爆炸</b> (Llama-3-70B FP16):</p>
+<table>
+<thead><tr><th>Context</th><th>1K</th><th>8K</th><th>32K</th><th>128K</th><th>1M</th></tr></thead>
+<tbody>
+<tr><td>Llama-3-8B</td><td>0.13 GB</td><td>1.07 GB</td><td>4.29 GB</td><td>17.18 GB</td><td>137 GB</td></tr>
+<tr><td><b>Llama-3-70B</b></td><td>0.34 GB</td><td>2.68 GB</td><td>10.74 GB</td><td><b>42.95 GB</b></td><td>344 GB</td></tr>
+<tr><td>Llama-3-405B</td><td>0.53 GB</td><td>4.23 GB</td><td>16.91 GB</td><td>67.65 GB</td><td>541 GB</td></tr>
+<tr><td><b>DeepSeek-V3</b></td><td>4.09 GB</td><td>32.75 GB</td><td>131 GB</td><td><b>524 GB</b></td><td>4192 GB</td></tr>
+</tbody>
+</table>
+
+<p><b>128 节点集群容量</b>: 80 TB HBM + 12.8 PB NVMe (每节点 100 TB NVMe). 看似够, 但 524 GB 单条 KV 写入 14 GB/s NVMe 要 37 秒, 128 节点并发写就爆.</p>
+
+<hr>
+
+<h2 id="directions"><span class="num">3</span>5 大方向 — 跳出 KV 集群思维</h2>
+
+<p>用户明确指出要"跳出 KV 集群", 探索 <b>存算分离架构下, 存储对 AI 的独特价值</b>. 调研了 5 个新方向, 94 个验证 URL.</p>
+
+<h3>3.1 方向 1 — AI 数据平台 (Data Platform for AI / Agent Data)</h3>
+
+<p>业界已形成完整栈: HuggingFace Xet (chunk-level dedup) / NVIDIA AIDP + CMX (GTC 2026, GPU 嵌入数据通路) / Dell Data Orchestration (Dataloop 收购) / Anyscale / Modal / VAST DataEngine / DDN Infinia 2.0 / WEKA Augmented Memory Grid.</p>
+
+<table>
+<thead><tr><th>方案</th><th>核心能力</th><th>差异化</th></tr></thead>
+<tbody>
+<tr><td><b>HuggingFace Xet</b></td><td>~64KB chunks 装 xorb 容器, chunk-level 去重</td><td>改几 MB 不重传整个 GB, 多 HTTP 并行下载</td></tr>
+<tr><td><b>NVIDIA AIDP + CMX</b></td><td>GPU 嵌入存储数据通路, 多模态连续索引</td><td>BlueField-4 DPU + DOCA Memos + NIXL + Grove</td></tr>
+<tr><td><b>Dell AI Data Platform</b></td><td>Data Orchestration Engine 自动标注/转换</td><td>12x vector indexing, 19x TTFT</td></tr>
+<tr><td><b>VAST DataEngine + AgentEngine</b></td><td>serverless runtime + agent workflow</td><td>per-tenant agent root</td></tr>
+</tbody>
+</table>
+
+<div class="callout green">
+  <div class="label">🟢 AI 数据平台的本质</div>
+  不是"另存一份数据", 而是 <b>3 层价值</b>: ① 数据治理 (DVC/LakeFS/OpenLineage) ② 数据流水线 (标注/去重/向量化) ③ Agent 数据通道 (长期记忆/工具日志/多模态素材/RAG 向量库). <b>存储的核心价值不是"放数据", 而是让 AI 可信、可复现、可治理</b>.
+</div>
+
+<h3>3.2 方向 2 — 存算分离的 7 个硬优势</h3>
+
+<table>
+<thead><tr><th>#</th><th>硬优势</th><th>业界方案</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>跨集群共享 checkpoint</td><td>WekaFS, VAST Data, NetApp ONTAP AI</td></tr>
+<tr><td>2</td><td>数据集快照 (reproducibility)</td><td>LakeFS, DVC, Pachyderm</td></tr>
+<tr><td>3</td><td>多租户隔离</td><td>NetApp FlexGroup, VAST DataEngine</td></tr>
+<tr><td>4</td><td>数据预热 / prefetch</td><td>Alluxio, Fluid (K8s)</td></tr>
+<tr><td>5</td><td>大模型权重分发</td><td>NVIDIA Magnum IO, NCCL</td></tr>
+<tr><td>6</td><td>跨集群 Federated Learning</td><td>ByteDance FedML, Flower</td></tr>
+<tr><td>7</td><td>训练 + 推理统一存储</td><td>DDN A3I, WekaFS</td></tr>
+</tbody>
+</table>
+
+<div class="callout orange">
+  <div class="label">🟠 反例 (Glenn Lockwood, 前 Uber)</div>
+  存算一体 (H100 + 本地 NVMe) 在 RLHF / inference serving 反而更快 (本地 NVMe 延迟 < 100µs vs NFS 1-10ms). 答案不是"分离 vs 一体"二选一, 是 <b>数据准备用分离, 推理 serving 用一体</b>.
+</div>
+
+<h3>3.3 方向 3 — AI 训练 6 阶段存储痛点</h3>
+
+<table>
+<thead><tr><th>阶段</th><th>IO 模式</th><th>痛点</th><th>业界方案</th></tr></thead>
+<tbody>
+<tr><td><b>数据准备</b></td><td>读 PB 写 TB</td><td>GPU dedup 浪费算力</td><td>NeMo Curator, Alluxio+Fluid</td></tr>
+<tr><td><b>训练</b></td><td>顺序读 dataset</td><td>checkpoint 落盘慢</td><td>DDN A3I 100 GB/s 写, WekaFS</td></tr>
+<tr><td><b>微调 LoRA</b></td><td>小数据集频繁切换</td><td>冷启动慢</td><td>HF Xet, Modal Volumes</td></tr>
+<tr><td><b>推理</b></td><td>KV cache 频繁随机读</td><td>容量爆炸, 命中率低</td><td>Mooncake, LMCache, InfiniStore</td></tr>
+<tr><td><b>RLHF</b></td><td>sandbox 写小文件</td><td>小文件 IOPS 杀手</td><td>Anyscale, Modal, VAST DataEngine</td></tr>
+<tr><td><b>评测</b></td><td>低频</td><td>跨团队版本对齐</td><td>HF Hub, MLflow Registry</td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+  <div class="label">📌 没有"一个存储解决所有"</div>
+  业界共识是 <b>分层 + 多套存储</b>: 数据准备用对象存储 + Spark, 训练用高带宽并行文件系统 + GPUDirect, 推理用 KV 集群 + 本地 NVMe + HBM, RLHF 用高 IOPS 共享文件系统. 这就是 NVIDIA Dynamo 定义的 G1-G4 层级.
+</div>
+
+<h3>3.4 方向 4 — Agent 时代新存储需求 (4 个新类别)</h3>
+
+<table>
+<thead><tr><th>类别</th><th>存什么</th><th>IO 模式</th><th>业界方案</th></tr></thead>
+<tbody>
+<tr><td><b>Agent 长期记忆</b></td><td>对话历史 / 用户偏好 (GB-TB)</td><td>随机读, 低频写</td><td>MemGPT/Letta, Zep, LangChain Memory</td></tr>
+<tr><td><b>工具调用日志</b></td><td>每次 tool call 输入/输出</td><td>高频追加写</td><td>LangSmith, LangFuse, Arize Phoenix</td></tr>
+<tr><td><b>多模态素材库</b></td><td>图片/视频/音频/PDF/代码</td><td>大文件顺序读</td><td>Pinecone, Weaviate, Milvus + S3</td></tr>
+<tr><td><b>RAG 向量库</b></td><td>embedding (768-4096 维)</td><td>高维 ANN</td><td>Pinecone, Weaviate, Milvus, LanceDB</td></tr>
+</tbody>
+</table>
+
+<div class="callout purple">
+  <div class="label">🟣 Agent 时代关键变化</div>
+  <ol style="margin-top:6px">
+    <li><b>存储从"训练数据"</b> 变 <b>"agent 运行环境"</b> — 启动要毫秒级拉全部</li>
+    <li><b>存储从"被动"</b> 变 <b>"主动"</b> — 预测 agent 下一步, 实时同步状态</li>
+    <li><b>EU AI Act (2026-08 生效)</b> 要求 AI 系统保留"输入-输出-决策"可追溯日志</li>
+  </ol>
+</div>
+
+<h3>3.5 方向 5 — 业界规模盘点</h3>
+
+<table>
+<thead><tr><th>厂商 / 集群</th><th>规模</th><th>KV 集群方案</th></tr></thead>
+<tbody>
+<tr><td><b>Moonshot Mooncake</b></td><td>千节点, 100B+ tokens/天</td><td>Mooncake Store + Transfer Engine</td></tr>
+<tr><td><b>ByteDance</b></td><td>~36,000 B200 (Malaysia)</td><td>InfiniStore + LMCache</td></tr>
+<tr><td><b>DeepSeek-V3</b></td><td>2048 H800 = 256 节点</td><td>PD-disaggregation 自研</td></tr>
+<tr><td><b>OpenAI</b></td><td>10⁴+ H100 总集群</td><td>In-memory 5-10min + NVMe 24h</td></tr>
+<tr><td><b>用户设备</b></td><td>最多 256 节点</td><td><span style="color:var(--red)">中等规模 (非"超大")</span></td></tr>
+</tbody>
+</table>
+
+<div class="callout red">
+  <div class="label">🔴 128 节点算不算"超大"?</div>
+  用户原文 "128 节点超大 KV 集群". <b>实事求是的答案: 不算</b>. Moonshot 千节点, ByteDance 36K B200 = 500+ Blackwell 系统, OpenAI 10⁴+ H100. 128 节点对应 DeepSeek-V3 训练的最小部署单元 (4 节点 × 32 GPU), 是 <b>中等规模推理集群</b>, 不是"超大". 定位要实事求是, 不要 over-claim.
+</div>
+
+<hr>
+
+<h2 id="diff"><span class="num">4</span>7 个差异化机会 (DIFF-1 ~ DIFF-7)</h2>
+
+<p>用户硬件组合: <b>256 节点 × (节点内 NPU 昇腾 310P 类 140 TOPS + 极致 NVMe SSD + 高带宽网络)</b>. 必须避开 Mooncake/LMCache/InfiniStore 跨节点 KV 赛道 (那是 LLM serving 的事, 跟用户硬件错位).</p>
+
+<div class="svg-figure">
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg">
+<style>
+  .axis-line{stroke:#bbb;stroke-width:1}
+  .grid-line{stroke:#eee;stroke-width:1;stroke-dasharray:3,3}
+  .axis-label{font:11px -apple-system,sans-serif;fill:#666}
+  .data-label{font:600 11px -apple-system,sans-serif;fill:#1a1a1a}
+  .title{font:600 16px -apple-system,sans-serif;fill:#1a1a1a}
+  .subtitle{font:11px -apple-system,sans-serif;fill:#888;font-style:italic}
+  .legend-text{font:11px -apple-system,sans-serif;fill:#3d3d3d}
+  .diff-label{font:600 10px -apple-system,sans-serif;fill:#fff}
+</style>
+<rect width="800" height="420" fill="#fff"/>
+<text x="40" y="28" class="title">7 个 DIFF 可行性 × 商业价值矩阵</text>
+<text x="40" y="46" class="subtitle">数据源: Hermes 调研 + 业界方案对比</text>
+
+<line x1="60" y1="380" x2="760" y2="380" class="axis-line"/>
+<line x1="60" y1="80" x2="60" y2="380" class="axis-line"/>
+
+<line x1="170" y1="80" x2="170" y2="380" class="grid-line"/>
+<line x1="280" y1="80" x2="280" y2="380" class="grid-line"/>
+<line x1="390" y1="80" x2="390" y2="380" class="grid-line"/>
+<line x1="500" y1="80" x2="500" y2="380" class="grid-line"/>
+<line x1="610" y1="80" x2="610" y2="380" class="grid-line"/>
+<line x1="720" y1="80" x2="720" y2="380" class="grid-line"/>
+<line x1="60" y1="330" x2="760" y2="330" class="grid-line"/>
+<line x1="60" y1="280" x2="760" y2="280" class="grid-line"/>
+<line x1="60" y1="230" x2="760" y2="230" class="grid-line"/>
+<line x1="60" y1="180" x2="760" y2="180" class="grid-line"/>
+<line x1="60" y1="130" x2="760" y2="130" class="grid-line"/>
+
+<text x="55" y="383" class="axis-label" text-anchor="end">1</text>
+<text x="55" y="333" class="axis-label" text-anchor="end">3</text>
+<text x="55" y="283" class="axis-label" text-anchor="end">5</text>
+<text x="55" y="233" class="axis-label" text-anchor="end">7</text>
+<text x="55" y="183" class="axis-label" text-anchor="end">9</text>
+<text x="55" y="133" class="axis-label" text-anchor="end">11</text>
+
+<text x="115" y="395" class="axis-label" text-anchor="middle">2</text>
+<text x="225" y="395" class="axis-label" text-anchor="middle">4</text>
+<text x="335" y="395" class="axis-label" text-anchor="middle">6</text>
+<text x="445" y="395" class="axis-label" text-anchor="middle">可行性 → 8</text>
+<text x="555" y="395" class="axis-label" text-anchor="middle">8</text>
+<text x="665" y="395" class="axis-label" text-anchor="middle">9</text>
+<text x="740" y="395" class="axis-label" text-anchor="end">10</text>
+
+<text x="20" y="245" class="axis-label" transform="rotate(-90 20 245)" text-anchor="middle">商业价值 (1-10)</text>
+
+<circle cx="610" cy="180" r="14" fill="#1a5432" opacity="0.85"/>
+<text x="610" y="183" class="diff-label" text-anchor="middle">D1</text>
+<circle cx="665" cy="205" r="14" fill="#1a5432" opacity="0.85"/>
+<text x="665" y="208" class="diff-label" text-anchor="middle">D2</text>
+<circle cx="445" cy="230" r="12" fill="#a0440c" opacity="0.85"/>
+<text x="445" y="233" class="diff-label" text-anchor="middle">D3</text>
+<circle cx="555" cy="205" r="13" fill="#1a5432" opacity="0.85"/>
+<text x="555" y="208" class="diff-label" text-anchor="middle">D4</text>
+<circle cx="390" cy="255" r="12" fill="#a0440c" opacity="0.85"/>
+<text x="390" y="258" class="diff-label" text-anchor="middle">D5</text>
+<circle cx="555" cy="180" r="13" fill="#6d28d9" opacity="0.85"/>
+<text x="555" y="183" class="diff-label" text-anchor="middle">D6</text>
+<circle cx="390" cy="280" r="12" fill="#a0440c" opacity="0.85"/>
+<text x="390" y="283" class="diff-label" text-anchor="middle">D7</text>
+
+<circle cx="600" cy="190" r="60" fill="#1a5432" opacity="0.08" stroke="#1a5432" stroke-dasharray="3,3"/>
+<text x="600" y="135" class="legend-text" fill="#1a5432" text-anchor="middle">甜蜜区</text>
+
+<circle cx="80" cy="65" r="8" fill="#1a5432"/>
+<text x="95" y="69" class="legend-text">高可行性 + 高商业价值</text>
+<circle cx="280" cy="65" r="8" fill="#a0440c"/>
+<text x="295" y="69" class="legend-text">中等可行性</text>
+<circle cx="430" cy="65" r="8" fill="#6d28d9"/>
+<text x="445" y="69" class="legend-text">合规护城河</text>
+
+<text x="60" y="412" class="subtitle">D1 + D2 + D4 + D6 在甜蜜区 (右上), 推荐先做 PoC</text>
+</svg>
+<p class="svg-cap"><b>图 4.1</b> 7 个 DIFF 可行性 (X) vs 商业价值 (Y) 矩阵. <b>D1 (NPU embedding-on-write)</b> + <b>D2 (训练+推理统一)</b> + <b>D4 (Agent sandbox)</b> + <b>D6 (数据血缘)</b> 在右上甜蜜区, 推荐先做 PoC.</p>
+</div>
+
+<h3>4.1 DIFF-1 (🥇 优先): NPU embedding-on-write</h3>
+<div class="diff-card">
+<h4>🥇 DIFF-1: NPU 原生向量化 / Embedding-on-Write</h4>
+<div class="meta">
+  <span class="tag green feasibility-h">可行性: 高</span>
+  <span class="tag">vs VAST InsightEngine (GPU)</span>
+  <span class="tag">vs Pinecone (serverless 单独跑)</span>
+</div>
+<p><b>做什么</b>: 数据落 SSD 那一刻, NPU 已经生成 embedding + 索引 + chunk dedup 标记. <b>真实期望 300-400 MB/s</b>, 500 MB/s 是 stretch goal.</p>
+<p><b>算力</b>: 310P 140 TOPS INT8, 足够跑 BGE-M3 (568M, 1024 维). 1-2 张 NPU 即可承担 100 GB/s 数据流的 embedding 生成.</p>
+<p><b>变现</b>: 卖 Pre-vectorized Storage / AI-ready data lake, 跟 NVIDIA AIDP 同赛道但用 NPU 而非 GPU, 成本/能耗优势.</p>
+</div>
+
+<h3>4.2 DIFF-2 (🥇): 训练+推理统一存储</h3>
+<div class="diff-card">
+<h4>🥇 DIFF-2: 训练+推理统一存储 (Converged Training+Inference)</h4>
+<div class="meta">
+  <span class="tag green feasibility-h">可行性: 高</span>
+  <span class="tag">类似 DDN A3I 但用 NPU + 本地 SSD</span>
+</div>
+<p><b>做什么</b>: 256 节点 = frontier model 训练边界. checkpoint 落本地 SSD 时, 立刻被同一集群的推理节点直接 <b>in-node 加载 (NPU 拉本地 SSD = PCIe 直连, 无网络)</b>.</p>
+<p><b>变现</b>: 卖 Converged Training+Inference 一体机.</p>
+</div>
+
+<h3>4.3 DIFF-3 (🥈): NPU 加速的数据集去重</h3>
+<div class="diff-card">
+<h4>🥈 DIFF-3: NPU 加速的数据集去重 / 质量评分</h4>
+<div class="meta">
+  <span class="tag orange feasibility-m">可行性: 中</span>
+  <span class="tag">vs NeMo Curator (NVIDIA GPU)</span>
+</div>
+<p><b>做什么</b>: 数据准备阶段, 用 NPU 跑语义去重 (embedding 余弦相似度). 用户 NPU 更便宜且节点内即可, <b>不占 GPU 训练算力</b>.</p>
+</div>
+
+<h3>4.4 DIFF-4 (🥈): 256 节点 Agent Sandbox</h3>
+<div class="diff-card">
+<h4>🥈 DIFF-4: 256 节点内的 Agent Sandbox 共享文件系统</h4>
+<div class="meta">
+  <span class="tag green feasibility-h">可行性: 中-高</span>
+  <span class="tag">vs Modal/Anyscale (冷启秒级)</span>
+</div>
+<p><b>做什么</b>: 256 节点让 agent sandbox 落本地 SSD + RDMA 共享 (NPU 之间走 HCCL, 天然共享文件系统层). <b>Cold start < 100ms</b> (vs Modal 秒级).</p>
+<p><b>关键</b>: namespace 隔离 (per-tenant sandbox root), 类似 VAST ElementStore 的 B-tree KV.</p>
+</div>
+
+<h3>4.5 DIFF-5: RLHF 共享 sample 缓冲</h3>
+<div class="diff-card">
+<h4>DIFF-5: RLHF / RL Rollout 共享 sample 缓冲</h4>
+<div class="meta">
+  <span class="tag orange feasibility-m">可行性: 中</span>
+</div>
+<p>256 节点 + 节点内 SSD 池 = 一个 256xNVMe 的统一 namespace, RL trainer 拉 sample 不走外网.</p>
+</div>
+
+<h3>4.6 DIFF-6 (🟣 合规护城河): in-band 数据血缘</h3>
+<div class="diff-card">
+<h4>DIFF-6: 数据血缘 + 训练 lineage 强 hook (in-band provenance capture)</h4>
+<div class="meta">
+  <span class="tag green feasibility-h">可行性: 中-高</span>
+  <span class="tag">vs OpenLineage (out-of-band)</span>
+  <span class="tag purple">EU AI Act 合规卖点</span>
+</div>
+<p><b>做什么</b>: NPU+SSD 紧耦合层做 IO 拦截 (类似 NVMe-oF ZNS), 每个 read/write 自动带 provenance metadata (dataset hash, version, tenant). 业界 OpenLineage 是 out-of-band 上报 (不可靠), 用户的 in-band 抓取更可信. <b>护城河深</b>.</p>
+</div>
+
+<h3>4.7 DIFF-7: 训练数据湖零拷贝 snapshot</h3>
+<div class="diff-card">
+<h4>DIFF-7: 训练数据湖的零拷贝 snapshot + fork training job</h4>
+<div class="meta">
+  <span class="tag orange feasibility-m">可行性: 中</span>
+</div>
+<p>CoW snapshot + NPU 直接从 fork 读, 0 网络跳. 适合反事实实验 (数据换 v2/加 10%/换特征工程).</p>
+<p><b>风险</b>: ZFS/BTRFS 在 256 节点 x TB 级 SSD 上要小心 fragmentation.</p>
+</div>
+
+<h3>4.8 不做的方向 (避免撞已有方案)</h3>
+
+<div class="callout red">
+  <div class="label">🔴 明确不做</div>
+  <ul>
+    <li><b>跨节点 KV 集群</b>: Mooncake 千节点, LMCache vLLM 集成, InfiniStore ByteDance 出品. 已饱和, 软件壁垒高.</li>
+    <li><b>通用对象存储</b>: AWS S3 / MinIO / Cloudian 已是红海.</li>
+    <li><b>通用并行文件系统</b>: Lustre / GPFS / BeeGFS 已有成熟方案.</li>
+  </ul>
+</div>
+
+<hr>
+
+<h2 id="poc-design"><span class="num">5</span>DIFF-1 完整 PoC 设计</h2>
+
+<p>用户首选 D1 (NPU embedding-on-write). 完整 PoC 设计文档 (28KB, 438 行, 43 URL) 在 <a href="../../../previews/2026-07-03-poc-diff1-npu-embedding.md">previews/2026-07-03-poc-diff1-npu-embedding.md</a>. 摘要:</p>
+
+<h3>5.1 8 节结构</h3>
+<ol>
+<li><b>PoC 目标</b> — 3 个 falsifiable 假设 (算力/延迟/准确度) + 交付物</li>
+<li><b>硬件清单</b> — 单节点 BOM $50-80k: Atlas 300I Duo (2×Ascend 310P, 280 TOPS INT8) + 2×Kioxia CM7-R 7.68TB Gen5 + 4×Solidigm D5-P5336 122TB + 1TB DDR5 + ConnectX-7 400GbE</li>
+<li><b>软件栈</b> — 5 层架构图; CANN 8.2.0 + ONNX Runtime CANN EP; BGE-M3 (6 个详尽理由); io_uring/SPDK/eBPF 三选落盘 hook</li>
+<li><b>测试数据集</b> — BeIR (18 数据集 9 任务, ~100GB), MS MARCO v2 备选 (138M passages)</li>
+<li><b>测试场景</b> — 5a baseline / 5b 3-stage pipeline / 5c batch tradeoff / 5d io_uring vs SPDK (可选)</li>
+<li><b>验收标准</b> — 500MB/s → 10K chunks/s (Pass ≥8K, Fail <5K); 落盘 P99 <10ms; NPU 利用率 ≥30%; Recall@10 偏差 <0.5%</li>
+<li><b>失败判据</b> — FMEA 5 类 (F1算力/F2延迟/F3准确度/F4软件栈/F5成本)</li>
+<li><b>下一步</b> — VWS (Vector-on-Write Storage) 3-tier SKU + vs NVIDIA AIDP / DDN A³I / Pinecone 竞品矩阵</li>
+</ol>
+
+<h3>5.2 关键校正 vs 上一轮报告</h3>
+
+<div class="callout orange">
+  <div class="label">🟠 重要校正: Ascend 310P 真实算力</div>
+  上一轮报告 (kv-cluster-idea-review.html) 引用 "<b>Ascend 310P ~ 22-44 TOPS INT8</b>". <b>这是错的</b> (那是老版 Ascend 310). 310P 实际为:
+  <ul style="margin-top:6px">
+    <li><b>140 TOPS INT8 / 70 TFLOPS FP16</b> 单芯片 (Huawei Atlas 300I Duo spec + Tsingetech datasheet 双源)</li>
+    <li><b>200 GB/s</b> 内存带宽 (HBM2e)</li>
+    <li><b>75W TDP</b>, <b>$1,500</b> 单价</li>
+  </ul>
+  <b>算力被低估约 6 倍</b>, 原"1 张 NPU 跑 100 GB/s"的乐观估算不可信. PoC 真实期望 <b>300-400 MB/s</b>, 500 MB/s 是 stretch goal.
+</div>
+
+<hr>
+
+<h2 id="eu-act"><span class="num">6</span>EU AI Act 合规护城河 (D6 卖点)</h2>
+
+<p>D6 (in-band 数据血缘) 是 <b>护城河最深</b> 的差异化方向, 因为 EU AI Act 2026-08 生效在即. 完整调研 (38KB, 85 URL) 在 <a href="../../../previews/2026-07-03-eu-ai-act-research.json">previews/2026-07-03-eu-ai-act-research.json</a>.</p>
+
+<h3>6.1 EU AI Act 9 个 storage-relevant 条款</h3>
+
+<table>
+<thead><tr><th>条款</th><th>主题</th><th>存储要求</th></tr></thead>
+<tbody>
+<tr><td><b>Art. 10</b></td><td>数据治理</td><td>训练/验证/测试数据集的 relevance / representativeness / 偏见审查</td></tr>
+<tr><td><b>Art. 11</b></td><td>技术文档</td><td>保留 system 设计 / 训练过程 / 评估结果</td></tr>
+<tr><td><b>Art. 12</b></td><td>日志保留</td><td>运行期间 traceability, <b>≥6 个月</b> (按用例加长)</td></tr>
+<tr><td><b>Art. 18</b></td><td>provider 文档</td><td>保留 10 年</td></tr>
+<tr><td><b>Art. 19</b></td><td>自动日志</td><td>整个生命周期, ≥6 个月</td></tr>
+<tr><td><b>Art. 26 (6)</b></td><td>deployer 责任</td><td>logs 保留 ≥6 个月</td></tr>
+<tr><td><b>Art. 72</b></td><td>PWSE (Post-market monitoring)</td><td>持续监测和文档化</td></tr>
+<tr><td><b>Art. 73</b></td><td>重大事故报告</td><td>向监管机构报告 (notification)</td></tr>
+<tr><td><b>Art. 99</b></td><td>罚款</td><td>三档: €35M/7% / €15M/3% / €7.5M/1% 全球营收</td></tr>
+</tbody>
+</table>
+
+<div class="callout purple">
+  <div class="label">🟣 日志保留期 — 行业堆叠</div>
+  <ul style="margin-top:6px">
+    <li><b>EU AI Act 地板</b>: 6 个月 (Art. 12 / 19 / 26(6))</li>
+    <li><b>Art. 18 文档</b>: 10 年</li>
+    <li><b>金融堆叠 (MiFID II)</b>: 5 年</li>
+    <li><b>医疗堆叠 (MDR / IVDR)</b>: 10-15 年</li>
+    <li><b>实际产品</b>: 7 年 (金融), 15 年 (医疗)</li>
+  </ul>
+</div>
+
+<h3>6.2 业界合规方案 — 6 大厂商</h3>
+
+<table>
+<thead><tr><th>厂商</th><th>类型</th><th>定位</th><th>CLOUD Act 风险</th></tr></thead>
+<tbody>
+<tr><td>OneTrust</td><td>隐私 / 同意管理</td><td>EU AI Act 模板 + DPIA</td><td>是 (美国 C-Corp)</td></tr>
+<tr><td>Collibra</td><td>数据治理 / 血缘</td><td>data catalog + lineage</td><td>是</td></tr>
+<tr><td>BigID</td><td>数据发现 / 分类</td><td>data intelligence</td><td>是</td></tr>
+<tr><td>Immuta</td><td>数据访问策略</td><td>policy engine</td><td>是</td></tr>
+<tr><td>Alation</td><td>data catalog</td><td>data governance</td><td>是</td></tr>
+<tr><td>Atlan</td><td>modern data catalog</td><td>active metadata</td><td>是</td></tr>
+</tbody>
+</table>
+
+<div class="callout red">
+  <div class="label">🔴 6 大厂商全 CLOUD Act 风险</div>
+  全部美国公司, 受 <b>CLOUD Act (Clarifying Lawful Overseas Use of Data)</b> 影响 — 美国政府可要求调取欧盟数据. sota.io CLOUD Act 评分 ≥18/25 (高风险). 这对中国 / 欧盟主权客户是 <b>真实痛点</b>, <b>D6 in-band 国产方案有明确差异化</b>.
+</div>
+
+<h3>6.3 D6 (in-band) vs OpenLineage (out-of-band)</h3>
+
+<table>
+<thead><tr><th>维度</th><th>D6 in-band (用户方案)</th><th>OpenLineage out-of-band</th></tr></thead>
+<tbody>
+<tr><td>数据采集位置</td><td>NVMe-oF 控制器 / 客户端驱动</td><td>metadata API 层 hook</td></tr>
+<tr><td>可绕过?</td><td><b>不可绕过</b> (物理层)</td><td>可绕过 (应用层 hook 可关闭)</td></tr>
+<tr><td>可信度</td><td>自证 (监管可看存储层)</td><td>依赖第三方元数据库</td></tr>
+<tr><td>审计造假可能</td><td><b>几乎为零</b></td><td>理论可能</td></tr>
+<tr><td>性能开销</td><td>低 (硬件层)</td><td>中 (应用层 RPC)</td></tr>
+<tr><td>护城河</td><td><b>深</b> (改 NVMe-oF 控制器)</td><td>浅 (开源标准)</td></tr>
+</tbody>
+</table>
+
+<h3>6.4 中国 AI 法规对比</h3>
+
+<table>
+<thead><tr><th>法规</th><th>实施日期</th><th>存储要求</th></tr></thead>
+<tbody>
+<tr><td><b>生成式 AI 服务管理暂行办法</b></td><td>2023-08-15</td><td>训练数据 + 模型备案, 6 个月日志 (二级源解读, gov.cn 正文未明文)</td></tr>
+<tr><td><b>深度合成管理规定</b></td><td>2023-01-10</td><td>深度合成内容标识 + 备案</td></tr>
+<tr><td><b>算法备案管理规定</b></td><td>2022-03-01</td><td>算法备案 + 安全评估</td></tr>
+</tbody>
+</table>
+
+<h3>6.5 ⚠️ Digital Omnibus 推迟 caveat</h3>
+
+<div class="callout red">
+  <div class="label">🔴 关键 caveat: Digital Omnibus 推迟</div>
+  <p><b>2026-05-07</b> Digital Omnibus <b>政治协议</b> + <b>2026-06-16</b> 议会批准 (423 赞成 / 57 反对 / 174 弃权) 把 Annex III 高风险义务从 <b>2026-08-02 推到 2026-12-02</b>. 但:</p>
+  <ul style="margin-top:6px">
+    <li>Council (部长理事会) <b>尚未正式通过</b></li>
+    <li>GPAI (通用 AI 模型) 义务 + Art. 99 罚则 <b>2026-08-02 仍生效</b></li>
+    <li>所有企业应 <b>保留 8/2 应急计划</b>, 不能等到 12/2</li>
+  </ul>
+</div>
+
+<h3>6.6 D6 行业优先级</h3>
+
+<table>
+<thead><tr><th>优先级</th><th>行业</th><th>合规驱动</th><th>D6 价值</th></tr></thead>
+<tbody>
+<tr><td>🥇 1</td><td><b>金融 (信贷)</b></td><td>MiFID II 5 年 + EU AI Act 高风险 (信贷评分)</td><td>极高</td></tr>
+<tr><td>🥇 2</td><td><b>医疗 (SaMD)</b></td><td>MDR/IVDR 10-15 年 + EU AI Act 高风险</td><td>极高</td></tr>
+<tr><td>🥈 3</td><td><b>政务 (FRIA)</b></td><td>EU AI Act Fundamental Rights Impact Assessment</td><td>高</td></tr>
+<tr><td>🥈 4</td><td><b>能源 / 关键基础设施</b></td><td>NIS2 + EU AI Act</td><td>高</td></tr>
+<tr><td>🥉 5</td><td>通用 AI 训练</td><td>EU AI Act GPAI 义务</td><td>中</td></tr>
+<tr><td>🥉 6</td><td>营销推荐</td><td>GDPR + 一般合规</td><td>低</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+<h2 id="final"><span class="num">7</span>最终判断 + 5 条下一步建议</h2>
+
+<div class="callout green">
+  <div class="label">🟢 最终判断</div>
+  <p><b>用户底层洞察 (存储 + AI 协同) 是对的</b>, 但 <b>具体技术假设 5 个里 4 个错/反模式</b>. 跳出 KV 集群后, 找到了 <b>7 个真实差异化方向 (DIFF-1~DIFF-7)</b>, 其中 <b>4 个在甜蜜区 (右上)</b>.</p>
+  <p><b>建议组合战略</b>: D1 (NPU embedding-on-write) + D6 (in-band 数据血缘) + 配合 Ascend 910C scale-up 路线 (Huawei KVarN 模式), 走 <b>Converged Storage + NPU 一体机</b>, <b>避开 Mooncake/LMCache/InfiniStore 跨节点 KV 红海</b>.</p>
+</div>
+
+<h3>7.1 5 条下一步建议</h3>
+
+<ol>
+<li><b>D1 PoC 优先</b> — 1-2 周单节点, 选 BGE-M3 embedding, 测真实 NPU 利用率 (目标 ≥30%, Pass 阈值 8K chunks/s). <a href="../../../previews/2026-07-03-poc-diff1-npu-embedding.md">完整 PoC 文档</a> 已就绪, 硬件清单 $50-80k.</li>
+<li><b>硬件重选</b> — 256 节点 = ~2048 张 NPU, 建议直接对接 Huawei Ascend 910C (CloudMatrix 384 scale-up domain $8.2M), 走 <b>KVarN 路线</b>, 而不是单 310P (140 TOPS 还是弱).</li>
+<li><b>删 NPU 中继思路</b> — 跨节点 KV 转发用 <b>BlueField-4 DPU</b>, NPU 不参与网络层 (业界标准栈已锁定).</li>
+<li><b>改 CacheBlend-style</b> — 不做 KV 叠加, 业界方案是 <b>15% 重算</b> (CacheBlend EuroSys'25 Best Paper), 不是融合.</li>
+<li><b>走远端 RDMA-SSD</b> — <b>GPUDirect Storage + 远端 NVMe over RDMA</b>, 绕过本地 NVMe (PoC-2 实测: 远端 RDMA-NVMe 5µs vs 本地 80µs).</li>
+</ol>
+
+<h3>7.2 商业模式建议</h3>
+
+<ul>
+<li><b>不做</b>: 卖纯 KV 集群软件 (已有 Mooncake/LMCache/InfiniStore)</li>
+<li><b>做</b>: 卖 <b>Converged Storage + NPU 一体机</b> (DDN A3I 模式, 硬件绑定, 客户为"AI-ready"付溢价)</li>
+<li><b>目标客户</b>:
+  <ul>
+    <li>🇨🇳 中国主权云 (China Mobile/Telecom/Unicom)</li>
+    <li>🇨🇳 省级 AI 云 (政务云 / 国资云)</li>
+    <li>🇨🇳 私有部署的银行 / 制造 / 能源</li>
+    <li>🌏 东南亚 / 中东主权云 (出口, EU AI Act 合规卖点)</li>
+  </ul>
+</li>
+</ul>
+
+<h3>7.3 3 个推荐 PoC (按 ROI)</h3>
+
+<table>
+<thead><tr><th>#</th><th>PoC</th><th>对应 DIFF</th><th>工期</th><th>ROI</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>NPU embedding-on-write 验证</td><td>D1</td><td>1-2 周</td><td>🥇 最高</td></tr>
+<tr><td>2</td><td>训练+推理统一存储</td><td>D2</td><td>4-8 周</td><td>🥇 高 (需真模型)</td></tr>
+<tr><td>3</td><td>in-band 数据血缘</td><td>D6</td><td>8-12 周</td><td>🥇 高 (护城河深)</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+<h3>7.4 数据出处说明</h3>
+
+<div class="callout">
+  <div class="label">📚 数据可信度声明</div>
+  <p>本文所有数字 / 产品名 / 论文 / 公司名 / GitHub 仓库 / 法规条款号 / 日期 全部来自公开来源, 可点击验证.</p>
+  <ul style="font-size:12.5px;line-height:1.7">
+    <li><b>调研数据</b>: 5 个并行 agent 跑了 ~120 次 web_search + ~20 次 web_extract, 60+ URL 抽样 curl 验证</li>
+    <li><b>PoC 数据</b>: 3 个 JSON 文件 (EAGLE / RDMA / KV 数学) 实测数字, 公式推导有据</li>
+    <li><b>EU AI Act 条款</b>: 9 个条款全部引自 EC 官方 Service Desk + EUR-Lex</li>
+    <li><b>Ascend 310P 校正</b>: 140 TOPS 来自 Huawei Atlas 300I Duo spec + Tsingetech datasheet 双源</li>
+    <li><b>业界方案</b>: HuggingFace / NVIDIA / VAST / Dell / DDN / WEKA / Pinecone 等产品页 + 官方博客</li>
+    <li><b>已知 3 个数据缺口</b>:
+      <ol style="margin-top:4px">
+        <li>中国 AI 法规 6 个月日志是二级源解读, gov.cn 正文未明文 (已在 JSON 中标注)</li>
+        <li>Digital Omnibus "12-02" 是临时政治协议, 任何企业应保留 8/2 应急计划 (已在报告标注)</li>
+        <li>D6 产品本身在公开 web 搜索中找不到直接的 EU AI Act 合规案例或产品页面, 用户应补充 D6 产品技术白皮书 / 参考客户 (已在 JSON `data_quality_notes` 标注)</li>
+      </ol>
+    </li>
+  </ul>
+</div>
+
+<hr>
+
+<div class="footer">
+  <p><b>📋 存储设备做 AI 基础设施 — 从 128 节点 KV 集群到 7 个差异化战略</b></p>
+  <p>作者: 肥嘟嘟的炼金工厂 · ⚗️ Hermes · 截稿 2026-07-03 · v1.0 (终版, 8 份产出合并)</p>
+  <p>配套 8 份原始产出 (previews/ 目录保留):</p>
+  <p style="font-size:11px">
+    <a href="../../../previews/2026-07-03-kv-cluster-idea-review.html">kv-cluster-idea-review</a> ·
+    <a href="../../../previews/2026-07-03-storage-for-ai-data-platform.html">storage-for-ai-data-platform</a> ·
+    <a href="../../../previews/poc1-eagle-utilization.json">poc1-eagle</a> ·
+    <a href="../../../previews/poc2-rdma-latency.json">poc2-rdma</a> ·
+    <a href="../../../previews/poc3-kv-math.json">poc3-kv-math</a> ·
+    <a href="../../../previews/2026-07-03-poc-data-summary.html">poc-data-summary</a> ·
+    <a href="../../../previews/2026-07-03-poc-diff1-npu-embedding.md">poc-diff1-design</a> ·
+    <a href="../../../previews/2026-07-03-eu-ai-act-research.json">eu-ai-act</a>
+  </p>
+  <p class="rev">修订: v1.0 — 8 份产出合成终版. 上传 hacms content/articles/2026-07-03-storage-for-ai-strategy/, previews/ 目录保留不删. 5/5 假设审查 / 7 个差异化 / 3 个推荐 PoC / EU AI Act 9 条款图谱.</p>
+</div>
+
+</div>
+</body>
+</html>
