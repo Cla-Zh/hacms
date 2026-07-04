@@ -268,9 +268,9 @@
     dom.categoryList.innerHTML = '';
 
     // 调研文章 (排除 QA 智慧问答系列)
-    // 调研文章 (排除 QA 智慧问答系列) - "全部" tab 排除 "其他" 类别
+    // 调研文章 (排除 QA 智慧问答系列) - 侧边栏全部分类都显示 (含 "其他")
     const reportArticles = STATE.articles.filter(a =>
-      a.series !== '智慧问答' && a.type !== 'qa' && a.category !== '其他'
+      a.series !== '智慧问答' && a.type !== 'qa'
     );
 
     // "全部" 项
@@ -279,7 +279,7 @@
     if (!STATE.activeCategory) allItem.classList.add('active');
     allItem.innerHTML = `
       <span class="cat-name">全部文章</span>
-      <span class="cat-count">${reportArticles.length}</span>
+      <span class="cat-count">${reportArticles.filter(a => a.category !== '其他').length}</span>
     `;
     allItem.addEventListener('click', () => {
       STATE.activeCategory = null;
