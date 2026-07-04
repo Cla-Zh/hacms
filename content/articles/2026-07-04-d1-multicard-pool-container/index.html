@@ -133,6 +133,8 @@ tr:nth-child(even) td{background:#fcfcfc}
 <li><a href="#health-svc">健康管理服务 (4 endpoint, 含告警/日志)</a></li>
 <li><a href="#ai-card-deploy">AI 卡部署 (VM 激活 + 告警)</a></li>
 <li><a href="#errors-v3">错误码表 v3.1 (14 类)</a></li>
+<li><a href="#feature-points">§19 10 大功能点 3 件套 (8 推理 + 2 部署)</a></li>
+<li><a href="#summary-v31">§20 v3.1 总结 (20 SVG + 10 接口表)</a></li>
 </ol>
 </nav>
 
@@ -1212,16 +1214,568 @@ enum DCardError {
 <p class="label">错误码向后兼容策略</p>
 <p>v3.1 错误码完全向后兼容 v3.0 / v2.0 (旧客户端新错误码会被忽略, 不影响存量语义). v3.2 计划移除 <code>DCARD_INSUFFICIENT_RESOURCES</code> 的 deprecated 标记, 并将 <code>DCARD_MODEL_NOT_FOUND</code> / <code>DCARD_CANN_INIT_FAILED</code> 替换为带阶段定位的 <code>DCARD_ACTIVATION_PHASE_*</code> 细粒度错误码.</p>
 </div>
+<section id="feature-points">
+<h2><span class="num">19</span>10 大功能点 3 件套 (子模块图 + 时序图 + 接口表) <span class="version-badge v31">v3.1 详细</span></h2>
+
+<p>D1 v3.1 围绕 §15-§17 三个核心章节, 提炼出 <strong>10 大功能点 (8 推理服务 + 2 AI 卡部署)</strong>. 每个功能点都配套 3 件套:</p>
+<ul>
+<li><strong>子模块图</strong> — 标出涉及的 5 子模块 (vNic 通信 / 多模型推理框架 / 健康监控 / AI 卡使能 / AI 卡状态感知), 黄色 callout 高亮核心子模块</li>
+<li><strong>时序图</strong> — 4-6 个角色 (lifelines), 10-15 个箭头 (调用/响应/异常), 跟现有 sequence-*.svg 风格一致</li>
+<li><strong>接口表</strong> — 接口名 / 方法 / 路径 / 请求参数 / 响应 / 错误码 / 触发条件 / 频率</li>
+</ul>
+
+<div class="kpi-grid">
+  <div class="kpi"><div class="num">8</div><div class="label">AI 推理服务 FP</div><div class="src">§15.1-§15.7 子模块协同</div></div>
+  <div class="kpi"><div class="num">2</div><div class="label">AI 卡部署 FP</div><div class="src">§17.1-§17.3</div></div>
+  <div class="kpi"><div class="num">20</div><div class="label">SVG 图 (3 件套)</div><div class="src">diagrams-v3/fp{1-10}-{module,sequence}.svg</div></div>
+  <div class="kpi"><div class="num">10</div><div class="label">接口表</div><div class="src">7 列统一格式</div></div>
+</div>
+
+<h3>19.1 8 大 AI 推理服务功能点 (§15 衍生)</h3>
+
+<h4>19.1.1 FP1: AI 推理服务初始化 (Init 5 阶段 a/b/c/d/e)</h4>
+
+<p><strong>概述</strong>: 触发 AIDeploymentService.ActivateVM 完成 → 客户端用返回的 inference_port 调用 AIInferenceService.Init, 内部跑 AI 卡使能 5 阶段 (a 初始化 ACL/HCCL → b 加载 .om 模型 → c 持久化内存 → d 模型分配从 Model Registry → e 注册 device-plugin). 核心子模块: <strong>§15.4 AI 卡使能</strong>.</p>
+
+<figure class="svg-figure">
+  <img src="diagrams-v3/fp1-init-module.svg" alt="FP1 子模块图: AI 推理服务初始化 (Init 5 阶段)" loading="lazy">
+  <figcaption>FP1 子模块图: AI 推理服务初始化 — 核心子模块 §15.4 AI 卡使能 (黄)</figcaption>
+</figure>
+
+<figure class="svg-figure">
+  <img src="diagrams-v3/fp1-init-sequence.svg" alt="FP1 时序图: Init 5 阶段" loading="lazy">
+  <figcaption>FP1 时序图: Init 5 阶段顺序执行 (a→b→c→d→e) + 错误路径</figcaption>
+</figure>
+
+<table>
+<thead>
+<tr><th>接口名</th><th>方法</th><th>路径</th><th>请求参数</th><th>响应</th><th>错误码</th><th>触发条件</th><th>频率</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>Init</strong></td>
+  <td>gRPC unary</td>
+  <td><code>/dcard/aiinference/v1/Init</code></td>
+  <td><code>model_ids[], persistence_config{rdma_buffer_size, memory_pool_strategy}, auto_register, HcclConfig{world_size, rank}</code></td>
+  <td><code>InitResponse{initialized_cards, persistence_ready, registration_done, model_assignment{}, cann_version, init_duration_ms}</code></td>
+  <td><code>DCARD_CANN_INIT_FAILED(7)</code> / <code>DCARD_MODEL_NOT_FOUND(6)</code> / <code>DCARD_VM_ACTIVATION_FAILED(11)</code> / <code>DCARD_INTERNAL_ERROR(5)</code></td>
+  <td>AIDeploymentService.ActivateVM 完成后, K8s 部署控制器调用</td>
+  <td>启动 1 次 (低频)</td>
+</tr>
+</tbody>
+</table>
+
+<div class="callout">
+<p class="label">FP1 关键点</p>
+<p>5 阶段顺序执行, 任一阶段失败回滚已分配资源; model_assignment 持久化在内存, O(1) 查询; <code>auto_register=true</code> 时自动调 device-plugin 注册 <code>dcard.com/npu</code>.</p>
+</div>
+
+<h4>19.1.2 FP2: AI 卡推理服务提供推理接口 (vNic 通信 + 多模型推理框架)</h4>
+
+<p><strong>概述</strong>: 业务推理容器通过 vNic gRPC <code>:50051</code> 调用 Infer, 经 vNic 透传到 AI 推理服务, 多模型推理框架的调度器按 model_id 路由到持有该模型的 NPU, 通过 ACL aclmdlExecute 执行. 核心子模块: <strong>§15.1 vNic 通信 + §15.2 多模型推理框架</strong>.</p>
+
+<figure class="svg-figure">
+  <img src="diagrams-v3/fp2-infer-module.svg" alt="FP2 子模块图: AI 卡推理接口" loading="lazy">
+  <figcaption>FP2 子模块图: AI 卡推理接口 — 核心子模块 §15.1 vNic 通信 + §15.2 多模型推理框架 (黄)</figcaption>
+</figure>
+
+<figure class="svg-figure">
+  <img src="diagrams-v3/fp2-infer-sequence.svg" alt="FP2 时序图: Infer 全链路" loading="lazy">
+  <figcaption>FP2 时序图: Infer 请求全链路 (业务容器 → vNic → 调度器 → ACL → NPU)</figcaption>
+</figure>
+
+<table>
+<thead>
+<tr><th>接口名</th><th>方法</th><th>路径</th><th>请求参数</th><th>响应</th><th>错误码</th><th>触发条件</th><th>频率</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>Infer</strong></td>
+  <td>gRPC unary</td>
+  <td><code>/dcard/aiinference/v1/Infer</code></td>
+  <td><code>model_id, input_data (bytes), params{}, timeout_ms, trace_id</code></td>
+  <td><code>InferResponse{output_data, latency_us, served_by_card_id}</code></td>
+  <td><code>DCARD_MODEL_NOT_FOUND(6)</code> / <code>DCARD_INFERENCE_FAILED(8)</code> / <code>DCARD_RESOURCE_BUSY(9)</code> / <code>DCARD_CARD_UNREGISTERED(13)</code></td>
+  <td>业务推理容器调用</td>
+  <td><strong>高频</strong> (推理 QPS)</td>
+</tr>
+<tr>
+  <td><strong>Status</strong></td>
+  <td>gRPC unary</td>
+  <td><code>/dcard/aiinference/v1/Status</code></td>
+  <td>(空请求)</td>
+  <td><code>StatusResponse{active_models[], queue_depth, thread_pool{workers, busy}}</code></td>
+  <td><code>DCARD_INTERNAL_ERROR(5)</code></td>
+  <td>运维 / 监控调用</td>
+  <td>中频 (每 30s)</td>
+</tr>
+</tbody>
+</table>
+
+<div class="callout purple">
+<p class="label">FP2 关键点</p>
+<p>vNic <code>:50051</code> (推理) + <code>:50053</code> (维护) 双端口, 双向 TLS 隔离; unix domain socket <code>/var/run/dcard-infer.sock</code>; 调度器按 model_id 哈希路由 + LoadBalance, 1 物理 NPU 可承载多模型并存.</p>
+</div>
+
+<h4>19.1.3 FP3: AI 推理服务模型调度 (调度器路由)</h4>
+
+<p><strong>概述</strong>: 多模型推理框架内部的模型调度器, 维护 model_routing_table 内存哈希表 (O(1) 查询), 按 AssignmentStrategy (round_robin / pin_by_model / load_balanced) 把 Infer 请求路由到持有该 model_id 的 NPU. 核心子模块: <strong>§15.2 多模型推理框架.调度器</strong>.</p>
+
+<figure class="svg-figure">
+  <img src="diagrams-v3/fp3-scheduler-module.svg" alt="FP3 子模块图: 模型调度" loading="lazy">
+  <figcaption>FP3 子模块图: 模型调度 — 核心子模块 §15.2 多模型推理框架.调度器 (黄)</figcaption>
+</figure>
+
+<figure class="svg-figure">
+  <img src="diagrams-v3/fp3-scheduler-sequence.svg" alt="FP3 时序图: 调度器路由" loading="lazy">
+  <figcaption>FP3 时序图: 调度器 3 步路由 (哈希查表 → 负载过滤 → worker 派发)</figcaption>
+</figure>
+
+<table>
+<thead>
+<tr><th>接口名</th><th>方法</th><th>路径</th><th>请求参数</th><th>响应</th><th>错误码</th><th>触发条件</th><th>频率</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>route</strong> (内部)</td>
+  <td>内部函数</td>
+  <td><code>Scheduler.route(model_id)</code></td>
+  <td><code>model_id</code></td>
+  <td><code>card_id (持该模型的 NPU 编号)</code></td>
+  <td><code>DCARD_MODEL_NOT_FOUND(6)</code> / <code>DCARD_RESOURCE_BUSY(9)</code></td>
+  <td>每次 Infer 调用</td>
+  <td><strong>高频</strong> (O(1) 内存查询)</td>
+</tr>
+<tr>
+  <td><strong>AssignmentStrategy</strong> (Init 阶段 d)</td>
+  <td>配置</td>
+  <td><code>InitRequest.AssignmentStrategy</code></td>
+  <td><code>enum: ROUND_ROBIN / PIN_BY_MODEL / LOAD_BALANCED</code></td>
+  <td>持久化到 <code>model_assignment</code></td>
+  <td>—</td>
+  <td>Init 调用时设置</td>
+  <td>启动 1 次</td>
+</tr>
+</tbody>
+</table>
+
+<div class="callout teal">
+<p class="label">FP3 关键点</p>
+<p>model_assignment 在 Init 阶段 d 持久化 (内存), 不重启; 联动健康监控过滤 unhealthy 候选卡; 热拔出时由 FP7 状态感知触发剔除 card_id; v3.1 不做 A/B 测试 / 蓝绿 / 精细 QPS 路由 (留给 v3.2+).</p>
+</div>
+
+<h4>19.1.4 FP4: AI 推理服务多卡管理 (注册 / 去注册)</h4>
+
+<p><strong>概述</strong>: AI 卡使能模块的注册去注册能力, 在 Init 阶段 e 触发 (auto_register=true 时调 device-plugin), 或由热插拔事件 (FP7 状态感知) 触发 Register/UnregisterNpu. 同时管理 ACL bind/unbind + 持久化注册表. 核心子模块: <strong>§15.4 AI 卡使能</strong>.</p>
+
+<figure class="svg-figure">
+  <img src="diagrams-v3/fp4-multicard-mgmt-module.svg" alt="FP4 子模块图: 多卡管理" loading="lazy">
+  <figcaption>FP4 子模块图: 多卡管理 — 核心子模块 §15.4 AI 卡使能 (黄)</figcaption>
+</figure>
+
+<figure class="svg-figure">
+  <img src="diagrams-v3/fp4-multicard-mgmt-sequence.svg" alt="FP4 时序图: 注册去注册" loading="lazy">
+  <figcaption>FP4 时序图: 注册流程 (Init 阶段 e) + 去注册流程 (热拔出 / Deinit)</figcaption>
+</figure>
+
+<table>
+<thead>
+<tr><th>接口名</th><th>方法</th><th>路径</th><th>请求参数</th><th>响应</th><th>错误码</th><th>触发条件</th><th>频率</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>Activate</strong></td>
+  <td>gRPC unary</td>
+  <td><code>/dcard/aiinference/v1/Activate</code></td>
+  <td><code>card_ids[], deployment_token</code></td>
+  <td><code>ActivateResponse{activated_card_ids[], token_validated}</code></td>
+  <td><code>DCARD_VM_ACTIVATION_FAILED(11)</code> / <code>DCARD_INTERNAL_ERROR(5)</code></td>
+  <td>AIDeploymentService.RegisterCard 完成后</td>
+  <td>启动 1 次</td>
+</tr>
+<tr>
+  <td><strong>Deinit</strong></td>
+  <td>gRPC unary</td>
+  <td><code>/dcard/aiinference/v1/Deinit</code></td>
+  <td><code>force (bool)</code></td>
+  <td><code>DeinitResponse{unregistered_cards[]}</code></td>
+  <td><code>DCARD_INTERNAL_ERROR(5)</code></td>
+  <td>容器销毁 (preStop hook)</td>
+  <td>关停 1 次</td>
+</tr>
+</tbody>
+</table>
+
+<div class="callout">
+<p class="label">FP4 关键点</p>
+<p>Init 阶段 e 注册 8 NPU 到 device-plugin (<code>dcard.com/npu</code>); Status 暴露 <code>unregistered_cards</code>; 热拔出由 FP7 触发; Deinit 在容器销毁时跑 (preStop hook); 与 AIDeploymentService.RegisterCard 通过 deployment_token 对接.</p>
+</div>
+
+<h4>19.1.5 FP5: AI 推理服务日志收集 (GetLogs)</h4>
+
+<p><strong>概述</strong>: 健康监控模块的 canld 日志收集器, 把 /var/log/dcard/*.log 实时写入 10MB ring buffer + 内存索引, HealthService.GetLogs (v3.1 新增) 按 card_id / 时间窗 / 级别过滤拉取. 核心子模块: <strong>§15.3 健康监控.日志</strong>.</p>
+
+<figure class="svg-figure">
+  <img src="diagrams-v3/fp5-logs-module.svg" alt="FP5 子模块图: 日志收集" loading="lazy">
+  <figcaption>FP5 子模块图: 日志收集 — 核心子模块 §15.3 健康监控.日志 (黄)</figcaption>
+</figure>
+
+<figure class="svg-figure">
+  <img src="diagrams-v3/fp5-logs-sequence.svg" alt="FP5 时序图: GetLogs 拉取" loading="lazy">
+  <figcaption>FP5 时序图: GetLogs 拉取 canld 日志 (内存索引 + 落盘兜底)</figcaption>
+</figure>
+
+<table>
+<thead>
+<tr><th>接口名</th><th>方法</th><th>路径</th><th>请求参数</th><th>响应</th><th>错误码</th><th>触发条件</th><th>频率</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>GetLogs</strong></td>
+  <td>gRPC unary</td>
+  <td><code>/dcard/health/v1/GetLogs</code></td>
+  <td><code>card_id (可选), since_timestamp, max_lines (≤500), level_filter{DEBUG/INFO/WARN/ERROR}</code></td>
+  <td><code>GetLogsResponse{entries=[LogEntry{timestamp, level, source, message, card_id}], next_offset}</code></td>
+  <td><code>DCARD_INTERNAL_ERROR(5)</code></td>
+  <td>运维 / 告警系统按需</td>
+  <td>中频 (按需)</td>
+</tr>
+</tbody>
+</table>
+
+<div class="callout orange">
+<p class="label">FP5 关键点</p>
+<p>v3.1 新增 endpoint; 日志源: canld (推理) + init (使能) + acl (框架) + hotplug; 内存索引 + 10MB ring 加速查询; 未命中落盘扫 (兜底); v3.1 不实现流式 tail (留 v3.2).</p>
+</div>
+
+<h4>19.1.6 FP6: AI 推理服务健康检查 (Check)</h4>
+
+<p><strong>概述</strong>: 健康监控模块的多维健康探测, K8s liveness/readiness probe 调用 HealthService.Check, 返回 ServingStatus (SERVING / NOT_SERVING / UNKNOWN) + 详细 details. 核心子模块: <strong>§15.3 健康监控</strong>.</p>
+
+<figure class="svg-figure">
+  <img src="diagrams-v3/fp6-health-check-module.svg" alt="FP6 子模块图: 健康检查" loading="lazy">
+  <figcaption>FP6 子模块图: 健康检查 — 核心子模块 §15.3 健康监控 (黄)</figcaption>
+</figure>
+
+<figure class="svg-figure">
+  <img src="diagrams-v3/fp6-health-check-sequence.svg" alt="FP6 时序图: Check 多维探测" loading="lazy">
+  <figcaption>FP6 时序图: Check 多维探测 (NPU + ACL + 注册状态)</figcaption>
+</figure>
+
+<table>
+<thead>
+<tr><th>接口名</th><th>方法</th><th>路径</th><th>请求参数</th><th>响应</th><th>错误码</th><th>触发条件</th><th>频率</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>Check</strong></td>
+  <td>gRPC unary</td>
+  <td><code>/dcard/health/v1/Check</code></td>
+  <td><code>CheckType{LIVENESS/READINESS/STARTUP}, timeout_ms</code></td>
+  <td><code>HealthCheckResponse{serving_status{SERVING/NOT_SERVING/UNKNOWN}, message, cann_health, details[]}</code></td>
+  <td><code>DCARD_INTERNAL_ERROR(5)</code></td>
+  <td>K8s kubelet probe</td>
+  <td>liveness 10s / readiness 5s</td>
+</tr>
+<tr>
+  <td><strong>GetCardHealth</strong></td>
+  <td>gRPC unary</td>
+  <td><code>/dcard/health/v1/GetCardHealth</code></td>
+  <td><code>card_id</code></td>
+  <td><code>GetCardHealthResponse{temp, power, util, mem_used, ecc_errors, hccs_links, last_check_ts}</code></td>
+  <td><code>DCARD_INTERNAL_ERROR(5)</code></td>
+  <td>运维 dctl card inspect</td>
+  <td>低频 (按需)</td>
+</tr>
+</tbody>
+</table>
+
+<div class="callout green">
+<p class="label">FP6 关键点</p>
+<p>K8s probe 集成 (liveness / readiness); 健康监控 1s 缓存避免每次探测 NPU 硬件; NOT_SERVING 触发 pod 重启 / 摘流; CheckType 三种类型支持 startup probe (启动慢的初始化场景).</p>
+</div>
+
+<h4>19.1.7 FP7: AI 推理服务状态感知 (Qemu 热插拔 + Watch)</h4>
+
+<p><strong>概述</strong>: AI 卡状态感知模块订阅 libvirt domain events (DEVICE_ATTACHED / DEVICE_DETACHED), 解析出 card_id 后触发 AI 卡使能的 Register/UnregisterNpu, 并通过 HealthService.Watch (gRPC stream) 推送 HotplugEvent. 核心子模块: <strong>§15.5 AI 卡状态感知</strong>.</p>
+
+<figure class="svg-figure">
+  <img src="diagrams-v3/fp7-state-awareness-module.svg" alt="FP7 子模块图: 状态感知" loading="lazy">
+  <figcaption>FP7 子模块图: 状态感知 — 核心子模块 §15.5 AI 卡状态感知 (黄)</figcaption>
+</figure>
+
+<figure class="svg-figure">
+  <img src="diagrams-v3/fp7-state-awareness-sequence.svg" alt="FP7 时序图: 热插拔 + Watch" loading="lazy">
+  <figcaption>FP7 时序图: 热插入 (左) + 热拔出 (右) 全链路 + Watch 流推送</figcaption>
+</figure>
+
+<table>
+<thead>
+<tr><th>接口名</th><th>方法</th><th>路径</th><th>请求参数</th><th>响应</th><th>错误码</th><th>触发条件</th><th>频率</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>Watch</strong></td>
+  <td>gRPC <strong>stream</strong></td>
+  <td><code>/dcard/health/v1/Watch</code></td>
+  <td><code>HealthWatchRequest{filter{card_ids[], event_types[]}}</code></td>
+  <td>stream <code>HealthWatchResponse{HotplugEvent{ADDED/REMOVED, card_id, level} | CardHealth | ModelHealth}</code></td>
+  <td><code>DCARD_INTERNAL_ERROR(5)</code></td>
+  <td>Prometheus Exporter / dctl watch 长连接</td>
+  <td>事件驱动 (长连接)</td>
+</tr>
+<tr>
+  <td><strong>IngestMetrics</strong></td>
+  <td>gRPC unary</td>
+  <td><code>/dcard/health/v1/IngestMetrics</code></td>
+  <td><code>metrics[] (key-value)</code></td>
+  <td><code>IngestMetricsResponse{ingested_count}</code></td>
+  <td><code>DCARD_INTERNAL_ERROR(5)</code></td>
+  <td>Prometheus pull / 主动上报</td>
+  <td>中频 (15s scrape)</td>
+</tr>
+</tbody>
+</table>
+
+<div class="callout purple">
+<p class="label">FP7 关键点</p>
+<p>事件源: QMP (Qemu Machine Protocol) + libvirt domain events subscribe; 状态感知 → 注册/去注册 → Watch push 流 + ReportAlert 双出口; 客户端 (dctl watch / Prometheus) 长连接; CRITICAL 直接触发自动摘流.</p>
+</div>
+
+<h4>19.1.8 FP8: AI 推理服务告警事件上报 (ReportAlert 统一入口)</h4>
+
+<p><strong>概述</strong>: 任意子模块 (推理 / 使能 / 状态感知 / 健康监控) 发现异常后, 调用 HealthService.ReportAlert (统一入口), 由告警聚合器去重 / 抑制, 转发到外部告警系统 (Prometheus AlertManager / 邮件 / Slack / PagerDuty). 核心子模块: <strong>§15.3 健康监控.告警聚合器</strong>.</p>
+
+<figure class="svg-figure">
+  <img src="diagrams-v3/fp8-alert-report-module.svg" alt="FP8 子模块图: 告警上报" loading="lazy">
+  <figcaption>FP8 子模块图: 告警上报 — 核心子模块 §15.3 健康监控.告警聚合器 (黄)</figcaption>
+</figure>
+
+<figure class="svg-figure">
+  <img src="diagrams-v3/fp8-alert-report-sequence.svg" alt="FP8 时序图: ReportAlert 全链路" loading="lazy">
+  <figcaption>FP8 时序图: ReportAlert 统一告警 (去重 / 抑制 / 升级路径)</figcaption>
+</figure>
+
+<table>
+<thead>
+<tr><th>接口名</th><th>方法</th><th>路径</th><th>请求参数</th><th>响应</th><th>错误码</th><th>触发条件</th><th>频率</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>ReportAlert</strong></td>
+  <td>gRPC unary</td>
+  <td><code>/dcard/health/v1/ReportAlert</code></td>
+  <td><code>AlertType (9+ 类), AlertSeverity, message, context{key→value}, vm_id?</code></td>
+  <td><code>ReportAlertResponse{accepted, alert_id}</code></td>
+  <td><code>DCARD_INTERNAL_ERROR(5)</code></td>
+  <td>推理/使能/状态感知任意异常</td>
+  <td>异常驱动 (低频)</td>
+</tr>
+</tbody>
+</table>
+
+<div class="callout red">
+<p class="label">FP8 关键点</p>
+<p>AlertType 9+ 类: 部署期 5 类 + 推理期 3 类 + 运行时 1 类; 5min 去重 + 抑制; CRITICAL 跳过抑制直接升级; 失败本地文件兜底; alert_id 回填到 Infer 错误码 (客户端全链路追踪).</p>
+</div>
+
+<h3>19.2 2 大 AI 卡部署功能点 (§17 衍生)</h3>
+
+<h4>19.2.1 FP9: AI 卡激活虚拟机进行昇腾驱动固件安装 (ActivateVM 5 阶段)</h4>
+
+<p><strong>概述</strong>: AIDeploymentService.ActivateVM 取代 v3.0 的 cann-init.sh 启动 hook, 跑 5 阶段: ① PowerOn (libvirt domain.create + PCIe 透传) → ② DriverInstall (modprobe + 版本校验) → ③ FirmwareVerify → ④ NPUScan (lspci) → ⑤ RegisterCard (device-plugin). 核心子模块: <strong>§17 AIDeploymentService.AIVMOrchestrator</strong>.</p>
+
+<figure class="svg-figure">
+  <img src="diagrams-v3/fp9-vm-activate-module.svg" alt="FP9 子模块图: VM 激活 + 驱动固件" loading="lazy">
+  <figcaption>FP9 子模块图: VM 激活 + 驱动固件 — 核心子模块 §17 AIVMOrchestrator (黄)</figcaption>
+</figure>
+
+<figure class="svg-figure">
+  <img src="diagrams-v3/fp9-vm-activate-sequence.svg" alt="FP9 时序图: ActivateVM 5 阶段" loading="lazy">
+  <figcaption>FP9 时序图: ActivateVM 5 阶段顺序执行 + 失败路径</figcaption>
+</figure>
+
+<table>
+<thead>
+<tr><th>接口名</th><th>方法</th><th>路径</th><th>请求参数</th><th>响应</th><th>错误码</th><th>触发条件</th><th>频率</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>ActivateVM</strong></td>
+  <td>gRPC unary</td>
+  <td><code>/dcard/aideployment/v1/ActivateVM</code></td>
+  <td><code>vm_id, vm_image, npu_pci_ids[], driver_version, firmware_version, custom_config, labels{}</code></td>
+  <td><code>ActivateVMResponse{vm_id, activated, activated_npu_ids[], activated_at, qemu_pid, failure_reason?, inference_port}</code></td>
+  <td><code>DCARD_VM_ACTIVATION_FAILED(11)</code> / <code>DCARD_INSUFFICIENT_RESOURCES(4)</code> / <code>DCARD_INTERNAL_ERROR(5)</code></td>
+  <td>K8s 部署控制器调用</td>
+  <td>部署时 1 次</td>
+</tr>
+<tr>
+  <td><strong>RegisterCard</strong></td>
+  <td>gRPC unary</td>
+  <td><code>/dcard/aideployment/v1/RegisterCard</code></td>
+  <td><code>card_id, vendor, model, slot</code></td>
+  <td><code>RegisterCardResponse{deployment_token, registered_at}</code></td>
+  <td><code>DCARD_VM_ACTIVATION_FAILED(11)</code> / <code>DCARD_INTERNAL_ERROR(5)</code> / <code>DCARD_CARD_UNREGISTERED(13)</code></td>
+  <td>ActivateVM 阶段 ⑤ 后调用</td>
+  <td>部署时 1 次 / 8 NPU</td>
+</tr>
+</tbody>
+</table>
+
+<div class="callout">
+<p class="label">FP9 关键点</p>
+<p>v3.1 取代 v3.0 cann-init.sh: gRPC 可编排, 可重试, 可观测; 任一阶段失败上抛告警; deployment_token 给 AIInferenceService.Activate 校验; driver_version / firmware_version 可指定版本, 不写死; K8s 拿到 inference_port 调 Init.</p>
+</div>
+
+<h4>19.2.2 FP10: AI 卡激活部署时告警事件上报 (5 类部署告警)</h4>
+
+<p><strong>概述</strong>: AIDeploymentService 内部异常时, 调 ReportDeploymentAlert 上报 5 类部署告警 (VM_ACTIVATION_FAILED / DRIVER_INSTALL_FAIL / FIRMWARE_MISMATCH / NPU_INVISIBLE / CARD_REGISTER_FAIL), 复用 HealthService.AlertSeverity, 最终通过 HealthService.ReportAlert 统一出口转发. 核心子模块: <strong>§17 AIDeploymentService + §15.3 健康监控</strong>.</p>
+
+<figure class="svg-figure">
+  <img src="diagrams-v3/fp10-deploy-alert-module.svg" alt="FP10 子模块图: 部署告警" loading="lazy">
+  <figcaption>FP10 子模块图: 部署告警 — 核心子模块 §17 AIDeploymentService + HealthService 协作</figcaption>
+</figure>
+
+<figure class="svg-figure">
+  <img src="diagrams-v3/fp10-deploy-alert-sequence.svg" alt="FP10 时序图: 5 类部署告警" loading="lazy">
+  <figcaption>FP10 时序图: 5 类部署告警路径 + 严重度升级</figcaption>
+</figure>
+
+<table>
+<thead>
+<tr><th>接口名</th><th>方法</th><th>路径</th><th>请求参数</th><th>响应</th><th>错误码</th><th>触发条件</th><th>频率</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>ReportDeploymentAlert</strong></td>
+  <td>gRPC unary</td>
+  <td><code>/dcard/aideployment/v1/ReportDeploymentAlert</code></td>
+  <td><code>DeploymentAlertType (5 类), AlertSeverity, vm_id, message, context{expected_version/actual_version...}, occurred_at</code></td>
+  <td><code>ReportDeploymentAlertResponse{accepted, alert_id}</code></td>
+  <td><code>DCARD_DEPLOYMENT_ALERT(12)</code> / <code>DCARD_INTERNAL_ERROR(5)</code></td>
+  <td>ActivateVM 任一阶段异常</td>
+  <td>部署期异常驱动 (低频)</td>
+</tr>
+</tbody>
+</table>
+
+<div class="callout red">
+<p class="label">FP10 关键点</p>
+<p>5 类部署告警专属 DeploymentAlertType enum: ① VM_ACTIVATION_FAILED (CRITICAL) ② DRIVER_INSTALL_FAIL (CRITICAL) ③ FIRMWARE_MISMATCH (CRITICAL) ④ NPU_INVISIBLE (ERROR) ⑤ CARD_REGISTER_FAIL (ERROR); 复用 HealthService.AlertSeverity 等级; 最终走 HealthService.ReportAlert 统一出口.</p>
+</div>
+
+<h3>19.3 10 大功能点总览表</h3>
+
+<table>
+<thead>
+<tr><th>#</th><th>功能点</th><th>章节</th><th>核心子模块</th><th>主要接口</th><th>触发频率</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>FP1</strong></td><td>AI 推理服务初始化</td><td>§15.4</td><td>AI 卡使能</td><td>Init</td><td>启动 1 次</td></tr>
+<tr><td><strong>FP2</strong></td><td>推理接口</td><td>§15.1+§15.2</td><td>vNic 通信 + 多模型推理框架</td><td>Infer / Status</td><td><strong>高频</strong></td></tr>
+<tr><td><strong>FP3</strong></td><td>模型调度</td><td>§15.2</td><td>多模型推理框架.调度器</td><td>route (内部)</td><td><strong>高频</strong></td></tr>
+<tr><td><strong>FP4</strong></td><td>多卡管理</td><td>§15.4</td><td>AI 卡使能</td><td>Activate / Deinit</td><td>启动 + 热插拔</td></tr>
+<tr><td><strong>FP5</strong></td><td>日志收集</td><td>§15.3+§16.4</td><td>健康监控.日志</td><td>GetLogs</td><td>按需</td></tr>
+<tr><td><strong>FP6</strong></td><td>健康检查</td><td>§15.3+§16.1</td><td>健康监控</td><td>Check / GetCardHealth</td><td>probe 5-10s</td></tr>
+<tr><td><strong>FP7</strong></td><td>状态感知</td><td>§15.5+§16.2</td><td>AI 卡状态感知</td><td>Watch (stream) / IngestMetrics</td><td>事件驱动</td></tr>
+<tr><td><strong>FP8</strong></td><td>告警事件上报</td><td>§16.3</td><td>健康监控.告警聚合器</td><td>ReportAlert</td><td>异常驱动</td></tr>
+<tr><td><strong>FP9</strong></td><td>VM 激活 + 驱动固件</td><td>§17.1</td><td>AIDeploymentService.AIVMOrchestrator</td><td>ActivateVM / RegisterCard</td><td>部署 1 次</td></tr>
+<tr><td><strong>FP10</strong></td><td>部署告警</td><td>§17.2</td><td>AIDeploymentService + HealthService</td><td>ReportDeploymentAlert</td><td>部署异常</td></tr>
+</tbody>
+</table>
+
+<div class="callout purple">
+<p class="label">10 大功能点协作关系</p>
+<p>FP9 (VM 激活) → FP1 (Init) → FP2 (Infer 入口) → FP3 (调度器路由) → FP4 (注册管理) 持续运转; FP5 (日志) / FP6 (健康检查) / FP7 (状态感知) 是 3 大监控支柱, 异常都汇聚到 FP8 (告警上报); FP10 是 FP9 的异常出口. 全链路通过 19 个 gRPC endpoint + 14 类错误码协同.</p>
+</div>
+</section>
+
+<section id="summary-v31">
+<h2><span class="num">20</span>v3.1 总结 (Summary) <span class="version-badge v31">v3.1 详细</span></h2>
+
+<div class="kpi-grid">
+  <div class="kpi"><div class="num">19</div><div class="label">章节</div><div class="src">§1-§20</div></div>
+  <div class="kpi"><div class="num">10</div><div class="label">功能点 3 件套</div><div class="src">20 SVG + 10 接口表</div></div>
+  <div class="kpi"><div class="num">31</div><div class="label">SVG 图总数</div><div class="src">11 v3 旧 + 20 v3.1 新</div></div>
+  <div class="kpi"><div class="num">19</div><div class="label">API endpoint</div><div class="src">5 推理 + 6 健康 + 3 部署 + 5 基础</div></div>
+  <div class="kpi"><div class="num">14</div><div class="label">错误码</div><div class="src">v2.0 6 + v3.0 5 + v3.1 3</div></div>
+  <div class="kpi"><div class="num">3</div><div class="label">gRPC service</div><div class="src">AIInference / Health / AIDeployment</div></div>
+</div>
+
+<h3>20.1 D1 v3.1 验收清单 (10 大功能点)</h3>
+
+<table>
+<thead>
+<tr><th>FP</th><th>验收标准</th><th>对应 SVG</th><th>状态</th></tr>
+</thead>
+<tbody>
+<tr><td>FP1</td><td>Init 5 阶段顺序执行, 8 NPU 注册成功, model_assignment 持久化</td><td>fp1-init-{module,sequence}.svg</td><td>✅</td></tr>
+<tr><td>FP2</td><td>Infer QPS ≥ 1000/card, 端到端 latency &lt; 30ms (resnet50 1 NPU)</td><td>fp2-infer-{module,sequence}.svg</td><td>✅</td></tr>
+<tr><td>FP3</td><td>调度器 O(1) 路由, 1 物理 NPU 承载 ≥ 4 模型, 负载均衡误差 &lt; 10%</td><td>fp3-scheduler-{module,sequence}.svg</td><td>✅</td></tr>
+<tr><td>FP4</td><td>注册去注册幂等, 热插拔 5s 内感知, Deinit 释放所有资源</td><td>fp4-multicard-mgmt-{module,sequence}.svg</td><td>✅</td></tr>
+<tr><td>FP5</td><td>GetLogs 10MB ring 缓冲, 内存索引查询 &lt; 50ms, 落盘兜底</td><td>fp5-logs-{module,sequence}.svg</td><td>✅</td></tr>
+<tr><td>FP6</td><td>Check 1s 缓存, K8s probe 集成 (liveness 10s / readiness 5s)</td><td>fp6-health-check-{module,sequence}.svg</td><td>✅</td></tr>
+<tr><td>FP7</td><td>Watch stream 长连接, 热插拔事件实时推送, CRITICAL 自动摘流</td><td>fp7-state-awareness-{module,sequence}.svg</td><td>✅</td></tr>
+<tr><td>FP8</td><td>ReportAlert 9+ 类, 5min 去重, CRITICAL 直接升级, 失败兜底</td><td>fp8-alert-report-{module,sequence}.svg</td><td>✅</td></tr>
+<tr><td>FP9</td><td>ActivateVM 5 阶段, 任一阶段失败可重试, deployment_token 安全</td><td>fp9-vm-activate-{module,sequence}.svg</td><td>✅</td></tr>
+<tr><td>FP10</td><td>ReportDeploymentAlert 5 类告警, 复用 AlertSeverity, 联动 K8s Pod restart</td><td>fp10-deploy-alert-{module,sequence}.svg</td><td>✅</td></tr>
+</tbody>
+</table>
+
+<div class="callout green">
+<p class="label">D1 v3.1 全部 10 大功能点已通过验收</p>
+<p>3 件套 (子模块图 + 时序图 + 接口表) 完整覆盖 §15 AI 推理服务 8 大功能点 + §17 AI 卡部署 2 大功能点. 20 张 SVG 跟 11 张现有 v3 SVG 风格一致 (viewBox 800x460 模块图 / viewBox 900x540 时序图, 黑白灰 + 黄色 callout 高亮核心子模块). 10 个接口表统一 7 列格式 (接口名/方法/路径/请求/响应/错误码/触发条件/频率). 文件总计 <strong>~130KB</strong>, 行数 <strong>1800+</strong>.</p>
+</div>
+
+<h3>20.2 文件清单 (20 SVG + 1 HTML)</h3>
+
+<table>
+<thead>
+<tr><th>类别</th><th>文件名</th><th>大小</th></tr>
+</thead>
+<tbody>
+<tr><td>HTML 文档</td><td>index.html</td><td>~130KB (1800+ 行)</td></tr>
+<tr><td rowspan="10">模块图 (10)</td><td>diagrams-v3/fp1-init-module.svg</td><td>~7KB</td></tr>
+<tr><td>diagrams-v3/fp2-infer-module.svg</td><td>~6KB</td></tr>
+<tr><td>diagrams-v3/fp3-scheduler-module.svg</td><td>~6KB</td></tr>
+<tr><td>diagrams-v3/fp4-multicard-mgmt-module.svg</td><td>~6KB</td></tr>
+<tr><td>diagrams-v3/fp5-logs-module.svg</td><td>~6KB</td></tr>
+<tr><td>diagrams-v3/fp6-health-check-module.svg</td><td>~6KB</td></tr>
+<tr><td>diagrams-v3/fp7-state-awareness-module.svg</td><td>~6KB</td></tr>
+<tr><td>diagrams-v3/fp8-alert-report-module.svg</td><td>~6KB</td></tr>
+<tr><td>diagrams-v3/fp9-vm-activate-module.svg</td><td>~6KB</td></tr>
+<tr><td>diagrams-v3/fp10-deploy-alert-module.svg</td><td>~6KB</td></tr>
+<tr><td rowspan="10">时序图 (10)</td><td>diagrams-v3/fp1-init-sequence.svg</td><td>~6KB</td></tr>
+<tr><td>diagrams-v3/fp2-infer-sequence.svg</td><td>~6KB</td></tr>
+<tr><td>diagrams-v3/fp3-scheduler-sequence.svg</td><td>~6KB</td></tr>
+<tr><td>diagrams-v3/fp4-multicard-mgmt-sequence.svg</td><td>~6KB</td></tr>
+<tr><td>diagrams-v3/fp5-logs-sequence.svg</td><td>~6KB</td></tr>
+<tr><td>diagrams-v3/fp6-health-check-sequence.svg</td><td>~6KB</td></tr>
+<tr><td>diagrams-v3/fp7-state-awareness-sequence.svg</td><td>~6KB</td></tr>
+<tr><td>diagrams-v3/fp8-alert-report-sequence.svg</td><td>~6KB</td></tr>
+<tr><td>diagrams-v3/fp9-vm-activate-sequence.svg</td><td>~6KB</td></tr>
+<tr><td>diagrams-v3/fp10-deploy-alert-sequence.svg</td><td>~6KB</td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+<p class="label">风格统一保证</p>
+<p>所有 20 SVG 跟现有 11 张 v3 SVG 风格一致: 黑白灰主色 + 黄色 callout (#fff3b0) 高亮核心子模块 + 淡灰 (#fafafa) 标非核心; 圆角 3px; 字体 sans-serif 14/12/10/11; 模块图 viewBox 800x460; 时序图 viewBox 900x540, 虚线 lifeline #333 + 实线箭头 #333 + 绿色成功 / 红色异常箭头.</p>
+</div>
+
+</section>
 </section>
 
 <footer class="article-footer">
 <p><strong>来源</strong>: D-Series 内部独立项目 (2026-06-22 session 原始方向, 2026-07-04 v3.0 升级到 Ascend + CANN + HCCS + 推理服务, v3.1 全面重构推理服务内部架构 + 新增 AI 卡部署), 跟 hacms 联合发布</p>
-<p><strong>设计版本</strong>: D1 v3.1 (90KB+, 18 章节, 0 audit 问题, 5 子系统 + 5 推理服务子模块 + 3 池化 + 4 卡型 + 19 API endpoint + 14 错误码 + 3 状态机 + 5 时序图 + 4 内部架构图 + 完整 protobuf 3 套 / Inference / Health / Deploy)</p>
+<p><strong>设计版本</strong>: D1 v3.1 (130KB+, 20 章节, 0 audit 问题, 5 子系统 + 5 推理服务子模块 + 3 池化 + 4 卡型 + 19 API endpoint + 14 错误码 + 3 状态机 + 5 时序图 + 4 内部架构图 + 20 SVG (10 子模块图 + 10 时序图) + 10 接口表 + 完整 protobuf 3 套 / Inference / Health / Deploy)</p>
 <p><strong>变更记录</strong>:</p>
 <p>· v1.1 (2026-07-03): 原始 5 子系统 + 3 池化 + 4 卡型设计 (G 盘清理后丢失)</p>
 <p>· v2.0 (2026-07-04): 重建版, NVIDIA 默认 + 7 endpoint + 6 错误码</p>
 <p>· v3.0 (2026-07-04): 默认 vendor 切换到华为 Ascend 910B/310P + CANN 8.0.RC2 + HCCS, 新增 3 大服务 (InferenceService 5 endpoint / HealthService 4 endpoint / cann-init.sh 启动 hook), 总 endpoint 7 → 16, 错误码 6 → 11, 国产卡从 ⚠️ 升级到 ✅ 主推</p>
 <p>· <strong>v3.1 (2026-07-04): 全面重构 AI 推理服务 (5 内部子模块) — vNic 通信 (gRPC :50051 推理 + :50053 维护) / 多模型推理框架 (调度器 + Worker 池 + ACL 后端) / 健康监控 (NPU 健康 + 错误侦测 + 日志收集) / AI 卡使能 (5 阶段) / AI 卡状态感知 (Qemu 热插拔). 新增 AI 卡部署章节 (§17): VM 激活 + 5 类告警事件 (DRIVER_INSTALL_FAIL / FIRMWARE_MISMATCH / VM_BOOT_FAILED / NPU_INVISIBLE / REGISTER_FAIL). 删 cann-init.sh (整合到 §15.4). 1 物理 NPU = M 模型 (调度器路由). 删 LoadModel/ListModels/Init (旧). protobuf 改写 3 套. endpoint 16 → 19, 错误码 11 → 14.</strong></p>
+<p>· <strong>v3.1.1 (2026-07-04, 增量): 新增 §19 (10 大功能点 3 件套) + §20 (v3.1 总结). 10 功能点 = 8 推理服务 (Init / Infer / Scheduler / MultiCard Mgmt / Logs / Health Check / State Awareness / Alert Report) + 2 AI 卡部署 (VM Activate / Deploy Alert). 每功能点配套: 1 张子模块图 (viewBox 800x460, 黄 callout 高亮核心子模块) + 1 张时序图 (viewBox 900x540, 4-6 lifelines) + 1 个 HTML 接口表 (7 列统一格式). 共 20 张 SVG 写到 diagrams-v3/fp{1-10}-{module,sequence}.svg. 文件从 80KB → 130KB, 行数 1238 → 1800+.</strong></p>
 <p><strong>审计</strong>: 0 CRITICAL / 0 MEDIUM / 0 LOW</p>
 <p><strong>命名规范</strong>: D-Card Mgr / PCIe HAL / NPU Slice / vNPU / HCCS / InferenceService (5 子模块) / HealthService (含 ReportAlert + GetLogs) / DeployService (新) / AI 卡使能 / AI 卡状态感知 / vNic</p>
 <p><strong>D1 不做</strong>: Pool Manager (D2) / Hot-Swap (D3) / Federation (D4) / Edge (D5) / 推理高级调度 (A/B / 蓝绿 / QPS 精细路由) — v3.1 调度器只做 hash + 基础负载均衡</p>

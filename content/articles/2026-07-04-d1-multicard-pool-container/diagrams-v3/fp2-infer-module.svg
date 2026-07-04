@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 460" font-family="sans-serif">
+  <style>
+    .box { fill: #fff; stroke: #333; stroke-width: 1.5; }
+    .box-core { fill: #fff3b0; stroke: #b89000; stroke-width: 2; }
+    .box-fade { fill: #fafafa; stroke: #ccc; stroke-width: 1; }
+    .label { fill: #333; font-size: 13px; font-weight: 600; text-anchor: middle; }
+    .label-core { fill: #5a4400; font-size: 13px; font-weight: 700; text-anchor: middle; }
+    .label-fade { fill: #999; font-size: 13px; text-anchor: middle; }
+    .sub { fill: #666; font-size: 10px; text-anchor: middle; }
+    .sub-fade { fill: #aaa; font-size: 10px; text-anchor: middle; }
+    .arrow { stroke: #333; stroke-width: 1.5; fill: none; marker-end: url(#arr); }
+    .arrow-thin { stroke: #666; stroke-width: 1; fill: none; marker-end: url(#arr2); }
+    .callout-core { fill: #fff3b0; stroke: #b89000; stroke-width: 1.5; }
+    .accent { fill: #3a4a6b; }
+    .accent-text { fill: #fff; font-size: 11px; font-weight: 600; text-anchor: middle; }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+    <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#666"/>
+    </marker>
+  </defs>
+
+  <text x="400" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">FP2: AI 卡推理接口 — 子模块图 (Infer 请求路径)</text>
+  <text x="400" y="40" text-anchor="middle" fill="#666" font-size="11">核心子模块: vNic 通信 (黄) + 多模型推理框架 (黄) · 协作: ACL 框架 + 健康监控</text>
+
+  <!-- Input -->
+  <rect class="box" x="20" y="60" width="760" height="50" rx="3"/>
+  <text x="400" y="80" class="label" font-size="12">触发: 业务推理容器 → AIInferenceService.Infer(model_id, input_data, params, timeout_ms, trace_id)</text>
+  <text x="400" y="98" class="sub">输入: 模型 ID + 序列化输入字节 + trace_id (用于全链路追踪)</text>
+
+  <!-- vNic 通信 (核心, 黄) -->
+  <rect class="box-core" x="20" y="130" width="190" height="240" rx="4"/>
+  <text x="115" y="150" class="label-core">§15.1 vNic 通信 ⭐</text>
+  <rect class="box" x="30" y="160" width="170" height="40" rx="3"/>
+  <text x="115" y="178" class="label" font-size="11">推理 gRPC :50051</text>
+  <text x="115" y="192" class="sub" font-size="9">Infer / GetInference 入口</text>
+  <rect class="box" x="30" y="210" width="170" height="40" rx="3"/>
+  <text x="115" y="228" class="label" font-size="11">vNic 透传</text>
+  <text x="115" y="242" class="sub" font-size="9">容器内 → hypervisor → NPU</text>
+  <rect class="box" x="30" y="260" width="170" height="40" rx="3"/>
+  <text x="115" y="278" class="label" font-size="11">unix domain socket</text>
+  <text x="115" y="292" class="sub" font-size="9">/var/run/dcard-infer.sock</text>
+  <text x="115" y="345" class="sub" font-weight="600">容器 ↔ hypervisor 双向 TLS</text>
+
+  <!-- 多模型推理框架 (核心, 黄) -->
+  <rect class="box-core" x="220" y="130" width="190" height="240" rx="4"/>
+  <text x="315" y="150" class="label-core">§15.2 多模型推理框架 ⭐</text>
+  <rect class="box" x="230" y="160" width="170" height="40" rx="3"/>
+  <text x="315" y="178" class="label" font-size="11">模型调度器</text>
+  <text x="315" y="192" class="sub" font-size="9">route(model_id) → card_id</text>
+  <rect class="box" x="230" y="210" width="170" height="40" rx="3"/>
+  <text x="315" y="228" class="label" font-size="11">推理线程池</text>
+  <text x="315" y="242" class="sub" font-size="9">workers = NPU 数 × 2</text>
+  <rect class="box" x="230" y="260" width="170" height="40" rx="3"/>
+  <text x="315" y="278" class="label" font-size="11">昇腾 ACL 框架</text>
+  <text x="315" y="292" class="sub" font-size="9">aclmdlExecute → NPU</text>
+  <text x="315" y="345" class="sub" font-weight="600">1 物理 NPU = 多模型路由</text>
+
+  <!-- 健康监控 (淡灰) -->
+  <rect class="box-fade" x="420" y="130" width="170" height="240" rx="4"/>
+  <text x="505" y="150" class="label-fade">§15.3 健康监控</text>
+  <rect class="box-fade" x="430" y="160" width="150" height="40" rx="3"/>
+  <text x="505" y="178" class="label-fade" font-size="11">错误侦测</text>
+  <text x="505" y="192" class="sub-fade" font-size="9">acl 异常 / HCCL timeout</text>
+  <rect class="box-fade" x="430" y="210" width="150" height="40" rx="3"/>
+  <text x="505" y="228" class="label-fade" font-size="11">资源监控</text>
+  <text x="505" y="242" class="sub-fade" font-size="9">显存 / QPS / 队列</text>
+  <text x="505" y="345" class="sub-fade" font-size="9">—— 参与度: 异常旁路 ——</text>
+
+  <!-- AI 卡使能 (淡灰) -->
+  <rect class="box-fade" x="600" y="130" width="180" height="240" rx="4"/>
+  <text x="690" y="150" class="label-fade">§15.4 AI 卡使能</text>
+  <rect class="box-fade" x="610" y="160" width="160" height="40" rx="3"/>
+  <text x="690" y="178" class="label-fade" font-size="11">model_assignment</text>
+  <text x="690" y="192" class="sub-fade" font-size="9">Init 阶段 d 已构建</text>
+  <text x="690" y="345" class="sub-fade" font-size="9">—— 仅读 model_routing_table ——</text>
+
+  <!-- 状态感知 (淡灰) -->
+  <rect class="box-fade" x="600" y="385" width="180" height="0" rx="4"/>
+
+  <!-- Output -->
+  <rect class="box" x="20" y="385" width="570" height="55" rx="3"/>
+  <text x="305" y="405" class="label" font-size="12">输出: InferResponse { output_data, latency_us, served_by_card_id="card-N" }</text>
+  <text x="305" y="423" class="sub">错误码: DCARD_MODEL_NOT_FOUND(6) / DCARD_INFERENCE_FAILED(8) / DCARD_RESOURCE_BUSY(9) / DCARD_CARD_UNREGISTERED(13)</text>
+
+  <!-- Yellow callouts -->
+  <rect class="callout-core" x="20" y="110" width="190" height="14" rx="2" opacity="0.85"/>
+  <text x="115" y="121" text-anchor="middle" fill="#5a4400" font-size="9" font-weight="700">CORE: §15.1 vNic 通信</text>
+  <rect class="callout-core" x="220" y="110" width="190" height="14" rx="2" opacity="0.85"/>
+  <text x="315" y="121" text-anchor="middle" fill="#5a4400" font-size="9" font-weight="700">CORE: §15.2 多模型推理框架</text>
+
+  <!-- Arrows -->
+  <line class="arrow" x1="400" y1="110" x2="115" y2="130"/>
+  <line class="arrow" x1="210" y1="180" x2="220" y2="180"/>
+  <line class="arrow" x1="410" y1="220" x2="600" y2="200" stroke="#bbb" stroke-dasharray="2,2"/>
+  <line class="arrow" x1="315" y1="370" x2="305" y2="385"/>
+</svg>

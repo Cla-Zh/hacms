@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 460" font-family="sans-serif">
+  <style>
+    .box { fill: #fff; stroke: #333; stroke-width: 1.5; }
+    .box-core { fill: #fff3b0; stroke: #b89000; stroke-width: 2; }
+    .box-fade { fill: #fafafa; stroke: #ccc; stroke-width: 1; }
+    .label { fill: #333; font-size: 13px; font-weight: 600; text-anchor: middle; }
+    .label-core { fill: #5a4400; font-size: 13px; font-weight: 700; text-anchor: middle; }
+    .label-fade { fill: #999; font-size: 13px; text-anchor: middle; }
+    .sub { fill: #666; font-size: 10px; text-anchor: middle; }
+    .sub-fade { fill: #aaa; font-size: 10px; text-anchor: middle; }
+    .arrow { stroke: #333; stroke-width: 1.5; fill: none; marker-end: url(#arr); }
+    .arrow-thin { stroke: #666; stroke-width: 1; fill: none; marker-end: url(#arr2); }
+    .callout-core { fill: #fff3b0; stroke: #b89000; stroke-width: 1.5; }
+    .accent { fill: #3a4a6b; }
+    .accent-text { fill: #fff; font-size: 11px; font-weight: 600; text-anchor: middle; }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+    <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#666"/>
+    </marker>
+  </defs>
+
+  <text x="400" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">FP1: AI 推理服务初始化 — 子模块图 (Init 5 阶段 a/b/c/d/e)</text>
+  <text x="400" y="40" text-anchor="middle" fill="#666" font-size="11">核心子模块: AI 卡使能 (黄) · 协作: ACL 加载 + Model Registry + device-plugin</text>
+
+  <!-- Input: AIDeploymentService.ActivateVM 触发 -->
+  <rect class="box" x="20" y="60" width="760" height="50" rx="3"/>
+  <text x="400" y="80" class="label" font-size="12">触发: AIDeploymentService.ActivateVM 完成 → 客户端用 inference_port 调 Init</text>
+  <text x="400" y="98" class="sub">输入: model_ids[] + persistence_config + auto_register + HcclConfig</text>
+
+  <!-- 5 submodule columns -->
+  <!-- vNic 通信 (淡灰, 仅维护接口参与) -->
+  <rect class="box-fade" x="20" y="130" width="148" height="240" rx="4"/>
+  <text x="94" y="150" class="label-fade">§15.1 vNic 通信</text>
+  <rect class="box-fade" x="30" y="160" width="128" height="32" rx="3"/>
+  <text x="94" y="180" class="label-fade" font-size="11">维护 gRPC :50053</text>
+  <text x="94" y="190" class="sub-fade" font-size="9">Init 监听入口</text>
+  <rect class="box-fade" x="30" y="200" width="128" height="32" rx="3"/>
+  <text x="94" y="220" class="label-fade" font-size="11">mTLS 双向认证</text>
+  <text x="94" y="230" class="sub-fade" font-size="9">RPC 入口</text>
+  <text x="94" y="345" class="sub-fade" font-size="9">—— 参与度: 低 ——</text>
+
+  <!-- 多模型推理框架 (淡灰, 仅承载 ACL) -->
+  <rect class="box-fade" x="178" y="130" width="148" height="240" rx="4"/>
+  <text x="252" y="150" class="label-fade">§15.2 多模型推理框架</text>
+  <rect class="box-fade" x="188" y="160" width="128" height="40" rx="3"/>
+  <text x="252" y="178" class="label-fade" font-size="11">ACL aclmdlLoadFromFile</text>
+  <text x="252" y="192" class="sub-fade" font-size="9">阶段 b: 加载 .om 模型</text>
+  <rect class="box-fade" x="188" y="210" width="128" height="40" rx="3"/>
+  <text x="252" y="228" class="label-fade" font-size="11">HCCL hcclCommInit</text>
+  <text x="252" y="242" class="sub-fade" font-size="9">阶段 a: 集合通信域</text>
+  <text x="252" y="345" class="sub-fade" font-size="9">—— 参与度: 低 ——</text>
+
+  <!-- 健康监控 (淡灰, Init 时校验 NPU 可见) -->
+  <rect class="box-fade" x="336" y="130" width="148" height="240" rx="4"/>
+  <text x="410" y="150" class="label-fade">§15.3 健康监控</text>
+  <rect class="box-fade" x="346" y="160" width="128" height="40" rx="3"/>
+  <text x="410" y="178" class="label-fade" font-size="11">NPU 探测</text>
+  <text x="410" y="192" class="sub-fade" font-size="9">Init 阶段 a 前置校验</text>
+  <rect class="box-fade" x="346" y="210" width="128" height="40" rx="3"/>
+  <text x="410" y="228" class="label-fade" font-size="11">canld 日志流</text>
+  <text x="410" y="242" class="sub-fade" font-size="9">Init 失败日志收集</text>
+  <text x="410" y="345" class="sub-fade" font-size="9">—— 参与度: 低 ——</text>
+
+  <!-- AI 卡使能 (核心, 黄) -->
+  <rect class="box-core" x="494" y="130" width="148" height="240" rx="4"/>
+  <text x="568" y="150" class="label-core">§15.4 AI 卡使能 ⭐</text>
+  <rect class="box" x="504" y="158" width="128" height="26" rx="3"/>
+  <text x="568" y="175" class="label" font-size="10">a 初始化 (ACL/HCCL)</text>
+  <rect class="box" x="504" y="186" width="128" height="26" rx="3"/>
+  <text x="568" y="203" class="label" font-size="10">b 加载 (aclmdlLoad)</text>
+  <rect class="box" x="504" y="214" width="128" height="26" rx="3"/>
+  <text x="568" y="231" class="label" font-size="10">c 持久化内存</text>
+  <rect class="box" x="504" y="242" width="128" height="26" rx="3"/>
+  <text x="568" y="259" class="label" font-size="10">d 模型分配 (Registry)</text>
+  <rect class="box" x="504" y="270" width="128" height="26" rx="3"/>
+  <text x="568" y="287" class="label" font-size="10">e 注册 (device-plugin)</text>
+  <text x="568" y="335" class="sub" font-weight="600">5 阶段顺序执行</text>
+  <text x="568" y="350" class="sub" font-size="9">持久化 model_assignment</text>
+
+  <!-- AI 卡状态感知 (淡灰) -->
+  <rect class="box-fade" x="652" y="130" width="128" height="240" rx="4"/>
+  <text x="716" y="150" class="label-fade">§15.5 状态感知</text>
+  <rect class="box-fade" x="662" y="160" width="108" height="40" rx="3"/>
+  <text x="716" y="178" class="label-fade" font-size="11">Init 时不直接触发</text>
+  <text x="716" y="192" class="sub-fade" font-size="9">后续 Qemu 热插拔才用</text>
+  <text x="716" y="345" class="sub-fade" font-size="9">—— 参与度: 无 ——</text>
+
+  <!-- Bottom: output -->
+  <rect class="box" x="20" y="385" width="760" height="55" rx="3"/>
+  <text x="400" y="405" class="label" font-size="12">输出: InitResponse { initialized_cards=8, persistence_ready, registration_done, model_assignment, cann_version, init_duration_ms }</text>
+  <text x="400" y="423" class="sub">可能错误码: DCARD_CANN_INIT_FAILED(7) / DCARD_MODEL_NOT_FOUND(6) / DCARD_VM_ACTIVATION_FAILED(11) / DCARD_INTERNAL_ERROR(5)</text>
+
+  <!-- Yellow callout for core module -->
+  <rect class="callout-core" x="494" y="110" width="148" height="14" rx="2" opacity="0.85"/>
+  <text x="568" y="121" text-anchor="middle" fill="#5a4400" font-size="9" font-weight="700">CORE: §15.4 AI 卡使能</text>
+
+  <!-- Arrows: input -> core, core -> output -->
+  <line class="arrow" x1="400" y1="110" x2="568" y2="130"/>
+  <line class="arrow" x1="568" y1="370" x2="400" y2="385"/>
+
+  <!-- Side connections (faded) -->
+  <line class="arrow-thin" x1="252" y1="160" x2="504" y2="200" stroke="#bbb" stroke-dasharray="2,2"/>
+  <line class="arrow-thin" x1="410" y1="160" x2="504" y2="200" stroke="#bbb" stroke-dasharray="2,2"/>
+  <text x="380" y="180" fill="#999" font-size="8">协作: ACL 加载 + 健康校验</text>
+</svg>

@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 540" font-family="sans-serif">
+  <style>
+    .box { fill: #fff; stroke: #333; stroke-width: 1.5; }
+    .label { fill: #333; font-size: 13px; font-weight: 600; text-anchor: middle; }
+    .sub { fill: #666; font-size: 10px; text-anchor: middle; }
+    .arrow { stroke: #333; stroke-width: 1.5; fill: none; marker-end: url(#arr); }
+    .arrow-good { stroke: #1a5432; stroke-width: 2; fill: none; marker-end: url(#arr3); }
+    .arrow-bad { stroke: #a02020; stroke-width: 1.5; fill: none; marker-end: url(#arr4); stroke-dasharray: 3,2; }
+    .bar { fill: #fafafa; stroke: #ccc; }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+    <marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1a5432"/>
+    </marker>
+    <marker id="arr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#a02020"/>
+    </marker>
+  </defs>
+
+  <text x="450" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">FP7 时序: AI 推理服务状态感知 (Watch 流式 + 热插拔)</text>
+  <text x="450" y="40" text-anchor="middle" fill="#666" font-size="11">Qemu/libvirt hot-plug → 状态感知 → 注册/去注册 → Watch 流推送 + 告警</text>
+
+  <!-- Lifelines -->
+  <line x1="70" y1="65" x2="70" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="220" y1="65" x2="220" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="370" y1="65" x2="370" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="520" y1="65" x2="520" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="680" y1="65" x2="680" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="830" y1="65" x2="830" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+
+  <rect class="box" x="10" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="70" y="73">Qemu/libvirt</text>
+  <text class="sub" x="70" y="86" font-size="9">宿主机 hypervisor</text>
+
+  <rect class="box" x="160" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="220" y="73">AI 卡状态感知</text>
+  <text class="sub" x="220" y="86" font-size="9">§15.5 libvirt 监听</text>
+
+  <rect class="box" x="310" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="370" y="73">AI 卡使能</text>
+  <text class="sub" x="370" y="86" font-size="9">register/unregister</text>
+
+  <rect class="box" x="460" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="520" y="73">AIInferenceSvc</text>
+  <text class="sub" x="520" y="86" font-size="9">调度器 + 维护</text>
+
+  <rect class="box" x="620" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="680" y="73">HealthService</text>
+  <text class="sub" x="680" y="86" font-size="9">Watch + ReportAlert</text>
+
+  <rect class="box" x="770" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="830" y="73">监控 / dctl</text>
+  <text class="sub" x="830" y="86" font-size="9">Watch 订阅方</text>
+
+  <text x="450" y="115" text-anchor="middle" fill="#1a5432" font-size="12" font-weight="600">—— 状态 1: 新 AI 卡热插 ——</text>
+
+  <line class="arrow-good" x1="70" y1="135" x2="215" y2="135"/>
+  <text class="sub" x="143" y="128">1. hot-plug event (device=910B-5, vendor=ascend)</text>
+
+  <line class="arrow-good" x1="220" y1="158" x2="365" y2="158"/>
+  <text class="sub" x="293" y="151">2. onAttach(deviceId, card-uuid)</text>
+
+  <line class="arrow" x1="370" y1="183" x2="515" y2="183"/>
+  <text class="sub" x="443" y="176">3. RegisterNpu(device, card-uuid)</text>
+
+  <line class="arrow" x1="520" y1="208" x2="375" y2="208" stroke-dasharray="2,2"/>
+  <text class="sub" x="448" y="201">4. registered → ACL bind + device-plugin update</text>
+
+  <line class="arrow-good" x1="520" y1="233" x2="675" y2="233"/>
+  <text class="sub" x="598" y="226">5. Watch.push(HotplugEvent{ADDED, card_id="card-5"})</text>
+
+  <line class="arrow-good" x1="680" y1="258" x2="825" y2="258"/>
+  <text class="sub" x="753" y="251">6. ✓ dctl 实时显示 + Prometheus 记录</text>
+
+  <text x="450" y="295" text-anchor="middle" fill="#a02020" font-size="12" font-weight="600">—— 状态 2: 异常移除 (ECC fatal) ——</text>
+
+  <line class="arrow-bad" x1="70" y1="320" x2="215" y2="320"/>
+  <text class="sub" x="143" y="313">7. hot-unplug (ECC fatal, code=0x1001)</text>
+
+  <line class="arrow-bad" x1="220" y1="345" x2="365" y2="345"/>
+  <text class="sub" x="293" y="338">8. onDetach(deviceId, reason=ECC_FATAL)</text>
+
+  <line class="arrow" x1="370" y1="370" x2="515" y2="370"/>
+  <text class="sub" x="443" y="363">9. UnregisterNpu(device, reason)</text>
+
+  <line class="arrow" x1="520" y1="395" x2="375" y2="395" stroke-dasharray="2,2"/>
+  <text class="sub" x="448" y="388">10. ACL unbind + device-plugin remove + 调度器剔除</text>
+
+  <line class="arrow-bad" x1="520" y1="420" x2="675" y2="420"/>
+  <text class="sub" x="598" y="413">11. Watch.push(HotplugEvent{REMOVED, level=CRITICAL})</text>
+
+  <line class="arrow-bad" x1="680" y1="445" x2="825" y2="445"/>
+  <text class="sub" x="753" y="438">12. ⚠ ReportAlert(CARD_UNREGISTERED, severity=CRITICAL)</text>
+
+  <!-- Bottom notes -->
+  <rect class="bar" x="20" y="455" width="860" height="70" rx="3"/>
+  <text x="30" y="475" fill="#333" font-size="11" font-weight="600">v3.1 状态感知关键点</text>
+  <text x="30" y="492" fill="#666" font-size="10">• 事件源: QMP (Qemu Machine Protocol) + libvirt domain events subscribe</text>
+  <text x="30" y="507" fill="#666" font-size="10">• AI 卡状态感知 → 注册/去注册 → Watch push 流 + ReportAlert 双出口</text>
+  <text x="30" y="520" fill="#666" font-size="10">• 客户端 (dctl watch / Prometheus) 长连接; CRITICAL 直接触发自动摘流</text>
+</svg>

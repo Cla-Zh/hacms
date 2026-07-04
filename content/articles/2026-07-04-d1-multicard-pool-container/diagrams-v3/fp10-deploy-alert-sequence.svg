@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 540" font-family="sans-serif">
+  <style>
+    .box { fill: #fff; stroke: #333; stroke-width: 1.5; }
+    .label { fill: #333; font-size: 13px; font-weight: 600; text-anchor: middle; }
+    .sub { fill: #666; font-size: 10px; text-anchor: middle; }
+    .arrow { stroke: #333; stroke-width: 1.5; fill: none; marker-end: url(#arr); }
+    .arrow-good { stroke: #1a5432; stroke-width: 2; fill: none; marker-end: url(#arr3); }
+    .arrow-bad { stroke: #a02020; stroke-width: 1.5; fill: none; marker-end: url(#arr4); stroke-dasharray: 3,2; }
+    .bar { fill: #fafafa; stroke: #ccc; }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+    <marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1a5432"/>
+    </marker>
+    <marker id="arr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#a02020"/>
+    </marker>
+  </defs>
+
+  <text x="450" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">FP10 时序: AI 卡激活部署时告警事件上报 (5 类部署告警)</text>
+  <text x="450" y="40" text-anchor="middle" fill="#666" font-size="11">ActivateVM 任一阶段异常 → ReportDeploymentAlert → HealthService 统一告警总线</text>
+
+  <!-- Lifelines -->
+  <line x1="80" y1="65" x2="80" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="230" y1="65" x2="230" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="380" y1="65" x2="380" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="530" y1="65" x2="530" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="680" y1="65" x2="680" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="850" y1="65" x2="850" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+
+  <rect class="box" x="20" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="80" y="73">K8s 部署</text>
+  <text class="sub" x="80" y="86" font-size="9">触发 / 接收</text>
+
+  <rect class="box" x="170" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="230" y="73">AIDeploymentSvc</text>
+  <text class="sub" x="230" y="86" font-size="9">:50054 部署服务</text>
+
+  <rect class="box" x="320" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="380" y="73">Qemu/驱动</text>
+  <text class="sub" x="380" y="86" font-size="9">异常源</text>
+
+  <rect class="box" x="470" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="530" y="73">ReportDeployment</text>
+  <text class="sub" x="530" y="86" font-size="9">Alert 自身</text>
+
+  <rect class="box" x="620" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="680" y="73">HealthService</text>
+  <text class="sub" x="680" y="86" font-size="9">ReportAlert</text>
+
+  <rect class="box" x="790" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="850" y="73">外部告警系统</text>
+  <text class="sub" x="850" y="86" font-size="9">AlertManager / IM</text>
+
+  <text x="470" y="115" text-anchor="middle" fill="#a02020" font-size="12" font-weight="600">—— 5 类部署告警路径 ——</text>
+
+  <line class="arrow-bad" x1="80" y1="135" x2="225" y2="135"/>
+  <text class="sub" x="153" y="128" fill="#a02020">1. ActivateVM(vm_id) → 阶段 1 失败</text>
+
+  <line class="arrow-bad" x1="230" y1="158" x2="375" y2="158"/>
+  <text class="sub" x="303" y="151" fill="#a02020">2. Qemu 启动失败 (VM_ACTIVATION_FAILED, severity=CRITICAL)</text>
+
+  <line class="arrow-bad" x1="230" y1="183" x2="525" y2="183"/>
+  <text class="sub" x="378" y="176" fill="#a02020">3. ReportDeploymentAlert(type, vm_id, message, context)</text>
+
+  <line class="arrow-bad" x1="530" y1="208" x2="675" y2="208"/>
+  <text class="sub" x="603" y="201" fill="#a02020">4. → HealthService.ReportAlert (同 format)</text>
+
+  <line class="arrow-bad" x1="680" y1="233" x2="845" y2="233"/>
+  <text class="sub" x="763" y="226" fill="#a02020">5. → PagerDuty + Slack + 邮件</text>
+
+  <line class="arrow-good" x1="680" y1="258" x2="535" y2="258"/>
+  <text class="sub" x="608" y="251">6. ✓ alert_id="alert-deploy-001"</text>
+
+  <line class="arrow-good" x1="530" y1="283" x2="235" y2="283"/>
+  <text class="sub" x="383" y="276">7. ReportDeploymentAlertResponse(accepted=true, alert_id)</text>
+
+  <line class="arrow-bad" x1="230" y1="308" x2="85" y2="308"/>
+  <text class="sub" x="158" y="301" fill="#a02020">8. ActivateVMResponse(activated=false, failure_reason="Qemu 启动超时")</text>
+
+  <text x="470" y="340" text-anchor="middle" fill="#333" font-size="11" font-weight="600">5 类 DeploymentAlertType + 默认严重度:</text>
+
+  <rect class="box" x="80" y="350" width="770" height="100" rx="3" fill="#fff5f5"/>
+  <text x="105" y="370" class="sub" fill="#a02020" font-weight="600">① VM_ACTIVATION_FAILED (CRITICAL) — Qemu domain.create 失败 / PCIe 透传失败</text>
+  <text x="105" y="388" class="sub" fill="#a02020" font-weight="600">② DRIVER_INSTALL_FAIL (CRITICAL) — modprobe drv_ascend* 失败 / 版本不匹配</text>
+  <text x="105" y="406" class="sub" fill="#a02020" font-weight="600">③ FIRMWARE_MISMATCH (CRITICAL) — 实际 firmware_version ≠ 期望</text>
+  <text x="105" y="424" class="sub" fill="#a02020" font-weight="600">④ NPU_INVISIBLE (ERROR) — VM 内 lspci / ascend-tool 看不到 8 NPU</text>
+  <text x="105" y="442" class="sub" fill="#a02020" font-weight="600">⑤ CARD_REGISTER_FAIL (ERROR) — device-plugin 注册失败 / K8s API 不可达</text>
+
+  <!-- Bottom notes -->
+  <rect class="bar" x="20" y="460" width="860" height="60" rx="3"/>
+  <text x="30" y="478" fill="#333" font-size="11" font-weight="600">v3.1 部署告警关键点</text>
+  <text x="30" y="495" fill="#666" font-size="10">• 5 类部署告警专属 DeploymentAlertType enum; 复用 HealthService.AlertSeverity 等级</text>
+  <text x="30" y="510" fill="#666" font-size="10">• 错误码: DCARD_DEPLOYMENT_ALERT(12) / DCARD_VM_ACTIVATION_FAILED(11) / DCARD_INTERNAL_ERROR(5)</text>
+</svg>

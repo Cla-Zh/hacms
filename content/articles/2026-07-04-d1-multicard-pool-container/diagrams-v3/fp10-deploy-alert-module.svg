@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 460" font-family="sans-serif">
+  <style>
+    .box { fill: #fff; stroke: #333; stroke-width: 1.5; }
+    .box-core { fill: #fff3b0; stroke: #b89000; stroke-width: 2; }
+    .box-fade { fill: #fafafa; stroke: #ccc; stroke-width: 1; }
+    .label { fill: #333; font-size: 13px; font-weight: 600; text-anchor: middle; }
+    .label-core { fill: #5a4400; font-size: 13px; font-weight: 700; text-anchor: middle; }
+    .label-fade { fill: #999; font-size: 13px; text-anchor: middle; }
+    .sub { fill: #666; font-size: 10px; text-anchor: middle; }
+    .sub-fade { fill: #aaa; font-size: 10px; text-anchor: middle; }
+    .arrow { stroke: #333; stroke-width: 1.5; fill: none; marker-end: url(#arr); }
+    .arrow-thin { stroke: #666; stroke-width: 1; fill: none; marker-end: url(#arr2); }
+    .callout-core { fill: #fff3b0; stroke: #b89000; stroke-width: 1.5; }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+    <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#666"/>
+    </marker>
+  </defs>
+
+  <text x="400" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">FP10: AI 卡激活部署时告警事件上报 — 子模块图 (5 类部署告警)</text>
+  <text x="400" y="40" text-anchor="middle" fill="#666" font-size="11">核心子模块: AIDeploymentService + HealthService 双服务协作 · 5 类 DeploymentAlertType</text>
+
+  <!-- Input -->
+  <rect class="box" x="20" y="60" width="760" height="50" rx="3"/>
+  <text x="400" y="80" class="label" font-size="12">触发: AIDeploymentService 内部异常 → ReportDeploymentAlert(type, severity, vm_id, message, context)</text>
+  <text x="400" y="98" class="sub">5 类告警: VM_ACTIVATION_FAILED / DRIVER_INSTALL_FAIL / FIRMWARE_MISMATCH / NPU_INVISIBLE / CARD_REGISTER_FAIL</text>
+
+  <!-- AIDeploymentService (核心, 黄 - 告警源 + 上报方) -->
+  <rect class="box-core" x="20" y="130" width="320" height="240" rx="4"/>
+  <text x="180" y="150" class="label-core">§17 AIDeploymentService ⭐</text>
+  <rect class="box" x="30" y="160" width="300" height="30" rx="3"/>
+  <text x="180" y="176" class="label" font-size="11">VM_ACTIVATION_FAILED (Qemu 启动失败)</text>
+  <text x="180" y="186" class="sub" font-size="9">部署期 CRITICAL</text>
+  <rect class="box" x="30" y="193" width="300" height="30" rx="3"/>
+  <text x="180" y="209" class="label" font-size="11">DRIVER_INSTALL_FAIL (modprobe 失败)</text>
+  <text x="180" y="219" class="sub" font-size="9">部署期 CRITICAL</text>
+  <rect class="box" x="30" y="226" width="300" height="30" rx="3"/>
+  <text x="180" y="242" class="label" font-size="11">FIRMWARE_MISMATCH (版本不匹配)</text>
+  <text x="180" y="252" class="sub" font-size="9">部署期 CRITICAL</text>
+  <rect class="box" x="30" y="259" width="300" height="30" rx="3"/>
+  <text x="180" y="275" class="label" font-size="11">NPU_INVISIBLE (PCIe 透传失败)</text>
+  <text x="180" y="285" class="sub" font-size="9">部署期 ERROR</text>
+  <rect class="box" x="30" y="292" width="300" height="30" rx="3"/>
+  <text x="180" y="308" class="label" font-size="11">CARD_REGISTER_FAIL (device-plugin)</text>
+  <text x="180" y="318" class="sub" font-size="9">部署期 ERROR</text>
+  <text x="180" y="345" class="sub" font-weight="600">ReportDeploymentAlert 自身上报</text>
+
+  <!-- HealthService 转发层 -->
+  <rect class="box" x="350" y="130" width="180" height="240" rx="3"/>
+  <text x="440" y="150" class="label">HealthService</text>
+  <rect class="box" x="360" y="160" width="160" height="40" rx="3"/>
+  <text x="440" y="178" class="label" font-size="11">ReportAlert 入口</text>
+  <text x="440" y="192" class="sub" font-size="9">/dcard/health/v1/ReportAlert</text>
+  <rect class="box" x="360" y="210" width="160" height="40" rx="3"/>
+  <text x="440" y="228" class="label" font-size="11">告警聚合器</text>
+  <text x="440" y="242" class="sub" font-size="9">去重 / 抑制 + 转发</text>
+  <rect class="box" x="360" y="260" width="160" height="40" rx="3"/>
+  <text x="440" y="278" class="label" font-size="11">告警 ID 关联</text>
+  <text x="440" y="292" class="sub" font-size="9">回填到 deployment_token</text>
+  <text x="440" y="345" class="sub">"统一告警总线"</text>
+
+  <!-- 外部告警系统 (淡灰) -->
+  <rect class="box-fade" x="540" y="130" width="240" height="240" rx="4"/>
+  <text x="660" y="150" class="label-fade">外部告警系统</text>
+  <rect class="box-fade" x="550" y="160" width="220" height="40" rx="3"/>
+  <text x="660" y="178" class="label-fade" font-size="11">Prometheus AlertManager</text>
+  <text x="660" y="192" class="sub-fade" font-size="9">拉取 / webhook</text>
+  <rect class="box-fade" x="550" y="210" width="220" height="40" rx="3"/>
+  <text x="660" y="228" class="label-fade" font-size="11">邮件 / Slack</text>
+  <text x="660" y="242" class="sub-fade" font-size="9">分级路由</text>
+  <rect class="box-fade" x="550" y="260" width="220" height="40" rx="3"/>
+  <text x="660" y="278" class="label-fade" font-size="11">PagerDuty / OpsGenie</text>
+  <text x="660" y="292" class="sub-fade" font-size="9">CRITICAL 级别</text>
+  <text x="660" y="345" class="sub-fade" font-size="9">—— 最终出口 ——</text>
+
+  <!-- Output -->
+  <rect class="box" x="20" y="385" width="760" height="55" rx="3"/>
+  <text x="400" y="405" class="label" font-size="12">输出: ReportDeploymentAlertResponse { accepted=true, alert_id="alert-XXXX" } + 联动 HealthService 转发</text>
+  <text x="400" y="423" class="sub">频率: 部署期异常驱动 (低频); CRITICAL 直接触发 K8s Pod restart + 告警升级</text>
+
+  <!-- Yellow callout -->
+  <rect class="callout-core" x="20" y="110" width="320" height="14" rx="2" opacity="0.85"/>
+  <text x="180" y="121" text-anchor="middle" fill="#5a4400" font-size="9" font-weight="700">CORE: §17 AIDeploymentService (告警源)</text>
+
+  <!-- Arrows -->
+  <line class="arrow" x1="340" y1="200" x2="350" y2="220"/>
+  <line class="arrow" x1="530" y1="220" x2="540" y2="240" stroke="#bbb" stroke-dasharray="2,2"/>
+  <line class="arrow" x1="180" y1="370" x2="400" y2="385"/>
+</svg>

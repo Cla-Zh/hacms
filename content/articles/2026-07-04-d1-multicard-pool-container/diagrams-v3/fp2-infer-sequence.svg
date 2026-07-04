@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 540" font-family="sans-serif">
+  <style>
+    .box { fill: #fff; stroke: #333; stroke-width: 1.5; }
+    .label { fill: #333; font-size: 13px; font-weight: 600; text-anchor: middle; }
+    .sub { fill: #666; font-size: 10px; text-anchor: middle; }
+    .arrow { stroke: #333; stroke-width: 1.5; fill: none; marker-end: url(#arr); }
+    .arrow-good { stroke: #1a5432; stroke-width: 2; fill: none; marker-end: url(#arr3); }
+    .arrow-bad { stroke: #a02020; stroke-width: 1.5; fill: none; marker-end: url(#arr4); stroke-dasharray: 3,2; }
+    .bar { fill: #fafafa; stroke: #ccc; }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+    <marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1a5432"/>
+    </marker>
+    <marker id="arr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#a02020"/>
+    </marker>
+  </defs>
+
+  <text x="450" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">FP2 时序: AI 卡推理接口 (Infer 调用全链路)</text>
+  <text x="450" y="40" text-anchor="middle" fill="#666" font-size="11">业务容器 → vNic :50051 → 调度器 → ACL aclmdlExecute → NPU 物理执行</text>
+
+  <!-- Lifelines -->
+  <line x1="80" y1="65" x2="80" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="240" y1="65" x2="240" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="400" y1="65" x2="400" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="560" y1="65" x2="560" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="730" y1="65" x2="730" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="860" y1="65" x2="860" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+
+  <rect class="box" x="20" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="80" y="73">业务容器</text>
+  <text class="sub" x="80" y="86" font-size="9">推理客户端</text>
+
+  <rect class="box" x="180" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="240" y="73">vNic :50051</text>
+  <text class="sub" x="240" y="86" font-size="9">推理 gRPC</text>
+
+  <rect class="box" x="340" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="400" y="73">调度器</text>
+  <text class="sub" x="400" y="86" font-size="9">route(model_id)</text>
+
+  <rect class="box" x="500" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="560" y="73">ACL/CANN</text>
+  <text class="sub" x="560" y="86" font-size="9">aclmdlExecute</text>
+
+  <rect class="box" x="670" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="730" y="73">NPU card-N</text>
+  <text class="sub" x="730" y="86" font-size="9">物理 Ascend</text>
+
+  <rect class="box" x="800" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="860" y="73">健康监控</text>
+  <text class="sub" x="860" y="86" font-size="9">异常上报</text>
+
+  <line class="arrow-good" x1="80" y1="125" x2="235" y2="125"/>
+  <text class="sub" x="158" y="118">1. Infer(model_id="resnet50", input_data, trace_id)</text>
+
+  <line class="arrow" x1="240" y1="150" x2="395" y2="150"/>
+  <text class="sub" x="318" y="143">2. route(model_id) → 查 model_assignment</text>
+
+  <line class="arrow" x1="400" y1="175" x2="245" y2="175"/>
+  <text class="sub" x="323" y="168">3. card_id="card-3" (O(1) 内存查询)</text>
+
+  <line class="arrow" x1="240" y1="200" x2="555" y2="200"/>
+  <text class="sub" x="398" y="193">4. aclmdlExecute(model_handle, inputs) → card-3</text>
+
+  <line class="arrow" x1="560" y1="225" x2="725" y2="225"/>
+  <text class="sub" x="643" y="218">5. HIAI 调度 → NPU 物理执行</text>
+
+  <line class="arrow" x1="730" y1="250" x2="565" y2="250"/>
+  <text class="sub" x="648" y="243">6. outputs (bytes)</text>
+
+  <line class="arrow-good" x1="560" y1="275" x2="245" y2="275"/>
+  <text class="sub" x="403" y="268">7. InferResponse(output_data, latency_us, served_by_card_id="card-3")</text>
+
+  <line class="arrow-good" x1="240" y1="300" x2="85" y2="300"/>
+  <text class="sub" x="163" y="293">8. ✓ 输出到业务容器</text>
+
+  <line class="arrow-bad" x1="240" y1="330" x2="855" y2="330"/>
+  <text class="sub" x="548" y="323" fill="#a02020">9. ACL 异常 → ReportAlert(CANN_ERROR, severity=ERROR)</text>
+
+  <line class="arrow-bad" x1="860" y1="355" x2="245" y2="355" stroke-dasharray="3,2"/>
+  <text class="sub" x="553" y="348" fill="#a02020">10. alert_id → Infer 错误: DCARD_INFERENCE_FAILED(8)</text>
+
+  <line class="arrow-bad" x1="240" y1="380" x2="85" y2="380" stroke-dasharray="3,2"/>
+  <text class="sub" x="163" y="373" fill="#a02020">11. 返回错误 + alert_id 给客户端</text>
+
+  <line class="arrow-bad" x1="400" y1="405" x2="85" y2="405" stroke-dasharray="3,2"/>
+  <text class="sub" x="243" y="398" fill="#a02020">12. 资源满 → DCARD_RESOURCE_BUSY(9); 卡未注册 → DCARD_CARD_UNREGISTERED(13)</text>
+
+  <!-- Bottom notes -->
+  <rect class="bar" x="20" y="455" width="860" height="70" rx="3"/>
+  <text x="30" y="475" fill="#333" font-size="11" font-weight="600">v3.1 Infer 关键点</text>
+  <text x="30" y="492" fill="#666" font-size="10">• vNic :50051 + :50053 双端口 (推理 + 维护), 双向 TLS 隔离; unix domain socket</text>
+  <text x="30" y="507" fill="#666" font-size="10">• 调度器按 model_id 哈希 + LoadBalance; 1 物理 NPU 可承载多模型并存</text>
+  <text x="30" y="520" fill="#666" font-size="10">• 错误码: DCARD_MODEL_NOT_FOUND(6) / DCARD_INFERENCE_FAILED(8) / DCARD_RESOURCE_BUSY(9) / DCARD_CARD_UNREGISTERED(13)</text>
+</svg>

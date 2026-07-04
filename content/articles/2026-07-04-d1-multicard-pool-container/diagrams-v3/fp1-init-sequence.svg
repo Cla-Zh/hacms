@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 540" font-family="sans-serif">
+  <style>
+    .box { fill: #fff; stroke: #333; stroke-width: 1.5; }
+    .label { fill: #333; font-size: 13px; font-weight: 600; text-anchor: middle; }
+    .sub { fill: #666; font-size: 10px; text-anchor: middle; }
+    .arrow { stroke: #333; stroke-width: 1.5; fill: none; marker-end: url(#arr); }
+    .arrow-good { stroke: #1a5432; stroke-width: 2; fill: none; marker-end: url(#arr3); }
+    .arrow-bad { stroke: #a02020; stroke-width: 1.5; fill: none; marker-end: url(#arr4); stroke-dasharray: 3,2; }
+    .bar { fill: #fafafa; stroke: #ccc; }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+    <marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1a5432"/>
+    </marker>
+    <marker id="arr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#a02020"/>
+    </marker>
+  </defs>
+
+  <text x="450" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">FP1 时序: AI 推理服务初始化 (Init 5 阶段 a/b/c/d/e)</text>
+  <text x="450" y="40" text-anchor="middle" fill="#666" font-size="11">AIDeploymentService.ActivateVM 完成 → Init 5 阶段顺序执行 → 模型分配 + 注册 device-plugin</text>
+
+  <!-- Lifelines (5 actors) -->
+  <line x1="80" y1="65" x2="80" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="240" y1="65" x2="240" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="400" y1="65" x2="400" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="560" y1="65" x2="560" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="730" y1="65" x2="730" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="860" y1="65" x2="860" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+
+  <rect class="box" x="20" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="80" y="73">K8s 部署控制器</text>
+  <text class="sub" x="80" y="86" font-size="9">部署编排</text>
+
+  <rect class="box" x="180" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="240" y="73">AIDeploymentSvc</text>
+  <text class="sub" x="240" y="86" font-size="9">:50054</text>
+
+  <rect class="box" x="340" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="400" y="73">AIInferenceSvc</text>
+  <text class="sub" x="400" y="86" font-size="9">:50051 + :50053</text>
+
+  <rect class="box" x="500" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="560" y="73">AI 卡使能</text>
+  <text class="sub" x="560" y="86" font-size="9">§15.4 Init 5 阶段</text>
+
+  <rect class="box" x="670" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="730" y="73">Model Registry</text>
+  <text class="sub" x="730" y="86" font-size="9">外部</text>
+
+  <rect class="box" x="800" y="50" width="120" height="40" rx="3"/>
+  <text class="label" x="860" y="73">device-plugin</text>
+  <text class="sub" x="860" y="86" font-size="9">K8s</text>
+
+  <text x="470" y="115" text-anchor="middle" fill="#1a5432" font-size="12" font-weight="600">—— Init 5 阶段顺序执行 ——</text>
+
+  <line class="arrow-good" x1="80" y1="135" x2="235" y2="135"/>
+  <text class="sub" x="158" y="128">1. ActivateVM(vm_id, image, npu_pci_ids=[0..7], driver_version)</text>
+
+  <line class="arrow-good" x1="240" y1="158" x2="395" y2="158"/>
+  <text class="sub" x="318" y="151">2. Init(model_ids, persistence_config, auto_register, hccl)</text>
+
+  <line class="arrow" x1="400" y1="180" x2="555" y2="180"/>
+  <text class="sub" x="478" y="173">3. (a) aclInit + aclrtSetDevice(0..7) + hcclInit</text>
+
+  <line class="arrow" x1="560" y1="205" x2="725" y2="205"/>
+  <text class="sub" x="643" y="198">4. (d) GetModels(model_ids) → .om paths</text>
+
+  <line class="arrow" x1="730" y1="225" x2="565" y2="225"/>
+  <text class="sub" x="648" y="218">5. {resnet50: card-3, yolov8n: card-0, ...}</text>
+
+  <line class="arrow" x1="560" y1="250" x2="395" y2="250"/>
+  <text class="sub" x="478" y="243">6. (b) aclmdlLoadFromFile × 8 cards</text>
+
+  <line class="arrow" x1="400" y1="275" x2="555" y2="275"/>
+  <text class="sub" x="478" y="268">7. (c) aclrtMemcpyAsync 配 RDMA persistent</text>
+
+  <line class="arrow-good" x1="560" y1="300" x2="855" y2="300"/>
+  <text class="sub" x="708" y="293">8. (e) RegisterCard × 8 → dcard.com/npu</text>
+
+  <line class="arrow-good" x1="860" y1="325" x2="565" y2="325"/>
+  <text class="sub" x="713" y="318">9. ✓ 8 NPU registered</text>
+
+  <line class="arrow-good" x1="560" y1="350" x2="405" y2="350"/>
+  <text class="sub" x="483" y="343">10. InitResponse(8 cards, persistence_ready, registration_done, model_assignment)</text>
+
+  <line class="arrow-good" x1="400" y1="375" x2="85" y2="375"/>
+  <text class="sub" x="243" y="368">11. ✓ inference_port=50051 已知, 准备接 Infer</text>
+
+  <line class="arrow-bad" x1="400" y1="400" x2="85" y2="400" stroke-dasharray="3,2"/>
+  <text class="sub" x="243" y="393" fill="#a02020">12. 失败 → DCARD_CANN_INIT_FAILED(7) / DCARD_MODEL_NOT_FOUND(6)</text>
+
+  <!-- Bottom notes -->
+  <rect class="bar" x="20" y="455" width="860" height="70" rx="3"/>
+  <text x="30" y="475" fill="#333" font-size="11" font-weight="600">v3.1 Init 关键点</text>
+  <text x="30" y="492" fill="#666" font-size="10">• 5 阶段顺序: a 初始化 → b 加载 → c 持久化内存 → d 模型分配 (从 Registry 拉) → e 注册去注册</text>
+  <text x="30" y="507" fill="#666" font-size="10">• model_assignment 持久化在内存, O(1) 查询; auto_register=true 时自动调 device-plugin</text>
+  <text x="30" y="520" fill="#666" font-size="10">• 失败上抛: DCARD_CANN_INIT_FAILED(7) / DCARD_MODEL_NOT_FOUND(6) / DCARD_VM_ACTIVATION_FAILED(11)</text>
+</svg>
