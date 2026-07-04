@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 540" preserveAspectRatio="xMidYMid meet">
+  <!-- D6 LLM KV Cache Offload Paths: HBM -> SSD via 4 paths (PagedAttention/SGLang/vTensor/DistServe) -->
+  <rect x="0" y="0" width="900" height="540" fill="white"/>
+
+  <text x="450" y="28" font-family="sans-serif" font-size="16" font-weight="700" fill="#1a1a1a" text-anchor="middle">LLM KV Cache 卸载路径 — HBM → (CXL/QLC/TLC SSD) 四方案对比</text>
+  <text x="450" y="46" font-family="sans-serif" font-size="11" fill="#5a5a5a" text-anchor="middle">PagedAttention / SGLang / vTensor / DistServe + 学术原论文 — 长上下文 (128K-1M) 推理刚需</text>
+
+  <!-- HBM (source) - left column -->
+  <rect x="50" y="100" width="120" height="380" rx="6" fill="#3a4a6b" stroke="#3a4a6b" stroke-width="1"/>
+  <text x="110" y="125" font-family="sans-serif" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">GPU HBM</text>
+  <text x="110" y="148" font-family="sans-serif" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">H200 141GB</text>
+  <text x="110" y="166" font-family="sans-serif" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">B200 192GB</text>
+
+  <text x="110" y="195" font-family="sans-serif" font-size="9" fill="#fff" text-anchor="middle">KV cache 存放点</text>
+  <text x="110" y="208" font-family="sans-serif" font-size="9" fill="#fff" text-anchor="middle">计算最近的数据</text>
+
+  <text x="110" y="240" font-family="sans-serif" font-size="9" fill="#fff" text-anchor="middle">吞吐量</text>
+  <text x="110" y="253" font-family="sans-serif" font-size="9" fill="#fff" text-anchor="middle">4.8-8 TB/s</text>
+
+  <text x="110" y="285" font-family="sans-serif" font-size="9" fill="#fff" text-anchor="middle">容量小</text>
+  <text x="110" y="298" font-family="sans-serif" font-size="9" fill="#fff" text-anchor="middle">$/GB 高</text>
+
+  <text x="110" y="395" font-family="sans-serif" font-size="9" fill="#fff" text-anchor="middle">瓶颈</text>
+  <text x="110" y="408" font-family="sans-serif" font-size="9" fill="#fff" text-anchor="middle">长上下文 (128K+)</text>
+  <text x="110" y="421" font-family="sans-serif" font-size="9" fill="#fff" text-anchor="middle">KV cache 爆涨</text>
+
+  <!-- Right side: 4 paths to SSD -->
+  <text x="240" y="95" font-family="sans-serif" font-size="13" font-weight="700" fill="#3a4a6b">4 条 KV Cache 卸载路径 → (CXL) → SSD 4 大接口</text>
+
+  <!-- Path 1: PagedAttention → vLLM → SSD -->
+  <rect x="240" y="110" width="640" height="80" rx="6" fill="#f9f8f6" stroke="#aaa" stroke-width="1"/>
+  <text x="255" y="130" font-family="sans-serif" font-size="12" font-weight="700" fill="#1a1a1a">路径 1 — PagedAttention (vLLM)</text>
+  <text x="255" y="148" font-family="sans-serif" font-size="10" fill="#5a5a5a">分页管理 — 非连续 KV cache 块映射到 SSD — OS-style 虚拟内存机制</text>
+
+  <!-- inline chips -->
+  <rect x="255" y="158" width="80" height="22" rx="3" fill="#3a4a6b"/>
+  <text x="295" y="173" font-family="sans-serif" font-size="9" fill="#fff" text-anchor="middle">HBM</text>
+  <line x1="335" y1="169" x2="365" y2="169" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+  <rect x="370" y="158" width="80" height="22" rx="3" fill="#ddd"/>
+  <text x="410" y="173" font-family="sans-serif" font-size="9" fill="#1a1a1a" text-anchor="middle">CXL</text>
+  <line x1="450" y1="169" x2="480" y2="169" stroke="#555" stroke-width="1.5"/>
+  <rect x="485" y="158" width="80" height="22" rx="3" fill="#aaa"/>
+  <text x="525" y="173" font-family="sans-serif" font-size="9" fill="#fff" text-anchor="middle">QLC SSD</text>
+  <line x1="565" y1="169" x2="595" y2="169" stroke="#555" stroke-width="1.5"/>
+  <rect x="600" y="158" width="80" height="22" rx="3" fill="#aaa"/>
+  <text x="640" y="173" font-family="sans-serif" font-size="9" fill="#fff" text-anchor="middle">TLC SSD</text>
+
+  <text x="700" y="173" font-family="sans-serif" font-size="9" font-weight="700" fill="#1a1a1a">→ 1.5x 吞吐提升</text>
+  <text x="800" y="173" font-family="sans-serif" font-size="9" font-weight="700" fill="#3a4a6b">→ 长文本下 1.8-2.5x</text>
+
+  <!-- Path 2: SGLang RadixAttention -->
+  <rect x="240" y="200" width="640" height="80" rx="6" fill="#f9f8f6" stroke="#aaa" stroke-width="1"/>
+  <text x="255" y="220" font-family="sans-serif" font-size="12" font-weight="700" fill="#1a1a1a">路径 2 — SGLang (RadixAttention)</text>
+  <text x="255" y="238" font-family="sans-serif" font-size="10" fill="#5a5a5a">基数树前缀共享 — 多请求共享 KV cache — 批处理吞吐提升</text>
+
+  <rect x="255" y="248" width="80" height="22" rx="3" fill="#3a4a6b"/>
+  <text x="295" y="263" font-family="sans-serif" font-size="9" fill="#fff" text-anchor="middle">HBM</text>
+  <line x1="335" y1="259" x2="365" y2="259" stroke="#555" stroke-width="1.5"/>
+  <rect x="370" y="248" width="80" height="22" rx="3" fill="#aaa"/>
+  <text x="410" y="263" font-family="sans-serif" font-size="9" fill="#fff" text-anchor="middle">CPU DRAM</text>
+  <line x1="450" y1="259" x2="480" y2="259" stroke="#555" stroke-width="1.5"/>
+  <rect x="485" y="248" width="80" height="22" rx="3" fill="#aaa"/>
+  <text x="525" y="263" font-family="sans-serif" font-size="9" fill="#fff" text-anchor="middle">NVMe SSD</text>
+
+  <text x="700" y="263" font-family="sans-serif" font-size="9" font-weight="700" fill="#1a1a1a">→ 共享前缀减 70% 内存</text>
+  <text x="800" y="263" font-family="sans-serif" font-size="9" font-weight="700" fill="#3a4a6b">→ 6.4x 端到端吞吐</text>
+
+  <!-- Path 3: vTensor (FlashAttention-like) -->
+  <rect x="240" y="290" width="640" height="80" rx="6" fill="#f9f8f6" stroke="#aaa" stroke-width="1"/>
+  <text x="255" y="310" font-family="sans-serif" font-size="12" font-weight="700" fill="#1a1a1a">路径 3 — vTensor (虚拟连续内存)</text>
+  <text x="255" y="328" font-family="sans-serif" font-size="10" fill="#5a5a5a">逻辑地址连续、物理地址 SSD — 类似 GPU 虚拟内存 — 透明卸载</text>
+
+  <rect x="255" y="338" width="80" height="22" rx="3" fill="#3a4a6b"/>
+  <text x="295" y="353" font-family="sans-serif" font-size="9" fill="#fff" text-anchor="middle">HBM</text>
+  <line x1="335" y1="349" x2="365" y2="349" stroke="#555" stroke-width="1.5"/>
+  <rect x="370" y="338" width="80" height="22" rx="3" fill="#aaa"/>
+  <text x="410" y="353" font-family="sans-serif" font-size="9" fill="#fff" text-anchor="middle">GPUDirect</text>
+  <line x1="450" y1="349" x2="480" y2="349" stroke="#555" stroke-width="1.5"/>
+  <rect x="485" y="338" width="80" height="22" rx="3" fill="#aaa"/>
+  <text x="525" y="353" font-family="sans-serif" font-size="9" fill="#fff" text-anchor="middle">SCM (XL-FLASH)</text>
+
+  <text x="700" y="353" font-family="sans-serif" font-size="9" font-weight="700" fill="#1a1a1a">→ μs 级延迟</text>
+  <text x="800" y="353" font-family="sans-serif" font-size="9" font-weight="700" fill="#3a4a6b">→ 推理延迟 -30%</text>
+
+  <!-- Path 4: DistServe -->
+  <rect x="240" y="380" width="640" height="80" rx="6" fill="#f9f8f6" stroke="#aaa" stroke-width="1"/>
+  <text x="255" y="400" font-family="sans-serif" font-size="12" font-weight="700" fill="#1a1a1a">路径 4 — DistServe (Prefill-Decode 分离)</text>
+  <text x="255" y="418" font-family="sans-serif" font-size="10" fill="#5a5a5a">预填充/解码分离到不同节点 — KV cache 通过 RDMA/CXL 跨机共享</text>
+
+  <rect x="255" y="428" width="80" height="22" rx="3" fill="#3a4a6b"/>
+  <text x="295" y="443" font-family="sans-serif" font-size="9" fill="#fff" text-anchor="middle">HBM 群</text>
+  <line x1="335" y1="439" x2="365" y2="439" stroke="#555" stroke-width="1.5"/>
+  <rect x="370" y="428" width="80" height="22" rx="3" fill="#aaa"/>
+  <text x="410" y="443" font-family="sans-serif" font-size="9" fill="#fff" text-anchor="middle">RDMA 网</text>
+  <line x1="450" y1="439" x2="480" y2="439" stroke="#555" stroke-width="1.5"/>
+  <rect x="485" y="428" width="80" height="22" rx="3" fill="#aaa"/>
+  <text x="525" y="443" font-family="sans-serif" font-size="9" fill="#fff" text-anchor="middle">节点 DRAM</text>
+
+  <text x="700" y="443" font-family="sans-serif" font-size="9" font-weight="700" fill="#1a1a1a">→ TTFT / TPOT 分离调优</text>
+  <text x="800" y="443" font-family="sans-serif" font-size="9" font-weight="700" fill="#3a4a6b">→ 单节点 22x 吞吐</text>
+
+  <!-- Bottom: paper anchor -->
+  <rect x="50" y="475" width="830" height="50" rx="4" fill="#eef0f5" stroke="#3a4a6b" stroke-width="1"/>
+  <text x="465" y="495" font-family="sans-serif" font-size="11" fill="#1a1a1a" text-anchor="middle" font-weight="700">学术原论文 — LLM KV Cache Offload to CXL Memory: A Hardware-Software Co-design</text>
+  <text x="465" y="510" font-family="sans-serif" font-size="10" fill="#5a5a5a" text-anchor="middle">CXL Memory + 软件协同设计 — 长上下文 (1M tokens) 推理 — 训练+推理场景都已验证</text>
+  <text x="465" y="522" font-family="sans-serif" font-size="9" fill="#5a5a5a" text-anchor="middle" font-style="italic">Source: papers-hardware.json · vLLM 官方文档 · SGLang 论文 · DistServe (OSDI 2024)</text>
+
+  <!-- arrow defs -->
+  <defs>
+    <marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 z" fill="#555"/>
+    </marker>
+  </defs>
+</svg>
