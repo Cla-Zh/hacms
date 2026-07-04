@@ -34,8 +34,12 @@ LIGHT_FIELDS = {
 
 def compute_version(articles):
     """基于所有文章 id+date+html_path 计算稳定版本号"""
-    keys = sorted(f"{a.get('id')}|{a.get('date')}|{a.get('html_path', '')}"
-                  for a in articles)
+    # v3.0: title 跟 summary 也算进 hash (让文章内容修改触发 version 变化)
+    keys = sorted(
+        f"{a.get('id')}|{a.get('date')}|{a.get('html_path', '')}|"
+        f"{a.get('title', '')}|{a.get('summary', '')[:200]}"
+        for a in articles
+    )
     raw = '|'.join(keys)
     h = hashlib.sha256(raw.encode()).hexdigest()[:16]
     return f"{h[:8]}-{h[8:16]}"

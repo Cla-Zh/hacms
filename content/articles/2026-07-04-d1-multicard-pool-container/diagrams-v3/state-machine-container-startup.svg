@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 460" font-family="sans-serif">
+  <style>
+    .state { fill: #fff; stroke: #333; stroke-width: 1.5; }
+    .state-label { fill: #333; font-size: 12px; font-weight: 600; text-anchor: middle; }
+    .edge { fill: #333; font-size: 10px; }
+    .arrow { stroke: #333; stroke-width: 1.5; fill: none; marker-end: url(#arr); }
+    .start { fill: #333; }
+    .cann { fill: #eee; stroke: #333; stroke-width: 1.5; stroke-dasharray: 4,2; }
+    .cann-label { fill: #333; font-size: 10px; font-style: italic; text-anchor: middle; }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+  </defs>
+
+  <text x="400" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">容器启动流程状态机 (D1 · Ascend)</text>
+  <text x="400" y="40" text-anchor="middle" fill="#666" font-size="11">v3.0 · K8s Pod → CANN 自初始化 (cann-init.sh) → 容器运行</text>
+
+  <circle class="start" cx="60" cy="200" r="6"/>
+
+  <!-- CANN self-init group band (around CANN_INIT) -->
+  <rect class="cann" x="395" y="160" width="285" height="80" rx="4"/>
+  <text class="cann-label" x="537" y="174">CANN self-init (cann-init.sh)</text>
+
+  <rect class="state" x="100" y="180" width="100" height="40" rx="4"/>
+  <text class="state-label" x="150" y="205">POD_CREATED</text>
+
+  <rect class="state" x="240" y="180" width="110" height="40" rx="4"/>
+  <text class="state-label" x="295" y="205">SCHEDULED</text>
+
+  <rect class="state" x="380" y="180" width="120" height="40" rx="4"/>
+  <text class="state-label" x="440" y="205">ADMITTING</text>
+
+  <rect class="state" x="535" y="180" width="120" height="40" rx="4"/>
+  <text class="state-label" x="595" y="205">CANN_INIT</text>
+
+  <rect class="state" x="685" y="180" width="100" height="40" rx="4"/>
+  <text class="state-label" x="735" y="205">RUNNING</text>
+
+  <rect class="state" x="240" y="280" width="100" height="40" rx="4"/>
+  <text class="state-label" x="290" y="305">FAILED</text>
+
+  <rect class="state" x="535" y="280" width="120" height="40" rx="4"/>
+  <text class="state-label" x="595" y="305">TERMINATING</text>
+
+  <line class="arrow" x1="66" y1="200" x2="95" y2="200"/>
+  <line class="arrow" x1="200" y1="200" x2="235" y2="200"/>
+  <line class="arrow" x1="350" y1="200" x2="375" y2="200"/>
+  <line class="arrow" x1="500" y1="200" x2="530" y2="200"/>
+  <line class="arrow" x1="655" y1="200" x2="680" y2="200"/>
+
+  <line class="arrow" x1="295" y1="220" x2="290" y2="275"/>
+  <text class="edge" x="303" y="250">NPU 不可用</text>
+
+  <line class="arrow" x1="595" y1="220" x2="595" y2="275"/>
+  <text class="edge" x="603" y="250">Pod 销毁</text>
+
+  <line class="arrow" x1="655" y1="295" x2="555" y2="295" stroke-dasharray="2,2"/>
+  <text class="edge" x="568" y="288">强制结束</text>
+
+  <!-- Legend -->
+  <rect x="30" y="350" width="740" height="100" fill="#fafafa" stroke="#ccc" rx="3"/>
+  <text x="40" y="370" fill="#333" font-size="13" font-weight="600">说明 (v3.0 · 新增 CANN 自初始化)</text>
+  <text x="40" y="388" fill="#666" font-size="11">• POD_CREATED: K8s API 收到 Pod spec (resources.limits[huawei.com/ascend-pool])</text>
+  <text x="40" y="403" fill="#666" font-size="11">• SCHEDULED → ADMITTING: kube-scheduler 绑定节点 (D-Card Mgr 经 CANN HAL 暴露资源)</text>
+  <text x="40" y="418" fill="#666" font-size="11">• INJECTING → CANN_INIT: Runtime Shim 注入 /dev/davinci* + 触发 cann-init.sh (新阶段)</text>
+  <text x="40" y="433" fill="#666" font-size="11">   · cann-init.sh: 设置 ASCEND_HOME / HCCL 集合通信配置 / torch_npu 初始化 → env 完成 → RUNNING</text>
+</svg>

@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 460" font-family="sans-serif">
+  <style>
+    .box { fill: #fff; stroke: #333; stroke-width: 1.5; }
+    .label { fill: #333; font-size: 13px; font-weight: 600; text-anchor: middle; }
+    .sub { fill: #666; font-size: 10px; text-anchor: middle; }
+    .arrow { stroke: #333; stroke-width: 1.5; fill: none; marker-end: url(#arr); }
+    .bar { fill: #fafafa; stroke: #ccc; }
+    .cann { fill: #f5f5f5; stroke: #999; stroke-width: 1; stroke-dasharray: 3,2; }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+  </defs>
+
+  <text x="400" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">容器启动时序图 (D1 · Ascend)</text>
+  <text x="400" y="40" text-anchor="middle" fill="#666" font-size="11">v3.0 · kubelet → K8s Plugin → Runtime Shim → CANN 自初始化 (cann-init.sh)</text>
+
+  <line x1="100" y1="60" x2="100" y2="395" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="300" y1="60" x2="300" y2="395" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="500" y1="60" x2="500" y2="395" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="700" y1="60" x2="700" y2="395" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+
+  <rect class="box" x="40" y="50" width="120" height="35" rx="3"/>
+  <text class="label" x="100" y="72">kubelet</text>
+
+  <rect class="box" x="240" y="50" width="120" height="35" rx="3"/>
+  <text class="label" x="300" y="72">K8s Plugin</text>
+
+  <rect class="box" x="440" y="50" width="120" height="35" rx="3"/>
+  <text class="label" x="500" y="72">Runtime Shim</text>
+
+  <rect class="box" x="640" y="50" width="120" height="35" rx="3"/>
+  <text class="label" x="700" y="72">CANN 8.0.RC2</text>
+
+  <!-- CANN self-init band -->
+  <rect class="cann" x="615" y="245" width="170" height="35" rx="3"/>
+  <text class="sub" x="700" y="288" fill="#333" font-style="italic">cann-init.sh (env 初始化)</text>
+
+  <line class="arrow" x1="100" y1="110" x2="295" y2="110"/>
+  <text class="sub" x="197" y="103">1. allocate(huawei.com/ascend-pool=1)</text>
+
+  <line class="arrow" x1="300" y1="138" x2="695" y2="138"/>
+  <text class="sub" x="497" y="131">2. bind pool (Ascend NPU 切片 ID)</text>
+
+  <line class="arrow" x1="700" y1="163" x2="305" y2="163" stroke-dasharray="2,2"/>
+  <text class="sub" x="497" y="156">3. da Vinci 句柄 + HCCS 拓扑 (ring+mesh)</text>
+
+  <line class="arrow" x1="305" y1="190" x2="105" y2="190" stroke-dasharray="2,2"/>
+  <text class="sub" x="197" y="183">4. alloc response</text>
+
+  <line class="arrow" x1="100" y1="220" x2="495" y2="220"/>
+  <text class="sub" x="297" y="213">5. create container</text>
+
+  <line class="arrow" x1="500" y1="248" x2="695" y2="248"/>
+  <text class="sub" x="597" y="241">6. map /dev/davinci* + 触发 cann-init.sh</text>
+
+  <line class="arrow" x1="700" y1="298" x2="505" y2="298" stroke-dasharray="2,2"/>
+  <text class="sub" x="597" y="291">7. ASCEND_HOME/HCCL env + /opt/dcard/models/ 挂载</text>
+
+  <line class="arrow" x1="500" y1="328" x2="105" y2="328" stroke-dasharray="2,2"/>
+  <text class="sub" x="297" y="321">8. ready to start</text>
+
+  <line class="arrow" x1="100" y1="358" x2="495" y2="358"/>
+  <text class="sub" x="297" y="351">9. start container (runc + torch_npu)</text>
+
+  <rect class="bar" x="30" y="380" width="740" height="70" rx="3"/>
+  <text x="40" y="398" fill="#333" font-size="13" font-weight="600">关键路径 (v3.0)</text>
+  <text x="40" y="415" fill="#666" font-size="11">• K8s Plugin Allocate RPC: 资源请求 → 绑 Ascend NPU 1:1 切片 → 返回 /dev/davinci*</text>
+  <text x="40" y="430" fill="#666" font-size="11">• Runtime Shim 拦截 runc create, 注入 /dev/davinci* + ASCEND_VENDOR=Ascend + 触发 cann-init.sh</text>
+  <text x="40" y="445" fill="#666" font-size="11">• cann-init.sh (新): 设置 ASCEND_HOME / HCCL 集合通信 / torch_npu 路径 → 容器秒级启动</text>
+</svg>

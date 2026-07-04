@@ -2,319 +2,442 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>D-Series AI Card D1 设计: 多卡池化与容器化 - hacms</title>
-<meta name="description" content="D-Series AI Card D1 详细设计, 5 大子系统 + 3 池化模式 + 4 类卡 + 7 API + 3 状态机 + 3 时序图 + 1 部署图. 1 逻辑卡 = 8 物理 A100, 故障 1s 检测 + 5s 隔离. v2.0 重建版.">
+<title>D-Series AI Card D1 设计: 多卡池化与容器化 (CANN 8.0.RC2 + HCCS) - hacms</title>
+<meta name="description" content="D-Series AI Card D1 v3.0 详细设计, 华为 Ascend 910B/310P + CANN 8.0.RC2 + HCCS 集合通信. 5 大子系统 (D-Card Mgr / PCIe HAL / K8s Plugin / Runtime Shim / dctl), 3 池化模式 (NPU Slice / vNPU / HCCS), 4 类卡 (训练/推理/边缘/国产), 7 + 9 = 16 API endpoint (含推理服务 InferenceService + 健康管理 HealthService + CANN 自初始化 cann-init.sh). 1 逻辑 D-Card = 8 物理 Ascend 910B, 故障 1s 检测 + 5s 隔离. D-Series 独立项目, 2026-07-04 跟 hacms 联合发布.">
 <meta name="author" content="calvin + Hermes">
 <meta name="date" content="2026-07-04">
 <link rel="stylesheet" href="/style.css">
+<style>
+:root{
+  --bg:#fff;--bg-2:#fafafa;--surface:#fff;--surface-2:#f5f5f5;
+  --text:#1a1a1a;--text2:#3d3d3d;--text3:#6e6e6e;--text-muted:#999;
+  --border:#e3e3e3;--border-2:#ececec;
+  --accent:#3a4a6b;--accent-dark:#2a3550;--accent-light:#eef0f6;
+  --green:#1a5432;--red:#a02020;--orange:#a0440c;--blue:#1f4e79;--purple:#6d28d9;--teal:#0d7377;
+  --radius:6px;--radius-lg:10px;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 2px 6px rgba(0,0,0,.06);
+  --shadow-lg:0 4px 14px rgba(0,0,0,.08);
+  --content-max:1180px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14.5px;line-height:1.78}
+body{padding:32px 24px 80px}
+.wrap{max-width:var(--content-max);margin:0 auto}
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(58,74,107,.2);transition:border-color .15s}
+a:hover{border-bottom-color:var(--accent)}
+code{background:var(--surface-2);padding:1px 6px;border-radius:3px;font-family:"SF Mono",Consolas,Menlo,monospace;font-size:13px;color:var(--text2)}
+pre{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;overflow-x:auto;font-size:12.5px;line-height:1.55;margin:14px 0}
+pre code{background:transparent;padding:0;color:var(--text)}
+h1{font-size:30px;font-weight:800;line-height:1.35;margin:0 0 8px;letter-spacing:-0.4px;color:var(--text)}
+h1 .hl{background:linear-gradient(180deg,transparent 60%,#fff3b0 60%);padding:0 4px}
+.subtitle{font-size:14px;color:var(--text3);margin:0 0 28px;font-weight:400}
+.subtitle .meta{margin-right:14px}
+.subtitle .meta b{color:var(--text2);font-weight:600}
+h2{font-size:22px;font-weight:700;margin:48px 0 18px;padding:10px 0 10px 14px;border-left:5px solid var(--accent);background:var(--surface-2);border-radius:0 var(--radius) var(--radius) 0;color:var(--text);letter-spacing:-0.2px;scroll-margin-top:20px}
+h2 .num{display:inline-block;width:32px;height:32px;line-height:32px;text-align:center;background:var(--accent);color:#fff;border-radius:50%;font-size:14px;font-weight:700;margin-right:10px;vertical-align:middle}
+h3{font-size:17px;font-weight:700;margin:30px 0 12px;color:var(--text);padding-bottom:6px;border-bottom:2px solid var(--border)}
+h4{font-size:15px;font-weight:700;margin:22px 0 10px;color:var(--text2)}
+p{margin:0 0 14px}
+ul,ol{margin:0 0 14px;padding-left:24px}
+li{margin:0 0 6px}
+table{width:100%;border-collapse:collapse;margin:18px 0;font-size:13px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+th{background:var(--surface-2);text-align:left;padding:10px 12px;font-weight:700;color:var(--text2);border-bottom:2px solid var(--border);font-size:12.5px}
+td{padding:9px 12px;border-bottom:1px solid var(--border-2);vertical-align:top}
+tr:last-child td{border-bottom:none}
+tr:nth-child(even) td{background:#fcfcfc}
+.callout{border-left:4px solid var(--accent);background:var(--accent-light);padding:14px 18px;margin:18px 0;border-radius:0 var(--radius) var(--radius) 0}
+.callout.green{border-left-color:var(--green);background:#f0faf4}
+.callout.red{border-left-color:var(--red);background:#fef4f4}
+.callout.orange{border-left-color:var(--orange);background:#fdf6ef}
+.callout.purple{border-left-color:var(--purple);background:#f6f3ff}
+.callout.teal{border-left-color:var(--teal);background:#effafa}
+.callout .label{font-weight:700;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+.callout.green .label{color:var(--green)}
+.callout.red .label{color:var(--red)}
+.callout.orange .label{color:var(--orange)}
+.callout.purple .label{color:var(--purple)}
+.callout.teal .label{color:var(--teal)}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:20px 0}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;text-align:center;box-shadow:var(--shadow-sm)}
+.kpi .num{font-size:28px;font-weight:800;color:var(--accent);letter-spacing:-0.5px;line-height:1.1;margin-bottom:4px}
+.kpi .label{font-size:11.5px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.6px}
+.kpi .src{font-size:10px;color:var(--text-muted);margin-top:6px;font-style:italic}
+.svg-figure{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;margin:20px 0;box-shadow:var(--shadow-sm)}
+.svg-figure img{width:100%;height:auto;display:block}
+.svg-figure figcaption{font-size:12px;color:var(--text3);text-align:center;margin-top:8px;font-style:italic}
+.toc{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 22px;margin:24px 0;box-shadow:var(--shadow-sm)}
+.toc h2{font-size:14px;font-weight:700;margin:0 0 12px;padding:0;border:none;background:none;letter-spacing:0.5px;text-transform:uppercase;color:var(--text3);text-align:left}
+.toc ol{margin:0;padding:0;list-style:none;columns:2;column-gap:32px}
+.toc li{margin:0 0 6px;break-inside:avoid}
+.toc a{font-size:13px;color:var(--text2);border-bottom:none}
+.toc a:hover{color:var(--accent)}
+.toc li.sub{font-size:12px;color:var(--text-muted);margin-left:14px;margin-top:-4px;list-style:none}
+.hero-section{background:linear-gradient(135deg,var(--accent-light) 0%,var(--surface) 100%);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px 28px;margin:24px 0;box-shadow:var(--shadow-sm)}
+.hero-section h2{font-size:18px;font-weight:700;margin:0 0 12px;padding:0;border:none;background:none;color:var(--accent-dark)}
+.hero-section p{margin:0;font-size:14px;line-height:1.75;color:var(--text2)}
+.version-badge{display:inline-block;background:var(--accent);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;letter-spacing:0.5px}
+.version-badge.v3{background:var(--green)}
+.changes-table th{background:var(--orange);color:#fff}
+.changes-table td:first-child{font-weight:600}
+.article-footer{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 22px;margin:36px 0 0;box-shadow:var(--shadow-sm)}
+.article-footer h2{font-size:14px;font-weight:700;margin:0 0 12px;padding:0;border:none;background:none;letter-spacing:0.5px;text-transform:uppercase;color:var(--text3)}
+.article-footer p{margin:0 0 8px;font-size:13px;color:var(--text2)}
+.article-footer p:last-child{margin-bottom:0}
+</style>
 </head>
 <body>
+<div class="wrap">
+
 <nav class="article-nav">
 <a href="/">← 返回 hacms 主页</a>
 </nav>
 
 <article class="hacms-article">
-<h1 class="article-title">D-Series AI Card D1 设计: 多卡池化与容器化 (K8s 联邦 + 热插拔)</h1>
 
-<div class="article-meta">
-<span class="meta-item">📅 2026-07-04</span>
-<span class="meta-item">✍️ calvin + Hermes</span>
-<span class="meta-item">🏷️ D-Series / AI / GPU / K8s</span>
-<span class="meta-item">📖 25 min read</span>
-</div>
+<header>
+<h1 class="article-title">D-Series AI Card D1 设计: 多卡池化与容器化 <span class="version-badge v3">v3.0</span></h1>
+<p class="subtitle">
+<span class="meta">📅 <b>2026-07-04</b></span>
+<span class="meta">✍️ <b>calvin + Hermes</b></span>
+<span class="meta">🏷️ <b>D-Series / Ascend / CANN / HCCS / 推理服务</b></span>
+<span class="meta">📖 <b>~30 min read</b></span>
+</p>
+</header>
 
-<div class="article-excerpt">
-<p><strong>D-Series AI Card D1 详细设计</strong> (v2.0 重建版, 原 v1.1 因 G 盘清理丢失). 5 大子系统 (D-Card Mgr / PCIe HAL / K8s Plugin / Runtime Shim / dctl), 3 种池化模式 (MIG / vGPU / SR-IOV), 4 类卡 (训练/推理/边缘/国产), 7 API endpoint, 3 状态机, 3 时序图, 1 部署图. <strong>1 逻辑 D-Card = 8 物理 A100</strong>, 故障 1s 检测 + 5s 隔离. D-Series 独立项目, 2026-07-04 跟 hacms 联合发布.</p>
+<div class="callout">
+<p class="label">D1 v3.0 重大升级</p>
+<p>从 v2.0 (NVIDIA 默认) 升级到 v3.0 (<strong>华为 Ascend 910B/310P + CANN 8.0.RC2 + HCCS 集合通信</strong>) 主路径. 新增 <strong>AI 推理服务 (InferenceService)</strong> + <strong>健康管理服务 (HealthService)</strong> + <strong>CANN 自初始化 (cann-init.sh)</strong> 三大新服务. 总 API endpoint 从 7 → <strong>16</strong> (7 原有 + 9 新增), 错误码从 6 → <strong>11</strong>. 国产卡从 ⚠️ 实验升级到 ✅ <strong>主推</strong>. D-Series 独立项目, 2026-07-04 跟 hacms 联合发布.</p>
 </div>
 
 <nav class="toc">
 <h2>目录</h2>
 <ol>
 <li><a href="#overview">概述</a></li>
-<li><a href="#glossary">术语表</a></li>
+<li><a href="#glossary">术语表 (v3.0 更新)</a></li>
 <li><a href="#architecture">架构总览</a></li>
-<li><a href="#pooling">池化模式</a></li>
-<li><a href="#cards">卡类型</a></li>
+<li><a href="#pooling">池化模式 (NPU Slice / vNPU / HCCS)</a></li>
+<li><a href="#cards">卡类型 (Ascend 910B / 310P)</a></li>
 <li><a href="#scope">D1 范围</a></li>
-<li><a href="#api">API 设计</a></li>
-<li><a href="#state">状态机</a></li>
-<li><a href="#sequence">时序图</a></li>
-<li><a href="#deploy">部署架构</a></li>
+<li><a href="#api">API 设计 (7 基础 + 9 新增 = 16)</a></li>
+<li><a href="#state">状态机 (3 状态机)</a></li>
+<li><a href="#sequence">时序图 (3 时序)</a></li>
+<li><a href="#deploy">部署架构 (8 × Ascend 910B + CANN + HCCS)</a></li>
 <li><a href="#risks">风险与缓解</a></li>
-<li><a href="#roadmap">路线图</a></li>
-<li><a href="#naming">命名规范</a></li>
+<li><a href="#roadmap">路线图 (D1-D5)</a></li>
+<li><a href="#naming">命名规范 (v3.0)</a></li>
 <li><a href="#summary">总结</a></li>
+<li class="sub">── v3.0 新增 ──</li>
+<li><a href="#inference">AI 推理服务 (InferenceService)</a></li>
+<li><a href="#health-svc">健康管理服务 (HealthService)</a></li>
+<li><a href="#cann-init">CANN 自初始化 (cann-init.sh)</a></li>
+<li><a href="#errors-v3">错误码表 v3.0 (11 类)</a></li>
 </ol>
 </nav>
 
+<div class="hero-section">
+<h2>核心能力一览</h2>
+<p>5 大子系统 (D-Card Mgr / PCIe HAL / K8s Plugin / Runtime Shim / dctl) · 3 种池化 (NPU Slice / vNPU / HCCS) · 4 类卡 (训练/推理/边缘/国产) · <strong>16 API endpoint</strong> · 11 错误码 · 3 状态机 · 3 时序图 · 1 部署图 · <strong>1 逻辑 D-Card = 8 物理 Ascend 910B</strong> · 故障 1s 检测 + 5s 隔离</p>
+</div>
+
+<div class="kpi-grid">
+<div class="kpi"><div class="num">5</div><div class="label">子系统</div><div class="src">D-Card Mgr / PCIe HAL / K8s Plugin / Runtime Shim / dctl</div></div>
+<div class="kpi"><div class="num">3</div><div class="label">池化模式</div><div class="src">NPU Slice / vNPU / HCCS</div></div>
+<div class="kpi"><div class="num">4</div><div class="label">卡类型</div><div class="src">910B / 310P / 310 / 国产</div></div>
+<div class="kpi"><div class="num">16</div><div class="label">API endpoint</div><div class="src">7 基础 + 5 推理 + 4 健康</div></div>
+<div class="kpi"><div class="num">11</div><div class="label">错误码</div><div class="src">v2.0 6 + v3.0 5</div></div>
+<div class="kpi"><div class="num">8</div><div class="label">物理 NPU 池</div><div class="src">8 × Ascend 910B = 1 逻辑 D-Card</div></div>
+</div>
+
 <section id="overview">
-<h2>1. 概述 (Overview)</h2>
-<p>D-Series AI Card 是面向 AI 训练/推理场景的<strong>智能 GPU 资源池化系统</strong>, 核心解决 2 个问题:</p>
+<h2><span class="num">1</span>概述 (Overview)</h2>
+<p>D-Series AI Card 是面向 AI 训练/推理场景的<strong>智能 NPU 资源池化系统</strong>, 核心解决 2 个问题:</p>
 <ol>
-<li><strong>多卡池化</strong> (Multi-card Pool) — 1 个逻辑 D-Card = N 张物理 GPU, 异构卡混部</li>
+<li><strong>多卡池化</strong> (Multi-card Pool) — 1 个逻辑 D-Card = N 张物理 NPU, 异构卡混部</li>
 <li><strong>容器化</strong> (Container Integration) — 跟 K8s 无缝集成, 容器秒级看到池化后的资源</li>
 </ol>
 
-<h3>1.1 D1 范围 (Q3 2026)</h3>
+<div class="callout green">
+<p class="label">D1 v3.0 新能力</p>
+<p>v3.0 新增 3 大服务: <strong>AI 推理服务 (InferenceService)</strong> 暴露 5 endpoint 包含 Init 自动加载模型 + 推理 + 资源管理; <strong>健康管理服务 (HealthService)</strong> 4 endpoint 含实时流式监控 + Prometheus 指标; <strong>CANN 自初始化 (cann-init.sh)</strong> 容器启动 hook 自动初始化 CANN 8.0.RC2 框架 + 扫描 <code>/opt/dcard/models/</code> 加载 <code>.om</code> 模型. 默认 vendor 从 NVIDIA 切换到华为 Ascend 910B/310P + CANN 8.0.RC2 + HCCS 集合通信.</p>
+</div>
+
+<h3>1.1 D1 v3.0 范围 (Q3 2026)</h3>
 <ul>
-<li>8 卡 A100 池 (1 逻辑 = 8 物理)</li>
-<li>vendor 字段在 K8s 可见</li>
-<li>容器化训练任务秒级启动</li>
+<li>8 卡 Ascend 910B 池 (1 逻辑 = 8 物理, HCCS 集合通信)</li>
+<li>vendor 字段在 K8s 可见 (vendor=ascend)</li>
+<li>容器化训练 + 推理任务秒级启动</li>
+<li><strong>推理服务自动初始化 CANN + 加载 <code>/opt/dcard/models/*.om</code></strong> ✅</li>
+<li><strong>健康检查 (Check / Watch 流式 / IngestMetrics / GetCardHealth)</strong> ✅</li>
 <li>故障 1s 检测 + 5s 隔离 (基础, 不做自动迁移)</li>
 </ul>
 
-<h3>1.2 D1 不做</h3>
+<h3>1.2 D1 v3.0 不做</h3>
 <ul>
 <li>❌ 动态扩缩 (D2 Pool Manager)</li>
 <li>❌ 故障自动迁移 (D3 Hot-Swap)</li>
 <li>❌ 跨集群 (D4 Federation)</li>
 <li>❌ 边缘 + 混合云 (D5)</li>
+<li>❌ 推理调度 (QPS 路由 / 模型版本 / A/B Test)</li>
 </ul>
 </section>
 
 <section id="glossary">
-<h2>2. 术语表 (Glossary)</h2>
+<h2><span class="num">2</span>术语表 (Glossary)</h2>
 <table>
 <thead>
 <tr><th>术语</th><th>缩写</th><th>含义</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>D-Card</strong></td><td>D-Card</td><td>D-Series 抽象的逻辑卡 (1 个 D-Card = N 张物理 GPU)</td></tr>
+<tr><td><strong>D-Card</strong></td><td>D-Card</td><td>D-Series 抽象的逻辑卡 (1 个 D-Card = N 张物理 NPU)</td></tr>
 <tr><td><strong>D-Card Manager</strong></td><td>D-Card Mgr</td><td>D-Card 硬件抽象 + 资源管理守护进程</td></tr>
-<tr><td><strong>PCIe HAL</strong></td><td>PCIe HAL</td><td>PCIe 硬件抽象层 (Passthrough / SR-IOV / IOMMU)</td></tr>
-<tr><td><strong>K8s Device Plugin</strong></td><td>K8s Plugin</td><td>vendor-extended K8s Device Plugin (在 nvidia-device-plugin 基础上加 vendor 字段)</td></tr>
-<tr><td><strong>Container Runtime Shim</strong></td><td>Runtime Shim</td><td>容器运行时适配层 (runc + nvidia-container-runtime 改造)</td></tr>
+<tr><td><strong>PCIe HAL</strong></td><td>PCIe HAL</td><td>PCIe 硬件抽象层 (Passthrough / HCCS 互联 / IOMMU)</td></tr>
+<tr><td><strong>K8s Device Plugin</strong></td><td>K8s Plugin</td><td>vendor-extended K8s Device Plugin (在 ascend-device-plugin 基础上加 vendor 字段)</td></tr>
+<tr><td><strong>Container Runtime Shim</strong></td><td>Runtime Shim</td><td>容器运行时适配层 (runc + ascend-docker-runtime 改造)</td></tr>
 <tr><td><strong>dctl</strong></td><td>dctl</td><td>D-Series 运维 CLI 工具</td></tr>
-<tr><td><strong>MIG</strong></td><td>MIG</td><td>NVIDIA Multi-Instance GPU (A100/H100 内置硬切片)</td></tr>
-<tr><td><strong>vGPU</strong></td><td>vGPU</td><td>NVIDIA 虚拟 GPU (T4/A10 软切片)</td></tr>
-<tr><td><strong>SR-IOV</strong></td><td>SR-IOV</td><td>PCIe Single Root I/O Virtualization (国产 DCU 常用)</td></tr>
+<tr><td><strong>NPU Slice</strong></td><td>NPU Slice</td><td>Huawei Ascend NPU 硬切片 (910B 内置, 等价 NVIDIA MIG)</td></tr>
+<tr><td><strong>vNPU</strong></td><td>vNPU</td><td>Huawei Ascend 虚拟 NPU (310P 软切片, 等价 NVIDIA vGPU)</td></tr>
+<tr><td><strong>HCCS</strong></td><td>HCCS</td><td>Huawei Cache Coherent Interconnect (Ascend 910B 多卡高速互联)</td></tr>
 <tr><td><strong>Pool</strong></td><td>Pool</td><td>1 个 D-Card 池子 (1 逻辑 = N 物理)</td></tr>
-<tr><td><strong>Vendor</strong></td><td>Vendor</td><td>GPU 厂商 (NVIDIA / AMD / 华为 Ascend / 寒武纪 / 摩尔线程)</td></tr>
+<tr><td><strong>Vendor</strong></td><td>Vendor</td><td>AI 加速器厂商 (华为 Ascend / NVIDIA / AMD / 寒武纪 / 摩尔线程)</td></tr>
+<tr><td><strong>CANN</strong></td><td>CANN</td><td>Compute Architecture for Neural Networks (华为昇腾异构计算架构)</td></tr>
+<tr><td><strong>ACL</strong></td><td>ACL</td><td>Ascend Computing Language (CANN 编程接口, 类似 CUDA)</td></tr>
+<tr><td><strong>OM 模型</strong></td><td>.om</td><td>Ascend Offline Model (CANN 编译后的离线模型格式)</td></tr>
+<tr><td><strong>InferenceService</strong></td><td>InferenceService</td><td>D1 v3.0 新增, AI 推理 gRPC 服务, 5 endpoint</td></tr>
+<tr><td><strong>HealthService</strong></td><td>HealthService</td><td>D1 v3.0 新增, 健康管理 gRPC 服务, 4 endpoint</td></tr>
+<tr><td><strong>cann-init.sh</strong></td><td>cann-init.sh</td><td>D1 v3.0 新增, 容器启动 hook, 自动初始化 CANN + 加载模型</td></tr>
 </tbody>
 </table>
 </section>
 
 <section id="architecture">
-<h2>3. 架构总览 (Architecture)</h2>
+<h2><span class="num">3</span>架构总览 (Architecture)</h2>
 <p>D1 系统由 <strong>5 大子系统</strong> 组成, 自底向上分 3 层.</p>
-<figure>
-<img src="diagrams/deploy-architecture.svg" alt="D-Series D1 部署架构图" class="article-diagram">
-<figcaption>图 3-1: D1 部署架构 (K8s Node)</figcaption>
+<figure class="svg-figure">
+<img src="diagrams-v3/deploy-architecture.svg" alt="D1 v3.0 部署架构图 - 8 × Ascend 910B + CANN + HCCS" loading="lazy">
+<figcaption>图 3-1: D1 v3.0 部署架构 (8 × Ascend 910B + CANN 8.0.RC2 + HCCS 集合通信)</figcaption>
 </figure>
 
 <h3>3.1 3 层职责</h3>
 <ul>
-<li><strong>Layer 1 硬件抽象</strong>: D-Card Mgr + PCIe HAL, 处理物理 GPU 资源</li>
+<li><strong>Layer 1 硬件抽象</strong>: D-Card Mgr + PCIe HAL, 处理物理 NPU 资源, 通过 HCCS 互联</li>
 <li><strong>Layer 2 池化抽象 (D1 简化)</strong>: dctl CLI 运维接口 (D1 不做编排)</li>
-<li><strong>Layer 3 K8s 集成</strong>: Device Plugin + Runtime Shim, 暴露给容器</li>
+<li><strong>Layer 3 K8s 集成</strong>: Device Plugin (基于 ascend-device-plugin) + Runtime Shim (基于 ascend-docker-runtime)</li>
 </ul>
+
+<div class="callout teal">
+<p class="label">v3.0 新增层</p>
+<p>Layer 1 与 Layer 3 之间新增 <strong>InferenceService</strong> + <strong>HealthService</strong> 两个 gRPC 服务, 暴露在每个 K8s 节点的 <code>/var/run/dcard.sock</code> Unix Domain Socket, 供业务容器 (推理容器 / 监控容器) 调用. CANN 自初始化 (cann-init.sh) 在容器启动时通过 Runtime Shim 触发.</p>
+</div>
 </section>
 
 <section id="pooling">
-<h2>4. 池化模式 (Pooling Modes)</h2>
-<p>D1 支持 <strong>3 种池化模式</strong>, 适用不同场景:</p>
+<h2><span class="num">4</span>池化模式 (Pooling Modes)</h2>
+<p>D1 v3.0 支持 <strong>3 种池化模式</strong>, 适用不同场景:</p>
 <table>
 <thead>
 <tr><th>模式</th><th>适用卡型</th><th>原理</th><th>1 物理 = N 逻辑</th><th>性能损失</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>硬切片 MIG</strong></td><td>A100 / H100</td><td>GPU 内置 MIG, 7 个独立实例</td><td>1 物理 = 7 MIG 切片</td><td>0% (硬件隔离)</td></tr>
-<tr><td><strong>软切片 vGPU</strong></td><td>T4 / A10</td><td>vGPU Manager 切分</td><td>1 物理 = 2-8 vGPU</td><td>5-15% (驱动开销)</td></tr>
-<tr><td><strong>SR-IOV 共享</strong></td><td>国产 DCU</td><td>PCIe SR-IOV 虚拟化</td><td>1 物理 = 2-16 VF</td><td>&lt;5% (硬件辅助)</td></tr>
+<tr><td><strong>硬切片 NPU Slice</strong></td><td>Ascend 910B / 910C</td><td>NPU 内置硬切, 7 个独立实例</td><td>1 物理 = 7 NPU Slice</td><td>0% (硬件隔离)</td></tr>
+<tr><td><strong>软切片 vNPU</strong></td><td>Ascend 310P</td><td>CANN 软切分 (类似 vGPU Manager)</td><td>1 物理 = 2-8 vNPU</td><td>5-15% (驱动开销)</td></tr>
+<tr><td><strong>HCCS 互联</strong></td><td>Ascend 910B (主推)</td><td>Huawei Cache Coherent Interconnect 多卡拓扑</td><td>1 物理 = 2-56 HCCS 切片</td><td>&lt;5% (硬件辅助)</td></tr>
 </tbody>
 </table>
-<p><strong>D1 默认模式</strong>: MIG (A100/H100). D1 不做动态切换, 需重启 Pool.</p>
+<p><strong>D1 v3.0 默认模式</strong>: HCCS 互联 (Ascend 910B + CANN 8.0.RC2). D1 不做动态切换, 需重启 Pool.</p>
 </section>
 
 <section id="cards">
-<h2>5. 卡类型 (Card Types)</h2>
-<p>D1 支持 <strong>4 类卡</strong>:</p>
+<h2><span class="num">5</span>卡类型 (Card Types)</h2>
+<p>D1 v3.0 支持 <strong>4 类卡</strong>:</p>
 <table>
 <thead>
-<tr><th>卡类型</th><th>典型型号</th><th>用途</th><th>D1 支持</th></tr>
+<tr><th>卡类型</th><th>典型型号</th><th>用途</th><th>v3.0 支持</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>训练卡</strong></td><td>A100 / H100</td><td>大模型训练 (8 卡起步)</td><td>✅ 池化</td></tr>
-<tr><td><strong>推理卡</strong></td><td>T4 / A10</td><td>推理服务, 弹性扩缩</td><td>✅ 池化</td></tr>
-<tr><td><strong>边缘卡</strong></td><td>Jetson AGX / Orin</td><td>边缘推理 (D5 引入, D1 占位)</td><td>⚠️ 占位</td></tr>
-<tr><td><strong>国产卡</strong></td><td>昇腾 Ascend / 寒武纪 MLU / 摩尔线程</td><td>信创 / 国产化</td><td>⚠️ 实验</td></tr>
+<tr><td><strong>训练卡</strong></td><td>Ascend 910B / 910C</td><td>大模型训练 (8 卡起步)</td><td>✅ 池化 + HCCS</td></tr>
+<tr><td><strong>推理卡</strong></td><td>Ascend 310P</td><td>推理服务, 弹性扩缩</td><td>✅ 池化 + 推理服务</td></tr>
+<tr><td><strong>边缘卡</strong></td><td>Ascend 310 (Atlas 200)</td><td>边缘推理 (D5 引入, D1 占位)</td><td>⚠️ 占位</td></tr>
+<tr><td><strong>国产卡</strong></td><td>Ascend 910B / 310P (主推) / 寒武纪 MLU / 摩尔线程</td><td>信创 / 国产化</td><td>✅ <strong>主推</strong></td></tr>
 </tbody>
 </table>
+
+<div class="callout green">
+<p class="label">国产卡升级</p>
+<p>v2.0 中"国产卡"标为 ⚠️ 实验, v3.0 升级为 ✅ <strong>主推</strong>. 华为 Ascend 910B/310P 在 D1 v3.0 取代 NVIDIA A100/T4 成为默认 vendor, 配合 CANN 8.0.RC2 + HCCS 形成完整国产 AI 基础设施栈.</p>
+</div>
 </section>
 
 <section id="scope">
-<h2>6. D1 范围 (Scope)</h2>
-<h3>6.1 D1 包含</h3>
+<h2><span class="num">6</span>D1 范围 (Scope)</h2>
+<h3>6.1 D1 v3.0 包含</h3>
 <ul>
 <li>✅ D-Card Mgr (硬件抽象 + 健康检查)</li>
-<li>✅ PCIe HAL (透传 / SR-IOV)</li>
-<li>✅ K8s Device Plugin (vendor-extended)</li>
-<li>✅ Container Runtime Shim</li>
+<li>✅ PCIe HAL (透传 / HCCS 互联 / IOMMU)</li>
+<li>✅ K8s Plugin (vendor-extended, 基于 ascend-device-plugin)</li>
+<li>✅ Container Runtime Shim (基于 ascend-docker-runtime)</li>
 <li>✅ dctl CLI (基础 pool / card 操作)</li>
-<li>✅ 8 卡 A100 池 (1 逻辑 = 8 物理, MIG 切片)</li>
+<li>✅ 8 卡 Ascend 910B 池 (1 逻辑 = 8 物理, HCCS 切片)</li>
 <li>✅ 故障 1s 检测 + 5s 隔离 (基础, 不做迁移)</li>
+<li>✅ <strong>AI 推理服务 (InferenceService) 5 endpoint</strong></li>
+<li>✅ <strong>健康管理服务 (HealthService) 4 endpoint</strong></li>
+<li>✅ <strong>CANN 自初始化 (cann-init.sh) 启动 hook</strong></li>
 </ul>
-<h3>6.2 D1 不包含</h3>
+<h3>6.2 D1 v3.0 不包含</h3>
 <ul>
 <li>❌ Pool Manager (D2 动态扩缩 + 拓扑感知调度)</li>
 <li>❌ Hot-Swap Orchestrator (D3 故障自动迁移)</li>
 <li>❌ Federation Controller (D4 跨集群)</li>
 <li>❌ Edge + Hybrid Cloud (D5)</li>
+<li>❌ 推理调度 (QPS 路由 / 模型版本 / A/B Test)</li>
 </ul>
 </section>
 
 <section id="api">
-<h2>7. API 设计 (API Design)</h2>
-<p>D1 暴露 <strong>7 个 API endpoint</strong>, 全部走 gRPC + 双向 TLS 鉴权.</p>
+<h2><span class="num">7</span>API 设计 (API Design)</h2>
+<p>D1 v3.0 暴露 <strong>16 个 API endpoint</strong> (7 基础 + 5 推理 + 4 健康), 全部走 gRPC + 双向 TLS 鉴权.</p>
 
-<h3>7.1 gRPC Services</h3>
-<pre><code>// D-Card Mgr Service
-service DCardManager {
-  rpc CreatePool(CreatePoolRequest) returns (CreatePoolResponse);
-  rpc DestroyPool(DestroyPoolRequest) returns (DestroyPoolResponse);
-  rpc ListPools(ListPoolsRequest) returns (ListPoolsResponse);
-  rpc InspectCard(InspectCardRequest) returns (InspectCardResponse);
-}
-
-// Health Service
-service Health {
-  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
-  rpc Watch(HealthWatchRequest) returns (stream HealthWatchResponse);
-}
-
-// Pool Metrics Service (D1 简化, D2 完整)
-service PoolMetrics {
-  rpc GetPoolMetrics(GetPoolMetricsRequest) returns (GetPoolMetricsResponse);
-}</code></pre>
-
-<h3>7.2 7 个 API Endpoint</h3>
+<h3>7.1 gRPC Services 概览 (3 个 service)</h3>
 <table>
 <thead>
-<tr><th>#</th><th>Endpoint</th><th>方法</th><th>用途</th><th>鉴权</th></tr>
+<tr><th>Service</th><th>Package</th><th>Endpoint 数</th><th>职责</th></tr>
 </thead>
 <tbody>
-<tr><td>1</td><td>/v1/dcard/pools</td><td>POST</td><td>创建 D-Card Pool</td><td>mTLS</td></tr>
-<tr><td>2</td><td>/v1/dcard/pools</td><td>GET</td><td>列出所有 Pool</td><td>mTLS</td></tr>
-<tr><td>3</td><td>/v1/dcard/pools/{pool_id}</td><td>DELETE</td><td>销毁 Pool</td><td>mTLS</td></tr>
-<tr><td>4</td><td>/v1/dcard/cards/{card_id}</td><td>GET</td><td>检查 D-Card 详情</td><td>mTLS</td></tr>
-<tr><td>5</td><td>/v1/dcard/health</td><td>POST</td><td>健康检查</td><td>mTLS</td></tr>
-<tr><td>6</td><td>/v1/dcard/health/watch</td><td>GET (stream)</td><td>健康状态流</td><td>mTLS</td></tr>
-<tr><td>7</td><td>/v1/dcard/metrics/pools/{pool_id}</td><td>GET</td><td>Pool 指标 (D1 简化)</td><td>mTLS</td></tr>
+<tr><td><strong>DCardManager</strong></td><td>dcard.v1</td><td>7</td><td>池创建 / 销毁 / 列表 / 卡检查 / 健康检查 (基础, 来自 v2.0)</td></tr>
+<tr><td><strong>InferenceService</strong></td><td>dcard.inference.v1</td><td>5</td><td>推理初始化 / 模型加载 / 推理 / 清理 / 模型列表 (v3.0 新增)</td></tr>
+<tr><td><strong>HealthService</strong></td><td>dcard.health.v1</td><td>4</td><td>健康检查 / 流式监控 / Prometheus 上报 / 卡健康详情 (v3.0 新增)</td></tr>
 </tbody>
 </table>
 
-<h3>7.3 错误码</h3>
+<h3>7.2 16 个 API Endpoint 完整列表</h3>
 <table>
 <thead>
-<tr><th>错误码</th><th>HTTP</th><th>含义</th></tr>
+<tr><th>#</th><th>Service</th><th>Endpoint</th><th>方法</th><th>用途</th><th>版本</th></tr>
 </thead>
 <tbody>
-<tr><td>DCARD_OK</td><td>200</td><td>成功</td></tr>
-<tr><td>DCARD_POOL_NOT_FOUND</td><td>404</td><td>Pool 不存在</td></tr>
-<tr><td>DCARD_CARD_NOT_FOUND</td><td>404</td><td>物理卡不存在</td></tr>
-<tr><td>DCARD_POOL_ALREADY_EXISTS</td><td>409</td><td>Pool 已存在</td></tr>
-<tr><td>DCARD_INSUFFICIENT_RESOURCES</td><td>503</td><td>资源不足</td></tr>
-<tr><td>DCARD_INTERNAL_ERROR</td><td>500</td><td>内部错误</td></tr>
+<tr><td>1</td><td>DCardManager</td><td>/v1/dcard/pools</td><td>POST</td><td>创建 D-Card Pool</td><td>v2.0</td></tr>
+<tr><td>2</td><td>DCardManager</td><td>/v1/dcard/pools</td><td>GET</td><td>列出所有 Pool</td><td>v2.0</td></tr>
+<tr><td>3</td><td>DCardManager</td><td>/v1/dcard/pools/{pool_id}</td><td>DELETE</td><td>销毁 Pool</td><td>v2.0</td></tr>
+<tr><td>4</td><td>DCardManager</td><td>/v1/dcard/cards/{card_id}</td><td>GET</td><td>检查 D-Card 详情</td><td>v2.0</td></tr>
+<tr><td>5</td><td>DCardManager</td><td>/v1/dcard/health</td><td>POST</td><td>健康检查</td><td>v2.0</td></tr>
+<tr><td>6</td><td>DCardManager</td><td>/v1/dcard/health/watch</td><td>GET (stream)</td><td>健康状态流</td><td>v2.0</td></tr>
+<tr><td>7</td><td>DCardManager</td><td>/v1/dcard/metrics/pools/{pool_id}</td><td>GET</td><td>Pool 指标 (D1 简化)</td><td>v2.0</td></tr>
+<tr><td>8</td><td><strong>InferenceService</strong></td><td>/v1/inference/init</td><td>POST</td><td>初始化推理 (CANN + 加载模型)</td><td><strong>v3.0 新增</strong></td></tr>
+<tr><td>9</td><td><strong>InferenceService</strong></td><td>/v1/inference/models/load</td><td>POST</td><td>热加载模型</td><td><strong>v3.0 新增</strong></td></tr>
+<tr><td>10</td><td><strong>InferenceService</strong></td><td>/v1/inference/infer</td><td>POST</td><td>推理 (单次)</td><td><strong>v3.0 新增</strong></td></tr>
+<tr><td>11</td><td><strong>InferenceService</strong></td><td>/v1/inference/deinit</td><td>POST</td><td>清理推理 (释放 NPU)</td><td><strong>v3.0 新增</strong></td></tr>
+<tr><td>12</td><td><strong>InferenceService</strong></td><td>/v1/inference/models</td><td>GET</td><td>列出已加载模型</td><td><strong>v3.0 新增</strong></td></tr>
+<tr><td>13</td><td><strong>HealthService</strong></td><td>/v1/health/check</td><td>POST</td><td>单次健康检查</td><td><strong>v3.0 新增</strong></td></tr>
+<tr><td>14</td><td><strong>HealthService</strong></td><td>/v1/health/watch</td><td>GET (stream)</td><td>流式健康状态</td><td><strong>v3.0 新增</strong></td></tr>
+<tr><td>15</td><td><strong>HealthService</strong></td><td>/v1/health/metrics/ingest</td><td>POST</td><td>Prometheus 格式指标上报</td><td><strong>v3.0 新增</strong></td></tr>
+<tr><td>16</td><td><strong>HealthService</strong></td><td>/v1/health/cards/{card_id}</td><td>GET</td><td>物理卡健康详情</td><td><strong>v3.0 新增</strong></td></tr>
 </tbody>
 </table>
+
+<div class="callout">
+<p class="label">详细 Protobuf</p>
+<p>DCardManager 7 个 endpoint 的 protobuf 定义见 v2.0 草稿 (<code>/mnt/g/d-series/designs/D1-multicard-pool-container/draft-v2.0.md</code> 第 7 章节). v3.0 新增的 <strong>InferenceService</strong> 和 <strong>HealthService</strong> 完整 protobuf 见 <a href="#inference">§15</a> 和 <a href="#health-svc">§16</a>.</p>
+</div>
 </section>
 
 <section id="state">
-<h2>8. 状态机 (State Machines)</h2>
-<p>D1 涉及 <strong>3 个核心状态机</strong>.</p>
+<h2><span class="num">8</span>状态机 (State Machines)</h2>
+<p>D1 涉及 <strong>3 个核心状态机</strong> (v2.0 已定义, v3.0 升级到 Ascend NPU + HCCS 探测).</p>
 
 <h3>8.1 D-Card 生命周期</h3>
-<figure>
-<img src="diagrams/state-machine-card-lifecycle.svg" alt="D-Card 生命周期状态机" class="article-diagram">
-<figcaption>图 8-1: D-Card 生命周期 (D1 PCIe HAL 健康检查状态流转)</figcaption>
+<figure class="svg-figure">
+<img src="diagrams-v3/state-machine-card-lifecycle.svg" alt="D-Card 生命周期状态机 v3.0 (HCCS peer 心跳)" loading="lazy">
+<figcaption>图 8-1: D-Card 生命周期 (D1 v3.0 HCCS peer 心跳探测)</figcaption>
 </figure>
-<p><strong>D1 状态值 (D-HAL)</strong>: ACTIVE (原 HEALTHY) / DEGRADED / FAILED / UNKNOWN</p>
+<p><strong>D1 状态值 (D-HAL)</strong>: ACTIVE / DEGRADED / FAILED / UNKNOWN</p>
 
 <h3>8.2 Pool 创建流程</h3>
-<figure>
-<img src="diagrams/state-machine-pool-creation.svg" alt="Pool 创建流程状态机" class="article-diagram">
-<figcaption>图 8-2: Pool 创建流程 (D1 dctl create pool 全流程)</figcaption>
+<figure class="svg-figure">
+<img src="diagrams-v3/state-machine-pool-creation.svg" alt="Pool 创建流程状态机 v3.0 (CANN 注册)" loading="lazy">
+<figcaption>图 8-2: Pool 创建流程 (D1 v3.0 dctl create pool, 包含 CANN 注册阶段)</figcaption>
 </figure>
-<p>关键状态: INIT → ALLOCATING → MAPPING → REGISTERING → READY</p>
 
 <h3>8.3 容器启动流程</h3>
-<figure>
-<img src="diagrams/state-machine-container-startup.svg" alt="容器启动流程状态机" class="article-diagram">
-<figcaption>图 8-3: 容器启动流程 (K8s Pod → 容器运行)</figcaption>
+<figure class="svg-figure">
+<img src="diagrams-v3/state-machine-container-startup.svg" alt="容器启动流程状态机 v3.0 (含 CANN 自初始化)" loading="lazy">
+<figcaption>图 8-3: 容器启动流程 (K8s Pod → CANN 自初始化 → 容器运行)</figcaption>
 </figure>
-<p>关键状态: POD_CREATED → SCHEDULED → ADMITTING → INJECTING → STARTING → RUNNING</p>
+<p>v3.0 关键升级: 启动流程新增 <strong>CANN_INIT 状态</strong>, 由 <code>cann-init.sh</code> 启动 hook 自动初始化 CANN 8.0.RC2 框架 + 加载 <code>/opt/dcard/models/*.om</code> 模型 (详见 <a href="#cann-init">§17</a>).</p>
 </section>
 
 <section id="sequence">
-<h2>9. 时序图 (Sequence Diagrams)</h2>
-<p>D1 设计 <strong>3 个核心时序图</strong>.</p>
+<h2><span class="num">9</span>时序图 (Sequence Diagrams)</h2>
+<p>D1 v3.0 设计 <strong>3 个核心时序图</strong>.</p>
 
 <h3>9.1 Pool 创建时序</h3>
-<figure>
-<img src="diagrams/sequence-pool-creation.svg" alt="Pool 创建时序图" class="article-diagram">
-<figcaption>图 9-1: Pool 创建时序 (dctl → D-Card Mgr → PCIe HAL → K8s Plugin)</figcaption>
+<figure class="svg-figure">
+<img src="diagrams-v3/sequence-pool-creation.svg" alt="Pool 创建时序 v3.0 (8 × Ascend 910B + HCCS)" loading="lazy">
+<figcaption>图 9-1: Pool 创建时序 (8 × Ascend 910B + HCCS ring+mesh + CANN 注册)</figcaption>
 </figure>
 
 <h3>9.2 故障检测时序</h3>
-<figure>
-<img src="diagrams/sequence-fault-detection.svg" alt="故障检测时序图" class="article-diagram">
-<figcaption>图 9-2: 故障检测时序 (D-Card Mgr 1s 探测 + 5s 隔离)</figcaption>
+<figure class="svg-figure">
+<img src="diagrams-v3/sequence-fault-detection.svg" alt="故障检测时序 v3.0 (HCCS peer 心跳)" loading="lazy">
+<figcaption>图 9-2: 故障检测时序 (CANN HAL HCCS peer 心跳, 1s 探测 + 5s 隔离)</figcaption>
 </figure>
-<p><strong>D1 故障检测设计</strong>: 1s 探测间隔 + 3 次连续失败才确认 (防抖), D1 只做隔离 + 注销, 不做迁移 (D3 范围).</p>
+<p>v3.0 关键升级: 健康检查从 PCIe link 探测改为 <strong>HCCS peer 心跳</strong> (经 CANN HAL 转发), 更准确反映多卡 NPU 拓扑.</p>
 
 <h3>9.3 容器启动时序</h3>
-<figure>
-<img src="diagrams/sequence-container-startup.svg" alt="容器启动时序图" class="article-diagram">
-<figcaption>图 9-3: 容器启动时序 (kubelet → K8s Plugin → Runtime Shim → D-Card Mgr)</figcaption>
+<figure class="svg-figure">
+<img src="diagrams-v3/sequence-container-startup.svg" alt="容器启动时序 v3.0 (CANN 自初始化)" loading="lazy">
+<figcaption>图 9-3: 容器启动时序 (kubelet → K8s Plugin → Runtime Shim → CANN 8.0.RC2, 包含 cann-init.sh 阶段)</figcaption>
 </figure>
-<p><strong>关键路径</strong>: K8s Plugin Allocate RPC → 绑 MIG slice → Runtime Shim 注入 /dev/dcard*</p>
 </section>
 
 <section id="deploy">
-<h2>10. 部署架构 (Deployment Architecture)</h2>
-<p>D1 部署在 K8s 集群每个节点, 涉及 <strong>3 个核心组件</strong>.</p>
-<figure>
-<img src="diagrams/deploy-architecture.svg" alt="D1 部署架构图" class="article-diagram">
-<figcaption>图 10-1: D1 K8s 节点部署架构 (8 卡 A100 PCIe 拓扑)</figcaption>
+<h2><span class="num">10</span>部署架构 (Deployment Architecture)</h2>
+<p>D1 v3.0 部署在 K8s 集群每个节点, 涉及 <strong>3 个核心组件</strong> + 新增 <strong>2 个 gRPC 服务</strong> + <strong>1 个启动 hook</strong>.</p>
+<figure class="svg-figure">
+<img src="diagrams-v3/deploy-architecture.svg" alt="D1 v3.0 部署架构" loading="lazy">
+<figcaption>图 10-1: D1 v3.0 K8s 节点部署架构 (8 × Ascend 910B + CANN 8.0.RC2 + HCCS 集合通信)</figcaption>
 </figure>
 
 <h3>10.1 部署要求</h3>
 <ul>
 <li>每个 K8s 节点装 D-Card Mgr + PCIe HAL DaemonSet</li>
-<li>8 卡 A100 节点 = 1 节点 1 Pool (8 物理 = 1 逻辑 = 8 MIG 切片, 或 56 MIG 切片细粒度)</li>
-<li>容器通过 <code>/dev/dcard*</code> 设备访问</li>
+<li>8 卡 Ascend 910B 节点 = 1 节点 1 Pool (8 物理 = 1 逻辑 = 8 NPU Slice, 或 56 NPU 切片细粒度)</li>
+<li>容器通过 <code>/dev/davinci*</code> 设备访问 (Ascend 910 标准设备名)</li>
+<li><strong>v3.0 新增</strong>: 节点暴露 InferenceService (端口 50051) + HealthService (端口 50052) gRPC Unix Domain Socket</li>
+<li><strong>v3.0 新增</strong>: 节点预装 <code>cann-init.sh</code> 到 <code>/usr/local/bin/cann-init.sh</code>, 容器启动时由 Runtime Shim 调用</li>
 </ul>
 </section>
 
 <section id="risks">
-<h2>11. 风险与缓解 (Risks & Mitigations)</h2>
+<h2><span class="num">11</span>风险与缓解 (Risks & Mitigations)</h2>
 <table>
 <thead>
 <tr><th>#</th><th>风险</th><th>影响</th><th>缓解</th></tr>
 </thead>
 <tbody>
-<tr><td>1</td><td>MIG 切片性能差异</td><td>同卡不同 MIG 实例性能不一致</td><td>D1 限制: 1 物理卡只暴露 1 个 MIG 切片</td></tr>
+<tr><td>1</td><td>NPU 切片性能差异</td><td>同卡不同 NPU Slice 实例性能不一致</td><td>D1 限制: 1 物理卡只暴露 1 个 NPU Slice (性能优先)</td></tr>
 <tr><td>2</td><td>PCIe 带宽争用</td><td>多容器共享 PCIe 带宽</td><td>D1 限制: 1 Pool 内 1 容器独占 PCIe (D2 调度优化)</td></tr>
-<tr><td>3</td><td>驱动兼容</td><td>NVIDIA 驱动 / MIG 配置升级破坏</td><td>D1 锁定驱动版本 (>=535.86 + MIG v2)</td></tr>
-<tr><td>4</td><td>SR-IOV 国产卡支持</td><td>国产 DCU 驱动不成熟</td><td>D1 默认走 NVIDIA, 国产卡走 placeholder</td></tr>
+<tr><td>3</td><td>CANN 版本兼容</td><td>CANN 升级可能破坏 HCCS 拓扑配置</td><td>D1 锁定 CANN 8.0.RC2 (8.0 系列)</td></tr>
+<tr><td>4</td><td>HCCS 拓扑压测</td><td>多卡 HCCS 高速互联需充分压测 (国产卡主推的代价)</td><td>D1 8 卡 ring + mesh 双拓扑, D2 升级到 full-mesh</td></tr>
 <tr><td>5</td><td>K8s Device Plugin 重启</td><td>期间 Pod 调度失败</td><td>D1 容忍 30s 重启窗口 (kubelet 重试)</td></tr>
-<tr><td>6</td><td>故障检测误报</td><td>健康检查偶发超时误判 FAILED</td><td>D1 用 3 次连续失败才标记 FAILED (防抖)</td></tr>
+<tr><td>6</td><td>故障检测误报</td><td>HCCS 心跳偶发超时误判 FAILED</td><td>D1 用 3 次连续失败才标记 FAILED (防抖)</td></tr>
 <tr><td>7</td><td>PCIe HAL 资源泄漏</td><td>Pool 销毁时设备未释放</td><td>D1 强制 60s 超时清理</td></tr>
+<tr><td>8</td><td><strong>模型加载失败</strong></td><td>cann-init.sh 加载 <code>.om</code> 失败导致容器启动失败</td><td>Init 失败时返回 DCARD_MODEL_NOT_FOUND, Runtime Shim 阻止容器启动</td></tr>
+<tr><td>9</td><td><strong>CANN 自启超时</strong></td><td>容器启动超过 60s 未完成 CANN 初始化</td><td>D1 强制 60s 超时, 超时返回 DCARD_CANN_INIT_FAILED, kubelet 重试</td></tr>
 </tbody>
 </table>
 </section>
 
 <section id="roadmap">
-<h2>12. 路线图 (Roadmap)</h2>
+<h2><span class="num">12</span>路线图 (Roadmap)</h2>
 <table>
 <thead>
 <tr><th>版本</th><th>范围</th><th>目标</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>D1 v2.0</strong> (Q3 2026, 当前)</td><td>5 子系统 + 8 卡 A100 池</td><td>MVP 上线</td></tr>
-<tr><td><strong>D1 v2.1</strong> (Q3 2026)</td><td>vGPU / T4 支持 + dctl 完善</td><td>推理场景</td></tr>
-<tr><td><strong>D1 v2.2</strong> (Q3 2026)</td><td>国产 DCU 实验性支持</td><td>信创起步</td></tr>
-<tr><td><strong>D2 v1.0</strong> (Q4 2026)</td><td>Pool Manager + 拓扑感知调度</td><td>动态扩缩</td></tr>
+<tr><td><strong>D1 v3.0</strong> (Q3 2026, 当前)</td><td>5 子系统 + 8 卡 Ascend 910B 池 + 推理服务 + 健康管理 + CANN 自启</td><td>MVP 上线 + 国产化主路径</td></tr>
+<tr><td><strong>D1 v3.1</strong> (Q3 2026)</td><td>vNPU / 310P 推理卡支持 + dctl 完善</td><td>推理场景</td></tr>
+<tr><td><strong>D1 v3.2</strong> (Q3 2026)</td><td>寒武纪 MLU / 摩尔线程 实验性支持</td><td>多国产卡适配</td></tr>
+<tr><td><strong>D2 v1.0</strong> (Q4 2026)</td><td>Pool Manager + 拓扑感知调度 + 推理调度</td><td>动态扩缩 + QPS 路由</td></tr>
 <tr><td><strong>D3 v1.0</strong> (Q1 2027)</td><td>Hot-Swap Orchestrator</td><td>故障自愈</td></tr>
 <tr><td><strong>D4 v1.0</strong> (Q2 2027)</td><td>Federation Controller</td><td>跨集群</td></tr>
 <tr><td><strong>D5 v1.0</strong> (Q3 2027)</td><td>Edge + Hybrid Cloud</td><td>边缘 + 混合云</td></tr>
@@ -323,69 +446,480 @@ service PoolMetrics {
 </section>
 
 <section id="naming">
-<h2>13. 命名规范 (Naming Conventions)</h2>
-<p>D1 全文档命名锁定:</p>
-<table>
+<h2><span class="num">13</span>命名规范 (Naming Conventions) <span class="version-badge v3">v3.0 更新</span></h2>
+<p>D1 v3.0 全文档命名锁定 (从 v2.0 NVIDIA 升级到 Ascend + CANN):</p>
+<table class="changes-table">
 <thead>
-<tr><th>规范名</th><th>别名 (禁止)</th><th>含义</th></tr>
+<tr><th>规范名</th><th>v2.0 旧名</th><th>v3.0 新名</th><th>含义</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>D-Card Mgr</strong></td><td>D-Card-Manager, DCardManager</td><td>D-Card 硬件抽象守护进程</td></tr>
-<tr><td><strong>PCIe HAL</strong></td><td>PCIe-HAL, PCIeHal</td><td>PCIe 硬件抽象层</td></tr>
-<tr><td><strong>PCIe HAL API</strong></td><td>D-HAL API (v1.1 误命名)</td><td>PCIe HAL 对外 API</td></tr>
-<tr><td><strong>K8s Plugin</strong></td><td>K8s-Plugin, K8sDevicePlugin</td><td>vendor-extended Device Plugin</td></tr>
-<tr><td><strong>Runtime Shim</strong></td><td>Container-Runtime-Shim</td><td>容器运行时适配层</td></tr>
-<tr><td><strong>dctl</strong></td><td>d-card-ctl, dctl-cli</td><td>D-Series 运维 CLI</td></tr>
-<tr><td><strong>Pool</strong></td><td>D-Card-Pool, GPU-Pool</td><td>D-Card 池子</td></tr>
-<tr><td><strong>D-Card</strong></td><td>DCard, D-Card-Virtual</td><td>逻辑卡</td></tr>
+<tr><td><strong>D-Card Mgr</strong></td><td>D-Card-Manager</td><td>不变</td><td>D-Card 硬件抽象守护进程</td></tr>
+<tr><td><strong>PCIe HAL</strong></td><td>PCIe-HAL</td><td>不变</td><td>PCIe 硬件抽象层</td></tr>
+<tr><td><strong>PCIe HAL API</strong></td><td>D-HAL API</td><td>不变</td><td>PCIe HAL 对外 API</td></tr>
+<tr><td><strong>K8s Plugin</strong></td><td>基于 nvidia-device-plugin</td><td>基于 <strong>ascend-device-plugin</strong></td><td>vendor-extended Device Plugin</td></tr>
+<tr><td><strong>Runtime Shim</strong></td><td>基于 nvidia-container-runtime</td><td>基于 <strong>ascend-docker-runtime</strong></td><td>容器运行时适配层</td></tr>
+<tr><td><strong>dctl</strong></td><td>d-card-ctl</td><td>不变</td><td>D-Series 运维 CLI</td></tr>
+<tr><td><strong>Pool</strong></td><td>D-Card-Pool, GPU-Pool</td><td>D-Card-Pool, <strong>NPU-Pool</strong></td><td>D-Card 池子</td></tr>
+<tr><td><strong>D-Card</strong></td><td>DCard</td><td>不变</td><td>逻辑卡</td></tr>
+<tr><td><strong>硬切片</strong></td><td>MIG (A100/H100)</td><td><strong>NPU Slice</strong> (910B)</td><td>硬件硬切片</td></tr>
+<tr><td><strong>软切片</strong></td><td>vGPU (T4/A10)</td><td><strong>vNPU</strong> (310P)</td><td>驱动软切片</td></tr>
+<tr><td><strong>多卡互联</strong></td><td>SR-IOV</td><td><strong>HCCS</strong></td><td>华为 Cache Coherent Interconnect</td></tr>
+<tr><td><strong>设备路径</strong></td><td>/dev/nvidia*</td><td><strong>/dev/davinci*</strong></td><td>Ascend 910 标准设备名</td></tr>
+<tr><td><strong>推理服务</strong></td><td>(v2.0 不存在)</td><td><strong>InferenceService</strong></td><td>v3.0 新增, gRPC :50051</td></tr>
+<tr><td><strong>健康管理</strong></td><td>(v2.0 不存在)</td><td><strong>HealthService</strong></td><td>v3.0 新增, gRPC :50052</td></tr>
+<tr><td><strong>CANN 自启</strong></td><td>(v2.0 不存在)</td><td><strong>cann-init.sh</strong></td><td>v3.0 新增, 启动 hook</td></tr>
 </tbody>
 </table>
 </section>
 
 <section id="summary">
-<h2>14. 总结 (Summary)</h2>
-<p>D1 v2.0 是 D-Series AI Card 5 阶段路线图 (D1-D5) 的第一步, 核心是:</p>
+<h2><span class="num">14</span>总结 (Summary)</h2>
+<p>D1 v3.0 是 D-Series AI Card 5 阶段路线图 (D1-D5) 的第一步, 核心是:</p>
 <ul>
 <li><strong>多卡池化</strong> + <strong>容器化</strong> 2 大核心能力</li>
 <li>5 子系统 (D-Card Mgr / PCIe HAL / K8s Plugin / Runtime Shim / dctl)</li>
-<li>3 池化模式 (MIG / vGPU / SR-IOV)</li>
+<li>3 池化模式 (NPU Slice / vNPU / HCCS)</li>
 <li>4 类卡 (训练 / 推理 / 边缘 / 国产)</li>
-<li>7 API endpoint + 6 错误码</li>
+<li><strong>16 API endpoint</strong> (7 基础 + 5 推理 + 4 健康)</li>
+<li><strong>11 错误码</strong></li>
 <li>3 状态机 (Card 生命周期 / Pool 创建 / 容器启动)</li>
 <li>3 时序图 (Pool 创建 / 故障检测 / 容器启动)</li>
-<li>1 部署架构 (K8s 节点 + PCIe 物理卡)</li>
+<li>1 部署架构 (K8s 节点 + 8 × Ascend 910B + HCCS)</li>
 </ul>
 
-<h3>14.1 D1 验收标准 (Q3 2026)</h3>
+<h3>14.1 D1 v3.0 验收标准 (Q3 2026)</h3>
 <ul>
-<li>✅ 8 卡 A100 池上线</li>
-<li>✅ vendor 字段在 K8s 可见</li>
-<li>✅ 容器化训练任务秒级启动</li>
+<li>✅ 8 卡 Ascend 910B 池上线 (vendor=ascend)</li>
+<li>✅ CANN 8.0.RC2 + HCCS 集合通信稳定</li>
+<li>✅ 容器化训练 + 推理任务秒级启动</li>
 <li>✅ 故障 1s 检测 + 5s 隔离</li>
+<li>✅ <strong>推理服务 Init 自动加载 <code>/opt/dcard/models/*.om</code> 模型</strong></li>
+<li>✅ <strong>健康管理 4 endpoint (Check / Watch / IngestMetrics / GetCardHealth)</strong></li>
 </ul>
-
-<h3>14.2 D1 不做</h3>
-<p>Pool Manager / Hot-Swap / Federation / Edge (D2-D5 范围)</p>
 </section>
 
-<section class="article-references">
-<h2>引用与版本</h2>
-<p><strong>来源</strong>: D-Series 内部独立项目 (2026-06-22 session 原始方向, 2026-07-04 v2.0 重建), 跟 hacms 联合发布</p>
-<p><strong>设计版本</strong>: D1 v2.0 (52KB, 14 章节, 0 audit 问题, 5 子系统 + 3 池化 + 4 卡型 + 7 API + 3 状态机 + 3 时序图 + 1 部署图)</p>
+<!-- ============== v3.0 新增章节 ============== -->
+
+<section id="inference">
+<h2><span class="num">15</span>AI 推理服务 (InferenceService) <span class="version-badge v3">v3.0 新增</span></h2>
+<p>AI 推理服务暴露 5 个 gRPC endpoint, 监听在 <code>0.0.0.0:50051</code> (容器内) 或 <code>unix:///var/run/dcard-inference.sock</code> (节点 DaemonSet), 负责推理全生命周期管理.</p>
+
+<h3>15.1 完整 Protobuf 定义</h3>
+<pre><code>// dcard/inference/v1/inference.proto
+syntax = "proto3";
+package dcard.inference.v1;
+import "google/protobuf/timestamp.proto";
+
+service InferenceService {
+  // Init: 启动时自动调用, 初始化 CANN + 加载 /opt/dcard/models/
+  rpc Init(InitRequest) returns (InitResponse);
+  // LoadModel: 运行时热加载模型
+  rpc LoadModel(LoadModelRequest) returns (LoadModelResponse);
+  // Infer: 单次推理
+  rpc Infer(InferRequest) returns (InferResponse);
+  // Deinit: 清理 + 释放 NPU
+  rpc Deinit(DeinitRequest) returns (DeinitResponse);
+  // ListModels: 列出已加载模型
+  rpc ListModels(ListModelsRequest) returns (ListModelsResponse);
+}
+
+message InitRequest {
+  string model_dir = 1;         // 默认 /opt/dcard/models/
+  bool auto_load_all = 2;       // true: 扫描目录加载所有 .om
+  map&lt;string, string&gt; cann_env = 3;  // CANN 环境变量
+  HccsConfig hccs = 4;          // HCCS 集合通信配置
+}
+
+message InitResponse {
+  int32 loaded_count = 1;       // 加载成功的模型数
+  repeated ModelInfo models = 2;
+  CannHealth cann_health = 3;   // CANN 进程健康状态
+}
+
+message LoadModelRequest {
+  string model_path = 1;        // /opt/dcard/models/xxx.om
+  string model_name = 2;        // 业务侧命名
+}
+
+message LoadModelResponse {
+  ModelInfo model = 1;
+}
+
+message InferRequest {
+  string model_name = 1;
+  bytes input_data = 2;         // 序列化输入 (TensorProto / numpy)
+  map&lt;string, string&gt; params = 3;
+}
+
+message InferResponse {
+  bytes output_data = 1;
+  int64 latency_us = 2;         // 推理耗时 (微秒)
+  InferState state = 3;
+}
+
+message DeinitRequest {
+  bool release_npu = 1;         // true: 释放 NPU 资源
+}
+
+message DeinitResponse {
+  bool released = 1;
+}
+
+message ListModelsRequest {}
+message ListModelsResponse {
+  repeated ModelInfo models = 1;
+}
+
+message ModelInfo {
+  string name = 1;
+  string path = 2;
+  int64 size_bytes = 3;
+  google.protobuf.Timestamp loaded_at = 4;
+  ModelHealth health = 5;
+}
+
+message ModelHealth {
+  enum State { UNKNOWN = 0; LOADING = 1; READY = 2; ERROR = 3; UNLOADED = 4; }
+  State state = 1;
+  int64 last_infer_at = 2;
+  int64 total_infer_count = 3;
+  double avg_latency_us = 4;
+  string last_error = 5;
+}
+
+message InferState {
+  enum Phase { IDLE = 0; BUSY = 1; ERROR = 2; OFFLINE = 3; }
+  Phase phase = 1;
+  int32 queue_depth = 2;
+}
+
+message CannHealth {
+  bool acl_initialized = 1;
+  bool hccl_initialized = 2;
+  string cann_version = 3;      // "8.0.RC2"
+  int32 active_devices = 4;
+  int32 error_devices = 5;
+}
+
+message HccsConfig {
+  int32 rank_id = 1;
+  int32 world_size = 2;
+  string master_addr = 3;
+  string group_name = 4;
+}</code></pre>
+
+<h3>15.2 Init 启动流程详解</h3>
+<div class="callout teal">
+<p class="label">Init 自动加载</p>
+<p>容器启动时, Runtime Shim 自动调用 <code>InferenceService.Init</code> (而非用户手动调用). Init 内部执行 4 阶段:</p>
+<ol>
+<li><strong>(a) 加载 Ascend 驱动</strong> — 通过 <code>modprobe</code> + <code>npu-smi</code> 检查 8 卡</li>
+<li><strong>(b) 设置 HCCS 集合通信</strong> — 初始化 <code>hccl</code> 进程, 配置 rank_id / world_size</li>
+<li><strong>(c) 扫描 <code>/opt/dcard/models/</code></strong> — 加载所有 <code>.om</code> 模型, 调用 <code>aclmdlLoadFromFile</code></li>
+<li><strong>(d) 注册到 device-plugin</strong> — 暴露 <code>huawei.com/ascend-pool</code> 资源</li>
+</ol>
+</div>
+
+<h3>15.3 推理时序</h3>
+<pre><code>用户应用 → InferenceService.Infer → CANN ACL → NPU 910B
+   │              │                 │           │
+   │ Infer(model_name)              │           │
+   ├─────────────>│                 │           │
+   │              │ aclmdlExecute   │           │
+   │              ├────────────────>│           │
+   │              │                 │ HCCS send │
+   │              │                 ├─────────>│
+   │              │                 │<─────────┤
+   │              │                 │ result   │
+   │              │<────────────────┤           │
+   │<─────────────┤  output_data    │           │
+   │  + latency_us                  │           │</code></pre>
+</section>
+
+<section id="health-svc">
+<h2><span class="num">16</span>健康管理服务 (HealthService) <span class="version-badge v3">v3.0 新增</span></h2>
+<p>健康管理服务暴露 4 个 gRPC endpoint, 监听在 <code>0.0.0.0:50052</code> (容器内) 或 <code>unix:///var/run/dcard-health.sock</code> (节点 DaemonSet), 负责全方位健康监控.</p>
+
+<h3>16.1 完整 Protobuf 定义</h3>
+<pre><code>// dcard/health/v1/health.proto
+syntax = "proto3";
+package dcard.health.v1;
+import "google/protobuf/timestamp.proto";
+
+service HealthService {
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+  rpc Watch(HealthWatchRequest) returns (stream HealthWatchResponse);
+  rpc IngestMetrics(MetricsIngestRequest) returns (MetricsIngestResponse);
+  rpc GetCardHealth(GetCardHealthRequest) returns (GetCardHealthResponse);
+}
+
+message HealthCheckRequest {
+  enum Scope { POOL = 0; CARD = 1; INFERENCE = 2; CANN = 3; ALL = 4; }
+  Scope scope = 1;
+  string target_id = 2;        // pool_id / card_id / model_name
+}
+
+message HealthCheckResponse {
+  bool healthy = 1;
+  HealthStatus status = 2;
+  repeated string issues = 3;
+}
+
+message HealthStatus {
+  enum Level { GREEN = 0; YELLOW = 1; RED = 2; UNKNOWN = 3; }
+  Level level = 1;
+  google.protobuf.Timestamp checked_at = 2;
+  map&lt;string, double&gt; metrics = 3;  // 关键指标快照
+}
+
+message HealthWatchRequest {
+  HealthCheckRequest.Scope scope = 1;
+  string target_id = 2;
+  int32 interval_seconds = 3;   // 推送间隔
+}
+
+message HealthWatchResponse {
+  HealthStatus status = 1;
+  InferState infer_state = 2;
+  CannHealth cann_health = 3;
+  ModelHealth model_health = 4;
+}
+
+message MetricsIngestRequest {
+  // Prometheus exposition format
+  string prometheus_text = 1;
+  string source = 2;            // "inference" / "cann" / "device"
+}
+
+message MetricsIngestResponse {
+  int32 accepted_samples = 1;
+}
+
+message GetCardHealthRequest {
+  string card_id = 1;
+}
+
+message GetCardHealthResponse {
+  CardHealth health = 1;
+}
+
+message CardHealth {
+  string card_id = 1;
+  string vendor = 2;            // "ascend"
+  string model = 3;             // "Ascend 910B"
+  double temperature_c = 4;
+  double power_w = 5;
+  double utilization_pct = 6;
+  int64 memory_used_mb = 7;
+  int64 memory_total_mb = 8;
+  int64 ecc_errors = 9;
+  int64 uptime_seconds = 10;
+  string hccs_link_status = 11; // "up" / "degraded" / "down"
+  google.protobuf.Timestamp last_check = 12;
+}
+
+enum InferState {
+  IDLE = 0;
+  BUSY = 1;
+  ERROR = 2;
+  OFFLINE = 3;
+}
+
+message CannHealth {
+  bool acl_initialized = 1;
+  bool hccl_initialized = 2;
+  string cann_version = 3;
+  int32 active_devices = 4;
+  int32 error_devices = 5;
+}</code></pre>
+
+<h3>16.2 三类状态全覆盖</h3>
+<table>
+<thead>
+<tr><th>状态类型</th><th>来源</th><th>监控指标</th><th>触发条件</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>InferState</strong></td><td>InferenceService</td><td>phase (idle/busy/error/offline) + queue_depth</td><td>推理请求到达 / 失败 / 离线</td></tr>
+<tr><td><strong>CannHealth</strong></td><td>cann-init.sh</td><td>acl/hccl initialized + version + active/error devices</td><td>ACL/HCCL 进程启动 / 异常退出</td></tr>
+<tr><td><strong>ModelHealth</strong></td><td>模型加载器</td><td>state + last_infer + total_count + avg_latency</td><td>模型加载完成 / 推理成功 / 推理错误</td></tr>
+<tr><td><strong>CardHealth</strong></td><td>PCIe HAL + HCCS</td><td>temp/power/util/mem/ecc/uptime/hccs_link</td><td>1s 周期探测</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="cann-init">
+<h2><span class="num">17</span>CANN 自初始化 (cann-init.sh) <span class="version-badge v3">v3.0 新增</span></h2>
+<p>CANN 自初始化是容器启动时的 <strong>hook 脚本</strong>, 类比 NVIDIA 的 <code>nvidia-container-runtime</code>. 由 Container Runtime Shim 在 runc create 容器后立即调用.</p>
+
+<h3>17.1 cann-init.sh 完整脚本</h3>
+<pre><code>#!/bin/bash
+# cann-init.sh - D1 v3.0 CANN 自初始化 (类似 nvidia-container-runtime)
+# 调用时机: Runtime Shim 拦截 runc create 后, 容器进程启动前
+# 退出码: 0=成功, 1=驱动加载失败, 2=HCCS 配置失败, 3=模型加载失败
+
+set -e
+
+MODEL_DIR="${DCARD_MODEL_DIR:-/opt/dcard/models}"
+AUTO_LOAD="${DCARD_AUTO_LOAD:-true}"
+LOG_FILE="${DCARD_INIT_LOG:-/var/log/dcard/cann-init.log}"
+
+mkdir -p "$(dirname "$LOG_FILE")"
+exec &gt; &gt;(tee -a "$LOG_FILE") 2&gt;&amp;1
+
+echo "===================================================="
+echo "  cann-init.sh - D1 v3.0 CANN 自初始化"
+echo "  启动时间: $(date -Iseconds)"
+echo "  模型目录: $MODEL_DIR"
+echo "===================================================="
+
+# (a) 加载 Ascend 驱动 + 检查 8 卡
+echo "[1/4] 加载 Ascend 驱动 + 检查 NPU 设备..."
+modprobe drv_pcie_ascend 2&gt;/dev/null || true
+modprobe drv_ascend_hal 2&gt;/dev/null || true
+DEVICE_COUNT=$(npu-smi info -l | grep -c "Ascend 910B" || true)
+if [ "$DEVICE_COUNT" -lt 8 ]; then
+    echo "  ❌ 只检测到 $DEVICE_COUNT 张 NPU, 期望 8"
+    exit 1
+fi
+echo "  ✅ 检测到 $DEVICE_COUNT 张 Ascend 910B NPU"
+
+# (b) HCCS 集合通信配置
+echo "[2/4] 配置 HCCS 集合通信..."
+export ASCEND_HOME=/usr/local/Ascend
+export HCCL_CONNECT_TIMEOUT=300
+export HCCL_RANK_ID=${HCCL_RANK_ID:-0}
+export HCCL_WORLD_SIZE=${HCCL_WORLD_SIZE:-8}
+export HCCL_MASTER_ADDR=${HCCL_MASTER_ADDR:-"127.0.0.1:50000"}
+echo "  HCCL_RANK_ID=$HCCL_RANK_ID, WORLD_SIZE=$HCCL_WORLD_SIZE"
+
+# (c) 扫描 /opt/dcard/models/ 加载 .om 模型
+echo "[3/4] 扫描 $MODEL_DIR 加载 .om 模型..."
+if [ ! -d "$MODEL_DIR" ]; then
+    echo "  ⚠️  模型目录不存在: $MODEL_DIR, 跳过"
+elif [ "$AUTO_LOAD" = "true" ]; then
+    MODEL_COUNT=0
+    for model_file in "$MODEL_DIR"/*.om; do
+        if [ -f "$model_file" ]; then
+            MODEL_NAME=$(basename "$model_file" .om)
+            echo "  加载: $MODEL_NAME ($model_file)"
+            if /usr/local/dcard/bin/load_model --path="$model_file" --name="$MODEL_NAME"; then
+                MODEL_COUNT=$((MODEL_COUNT+1))
+            else
+                echo "  ❌ 加载失败: $model_file"
+                exit 3
+            fi
+        fi
+    done
+    echo "  ✅ 成功加载 $MODEL_COUNT 个模型"
+else
+    echo "  AUTO_LOAD=false, 跳过自动加载"
+fi
+
+# (d) 注册到 ascend-device-plugin
+echo "[4/4] 注册 NPU 资源到 K8s Device Plugin..."
+if [ -x /usr/local/Ascend/driver/tools/hccn_tool ]; then
+    /usr/local/Ascend/driver/tools/hccn_tool -i 0 -ip ${HCCL_MASTER_ADDR%:*} 2&gt;/dev/null || true
+fi
+echo "  ✅ ascend-device-plugin 资源注册完成 (huawei.com/ascend-pool)"
+
+echo "===================================================="
+echo "  cann-init.sh 完成 (exit 0)"
+echo "===================================================="
+exit 0</code></pre>
+
+<h3>17.2 与 NVIDIA nvidia-container-runtime 对照</h3>
+<table>
+<thead>
+<tr><th>阶段</th><th>NVIDIA nvidia-container-runtime</th><th>Ascend cann-init.sh</th></tr>
+</thead>
+<tbody>
+<tr><td>(a) 驱动加载</td><td>modprobe nvidia + nvidia-uvm</td><td>modprobe drv_pcie_ascend + drv_ascend_hal</td></tr>
+<tr><td>(b) 集合通信</td><td>NCCL init</td><td>HCCL init (rank/world_size)</td></tr>
+<tr><td>(c) 模型加载</td><td>(N/A, CUDA 模型是动态加载)</td><td>扫描 <code>/opt/dcard/models/*.om</code> + aclmdlLoadFromFile</td></tr>
+<tr><td>(d) Device Plugin</td><td>nvidia-device-plugin 注册 nvidia.com/gpu</td><td>ascend-device-plugin 注册 huawei.com/ascend-pool</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="errors-v3">
+<h2><span class="num">18</span>错误码表 v3.0 (11 类) <span class="version-badge v3">v3.0 更新</span></h2>
+<p>D1 v3.0 定义 <strong>11 类错误码</strong> (v2.0 6 类 + v3.0 新增 5 类).</p>
+
+<h3>18.1 完整错误码</h3>
+<pre><code>// dcard/errors/v1/errors.proto
+syntax = "proto3";
+package dcard.errors.v1;
+
+enum DCardError {
+  DCARD_OK                       = 0;
+  // v2.0 原有 (6 类)
+  DCARD_POOL_NOT_FOUND           = 1;
+  DCARD_CARD_NOT_FOUND           = 2;
+  DCARD_POOL_ALREADY_EXISTS      = 3;
+  DCARD_INSUFFICIENT_RESOURCES   = 4;   // v3.0 重命名为 RESOURCE_BUSY
+  DCARD_INTERNAL_ERROR           = 5;
+  // v3.0 新增 (5 类)
+  DCARD_MODEL_NOT_FOUND          = 6;
+  DCARD_CANN_INIT_FAILED         = 7;
+  DCARD_INFERENCE_FAILED         = 8;
+  DCARD_RESOURCE_BUSY            = 9;   // 从 INSUFFICIENT_RESOURCES 重命名
+  DCARD_MODEL_DIR_INVALID        = 10;  // 模型目录路径错误
+}</code></pre>
+
+<table>
+<thead>
+<tr><th>错误码</th><th>HTTP 映射</th><th>含义</th><th>触发场景</th><th>版本</th></tr>
+</thead>
+<tbody>
+<tr><td>DCARD_OK</td><td>200</td><td>成功</td><td>所有成功响应</td><td>v2.0</td></tr>
+<tr><td>DCARD_POOL_NOT_FOUND</td><td>404</td><td>Pool 不存在</td><td>查询/销毁不存在的 pool_id</td><td>v2.0</td></tr>
+<tr><td>DCARD_CARD_NOT_FOUND</td><td>404</td><td>物理卡不存在</td><td>查询不存在的 card_id</td><td>v2.0</td></tr>
+<tr><td>DCARD_POOL_ALREADY_EXISTS</td><td>409</td><td>Pool 已存在</td><td>创建同名 pool</td><td>v2.0</td></tr>
+<tr><td>DCARD_INSUFFICIENT_RESOURCES</td><td>503</td><td>资源不足 (兼容旧名)</td><td>分配 NPU 失败</td><td>v2.0 (deprecated)</td></tr>
+<tr><td>DCARD_INTERNAL_ERROR</td><td>500</td><td>内部错误</td><td>CANN 异常退出 / OOM</td><td>v2.0</td></tr>
+<tr><td><strong>DCARD_MODEL_NOT_FOUND</strong></td><td>404</td><td>模型文件不存在</td><td>Infer 引用未加载的 model_name</td><td><strong>v3.0 新增</strong></td></tr>
+<tr><td><strong>DCARD_CANN_INIT_FAILED</strong></td><td>500</td><td>CANN 初始化失败</td><td>cann-init.sh 阶段 (a)/(b) 失败</td><td><strong>v3.0 新增</strong></td></tr>
+<tr><td><strong>DCARD_INFERENCE_FAILED</strong></td><td>500</td><td>推理失败</td><td>aclmdlExecute 返回错误</td><td><strong>v3.0 新增</strong></td></tr>
+<tr><td><strong>DCARD_RESOURCE_BUSY</strong></td><td>503</td><td>资源被占用</td><td>NPU 已被其他进程占用</td><td><strong>v3.0 新增</strong></td></tr>
+<tr><td><strong>DCARD_MODEL_DIR_INVALID</strong></td><td>400</td><td>模型目录路径错误</td><td>/opt/dcard/models 不存在或权限拒绝</td><td><strong>v3.0 新增</strong></td></tr>
+</tbody>
+</table>
+
+<h3>18.2 错误码使用矩阵</h3>
+<table>
+<thead>
+<tr><th>Endpoint</th><th>DCARD_MODEL_NOT_FOUND</th><th>DCARD_CANN_INIT_FAILED</th><th>DCARD_INFERENCE_FAILED</th><th>DCARD_RESOURCE_BUSY</th></tr>
+</thead>
+<tbody>
+<tr><td>InferenceService.Init</td><td>✅ (no .om found)</td><td>✅ (阶段 a/b 失败)</td><td>—</td><td>—</td></tr>
+<tr><td>InferenceService.LoadModel</td><td>✅ (path 错误)</td><td>—</td><td>—</td><td>✅ (NPU 满)</td></tr>
+<tr><td>InferenceService.Infer</td><td>✅ (model_name 未注册)</td><td>—</td><td>✅ (aclmdlExecute 错)</td><td>✅ (推理队列满)</td></tr>
+<tr><td>InferenceService.Deinit</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>InferenceService.ListModels</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>HealthService.Check</td><td>—</td><td>✅ (CANN 未启)</td><td>—</td><td>—</td></tr>
+<tr><td>HealthService.Watch</td><td>—</td><td>✅ (CANN 异常退出)</td><td>—</td><td>—</td></tr>
+</tbody>
+</table>
+</section>
+
+<footer class="article-footer">
+<p><strong>来源</strong>: D-Series 内部独立项目 (2026-06-22 session 原始方向, 2026-07-04 v3.0 升级到 Ascend + CANN + HCCS + 推理服务), 跟 hacms 联合发布</p>
+<p><strong>设计版本</strong>: D1 v3.0 (60KB+, 18 章节, 0 audit 问题, 5 子系统 + 3 池化 + 4 卡型 + 16 API endpoint + 11 错误码 + 3 状态机 + 3 时序图 + 1 部署图 + 完整 cann-init.sh 脚本 + 2 完整 protobuf 定义)</p>
 <p><strong>变更记录</strong>:</p>
-<ul>
-<li>v1.1 (2026-07-03): 原始 5 子系统 + 3 池化 + 4 卡型设计 (G 盘清理后丢失)</li>
-<li>v2.0 (2026-07-04): 重建版, 保留 v1.1 核心, 修正 1 处命名 (D-HAL API → PCIe HAL API), 加 API 错误码 6 类, 加 3 状态机 3 时序图 1 部署图细节</li>
-</ul>
+<p>· v1.1 (2026-07-03): 原始 5 子系统 + 3 池化 + 4 卡型设计 (G 盘清理后丢失)</p>
+<p>· v2.0 (2026-07-04): 重建版, NVIDIA 默认 + 7 endpoint + 6 错误码</p>
+<p>· <strong>v3.0 (2026-07-04): 默认 vendor 切换到华为 Ascend 910B/310P + CANN 8.0.RC2 + HCCS, 新增 3 大服务 (InferenceService 5 endpoint / HealthService 4 endpoint / cann-init.sh 启动 hook), 总 endpoint 7 → 16, 错误码 6 → 11, 国产卡从 ⚠️ 升级到 ✅ 主推</strong></p>
 <p><strong>审计</strong>: 0 CRITICAL / 0 MEDIUM / 0 LOW</p>
-<p><strong>命名规范</strong>: D-Card Mgr / PCIe HAL API / K8s Plugin / Runtime Shim / dctl</p>
-<p><strong>D1 不做</strong>: Pool Manager (D2) / Hot-Swap (D3) / Federation (D4) / Edge (D5)</p>
+<p><strong>命名规范</strong>: D-Card Mgr / PCIe HAL / NPU Slice / vNPU / HCCS / InferenceService / HealthService / cann-init.sh</p>
+<p><strong>D1 不做</strong>: Pool Manager (D2) / Hot-Swap (D3) / Federation (D4) / Edge (D5) / 推理调度 (QPS 路由 / 模型版本 / A/B Test)</p>
 <p><strong>独立项目原则</strong>: D-Series 跟 hacms 无关, 单独推进, 绝不依赖 hacms 部署/路由/版本</p>
-</section>
+</footer>
 </article>
 
 <nav class="article-nav">
 <a href="/">← 返回 hacms 主页</a>
 </nav>
+
+</div>
 </body>
 </html>

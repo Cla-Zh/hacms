@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 460" font-family="sans-serif">
+  <style>
+    .state { fill: #fff; stroke: #333; stroke-width: 1.5; }
+    .state-label { fill: #333; font-size: 12px; font-weight: 600; text-anchor: middle; }
+    .edge { fill: #333; font-size: 10px; }
+    .arrow { stroke: #333; stroke-width: 1.5; fill: none; marker-end: url(#arr); }
+    .start { fill: #333; }
+    .fail { stroke: #a00; }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+  </defs>
+
+  <text x="400" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">Pool 创建流程状态机 (D1 · Ascend)</text>
+  <text x="400" y="40" text-anchor="middle" fill="#666" font-size="11">v3.0 · dctl create pool 全流程 · MAPPING 改为 Ascend NPU 切片</text>
+
+  <circle class="start" cx="80" cy="200" r="6"/>
+
+  <rect class="state" x="120" y="180" width="100" height="40" rx="4"/>
+  <text class="state-label" x="170" y="205">INIT</text>
+
+  <rect class="state" x="260" y="120" width="100" height="40" rx="4"/>
+  <text class="state-label" x="310" y="145">ALLOCATING</text>
+
+  <rect class="state" x="400" y="120" width="100" height="40" rx="4"/>
+  <text class="state-label" x="450" y="145">MAPPING</text>
+
+  <rect class="state" x="540" y="120" width="120" height="40" rx="4"/>
+  <text class="state-label" x="600" y="145">CANN_REG</text>
+
+  <rect class="state" x="690" y="120" width="90" height="40" rx="4"/>
+  <text class="state-label" x="735" y="145">READY</text>
+
+  <rect class="state" x="260" y="240" width="100" height="40" rx="4"/>
+  <text class="state-label" x="310" y="265">FAILED</text>
+
+  <rect class="state" x="690" y="240" width="90" height="40" rx="4"/>
+  <text class="state-label" x="735" y="265">DESTROY</text>
+
+  <!-- Edges -->
+  <line class="arrow" x1="86" y1="200" x2="115" y2="200"/>
+  <line class="arrow" x1="220" y1="200" x2="255" y2="145"/>
+  <text class="edge" x="222" y="170">配置 OK</text>
+  <line class="arrow" x1="360" y1="140" x2="395" y2="140"/>
+  <line class="arrow" x1="500" y1="140" x2="535" y2="140"/>
+  <line class="arrow" x1="660" y1="140" x2="685" y2="140"/>
+  <line class="arrow" x1="170" y1="220" x2="255" y2="260"/>
+  <text class="edge" x="175" y="245" fill="#a00">配置错</text>
+  <line class="arrow" x1="310" y1="160" x2="310" y2="235"/>
+  <text class="edge" x="318" y="200" fill="#a00">NPU 不足</text>
+  <line class="arrow" x1="450" y1="160" x2="380" y2="240" stroke-dasharray="2,2"/>
+  <text class="edge" x="395" y="205" fill="#a00">切片失败</text>
+  <line class="arrow" x1="600" y1="160" x2="380" y2="245" stroke-dasharray="2,2"/>
+  <text class="edge" x="468" y="205" fill="#a00">CANN 拒</text>
+  <line class="arrow" x1="735" y1="160" x2="735" y2="235"/>
+  <text class="edge" x="743" y="200">dctl destroy</text>
+
+  <!-- Legend -->
+  <rect x="30" y="310" width="740" height="130" fill="#fafafa" stroke="#ccc" rx="3"/>
+  <text x="40" y="330" fill="#333" font-size="13" font-weight="600">说明 (v3.0 · Ascend 语义)</text>
+  <text x="40" y="348" fill="#666" font-size="11">• INIT: Pool 配置校验 (卡型 910B · 切片模式 1:1 · resource 声明 vendor=Ascend)</text>
+  <text x="40" y="363" fill="#666" font-size="11">• ALLOCATING: 经 CANN HAL 8.0.RC2 分配物理 NPU (HCCS 锁 + da Vinci 句柄)</text>
+  <text x="40" y="378" fill="#666" font-size="11">• MAPPING: 切片映射, 从 MIG 改为 Ascend NPU 1:1 物理切片 (避免 D2 MIG 异构性能差)</text>
+  <text x="40" y="393" fill="#666" font-size="11">• CANN_REG: 注册到 CANN runtime 进程组 + K8s Device Plugin (vendor=Ascend, pool=ascend-pool)</text>
+  <text x="40" y="408" fill="#666" font-size="11">• READY: Pool 可用, 容器可调度; /opt/dcard/models/ 已挂载</text>
+  <text x="40" y="423" fill="#666" font-size="11">• DESTROY: dctl destroy 释放 NPU + 卸载 CANN 上下文, 回写日志至 /var/log/dcard/</text>
+</svg>

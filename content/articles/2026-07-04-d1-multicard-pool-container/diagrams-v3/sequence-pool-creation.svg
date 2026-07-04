@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 460" font-family="sans-serif">
+  <style>
+    .box { fill: #fff; stroke: #333; stroke-width: 1.5; }
+    .label { fill: #333; font-size: 13px; font-weight: 600; text-anchor: middle; }
+    .sub { fill: #666; font-size: 10px; text-anchor: middle; }
+    .arrow { stroke: #333; stroke-width: 1.5; fill: none; marker-end: url(#arr); }
+    .bar { fill: #fafafa; stroke: #ccc; }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+  </defs>
+
+  <text x="400" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">Pool 创建时序图 (D1 · Ascend)</text>
+  <text x="400" y="40" text-anchor="middle" fill="#666" font-size="11">v3.0 · dctl → D-Card Mgr → CANN HAL 8.0.RC2 → K8s Plugin + HCCS 锁</text>
+
+  <!-- Lifelines -->
+  <line x1="120" y1="60" x2="120" y2="395" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="300" y1="60" x2="300" y2="395" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="500" y1="60" x2="500" y2="395" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="680" y1="60" x2="680" y2="395" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+
+  <rect class="box" x="60" y="50" width="120" height="35" rx="3"/>
+  <text class="label" x="120" y="72">User / dctl</text>
+
+  <rect class="box" x="240" y="50" width="120" height="35" rx="3"/>
+  <text class="label" x="300" y="72">D-Card Mgr</text>
+
+  <rect class="box" x="440" y="50" width="120" height="35" rx="3"/>
+  <text class="label" x="500" y="72">CANN HAL 8.0.RC2</text>
+
+  <rect class="box" x="620" y="50" width="120" height="35" rx="3"/>
+  <text class="label" x="680" y="72">K8s Plugin</text>
+
+  <!-- Arrows -->
+  <line class="arrow" x1="120" y1="115" x2="295" y2="115"/>
+  <text class="sub" x="207" y="108">1. create pool --cards=8 --vendor=Ascend --mode=1:1</text>
+
+  <line class="arrow" x1="305" y1="145" x2="495" y2="145"/>
+  <text class="sub" x="400" y="138">2. alloc 8 NPU (HCCS 集合通信锁)</text>
+
+  <line class="arrow" x1="500" y1="170" x2="310" y2="170" stroke-dasharray="2,2"/>
+  <text class="sub" x="400" y="163">3. 8 da Vinci 句柄 + HCCS 拓扑 (ring+mesh)</text>
+
+  <line class="arrow" x1="305" y1="200" x2="500" y2="200"/>
+  <text class="sub" x="400" y="193">4. map NPU 1:1 物理切片 × 8</text>
+
+  <line class="arrow" x1="500" y1="225" x2="310" y2="225" stroke-dasharray="2,2"/>
+  <text class="sub" x="400" y="218">5. 8 NPU 设备就绪 (da Vinci 0–7)</text>
+
+  <line class="arrow" x1="305" y1="260" x2="675" y2="260"/>
+  <text class="sub" x="490" y="253">6. register pool (vendor=Ascend, pool=ascend-pool-1)</text>
+
+  <line class="arrow" x1="680" y1="290" x2="310" y2="290" stroke-dasharray="2,2"/>
+  <text class="sub" x="490" y="283">7. registered OK · CANN 进程组已建</text>
+
+  <line class="arrow" x1="300" y1="320" x2="125" y2="320" stroke-dasharray="2,2"/>
+  <text class="sub" x="207" y="313">8. ready (8 物理 910B · /opt/dcard/models/ 已挂载)</text>
+
+  <!-- Notes -->
+  <rect class="bar" x="30" y="350" width="740" height="95" rx="3"/>
+  <text x="40" y="370" fill="#333" font-size="13" font-weight="600">关键点 (v3.0)</text>
+  <text x="40" y="388" fill="#666" font-size="11">• Pool 1 物理 = 1 NPU 1:1 切片 (v1.0 MIG 7 切片/物理 改为 1:1, 避免 Ascend 跨片 HCCS 抖动)</text>
+  <text x="40" y="403" fill="#666" font-size="11">• HCCS 集合通信锁: Pool 创建期间独占 ring+mesh 拓扑, 防 HCCL collective 争用 (D2 调度优化)</text>
+  <text x="40" y="418" fill="#666" font-size="11">• CANN 8.0.RC2 进程组: ascend mapper / driver / hccd 三个后台守护随 pool 一并注册</text>
+  <text x="40" y="433" fill="#666" font-size="11">• vendor 字段: D1 关键创新, K8s 看到 vendor=Ascend (保留 NVIDIA/AMD 路径不变)</text>
+</svg>
