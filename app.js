@@ -268,7 +268,10 @@
     dom.categoryList.innerHTML = '';
 
     // 调研文章 (排除 QA 智慧问答系列)
-    const reportArticles = STATE.articles.filter(a => a.series !== '智慧问答' && a.type !== 'qa');
+    // 调研文章 (排除 QA 智慧问答系列) - "全部" tab 排除 "其他" 类别
+    const reportArticles = STATE.articles.filter(a =>
+      a.series !== '智慧问答' && a.type !== 'qa' && a.category !== '其他'
+    );
 
     // "全部" 项
     const allItem = el('button', 'cat-item');
@@ -325,7 +328,10 @@
     dom.tagCloud.innerHTML = '';
     const tagCount = {};
     // 调研视图排除 QA
-    const reportArticles = STATE.articles.filter(a => a.series !== '智慧问答' && a.type !== 'qa');
+    // 调研文章 (排除 QA 智慧问答系列) - 标签云显示全部调研 tag (含 D-Series)
+    const reportArticles = STATE.articles.filter(a =>
+      a.series !== '智慧问答' && a.type !== 'qa'
+    );
     reportArticles.forEach(a => (a.tags || []).forEach(t => {
       tagCount[t] = (tagCount[t] || 0) + 1;
     }));
@@ -671,7 +677,9 @@
     // 调研视图排除 QA 智慧问答系列
     STATE.filtered = STATE.articles.filter(a => {
       if (a.series === '智慧问答' || a.type === 'qa') return false;
-      const catMatch = !STATE.activeCategory || a.category === STATE.activeCategory;
+      const isAllView = !STATE.activeCategory;
+      // "全部文章" tab 排除 "其他" 类别 (D-Series 等专题报告)
+      const catMatch = isAllView ? a.category !== '其他' : a.category === STATE.activeCategory;
       const tagMatch = STATE.activeTags.length === 0 || STATE.activeTags.every(t => (a.tags || []).includes(t));
       const searchOK = searchMatch(a, STATE.searchQuery);
       return catMatch && tagMatch && searchOK;
@@ -1057,7 +1065,11 @@ async function init() {
     STATE.qaFiltered = [...STATE.qaList];
 
     // 顶栏计数
-    dom.topbarCount.textContent = `${STATE.articles.length} 篇`;
+    // "全部文章" tab 排除 "其他" 类别 (D-Series 等专题报告) - 跟 applyFilters 保持一致
+    const topbarTotal = STATE.articles.filter(a =>
+      a.series !== '智慧问答' && a.type !== 'qa' && a.category !== '其他'
+    ).length;
+    dom.topbarCount.textContent = `${topbarTotal} 篇`;
 
     // 模式按钮计数
     if (dom.modeArticlesCount) dom.modeArticlesCount.textContent = STATE.articles.length - STATE.qaList.length;
