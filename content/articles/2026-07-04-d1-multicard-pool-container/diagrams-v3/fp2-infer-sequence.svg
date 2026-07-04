@@ -1,12 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 540" font-family="sans-serif">
   <style>
     .box { fill: #fff; stroke: #333; stroke-width: 1.5; }
-    .label { fill: #333; font-size: 13px; font-weight: 600; text-anchor: middle; }
+    .box-core { fill: #fff3b0; stroke: #b89000; stroke-width: 1.5; }
+    .label { fill: #333; font-size: 12px; font-weight: 600; text-anchor: middle; }
     .sub { fill: #666; font-size: 10px; text-anchor: middle; }
     .arrow { stroke: #333; stroke-width: 1.5; fill: none; marker-end: url(#arr); }
     .arrow-good { stroke: #1a5432; stroke-width: 2; fill: none; marker-end: url(#arr3); }
-    .arrow-bad { stroke: #a02020; stroke-width: 1.5; fill: none; marker-end: url(#arr4); stroke-dasharray: 3,2; }
     .bar { fill: #fafafa; stroke: #ccc; }
+    .mono { font-family: monospace; }
   </style>
   <defs>
     <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
@@ -15,86 +16,88 @@
     <marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
       <path d="M0,0 L10,5 L0,10 z" fill="#1a5432"/>
     </marker>
-    <marker id="arr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-      <path d="M0,0 L10,5 L0,10 z" fill="#a02020"/>
-    </marker>
   </defs>
 
-  <text x="450" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">FP2 时序: AI 卡推理接口 (Infer 调用全链路)</text>
-  <text x="450" y="40" text-anchor="middle" fill="#666" font-size="11">业务容器 → vNic :50051 → 调度器 → ACL aclmdlExecute → NPU 物理执行</text>
+  <text x="450" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">FP2 时序: 推理接口 (vNic URL + round-robin 选池)</text>
+  <text x="450" y="40" text-anchor="middle" fill="#666" font-size="11">用户 → vnic://vnic0:50051/Infer → 调度器 round-robin → npu0 池 → ACL 推理 → 返回</text>
 
-  <!-- Lifelines -->
-  <line x1="80" y1="65" x2="80" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
-  <line x1="240" y1="65" x2="240" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
-  <line x1="400" y1="65" x2="400" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
-  <line x1="560" y1="65" x2="560" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
-  <line x1="730" y1="65" x2="730" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
-  <line x1="860" y1="65" x2="860" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <!-- 5 lifelines: 100, 300, 500, 680, 830 -->
+  <g stroke="#333" stroke-width="1" stroke-dasharray="4,2">
+    <line x1="100" y1="95" x2="100" y2="470"/>
+    <line x1="300" y1="95" x2="300" y2="470"/>
+    <line x1="500" y1="95" x2="500" y2="470"/>
+    <line x1="680" y1="95" x2="680" y2="470"/>
+    <line x1="830" y1="95" x2="830" y2="470"/>
+  </g>
 
-  <rect class="box" x="20" y="50" width="120" height="40" rx="3"/>
-  <text class="label" x="80" y="73">业务容器</text>
-  <text class="sub" x="80" y="86" font-size="9">推理客户端</text>
+  <rect class="box" x="40" y="55" width="120" height="42" rx="3"/>
+  <text class="label" x="100" y="74">用户应用</text>
+  <text class="sub" x="100" y="88" font-size="9">推理客户端</text>
 
-  <rect class="box" x="180" y="50" width="120" height="40" rx="3"/>
-  <text class="label" x="240" y="73">vNic :50051</text>
-  <text class="sub" x="240" y="86" font-size="9">推理 gRPC</text>
+  <rect class="box-core" x="240" y="55" width="120" height="42" rx="3"/>
+  <text class="label" x="300" y="74">vNic gRPC</text>
+  <text class="sub" x="300" y="88" font-size="9" font-family="monospace">vnic0:50051</text>
 
-  <rect class="box" x="340" y="50" width="120" height="40" rx="3"/>
-  <text class="label" x="400" y="73">调度器</text>
-  <text class="sub" x="400" y="86" font-size="9">route(model_id)</text>
+  <rect class="box" x="440" y="55" width="120" height="42" rx="3"/>
+  <text class="label" x="500" y="70">多模型推理框架</text>
+  <text class="sub" x="500" y="83" font-size="9">模型调度器</text>
+  <text class="sub" x="500" y="93" font-size="8">round-robin</text>
 
-  <rect class="box" x="500" y="50" width="120" height="40" rx="3"/>
-  <text class="label" x="560" y="73">ACL/CANN</text>
-  <text class="sub" x="560" y="86" font-size="9">aclmdlExecute</text>
+  <rect class="box" x="620" y="55" width="120" height="42" rx="3"/>
+  <text class="label" x="680" y="74">线程池 (npu0)</text>
+  <text class="sub" x="680" y="88" font-size="9">aclmdlExecute</text>
 
-  <rect class="box" x="670" y="50" width="120" height="40" rx="3"/>
-  <text class="label" x="730" y="73">NPU card-N</text>
-  <text class="sub" x="730" y="86" font-size="9">物理 Ascend</text>
+  <rect class="box" x="770" y="55" width="120" height="42" rx="3"/>
+  <text class="label" x="830" y="74">NPU 0</text>
+  <text class="sub" x="830" y="88" font-size="9">物理 Ascend</text>
 
-  <rect class="box" x="800" y="50" width="120" height="40" rx="3"/>
-  <text class="label" x="860" y="73">健康监控</text>
-  <text class="sub" x="860" y="86" font-size="9">异常上报</text>
+  <!-- Steps -->
+  <line class="arrow-good" x1="100" y1="122" x2="295" y2="122"/>
+  <text class="sub" x="197" y="116" text-anchor="middle" font-family="monospace">1. vnic://vnic0:50051/Infer (model_id=resnet50, input)</text>
 
-  <line class="arrow-good" x1="80" y1="125" x2="235" y2="125"/>
-  <text class="sub" x="158" y="118">1. Infer(model_id="resnet50", input_data, trace_id)</text>
+  <line class="arrow" x1="300" y1="146" x2="300" y2="146"/>
+  <line class="arrow" x1="290" y1="146" x2="310" y2="146"/>
+  <rect class="box" x="288" y="140" width="24" height="12" rx="2"/>
+  <text class="sub" x="300" y="135" text-anchor="middle">2. vNic gRPC 接收</text>
 
-  <line class="arrow" x1="240" y1="150" x2="395" y2="150"/>
-  <text class="sub" x="318" y="143">2. route(model_id) → 查 model_assignment</text>
+  <line class="arrow" x1="300" y1="170" x2="495" y2="170"/>
+  <text class="sub" x="397" y="164" text-anchor="middle">3. vNic → 多模型推理框架.Infer</text>
 
-  <line class="arrow" x1="400" y1="175" x2="245" y2="175"/>
-  <text class="sub" x="323" y="168">3. card_id="card-3" (O(1) 内存查询)</text>
+  <line class="arrow" x1="500" y1="194" x2="510" y2="194"/>
+  <rect class="box" x="498" y="188" width="24" height="12" rx="2"/>
+  <text class="sub" x="500" y="183" text-anchor="middle">4. 调度器查表 (resnet50 → 3 池都持有)</text>
 
-  <line class="arrow" x1="240" y1="200" x2="555" y2="200"/>
-  <text class="sub" x="398" y="193">4. aclmdlExecute(model_handle, inputs) → card-3</text>
+  <line class="arrow" x1="500" y1="222" x2="510" y2="222"/>
+  <rect class="box" x="498" y="216" width="24" height="12" rx="2"/>
+  <text class="sub" x="500" y="211" text-anchor="middle">5. round-robin: 选 npu0 池 (本次)</text>
 
-  <line class="arrow" x1="560" y1="225" x2="725" y2="225"/>
-  <text class="sub" x="643" y="218">5. HIAI 调度 → NPU 物理执行</text>
+  <line class="arrow" x1="500" y1="250" x2="675" y2="250"/>
+  <text class="sub" x="587" y="244" text-anchor="middle">6. 路由到 npu0 推理队列</text>
 
-  <line class="arrow" x1="730" y1="250" x2="565" y2="250"/>
-  <text class="sub" x="648" y="243">6. outputs (bytes)</text>
+  <line class="arrow" x1="680" y1="274" x2="690" y2="274"/>
+  <rect class="box" x="678" y="268" width="24" height="12" rx="2"/>
+  <text class="sub" x="680" y="263" text-anchor="middle">7. 线程池执行 (aclmdlExecute)</text>
 
-  <line class="arrow-good" x1="560" y1="275" x2="245" y2="275"/>
-  <text class="sub" x="403" y="268">7. InferResponse(output_data, latency_us, served_by_card_id="card-3")</text>
+  <line class="arrow" x1="680" y1="302" x2="825" y2="302"/>
+  <text class="sub" x="752" y="296" text-anchor="middle">8. NPU 0 ACL 推理</text>
 
-  <line class="arrow-good" x1="240" y1="300" x2="85" y2="300"/>
-  <text class="sub" x="163" y="293">8. ✓ 输出到业务容器</text>
+  <line class="arrow" x1="830" y1="326" x2="685" y2="326"/>
+  <text class="sub" x="757" y="320" text-anchor="middle">9. NPU 0 返回 result</text>
 
-  <line class="arrow-bad" x1="240" y1="330" x2="855" y2="330"/>
-  <text class="sub" x="548" y="323" fill="#a02020">9. ACL 异常 → ReportAlert(CANN_ERROR, severity=ERROR)</text>
+  <line class="arrow" x1="680" y1="350" x2="505" y2="350"/>
+  <text class="sub" x="592" y="344" text-anchor="middle">10. 线程池返回</text>
 
-  <line class="arrow-bad" x1="860" y1="355" x2="245" y2="355" stroke-dasharray="3,2"/>
-  <text class="sub" x="553" y="348" fill="#a02020">10. alert_id → Infer 错误: DCARD_INFERENCE_FAILED(8)</text>
+  <line class="arrow-good" x1="500" y1="374" x2="105" y2="374"/>
+  <text class="sub" x="300" y="368" text-anchor="middle">11. InferResponse (output + latency + served_by_card_id=npu0)</text>
 
-  <line class="arrow-bad" x1="240" y1="380" x2="85" y2="380" stroke-dasharray="3,2"/>
-  <text class="sub" x="163" y="373" fill="#a02020">11. 返回错误 + alert_id 给客户端</text>
-
-  <line class="arrow-bad" x1="400" y1="405" x2="85" y2="405" stroke-dasharray="3,2"/>
-  <text class="sub" x="243" y="398" fill="#a02020">12. 资源满 → DCARD_RESOURCE_BUSY(9); 卡未注册 → DCARD_CARD_UNREGISTERED(13)</text>
+  <line class="arrow-good" x1="300" y1="398" x2="105" y2="398"/>
+  <text class="sub" x="200" y="392" text-anchor="middle">12. 用户应用收响应 ✓</text>
 
   <!-- Bottom notes -->
-  <rect class="bar" x="20" y="455" width="860" height="70" rx="3"/>
-  <text x="30" y="475" fill="#333" font-size="11" font-weight="600">v3.1 Infer 关键点</text>
-  <text x="30" y="492" fill="#666" font-size="10">• vNic :50051 + :50053 双端口 (推理 + 维护), 双向 TLS 隔离; unix domain socket</text>
-  <text x="30" y="507" fill="#666" font-size="10">• 调度器按 model_id 哈希 + LoadBalance; 1 物理 NPU 可承载多模型并存</text>
-  <text x="30" y="520" fill="#666" font-size="10">• 错误码: DCARD_MODEL_NOT_FOUND(6) / DCARD_INFERENCE_FAILED(8) / DCARD_RESOURCE_BUSY(9) / DCARD_CARD_UNREGISTERED(13)</text>
+  <rect class="bar" x="20" y="430" width="860" height="90" rx="3"/>
+  <text x="30" y="450" fill="#333" font-size="11" font-weight="600">v3.2 Infer 关键点</text>
+  <text x="30" y="467" fill="#666" font-size="10" font-family="monospace">• 业务面 vnic://vnic0:50051 · 管理面 vnic://vnic0:50053 (2 面 vNic gRPC)</text>
+  <text x="30" y="484" fill="#666" font-size="10">• 3 卡 3 池, 每池加载同样 3 模型 (resnet50 / bert-base / llama-7b), 任一池可服务</text>
+  <text x="30" y="501" fill="#666" font-size="10">• 调度器负载均衡 round-robin (本图) / least-connections; served_by_card_id 回传实际卡</text>
+  <text x="30" y="515" fill="#666" font-size="10">• 1 物理 NPU = 1 线程池, model_id 路由 + 负载均衡</text>
 </svg>

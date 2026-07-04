@@ -1,12 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 540" font-family="sans-serif">
   <style>
     .box { fill: #fff; stroke: #333; stroke-width: 1.5; }
-    .label { fill: #333; font-size: 13px; font-weight: 600; text-anchor: middle; }
+    .box-core { fill: #fff3b0; stroke: #b89000; stroke-width: 1.5; }
+    .label { fill: #333; font-size: 12px; font-weight: 600; text-anchor: middle; }
     .sub { fill: #666; font-size: 10px; text-anchor: middle; }
     .arrow { stroke: #333; stroke-width: 1.5; fill: none; marker-end: url(#arr); }
     .arrow-good { stroke: #1a5432; stroke-width: 2; fill: none; marker-end: url(#arr3); }
-    .arrow-bad { stroke: #a02020; stroke-width: 1.5; fill: none; marker-end: url(#arr4); stroke-dasharray: 3,2; }
     .bar { fill: #fafafa; stroke: #ccc; }
+    .mono { font-family: monospace; }
   </style>
   <defs>
     <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
@@ -15,88 +16,94 @@
     <marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
       <path d="M0,0 L10,5 L0,10 z" fill="#1a5432"/>
     </marker>
-    <marker id="arr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-      <path d="M0,0 L10,5 L0,10 z" fill="#a02020"/>
-    </marker>
   </defs>
 
-  <text x="450" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">FP3 时序: AI 推理服务模型调度 (Scheduler 路由)</text>
-  <text x="450" y="40" text-anchor="middle" fill="#666" font-size="11">Infer 请求 → 调度器查 model_routing_table → 选 card_id (hash + LoadBalance + QPS)</text>
+  <text x="450" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">FP3 时序: 模型调度 (注册表查询 + least-connections 选池)</text>
+  <text x="450" y="40" text-anchor="middle" fill="#666" font-size="11">调度器查注册表 (resnet50 在 3 卡) → 查队列深度 → least-connections 选 npu1 → 更新 QPS</text>
 
-  <!-- Lifelines -->
-  <line x1="80" y1="65" x2="80" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
-  <line x1="230" y1="65" x2="230" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
-  <line x1="390" y1="65" x2="390" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
-  <line x1="550" y1="65" x2="550" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
-  <line x1="720" y1="65" x2="720" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
-  <line x1="860" y1="65" x2="860" y2="490" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <!-- 6 lifelines: 90, 240, 400, 560, 700, 840 -->
+  <g stroke="#333" stroke-width="1" stroke-dasharray="4,2">
+    <line x1="90" y1="95" x2="90" y2="480"/>
+    <line x1="240" y1="95" x2="240" y2="480"/>
+    <line x1="400" y1="95" x2="400" y2="480"/>
+    <line x1="560" y1="95" x2="560" y2="480"/>
+    <line x1="700" y1="95" x2="700" y2="480"/>
+    <line x1="840" y1="95" x2="840" y2="480"/>
+  </g>
 
-  <rect class="box" x="20" y="50" width="120" height="40" rx="3"/>
-  <text class="label" x="80" y="73">Infer RPC</text>
-  <text class="sub" x="80" y="86" font-size="9">vNic :50051</text>
+  <rect class="box" x="35" y="55" width="110" height="42" rx="3"/>
+  <text class="label" x="90" y="74">用户请求</text>
+  <text class="sub" x="90" y="88" font-size="9">model_id=resnet50</text>
 
-  <rect class="box" x="170" y="50" width="120" height="40" rx="3"/>
-  <text class="label" x="230" y="73">调度器入口</text>
-  <text class="sub" x="230" y="86" font-size="9">反序列化</text>
+  <rect class="box" x="185" y="55" width="110" height="42" rx="3"/>
+  <text class="label" x="240" y="74">vNic</text>
+  <text class="sub" x="240" y="88" font-size="9">:50051</text>
 
-  <rect class="box" x="330" y="50" width="120" height="40" rx="3"/>
-  <text class="label" x="390" y="73">model_routing_table</text>
-  <text class="sub" x="390" y="86" font-size="9">内存哈希表</text>
+  <rect class="box-core" x="345" y="55" width="110" height="42" rx="3"/>
+  <text class="label" x="400" y="70">模型调度器</text>
+  <text class="sub" x="400" y="83" font-size="9">least-conn</text>
+  <text class="sub" x="400" y="93" font-size="8">多模型推理框架</text>
 
-  <rect class="box" x="490" y="50" width="120" height="40" rx="3"/>
-  <text class="label" x="550" y="73">LoadBalance</text>
-  <text class="sub" x="550" y="86" font-size="9">QPS / 队列</text>
+  <rect class="box" x="505" y="55" width="110" height="42" rx="3"/>
+  <text class="label" x="560" y="70">模型注册表</text>
+  <text class="sub" x="560" y="83" font-size="9">model→NPU</text>
+  <text class="sub" x="560" y="93" font-size="8">+ NPU 状态</text>
 
-  <rect class="box" x="660" y="50" width="120" height="40" rx="3"/>
-  <text class="label" x="720" y="73">Worker Pool</text>
-  <text class="sub" x="720" y="86" font-size="9">NPU × 2 worker</text>
+  <rect class="box" x="645" y="55" width="110" height="42" rx="3"/>
+  <text class="label" x="700" y="74">线程池 npu1</text>
+  <text class="sub" x="700" y="88" font-size="9">推理队列</text>
 
-  <rect class="box" x="800" y="50" width="120" height="40" rx="3"/>
-  <text class="label" x="860" y="73">NPU 物理</text>
-  <text class="sub" x="860" y="86" font-size="9">执行</text>
+  <rect class="box" x="785" y="55" width="110" height="42" rx="3"/>
+  <text class="label" x="840" y="74">NPU 1</text>
+  <text class="sub" x="840" y="88" font-size="9">物理 Ascend</text>
 
-  <text x="470" y="115" text-anchor="middle" fill="#1a5432" font-size="12" font-weight="600">—— 3 步路由: 哈希查表 → 负载过滤 → worker 派发 ——</text>
+  <!-- Steps -->
+  <line class="arrow-good" x1="90" y1="120" x2="235" y2="120"/>
+  <text class="sub" x="162" y="114" text-anchor="middle" font-family="monospace">1. 用户请求 (model_id=resnet50)</text>
 
-  <line class="arrow-good" x1="80" y1="135" x2="225" y2="135"/>
-  <text class="sub" x="153" y="128">1. Infer(model_id="resnet50", trace_id)</text>
+  <line class="arrow" x1="240" y1="144" x2="395" y2="144"/>
+  <text class="sub" x="317" y="138" text-anchor="middle">2. vNic → 模型调度器</text>
 
-  <line class="arrow" x1="230" y1="160" x2="385" y2="160"/>
-  <text class="sub" x="308" y="153">2. route(model_id) → 查哈希表</text>
+  <line class="arrow" x1="400" y1="168" x2="555" y2="168"/>
+  <text class="sub" x="477" y="162" text-anchor="middle">3. 查注册表: resnet50 在 npu0/1/2</text>
 
-  <line class="arrow" x1="390" y1="185" x2="235" y2="185"/>
-  <text class="sub" x="313" y="178">3. 候选 cards = [card-0, card-3, card-5] (Init 阶段 d 分配)</text>
+  <line class="arrow" x1="400" y1="192" x2="555" y2="192"/>
+  <text class="sub" x="477" y="186" text-anchor="middle">4. 查 NPU 状态 (npu0/1/2 队列深度)</text>
 
-  <line class="arrow" x1="230" y1="210" x2="545" y2="210"/>
-  <text class="sub" x="388" y="203">4. 过滤 unhealthy (查健康监控)</text>
+  <line class="arrow" x1="560" y1="216" x2="405" y2="216"/>
+  <text class="sub" x="482" y="210" text-anchor="middle">↩ 深度: npu0=8, npu1=2, npu2=5</text>
 
-  <line class="arrow" x1="550" y1="235" x2="235" y2="235"/>
-  <text class="sub" x="393" y="228">5. 按 QPS+队列 权重 → card-3 (当前负载最低)</text>
+  <line class="arrow" x1="400" y1="240" x2="410" y2="240"/>
+  <rect class="box" x="398" y="234" width="24" height="12" rx="2"/>
+  <text class="sub" x="400" y="229" text-anchor="middle">5. least-connections: 选 npu1 (队列最浅)</text>
 
-  <line class="arrow" x1="230" y1="260" x2="715" y2="260"/>
-  <text class="sub" x="473" y="253">6. dispatch(card-3, inputs) → 选 worker</text>
+  <line class="arrow" x1="400" y1="268" x2="695" y2="268"/>
+  <text class="sub" x="547" y="262" text-anchor="middle">6. 路由到 npu1 队列</text>
 
-  <line class="arrow" x1="720" y1="285" x2="855" y2="285"/>
-  <text class="sub" x="788" y="278">7. aclmdlExecute(model_handle)</text>
+  <line class="arrow" x1="700" y1="292" x2="710" y2="292"/>
+  <rect class="box" x="698" y="286" width="24" height="12" rx="2"/>
+  <text class="sub" x="700" y="281" text-anchor="middle">7. 入 npu1 推理队列</text>
 
-  <line class="arrow-good" x1="860" y1="310" x2="725" y2="310"/>
-  <text class="sub" x="793" y="303">8. ✓ outputs</text>
+  <line class="arrow" x1="700" y1="320" x2="710" y2="320"/>
+  <rect class="box" x="698" y="314" width="24" height="12" rx="2"/>
+  <text class="sub" x="700" y="309" text-anchor="middle">8. 线程池执行</text>
 
-  <line class="arrow-good" x1="720" y1="335" x2="85" y2="335"/>
-  <text class="sub" x="403" y="328">9. InferResponse(output_data, latency_us=2400, served_by_card_id="card-3")</text>
+  <line class="arrow" x1="700" y1="348" x2="835" y2="348"/>
+  <text class="sub" x="768" y="342" text-anchor="middle">9. NPU 1 推理</text>
 
-  <line class="arrow-bad" x1="390" y1="365" x2="85" y2="365" stroke-dasharray="3,2"/>
-  <text class="sub" x="238" y="358" fill="#a02020">10. 表里无 model_id → DCARD_MODEL_NOT_FOUND(6)</text>
+  <line class="arrow" x1="840" y1="372" x2="705" y2="372"/>
+  <text class="sub" x="772" y="366" text-anchor="middle">10. NPU 1 返回</text>
 
-  <line class="arrow-bad" x1="550" y1="395" x2="85" y2="395" stroke-dasharray="3,2"/>
-  <text class="sub" x="318" y="388" fill="#a02020">11. 全部候选卡 unhealthy → DCARD_RESOURCE_BUSY(9)</text>
+  <line class="arrow" x1="700" y1="396" x2="405" y2="396"/>
+  <text class="sub" x="552" y="390" text-anchor="middle">11. 调度器更新 npu1 队列深度 (QPS 计数)</text>
 
-  <line class="arrow-bad" x1="720" y1="425" x2="85" y2="425" stroke-dasharray="3,2"/>
-  <text class="sub" x="403" y="418" fill="#a02020">12. ACL 异常 → DCARD_INFERENCE_FAILED(8) + ReportAlert</text>
+  <line class="arrow-good" x1="400" y1="420" x2="95" y2="420"/>
+  <text class="sub" x="247" y="414" text-anchor="middle">12. 返回响应 (served_by_card_id=npu1)</text>
 
   <!-- Bottom notes -->
-  <rect class="bar" x="20" y="455" width="860" height="70" rx="3"/>
-  <text x="30" y="475" fill="#333" font-size="11" font-weight="600">v3.1 调度器关键点</text>
-  <text x="30" y="492" fill="#666" font-size="10">• model_assignment 在 Init 阶段 d 持久化 (内存); O(1) 哈希查询, 不重启</text>
-  <text x="30" y="507" fill="#666" font-size="10">• 策略: round_robin / pin_by_model (Init AssignmentStrategy); v3.1 不做 A/B / 蓝绿 / 精细 QPS</text>
-  <text x="30" y="520" fill="#666" font-size="10">• 联动健康监控: 过滤 unhealthy; 热拔出时剔除 card_id (FP7 状态感知触发)</text>
+  <rect class="bar" x="20" y="445" width="860" height="75" rx="3"/>
+  <text x="30" y="464" fill="#333" font-size="11" font-weight="600">v3.2 模型调度关键点</text>
+  <text x="30" y="481" fill="#666" font-size="10">• 模型注册表: model_id → 持有该模型的 NPU 列表; 每池加载同样 3 模型, 任一池可服务</text>
+  <text x="30" y="497" fill="#666" font-size="10">• 负载均衡 least-connections (本图) 按队列深度选池; round-robin 为默认轮询策略</text>
+  <text x="30" y="513" fill="#666" font-size="10">• 每次派发后更新目标 NPU 队列深度 + QPS 计数, 供下次选池决策</text>
 </svg>

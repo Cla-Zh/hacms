@@ -11,8 +11,6 @@
     .arrow { stroke: #333; stroke-width: 1.5; fill: none; marker-end: url(#arr); }
     .arrow-thin { stroke: #666; stroke-width: 1; fill: none; marker-end: url(#arr2); }
     .callout-core { fill: #fff3b0; stroke: #b89000; stroke-width: 1.5; }
-    .accent { fill: #3a4a6b; }
-    .accent-text { fill: #fff; font-size: 11px; font-weight: 600; text-anchor: middle; }
   </style>
   <defs>
     <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
@@ -23,87 +21,93 @@
     </marker>
   </defs>
 
-  <text x="400" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">FP1: AI 推理服务初始化 — 子模块图 (Init 5 阶段 a/b/c/d/e)</text>
-  <text x="400" y="40" text-anchor="middle" fill="#666" font-size="11">核心子模块: AI 卡使能 (黄) · 协作: ACL 加载 + Model Registry + device-plugin</text>
+  <text x="400" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">FP1: AI 推理服务初始化 — 子模块图 (启动脚本 + XML 持久化 + 3 卡)</text>
+  <text x="400" y="40" text-anchor="middle" fill="#666" font-size="11">启动脚本 activate.sh (7 阶段 a-g) 驱动 AI 卡使能类 · state.xml 持久化 · 3 × Ascend 910B</text>
 
-  <!-- Input: AIDeploymentService.ActivateVM 触发 -->
-  <rect class="box" x="20" y="60" width="760" height="50" rx="3"/>
-  <text x="400" y="80" class="label" font-size="12">触发: AIDeploymentService.ActivateVM 完成 → 客户端用 inference_port 调 Init</text>
-  <text x="400" y="98" class="sub">输入: model_ids[] + persistence_config + auto_register + HcclConfig</text>
+  <!-- Top: 启动触发 -->
+  <rect class="box" x="20" y="52" width="230" height="42" rx="3"/>
+  <text x="135" y="72" class="label" font-size="12">① 启动触发</text>
+  <text x="135" y="87" class="sub">容器 / 主机 / systemd (dcard.service)</text>
 
-  <!-- 5 submodule columns -->
-  <!-- vNic 通信 (淡灰, 仅维护接口参与) -->
-  <rect class="box-fade" x="20" y="130" width="148" height="240" rx="4"/>
-  <text x="94" y="150" class="label-fade">§15.1 vNic 通信</text>
-  <rect class="box-fade" x="30" y="160" width="128" height="32" rx="3"/>
-  <text x="94" y="180" class="label-fade" font-size="11">维护 gRPC :50053</text>
-  <text x="94" y="190" class="sub-fade" font-size="9">Init 监听入口</text>
-  <rect class="box-fade" x="30" y="200" width="128" height="32" rx="3"/>
-  <text x="94" y="220" class="label-fade" font-size="11">mTLS 双向认证</text>
-  <text x="94" y="230" class="sub-fade" font-size="9">RPC 入口</text>
-  <text x="94" y="345" class="sub-fade" font-size="9">—— 参与度: 低 ——</text>
+  <!-- 启动脚本 callout (yellow) -->
+  <rect class="callout-core" x="270" y="52" width="510" height="42" rx="3"/>
+  <text x="525" y="70" class="label-core" font-size="12">② 启动脚本 /etc/d1/activate.sh — 7 阶段 a→g</text>
+  <text x="525" y="86" text-anchor="middle" fill="#5a4400" font-size="10">a 驱动 · b 扫描NPU · c XML持久化 · d 队列 · e ACL内存 · f 模型 · g vNic监听</text>
 
-  <!-- 多模型推理框架 (淡灰, 仅承载 ACL) -->
-  <rect class="box-fade" x="178" y="130" width="148" height="240" rx="4"/>
-  <text x="252" y="150" class="label-fade">§15.2 多模型推理框架</text>
-  <rect class="box-fade" x="188" y="160" width="128" height="40" rx="3"/>
-  <text x="252" y="178" class="label-fade" font-size="11">ACL aclmdlLoadFromFile</text>
-  <text x="252" y="192" class="sub-fade" font-size="9">阶段 b: 加载 .om 模型</text>
-  <rect class="box-fade" x="188" y="210" width="128" height="40" rx="3"/>
-  <text x="252" y="228" class="label-fade" font-size="11">HCCL hcclCommInit</text>
-  <text x="252" y="242" class="sub-fade" font-size="9">阶段 a: 集合通信域</text>
-  <text x="252" y="345" class="sub-fade" font-size="9">—— 参与度: 低 ——</text>
+  <line class="arrow" x1="250" y1="73" x2="268" y2="73"/>
 
-  <!-- 健康监控 (淡灰, Init 时校验 NPU 可见) -->
-  <rect class="box-fade" x="336" y="130" width="148" height="240" rx="4"/>
-  <text x="410" y="150" class="label-fade">§15.3 健康监控</text>
-  <rect class="box-fade" x="346" y="160" width="128" height="40" rx="3"/>
-  <text x="410" y="178" class="label-fade" font-size="11">NPU 探测</text>
-  <text x="410" y="192" class="sub-fade" font-size="9">Init 阶段 a 前置校验</text>
-  <rect class="box-fade" x="346" y="210" width="128" height="40" rx="3"/>
-  <text x="410" y="228" class="label-fade" font-size="11">canld 日志流</text>
-  <text x="410" y="242" class="sub-fade" font-size="9">Init 失败日志收集</text>
-  <text x="410" y="345" class="sub-fade" font-size="9">—— 参与度: 低 ——</text>
+  <!-- 中部左: AI 卡使能类 (核心, 黄) 5 子模块 -->
+  <rect class="box-core" x="20" y="112" width="470" height="248" rx="4"/>
+  <text x="255" y="132" class="label-core">③ AI 卡使能类 ⭐ (由 activate.sh 编排)</text>
 
-  <!-- AI 卡使能 (核心, 黄) -->
-  <rect class="box-core" x="494" y="130" width="148" height="240" rx="4"/>
-  <text x="568" y="150" class="label-core">§15.4 AI 卡使能 ⭐</text>
-  <rect class="box" x="504" y="158" width="128" height="26" rx="3"/>
-  <text x="568" y="175" class="label" font-size="10">a 初始化 (ACL/HCCL)</text>
-  <rect class="box" x="504" y="186" width="128" height="26" rx="3"/>
-  <text x="568" y="203" class="label" font-size="10">b 加载 (aclmdlLoad)</text>
-  <rect class="box" x="504" y="214" width="128" height="26" rx="3"/>
-  <text x="568" y="231" class="label" font-size="10">c 持久化内存</text>
-  <rect class="box" x="504" y="242" width="128" height="26" rx="3"/>
-  <text x="568" y="259" class="label" font-size="10">d 模型分配 (Registry)</text>
-  <rect class="box" x="504" y="270" width="128" height="26" rx="3"/>
-  <text x="568" y="287" class="label" font-size="10">e 注册 (device-plugin)</text>
-  <text x="568" y="335" class="sub" font-weight="600">5 阶段顺序执行</text>
-  <text x="568" y="350" class="sub" font-size="9">持久化 model_assignment</text>
+  <rect class="box" x="34" y="144" width="140" height="46" rx="3"/>
+  <text x="104" y="163" class="label" font-size="11">(a) 加载驱动</text>
+  <text x="104" y="178" class="sub" font-size="9">modprobe drv_pcie_ascend</text>
 
-  <!-- AI 卡状态感知 (淡灰) -->
-  <rect class="box-fade" x="652" y="130" width="128" height="240" rx="4"/>
-  <text x="716" y="150" class="label-fade">§15.5 状态感知</text>
-  <rect class="box-fade" x="662" y="160" width="108" height="40" rx="3"/>
-  <text x="716" y="178" class="label-fade" font-size="11">Init 时不直接触发</text>
-  <text x="716" y="192" class="sub-fade" font-size="9">后续 Qemu 热插拔才用</text>
-  <text x="716" y="345" class="sub-fade" font-size="9">—— 参与度: 无 ——</text>
+  <rect class="box" x="184" y="144" width="140" height="46" rx="3"/>
+  <text x="254" y="163" class="label" font-size="11">(b) 扫描 NPU</text>
+  <text x="254" y="178" class="sub" font-size="9">lspci / npu-smi info -l</text>
 
-  <!-- Bottom: output -->
-  <rect class="box" x="20" y="385" width="760" height="55" rx="3"/>
-  <text x="400" y="405" class="label" font-size="12">输出: InitResponse { initialized_cards=8, persistence_ready, registration_done, model_assignment, cann_version, init_duration_ms }</text>
-  <text x="400" y="423" class="sub">可能错误码: DCARD_CANN_INIT_FAILED(7) / DCARD_MODEL_NOT_FOUND(6) / DCARD_VM_ACTIVATION_FAILED(11) / DCARD_INTERNAL_ERROR(5)</text>
+  <rect class="box-core" x="334" y="144" width="140" height="46" rx="3"/>
+  <text x="404" y="163" class="label-core" font-size="11">(c) XML 持久化</text>
+  <text x="404" y="178" text-anchor="middle" fill="#5a4400" font-size="9">/var/lib/d1/state.xml</text>
 
-  <!-- Yellow callout for core module -->
-  <rect class="callout-core" x="494" y="110" width="148" height="14" rx="2" opacity="0.85"/>
-  <text x="568" y="121" text-anchor="middle" fill="#5a4400" font-size="9" font-weight="700">CORE: §15.4 AI 卡使能</text>
+  <rect class="box" x="34" y="200" width="140" height="46" rx="3"/>
+  <text x="104" y="219" class="label" font-size="11">(d) 初始化队列</text>
+  <text x="104" y="234" class="sub" font-size="9">per-model 推理队列</text>
 
-  <!-- Arrows: input -> core, core -> output -->
-  <line class="arrow" x1="400" y1="110" x2="568" y2="130"/>
-  <line class="arrow" x1="568" y1="370" x2="400" y2="385"/>
+  <rect class="box-core" x="184" y="200" width="140" height="46" rx="3"/>
+  <text x="254" y="219" class="label-core" font-size="11">(e) ACL 内存分配</text>
+  <text x="254" y="234" text-anchor="middle" fill="#5a4400" font-size="9">aclInit + aclrtMalloc</text>
 
-  <!-- Side connections (faded) -->
-  <line class="arrow-thin" x1="252" y1="160" x2="504" y2="200" stroke="#bbb" stroke-dasharray="2,2"/>
-  <line class="arrow-thin" x1="410" y1="160" x2="504" y2="200" stroke="#bbb" stroke-dasharray="2,2"/>
-  <text x="380" y="180" fill="#999" font-size="8">协作: ACL 加载 + 健康校验</text>
+  <rect class="box" x="334" y="200" width="140" height="46" rx="3"/>
+  <text x="404" y="219" class="label" font-size="11">(f) 加载模型</text>
+  <text x="404" y="234" class="sub" font-size="9">aclmdlLoadFromFile ×3</text>
+
+  <rect class="box-core" x="34" y="256" width="290" height="44" rx="3"/>
+  <text x="179" y="275" class="label-core" font-size="11">(g) vNic 监听</text>
+  <text x="179" y="290" text-anchor="middle" fill="#5a4400" font-size="9">:50051 业务面 + :50053 管理面</text>
+
+  <rect class="box-fade" x="334" y="256" width="140" height="44" rx="3"/>
+  <text x="404" y="275" class="sub" font-weight="600">7 阶段顺序执行</text>
+  <text x="404" y="290" class="sub-fade" font-size="9">activate.sh 编排</text>
+
+  <text x="255" y="322" class="sub">每阶段结果写入 state.xml, 崩溃可从 XML 恢复</text>
+  <text x="255" y="340" class="sub" font-size="9">callout 黄标 = init 关键阶段 (XML / ACL 内存 / vNic)</text>
+
+  <!-- 中部右: state.xml -->
+  <rect class="box" x="510" y="112" width="270" height="150" rx="4"/>
+  <text x="645" y="132" class="label">④ state.xml (XML 持久化状态)</text>
+  <text x="524" y="150" fill="#333" font-size="10" font-family="monospace">/var/lib/d1/state.xml</text>
+  <rect class="box-fade" x="524" y="158" width="242" height="24" rx="3"/>
+  <text x="645" y="174" class="sub">&lt;npu id="0/1/2" status="READY"/&gt;</text>
+  <rect class="box-fade" x="524" y="186" width="242" height="24" rx="3"/>
+  <text x="645" y="202" class="sub">&lt;model name="resnet50/bert/llama-7b"/&gt;</text>
+  <rect class="box-fade" x="524" y="214" width="242" height="24" rx="3"/>
+  <text x="645" y="230" class="sub">&lt;acl_mem total="32GB" per_model="8GB"/&gt;</text>
+  <rect class="box-fade" x="524" y="242" width="242" height="14" rx="3"/>
+  <text x="645" y="253" class="sub" font-size="9">&lt;queue model=".." depth=".."/&gt;</text>
+
+  <line class="arrow" x1="474" y1="167" x2="510" y2="180"/>
+  <text x="500" y="160" fill="#999" font-size="8">写 XML</text>
+
+  <!-- 中部右下: NPU note -->
+  <rect class="box-fade" x="510" y="270" width="270" height="90" rx="4"/>
+  <text x="645" y="288" class="label" font-size="12">⑤ NPU 抽象层</text>
+  <text x="645" y="306" class="sub">deviceid 0/1/2 → 3 张卡</text>
+  <text x="645" y="322" class="sub">aclrtSetDevice(0..2)</text>
+  <text x="645" y="340" class="sub" font-size="9">HCCL 集合通信域 (单机 3 卡)</text>
+
+  <!-- 底部: 3 × Ascend 910B -->
+  <rect class="box" x="20" y="378" width="760" height="72" rx="4"/>
+  <text x="400" y="396" class="label" font-size="12">⑥ 物理层: 3 × Ascend 910B (3 卡, 单控制器)</text>
+  <rect class="box-fade" x="90" y="404" width="180" height="36" rx="3"/>
+  <text x="180" y="426" class="sub" font-weight="600">910B #0 (deviceid 0)</text>
+  <rect class="box-fade" x="310" y="404" width="180" height="36" rx="3"/>
+  <text x="400" y="426" class="sub" font-weight="600">910B #1 (deviceid 1)</text>
+  <rect class="box-fade" x="530" y="404" width="180" height="36" rx="3"/>
+  <text x="620" y="426" class="sub" font-weight="600">910B #2 (deviceid 2)</text>
+
+  <line class="arrow" x1="255" y1="360" x2="300" y2="378"/>
+  <line class="arrow-thin" x1="645" y1="360" x2="500" y2="378"/>
 </svg>

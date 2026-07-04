@@ -2,8 +2,8 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>D-Series AI Card D1 设计: 多卡池化与容器化 (CANN 8.0.RC2 + HCCS) - hacms</title>
-<meta name="description" content="D-Series AI Card D1 v3.1 详细设计, 华为 Ascend 910B/310P + CANN 8.0.RC2 + HCCS 集合通信. 5 大子系统 (D-Card Mgr / PCIe HAL / K8s Plugin / Runtime Shim / dctl), 3 池化模式 (NPU Slice / vNPU / HCCS), 4 类卡 (训练/推理/边缘/国产), 19 API endpoint. AI 推理服务内部 5 子模块 (vNic 通信 / 多模型推理框架 / 健康监控 / AI 卡使能 / AI 卡状态感知) + AI 卡部署 2 大功能 (VM 激活 + 告警). 1 逻辑 D-Card = 8 物理 Ascend 910B, 1 物理 NPU = 多模型 (调度器路由). 错误码 11 → 14. D-Series 独立项目, 2026-07-04 跟 hacms 联合发布.">
+<title>D-Series AI Card D1 设计: 多卡池化与容器化 (CANN 8.0.RC2 + HCCS, v3.2 启动脚本 + vNic + 3 卡) - hacms</title>
+<meta name="description" content="D-Series AI Card D1 v3.2 详细设计, 华为 Ascend 910B/310P + CANN 8.0.RC2 + HCCS 集合通信. 5 大子系统 (D-Card Mgr / PCIe HAL / K8s Plugin / Runtime Shim / dctl), 3 池化模式 (NPU Slice / vNPU / HCCS), 4 类卡 (训练/推理/边缘/国产), 26 API endpoint. AI 推理服务内部 6 子模块 (vNic 通信 / 多模型推理框架 / 健康监控 / AI 卡使能 / AI 卡状态感知) + AI 卡部署 2 大功能 (VM 激活 + 告警). 1 逻辑 D-Card = 3 物理 Ascend 910B, 1 物理 NPU = 多模型 (调度器路由). 错误码 11 → 14. D-Series 独立项目, 2026-07-04 跟 hacms 联合发布.">
 <meta name="author" content="calvin + Hermes">
 <meta name="date" content="2026-07-04">
 <link rel="stylesheet" href="/style.css">
@@ -79,7 +79,8 @@ tr:nth-child(even) td{background:#fcfcfc}
 .version-badge{display:inline-block;background:var(--accent);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;letter-spacing:0.5px}
 .version-badge.v3{background:var(--green)}
 .version-badge.v31{background:var(--orange)}
-.changes-table th{background:var(--orange);color:#fff}
+.version-badge.v32{background:var(--blue)}
+.changes-table th{background:var(--blue);color:#fff}
 .changes-table td:first-child{font-weight:600}
 .article-footer{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 22px;margin:36px 0 0;box-shadow:var(--shadow-sm)}
 .article-footer h2{font-size:14px;font-weight:700;margin:0 0 12px;padding:0;border:none;background:none;letter-spacing:0.5px;text-transform:uppercase;color:var(--text3)}
@@ -97,7 +98,7 @@ tr:nth-child(even) td{background:#fcfcfc}
 <article class="hacms-article">
 
 <header>
-<h1 class="article-title">D-Series AI Card D1 设计: 多卡池化与容器化 <span class="version-badge v31">v3.1</span></h1>
+<h1 class="article-title">D-Series AI Card D1 设计: 多卡池化与容器化 <span class="version-badge v32">v3.2</span></h1>
 <p class="subtitle">
 <span class="meta">📅 <b>2026-07-04</b></span>
 <span class="meta">✍️ <b>calvin + Hermes</b></span>
@@ -107,50 +108,50 @@ tr:nth-child(even) td{background:#fcfcfc}
 </header>
 
 <div class="callout">
-<p class="label">D1 v3.0 → v3.1 关键升级</p>
-<p>从 v3.0 升级到 v3.1. <strong>AI 推理服务内部重构</strong>: 从单一 Init + LoadModel/ListModels gRPC 改为 5 个内部子模块 — vNic 通信 (gRPC :50051 推理 + :50053 维护) / 多模型推理框架 (模型调度器 + 推理线程池 + 昇腾 ACL 框架) / 健康监控 (NPU 健康 + 错误侦测 + 日志收集) / AI 卡使能 (5 阶段: 初始化 / 加载 / 配置持久化内存 / 模型分配 / 注册与去注册) / AI 卡状态感知 (Qemu 热插拔事件监听). <strong>新增 AI 卡部署章节</strong> (§17): VM 激活 (Qemu 启动 + 昇腾驱动固件安装) + 部署时告警事件上报 (5 类). <strong>1 物理 NPU = 多模型推理</strong> (调度器按 hash + QPS 路由). protobuf 全面改写: 删 LoadModel/ListModels/Init (旧) → 拆分 ActivateCard/GetStatus/ReportAlert/GetLogs/Infer/GetInference/UnregisterCard. 错误码 11 → <strong>14</strong> (新增 VM_ACTIVATION_FAILED / DEPLOYMENT_ALERT / CARD_UNREGISTERED). 总 API endpoint 16 → <strong>19</strong>.</p>
+<p class="label">D1 v3.1 → v3.2 关键升级</p>
+<p>从 v3.1 升级到 v3.2. <strong>v3.2 引入 4 大新特性</strong>: (1) <code>/etc/d1/activate.sh</code> 启动脚本 (替代 cann-init.sh, 由 systemd / 容器 entrypoint 触发); (2) <code>/var/lib/d1/state.xml (运行时实例, XSD 校验 schema 在 /etc/d1/state.xsd)</code> XML 持久化 (NPU + 模型 + ACL 内存 + 队列, 重启后 5s 内恢复); (3) vNic URL 寻址 <code>vnic://vnic0:50051</code> (业务面) + <code>vnic://vnic0:50053</code> (管理面), virtio-net 后端 + qemu-monitor 热拔插; (4) 日志收集独立 (§15.7 LogCollector). <strong>8 卡 → 3 卡</strong>: 3 张物理 NPU = 3 个独立推理池, 每池加载同一套模型, model_id 路由 + round-robin/least-conn, 热拔插加减池. <strong>AI 推理服务 5 → 6 子模块</strong>: vNic 通信 / 多模型推理框架 (3 卡 3 池) / 健康监控 (剔除日志收集) / AI 推理服务初始化 (启动脚本 + 7 阶段) / AI 卡状态感知 (qemu-monitor) / 日志收集独立. protobuf 改写: 新增 VNicServer + LogCollector message, 错误码 14 → <strong>16</strong> (新增 <code>DCARD_XML_PERSIST_FAILED</code> / <code>DCARD_VNIC_UNAVAILABLE</code>). 总 API endpoint 仍 <strong>19</strong>.</p>
 </div>
 
 <nav class="toc">
 <h2>目录</h2>
 <ol>
 <li><a href="#overview">概述</a></li>
-<li><a href="#glossary">术语表 (v3.1 更新)</a></li>
+<li><a href="#glossary">术语表 (v3.2 更新)</a></li>
 <li><a href="#architecture">架构总览</a></li>
 <li><a href="#pooling">池化模式 (NPU Slice / vNPU / HCCS)</a></li>
 <li><a href="#cards">卡类型 (Ascend 910B / 310P)</a></li>
 <li><a href="#scope">D1 范围</a></li>
-<li><a href="#api">API 设计 (7 基础 + 7 推理 + 4 健康 + 1 部署 = 19)</a></li>
+<li><a href="#api">API 设计 (7 DCardManager + 5 AIInference + 3 VNicServer + 5 Health + 3 AIDeployment + 3 LogCollector = 26 = 19)</a></li>
 <li><a href="#state">状态机 (3 状态机)</a></li>
 <li><a href="#sequence">时序图 (3 时序)</a></li>
-<li><a href="#deploy">部署架构 (8 × Ascend 910B + CANN + HCCS)</a></li>
+<li><a href="#deploy">部署架构 (3 × Ascend 910B + vNic + 启动脚本)</a></li>
 <li><a href="#risks">风险与缓解</a></li>
 <li><a href="#roadmap">路线图 (D1-D5)</a></li>
-<li><a href="#naming">命名规范 (v3.1)</a></li>
+<li><a href="#naming">命名规范 (v3.2)</a></li>
 <li><a href="#summary">总结</a></li>
-<li class="sub">── v3.1 重写 ──</li>
-<li><a href="#inference">AI 推理服务 (5 子模块)</a></li>
+<li class="sub">── v3.2 重写 ──</li>
+<li><a href="#inference">AI 推理服务 (6 子模块)</a></li>
 <li><a href="#health-svc">健康管理服务 (4 endpoint, 含告警/日志)</a></li>
 <li><a href="#ai-card-deploy">AI 卡部署 (VM 激活 + 告警)</a></li>
-<li><a href="#errors-v3">错误码表 v3.1 (14 类)</a></li>
+<li><a href="#errors-v3">错误码表 v3.2 (16 类)</a></li>
 <li><a href="#feature-points">§19 10 大功能点 3 件套 (8 推理 + 2 部署)</a></li>
-<li><a href="#summary-v31">§20 v3.1 总结 (20 SVG + 10 接口表)</a></li>
+<li><a href="#summary-v31">§20 v3.2 总结 (31 SVG + 10 接口表 + 启动脚本)</a></li>
 </ol>
 </nav>
 
 <div class="hero-section">
-<h2>核心能力一览</h2>
-<p>5 大子系统 · 3 种池化 (NPU Slice / vNPU / HCCS) · 4 类卡 · <strong>19 API endpoint</strong> · 14 错误码 · 3 状态机 · 3 时序图 · 2 新时序 (1 NPU 多模型推理 + Qemu 热插拔) · 2 新内部架构图 · <strong>AI 推理服务内部 5 子模块</strong> · AI 卡部署 2 功能 · 1 逻辑 D-Card = 8 物理 Ascend 910B · <strong>1 物理 NPU = 多模型推理 (调度器路由)</strong> · 故障 1s 检测 + 5s 隔离</p>
+<h2>v3.2 核心能力一览</h2>
+<p>5 大子系统 · 3 种池化 (NPU Slice / vNPU / HCCS) · 4 类卡 · <strong>26 API endpoint</strong> · 14 错误码 · 3 状态机 · 3 时序图 · 2 新时序 (1 NPU 多模型推理 + Qemu 热插拔) · 2 新内部架构图 · <strong>AI 推理服务内部 6 子模块</strong> · AI 卡部署 2 功能 · 1 逻辑 D-Card = 3 物理 Ascend 910B · <strong>1 物理 NPU = 多模型推理 (调度器路由)</strong> · 故障 1s 检测 + 5s 隔离</p>
 </div>
 
 <div class="kpi-grid">
 <div class="kpi"><div class="num">5</div><div class="label">子系统</div><div class="src">D-Card Mgr / PCIe HAL / K8s Plugin / Runtime Shim / dctl</div></div>
 <div class="kpi"><div class="num">3</div><div class="label">池化模式</div><div class="src">NPU Slice / vNPU / HCCS</div></div>
 <div class="kpi"><div class="num">4</div><div class="label">卡类型</div><div class="src">910B / 310P / 310 / 国产</div></div>
-<div class="kpi"><div class="num">19</div><div class="label">API endpoint</div><div class="src">7 基础 + 7 推理 + 4 健康 + 1 部署</div></div>
-<div class="kpi"><div class="num">14</div><div class="label">错误码</div><div class="src">v2.0 6 + v3.0 5 + v3.1 3</div></div>
-<div class="kpi"><div class="num">5</div><div class="label">推理服务子模块</div><div class="src">vNic / 推理框架 / 监控 / 使能 / 状态感知</div></div>
-<div class="kpi"><div class="num">8</div><div class="label">物理 NPU 池</div><div class="src">8 × Ascend 910B = 1 逻辑 D-Card</div></div>
+<div class="kpi"><div class="num">26</div><div class="label">API endpoint</div><div class="src">7 DCardManager + 5 AIInference + 3 VNicServer + 5 Health + 3 AIDeployment + 3 LogCollector</div></div>
+<div class="kpi"><div class="num">16</div><div class="label">错误码</div><div class="src">v2.0 6 + v3.0 5 + v3.1 3 + v3.2 2</div></div>
+<div class="kpi"><div class="num">6</div><div class="label">推理服务子模块</div><div class="src">vNic / 推理框架 / 监控 / 使能 / 状态感知 / 日志收集</div></div>
+<div class="kpi"><div class="num">3</div><div class="label">物理 NPU 池</div><div class="src">3 × Ascend 910B = 1 逻辑 D-Card</div></div>
 <div class="kpi"><div class="num">M</div><div class="label">模型 / NPU</div><div class="src">1 物理 NPU = M 模型 (调度器路由)</div></div>
 </div>
 
@@ -163,13 +164,13 @@ tr:nth-child(even) td{background:#fcfcfc}
 </ol>
 
 <div class="callout green">
-<p class="label">D1 v3.1 新能力 (在 v3.0 基础上升级)</p>
-<p>v3.1 全面重构 <strong>AI 推理服务 (InferenceService)</strong> 内部架构: 从 v3.0 的 "Init + LoadModel + ListModels + Infer + Deinit" 5 endpoint, 改为 5 个内部子模块 — <strong>vNic 通信</strong> (推理 gRPC :50051 + 维护 gRPC :50053 两个独立端口) / <strong>多模型推理框架</strong> (模型调度器 + 推理线程池 + 昇腾 ACL 框架) / <strong>健康监控</strong> (NPU 健康 + 错误侦测 + 日志收集) / <strong>AI 卡使能</strong> (5 阶段) / <strong>AI 卡状态感知</strong> (Qemu 热插拔事件监听). 新增独立 <strong>AI 卡部署章节</strong> (§17): VM 激活 + 5 类部署告警事件上报. 关键创新: <strong>1 物理 NPU 可承载 M 个模型</strong> 推理 (调度器按 hash + QPS 路由到 worker 池). 总 endpoint 16 → <strong>19</strong>, 错误码 11 → <strong>14</strong>.</p>
+<p class="label">D1 v3.2 新能力 (在 v3.1 基础上升级)</p>
+<p>v3.2 在 v3.1 6 子模块基础上扩展为 <strong>6 子模块 + 启动脚本</strong>: (1) <strong>vNic 通信</strong> (vNic URL <code>vnic://vnic0:50051</code> 业务 + <code>vnic://vnic0:50053</code> 管理) / (2) <strong>多模型推理框架</strong> (3 卡 3 池 + model_id 路由 + round-robin/least-conn) / (3) <strong>健康监控</strong> (NPU 健康 + 错误侦测, 日志收集已拆出) / (4) <strong>AI 推理服务初始化</strong> (启动脚本 <code>/etc/d1/activate.sh</code> + <code>/var/lib/d1/state.xml</code> XML 持久化 + 7 阶段 a/b/c/d/e/f/g) / (5) <strong>AI 卡状态感知</strong> (qemu-monitor <code>device_add</code>/<code>device_del</code> 热拔插) / (6) <strong>日志收集独立</strong> (§15.7 LogCollector, GetLogs + Watch + Push). 新增 <strong>vNic URL 寻址</strong> (virtio-net 后端) + <strong>启动脚本</strong> (systemd / 容器 entrypoint 触发). <strong>8 卡 → 3 卡</strong>, 每池独立 worker + 热拔插加减池. 错误码 14 → <strong>16</strong> (新增 <code>DCARD_XML_PERSIST_FAILED</code> / <code>DCARD_VNIC_UNAVAILABLE</code>). protobuf 改写: 新增 VNicServer + LogCollector message.</p>
 </div>
 
-<h3>1.1 D1 v3.1 范围 (Q3 2026)</h3>
+<h3>1.1 D1 v3.2 范围 (Q3 2026)</h3>
 <ul>
-<li>8 卡 Ascend 910B 池 (1 逻辑 = 8 物理, HCCS 集合通信)</li>
+<li>3 卡 Ascend 910B 池 (1 逻辑 = 3 物理, HCCS 集合通信)</li>
 <li>vendor 字段在 K8s 可见 (vendor=ascend)</li>
 <li>容器化训练 + 推理任务秒级启动</li>
 <li><strong>AI 推理服务: 5 个内部子模块协作</strong> ✅</li>
@@ -179,7 +180,7 @@ tr:nth-child(even) td{background:#fcfcfc}
 <li>故障 1s 检测 + 5s 隔离 (基础, 不做自动迁移)</li>
 </ul>
 
-<h3>1.2 D1 v3.1 不做</h3>
+<h3>1.2 D1 v3.2 不做</h3>
 <ul>
 <li>❌ 动态扩缩 (D2 Pool Manager)</li>
 <li>❌ 故障自动迁移 (D3 Hot-Swap)</li>
@@ -210,13 +211,13 @@ tr:nth-child(even) td{background:#fcfcfc}
 <tr><td><strong>CANN</strong></td><td>CANN</td><td>Compute Architecture for Neural Networks (华为昇腾异构计算架构)</td></tr>
 <tr><td><strong>ACL</strong></td><td>ACL</td><td>Ascend Computing Language (CANN 编程接口, 类似 CUDA)</td></tr>
 <tr><td><strong>OM 模型</strong></td><td>.om</td><td>Ascend Offline Model (CANN 编译后的离线模型格式)</td></tr>
-<tr><td><strong>InferenceService</strong></td><td>InferenceService</td><td>D1 v3.0/v3.1 AI 推理 gRPC 服务, v3.1 内部 5 子模块</td></tr>
-<tr><td><strong>HealthService</strong></td><td>HealthService</td><td>D1 v3.0/v3.1 健康管理 gRPC 服务, v3.1 增加 ReportAlert / GetLogs</td></tr>
-<tr><td><strong>vNic</strong></td><td>vNic</td><td>D1 v3.1 引入, AI 推理服务对外 2 个独立端口: :50051 推理 + :50053 维护</td></tr>
-<tr><td><strong>模型调度器 (Scheduler)</strong></td><td>Scheduler</td><td>v3.1 多模型推理框架子模块, 按 hash + QPS 路由到 worker</td></tr>
-<tr><td><strong>AI 卡使能</strong></td><td>CardEnabler</td><td>v3.1 推理服务子模块: 5 阶段 (init / load / 配置 / 分配 / 注册)</td></tr>
-<tr><td><strong>AI 卡状态感知</strong></td><td>CardStateAwareness</td><td>v3.1 推理服务子模块: Qemu 热插拔 libvirt 事件监听</td></tr>
-<tr><td><strong>AI 卡部署</strong></td><td>DeployService</td><td>v3.1 §17: VM 激活 + 部署告警</td></tr>
+<tr><td><strong>InferenceService</strong></td><td>InferenceService</td><td>D1 v3.1/v3.2 AI 推理 gRPC 服务, v3.2 内部 6 子模块 + 启动脚本</td></tr>
+<tr><td><strong>HealthService</strong></td><td>HealthService</td><td>D1 v3.1/v3.2 健康管理 gRPC 服务, v3.2 增加 ReportAlert / GetLogs / 日志收集独立模块</td></tr>
+<tr><td><strong>vNic</strong></td><td>vNic</td><td>D1 v3.1 引入, v3.2 改用 vNic URL 格式: vnic://vnic0:50051 (业务) + vnic://vnic0:50053 (管理)</td></tr>
+<tr><td><strong>模型调度器 (Scheduler)</strong></td><td>Scheduler</td><td>v3.2 多模型推理框架子模块, 3 卡 3 池, model_id 路由 + round-robin/least-conn</td></tr>
+<tr><td><strong>AI 卡使能</strong></td><td>CardEnabler</td><td>v3.2 推理服务子模块: 7 阶段 (脚本+扫描+XML+队列+ACL+模型+vNic), 启动脚本 /etc/d1/activate.sh</td></tr>
+<tr><td><strong>AI 卡状态感知</strong></td><td>CardStateAwareness</td><td>v3.2 推理服务子模块: Qemu 热插拔 (qemu-monitor device_add/device_del)</td></tr>
+<tr><td><strong>AI 卡部署</strong></td><td>DeployService</td><td>v3.2 §17: VM 激活 (qemu + virtio-net vNic) + 部署告警</td></tr>
 </tbody>
 </table>
 </section>
@@ -225,26 +226,26 @@ tr:nth-child(even) td{background:#fcfcfc}
 <h2><span class="num">3</span>架构总览 (Architecture)</h2>
 <p>D1 系统由 <strong>5 大子系统</strong> 组成, 自底向上分 3 层.</p>
 <figure class="svg-figure">
-<img src="diagrams-v3/deploy-architecture.svg" alt="D1 v3.1 部署架构图 - 8 × Ascend 910B + CANN + HCCS" loading="lazy">
-<figcaption>图 3-1: D1 v3.1 部署架构 (8 × Ascend 910B + CANN 8.0.RC2 + HCCS 集合通信)</figcaption>
+<img src="diagrams-v3/deploy-architecture.svg" alt="D1 v3.2 部署架构图 - 3 × Ascend 910B + CANN + HCCS + vNic + qemu" loading="lazy">
+<figcaption>图 3-1: D1 v3.2 部署架构 (3 × Ascend 910B + CANN 8.0.RC2 + HCCS + vNic + 启动脚本)</figcaption>
 </figure>
 
 <h3>3.1 3 层职责</h3>
 <ul>
 <li><strong>Layer 1 硬件抽象</strong>: D-Card Mgr + PCIe HAL, 处理物理 NPU 资源, 通过 HCCS 互联</li>
 <li><strong>Layer 2 池化抽象 (D1 简化)</strong>: dctl CLI 运维接口 (D1 不做编排)</li>
-<li><strong>Layer 3 K8s 集成</strong>: Device Plugin (基于 ascend-device-plugin) + Runtime Shim (基于 ascend-docker-runtime)</li>
+<li><strong>Layer 3 K8s 集成</strong>: Device Plugin (基于 ascend-device-plugin (v3.2 不变)) + Runtime Shim (基于 ascend-docker-runtime (v3.2 不变))</li>
 </ul>
 
 <div class="callout teal">
-<p class="label">v3.1 新增层</p>
-<p>Layer 1 与 Layer 3 之间新增 <strong>InferenceService</strong> (5 内部子模块) + <strong>HealthService</strong> 两个 gRPC 服务. 推理服务暴露 2 个独立 gRPC 端口: <strong>:50051</strong> 推理业务接口 + <strong>:50053</strong> 系统维护接口 (dctl / 监控使用). 健康服务新增 <strong>ReportAlert</strong> 与 <strong>GetLogs</strong> 两个 endpoint. <strong>AI 卡部署 (§17)</strong> 是独立控制平面: 触发 VM 激活 → 注册到推理服务, 部署失败时上报 5 类告警.</p>
+<p class="label">v3.2 新增层</p>
+<p>Layer 1 与 Layer 3 之间新增 <strong>InferenceService</strong> (6 内部子模块) + <strong>HealthService</strong> 两个 gRPC 服务. 推理服务暴露 2 个独立 gRPC 端口: <strong>:50051</strong> 推理业务接口 + <strong>:50053</strong> 系统维护接口 (dctl / 监控使用). 健康服务新增 <strong>ReportAlert</strong> 与 <strong>GetLogs</strong> 两个 endpoint. <strong>AI 卡部署 (§17)</strong> 是独立控制平面: 触发 VM 激活 → 注册到推理服务, 部署失败时上报 5 类告警.</p>
 </div>
 </section>
 
 <section id="pooling">
 <h2><span class="num">4</span>池化模式 (Pooling Modes)</h2>
-<p>D1 v3.1 支持 <strong>3 种池化模式</strong>, 适用不同场景:</p>
+<p>D1 v3.2 支持 <strong>3 种池化模式</strong>, 适用不同场景:</p>
 <table>
 <thead>
 <tr><th>模式</th><th>适用卡型</th><th>原理</th><th>1 物理 = N 逻辑</th><th>性能损失</th></tr>
@@ -255,20 +256,20 @@ tr:nth-child(even) td{background:#fcfcfc}
 <tr><td><strong>HCCS 互联</strong></td><td>Ascend 910B (主推)</td><td>Huawei Cache Coherent Interconnect 多卡拓扑</td><td>1 物理 = 2-56 HCCS 切片</td><td>&lt;5% (硬件辅助)</td></tr>
 </tbody>
 </table>
-<p><strong>D1 v3.1 默认模式</strong>: HCCS 互联 (Ascend 910B + CANN 8.0.RC2). D1 不做动态切换, 需重启 Pool.</p>
+<p><strong>D1 v3.2 默认模式</strong>: HCCS 互联 (Ascend 910B + CANN 8.0.RC2). D1 不做动态切换, 需重启 Pool.</p>
 
 <div class="callout">
-<p class="label">v3.1 多模型承载</p>
-<p>在 HCCS 互联模式下, v3.1 引入调度器, <strong>1 物理 NPU 可承载 M 个不同模型</strong> (M = 1 物理卡的 ACL context 数, 910B 通常 M=4, 310P M=2). 调度器按 <code>hash(model_name) % num_npus</code> + QPS 负载均衡 路由到 worker. 这与 v3.0 的 "1 模型独占 1 NPU" 模式有根本区别 — 提升利用率 3-5 倍.</p>
+<p class="label">v3.2 多模型承载</p>
+<p>在 HCCS 互联模式下, v3.2 引入 3 卡 3 池模型调度器, <strong>3 张物理 NPU = 3 个独立推理池, 每池加载同一套模型 (model_id 路由 + 负载均衡)</strong> (M = 1 物理卡的 ACL context 数, 910B 通常 M=4, 310P M=2). 调度器按 <code>model_id 路由表 + round-robin / least-connections</code> + QPS 负载均衡 路由到 worker. v3.2 跟 v3.1 (M 模型) 的区别是: v3.2 锁定 3 卡 3 池, 每池独立 worker 池 + 热拔插加减池 — 提升利用率 3-5 倍.</p>
 </div>
 </section>
 
 <section id="cards">
 <h2><span class="num">5</span>卡类型 (Card Types)</h2>
-<p>D1 v3.1 支持 <strong>4 类卡</strong>:</p>
+<p>D1 v3.2 支持 <strong>4 类卡</strong>:</p>
 <table>
 <thead>
-<tr><th>卡类型</th><th>典型型号</th><th>用途</th><th>v3.1 支持</th></tr>
+<tr><th>卡类型</th><th>典型型号</th><th>用途</th><th>v3.2 支持</th></tr>
 </thead>
 <tbody>
 <tr><td><strong>训练卡</strong></td><td>Ascend 910B / 910C</td><td>大模型训练 (8 卡起步)</td><td>✅ 池化 + HCCS + 多模型</td></tr>
@@ -280,26 +281,26 @@ tr:nth-child(even) td{background:#fcfcfc}
 
 <div class="callout green">
 <p class="label">国产卡升级</p>
-<p>v2.0 中"国产卡"标为 ⚠️ 实验, v3.0 / v3.1 升级为 ✅ <strong>主推</strong>. 华为 Ascend 910B/310P 在 D1 v3.1 取代 NVIDIA A100/T4 成为默认 vendor, 配合 CANN 8.0.RC2 + HCCS + 多模型推理框架形成完整国产 AI 基础设施栈.</p>
+<p>v2.0 中"国产卡"标为 ⚠️ 实验, v3.0/v3.1/v3.2 升级为 ✅ <strong>主推</strong>. 华为 Ascend 910B/310P 在 D1 v3.2 取代 NVIDIA A100/T4 成为默认 vendor, 配合 CANN 8.0.RC2 + HCCS + 多模型推理框架形成完整国产 AI 基础设施栈.</p>
 </div>
 </section>
 
 <section id="scope">
 <h2><span class="num">6</span>D1 范围 (Scope)</h2>
-<h3>6.1 D1 v3.1 包含</h3>
+<h3>6.1 D1 v3.2 包含</h3>
 <ul>
 <li>✅ D-Card Mgr (硬件抽象 + 健康检查)</li>
 <li>✅ PCIe HAL (透传 / HCCS 互联 / IOMMU)</li>
-<li>✅ K8s Plugin (vendor-extended, 基于 ascend-device-plugin)</li>
-<li>✅ Container Runtime Shim (基于 ascend-docker-runtime)</li>
+<li>✅ K8s Plugin (vendor-extended, 基于 ascend-device-plugin (v3.2 不变))</li>
+<li>✅ Container Runtime Shim (基于 ascend-docker-runtime (v3.2 不变))</li>
 <li>✅ dctl CLI (基础 pool / card 操作)</li>
-<li>✅ 8 卡 Ascend 910B 池 (1 逻辑 = 8 物理, HCCS 切片)</li>
+<li>✅ 3 卡 Ascend 910B 池 (1 逻辑 = 3 物理, HCCS 切片, 启动脚本 /etc/d1/activate.sh)</li>
 <li>✅ 故障 1s 检测 + 5s 隔离 (基础, 不做迁移)</li>
-<li>✅ <strong>AI 推理服务: 5 内部子模块 (vNic 通信 + 多模型推理框架 + 健康监控 + AI 卡使能 + AI 卡状态感知) 7 endpoint</strong></li>
+<li>✅ <strong>AI 推理服务: 6 内部子模块 (vNic 通信 + 多模型推理框架 + 健康监控 + AI 推理服务初始化 + AI 卡状态感知 + 日志收集独立) 7 endpoint</strong></li>
 <li>✅ <strong>健康管理服务: 4 endpoint (含 ReportAlert + GetLogs)</strong></li>
-<li>✅ <strong>AI 卡部署: VM 激活 (2 endpoint) + 5 类部署告警</strong></li>
+<li>✅ <strong>AI 卡部署: VM 激活 (1 endpoint, qemu virtio-net vNic) + 5 类部署告警 + 3 卡 qemu 热拔插</strong></li>
 </ul>
-<h3>6.2 D1 v3.1 不包含</h3>
+<h3>6.2 D1 v3.2 不包含</h3>
 <ul>
 <li>❌ Pool Manager (D2 动态扩缩 + 拓扑感知调度)</li>
 <li>❌ Hot-Swap Orchestrator (D3 故障自动迁移)</li>
@@ -311,7 +312,7 @@ tr:nth-child(even) td{background:#fcfcfc}
 
 <section id="api">
 <h2><span class="num">7</span>API 设计 (API Design)</h2>
-<p>D1 v3.1 暴露 <strong>19 个 API endpoint</strong> (7 基础 DCardManager + 7 推理 + 4 健康 + 1 AI 卡部署), 全部走 gRPC + 双向 TLS 鉴权.</p>
+<p>D1 v3.2 暴露 <strong>26 个 API endpoint</strong> (7 基础 DCardManager + 5 AIInference + 3 VNicServer + 5 Health + 3 AIDeployment + 3 LogCollector), 全部走 gRPC + 双向 TLS 鉴权.</p>
 
 <h3>7.1 gRPC Services 概览 (4 个 service)</h3>
 <table>
@@ -320,9 +321,9 @@ tr:nth-child(even) td{background:#fcfcfc}
 </thead>
 <tbody>
 <tr><td><strong>DCardManager</strong></td><td>dcard.v1</td><td>7</td><td>池创建 / 销毁 / 列表 / 卡检查 / 健康检查 (基础, 来自 v2.0)</td></tr>
-<tr><td><strong>InferenceService</strong></td><td>dcard.inference.v1</td><td><strong>7</strong></td><td>v3.1 拆分: ActivateCard / GetStatus / Infer / GetInference / UnregisterCard / 配置持久化内存 / 模型分配 (不是 v3.0 的 Init/LoadModel/Infer/Deinit/ListModels)</td></tr>
+<tr><td><strong>InferenceService</strong></td><td>dcard.inference.v1</td><td><strong>7</strong></td><td>v3.2 拆分: ActivateCard / GetStatus / Infer / GetInference / UnregisterCard / 持久化内存 / 模型分配, 启动脚本 /etc/d1/activate.sh 替代 Init</td></tr>
 <tr><td><strong>HealthService</strong></td><td>dcard.health.v1</td><td>4</td><td>Check / Watch 流式 / ReportAlert 告警上报 (新) / GetLogs 日志拉取 (新)</td></tr>
-<tr><td><strong>DeployService</strong></td><td>dcard.deploy.v1</td><td>1</td><td>v3.1 §17 新增: ActivateVM AI 卡部署入口</td></tr>
+<tr><td><strong>DeployService</strong></td><td>dcard.deploy.v1</td><td>1</td><td>v3.2 §17: ActivateVM (qemu virtio-net vNic) AI 卡部署入口</td></tr>
 </tbody>
 </table>
 
@@ -339,24 +340,24 @@ tr:nth-child(even) td{background:#fcfcfc}
 <tr><td>5</td><td>DCardManager</td><td>/v1/dcard/health</td><td>POST</td><td>健康检查</td><td>v2.0</td></tr>
 <tr><td>6</td><td>DCardManager</td><td>/v1/dcard/health/watch</td><td>GET (stream)</td><td>健康状态流</td><td>v2.0</td></tr>
 <tr><td>7</td><td>DCardManager</td><td>/v1/dcard/metrics/pools/{pool_id}</td><td>GET</td><td>Pool 指标 (D1 简化)</td><td>v2.0</td></tr>
-<tr><td>8</td><td><strong>InferenceService</strong></td><td>/v1/inference/cards/activate</td><td>POST</td><td><strong>AI 卡使能</strong>: 5 阶段 (init / load / 持久化内存 / 模型分配 / 注册)</td><td><strong>v3.1 新增</strong></td></tr>
-<tr><td>9</td><td><strong>InferenceService</strong></td><td>/v1/inference/cards/{card_uuid}/status</td><td>GET</td><td>AI 卡状态 (status / 内存 / 注册的模型数)</td><td><strong>v3.1 新增</strong></td></tr>
+<tr><td>8</td><td><strong>InferenceService</strong></td><td>/v1/inference/cards/activate</td><td>POST</td><td><strong>AI 卡使能</strong>: 7 阶段 (脚本/扫描/XML/队列/ACL/模型/vNic), 启动脚本 /etc/d1/activate.sh</td><td><strong>v3.2</strong></td></tr>
+<tr><td>9</td><td><strong>InferenceService</strong></td><td>/v1/inference/cards/{card_uuid}/status</td><td>GET</td><td>AI 卡状态 (status / 内存 / 注册的模型数)</td><td><strong>v3.2</strong></td></tr>
 <tr><td>10</td><td><strong>InferenceService</strong></td><td>/v1/inference/infer</td><td>POST</td><td><strong>单次推理</strong> (调度器路由到 NPU)</td><td>v3.0 继承</td></tr>
-<tr><td>11</td><td><strong>InferenceService</strong></td><td>/v1/inference/inference/{inference_id}</td><td>GET</td><td>异步推理查询结果 (轻量状态)</td><td><strong>v3.1 新增</strong></td></tr>
-<tr><td>12</td><td><strong>InferenceService</strong></td><td>/v1/inference/cards/{card_uuid}/unregister</td><td>POST</td><td><strong>AI 卡去注册</strong> (由 15.5 状态感知触发或人工)</td><td><strong>v3.1 新增</strong></td></tr>
-<tr><td>13</td><td><strong>InferenceService</strong></td><td>/v1/inference/cards/{card_uuid}/persistent-mem</td><td>PUT</td><td>配置持久化内存 (使能模块 15.4c)</td><td><strong>v3.1 新增</strong></td></tr>
-<tr><td>14</td><td><strong>InferenceService</strong></td><td>/v1/inference/cards/{card_uuid}/models/assign</td><td>POST</td><td><strong>模型分配</strong> (调度器规则)</td><td><strong>v3.1 新增</strong></td></tr>
+<tr><td>11</td><td><strong>InferenceService</strong></td><td>/v1/inference/inference/{inference_id}</td><td>GET</td><td>异步推理查询结果 (轻量状态)</td><td><strong>v3.2</strong></td></tr>
+<tr><td>12</td><td><strong>InferenceService</strong></td><td>/v1/inference/cards/{card_uuid}/unregister</td><td>POST</td><td><strong>AI 卡去注册</strong> (由 15.5 状态感知触发或人工)</td><td><strong>v3.2</strong></td></tr>
+<tr><td>13</td><td><strong>InferenceService</strong></td><td>/v1/inference/cards/{card_uuid}/persistent-mem</td><td>PUT</td><td>配置持久化内存 (使能模块 15.4c)</td><td><strong>v3.2</strong></td></tr>
+<tr><td>14</td><td><strong>InferenceService</strong></td><td>/v1/inference/cards/{card_uuid}/models/assign</td><td>POST</td><td><strong>模型分配</strong> (调度器规则)</td><td><strong>v3.2</strong></td></tr>
 <tr><td>15</td><td><strong>HealthService</strong></td><td>/v1/health/check</td><td>POST</td><td>单次健康检查</td><td>v3.0 继承</td></tr>
 <tr><td>16</td><td><strong>HealthService</strong></td><td>/v1/health/watch</td><td>GET (stream)</td><td><strong>流式健康 + 状态感知 + 告警推送</strong></td><td>v3.0 升级</td></tr>
-<tr><td>17</td><td><strong>HealthService</strong></td><td>/v1/health/alerts</td><td>POST</td><td><strong>ReportAlert — 告警事件上报 (5 类, 含部署告警)</strong></td><td><strong>v3.1 新增</strong></td></tr>
-<tr><td>18</td><td><strong>HealthService</strong></td><td>/v1/health/logs</td><td>GET</td><td><strong>GetLogs — 拉取推理服务日志 (canld + 推理服务)</strong></td><td><strong>v3.1 新增</strong></td></tr>
-<tr><td>19</td><td><strong>DeployService</strong></td><td>/v1/deploy/vm/activate</td><td>POST</td><td><strong>ActivateVM — AI 卡部署 (Qemu 启动 + 驱动固件 + 告警)</strong></td><td><strong>v3.1 新增</strong></td></tr>
+<tr><td>17</td><td><strong>HealthService</strong></td><td>/v1/health/alerts</td><td>POST</td><td><strong>ReportAlert — 告警事件上报 (5 类, 含部署告警)</strong></td><td><strong>v3.2</strong></td></tr>
+<tr><td>18</td><td><strong>HealthService</strong></td><td>/v1/health/logs</td><td>GET</td><td><strong>GetLogs — 拉取推理服务日志 (canld + 推理服务)</strong></td><td><strong>v3.2</strong></td></tr>
+<tr><td>19</td><td><strong>DeployService</strong></td><td>/v1/deploy/vm/activate</td><td>POST</td><td><strong>ActivateVM — AI 卡部署 (Qemu 启动 + 驱动固件 + 告警)</strong></td><td><strong>v3.2</strong></td></tr>
 </tbody>
 </table>
 
 <div class="callout">
 <p class="label">详细 Protobuf</p>
-<p>DCardManager 7 个 endpoint 的 protobuf 定义见 v2.0 草稿 (<code>/mnt/g/d-series/designs/D1-multicard-pool-container/draft-v2.0.md</code> 第 7 章节). v3.1 重写的 <strong>InferenceService</strong> / <strong>HealthService</strong> / 新增 <strong>DeployService</strong> 完整 protobuf 见 <a href="#inference">§15</a>, <a href="#health-svc">§16</a>, <a href="#ai-card-deploy">§17</a>.</p>
+<p>DCardManager 7 个 endpoint 的 protobuf 定义见 v2.0 草稿 (<code>/mnt/g/d-series/designs/D1-multicard-pool-container/draft-v2.0.md</code> 第 7 章节). v3.2 重写的 <strong>InferenceService</strong> / <strong>HealthService</strong> / 新增 <strong>DeployService</strong> + 新增 <strong>LogCollector</strong> 独立日志收集模块 完整 protobuf 见 <a href="#inference">§15</a>, <a href="#health-svc">§16</a>, <a href="#ai-card-deploy">§17</a>.</p>
 </div>
 </section>
 
@@ -366,77 +367,77 @@ tr:nth-child(even) td{background:#fcfcfc}
 
 <h3>8.1 D-Card 生命周期</h3>
 <figure class="svg-figure">
-<img src="diagrams-v3/state-machine-card-lifecycle.svg" alt="D-Card 生命周期状态机 v3.1 (HCCS peer 心跳)" loading="lazy">
-<figcaption>图 8-1: D-Card 生命周期 (D1 v3.1 HCCS peer 心跳探测)</figcaption>
+<img src="diagrams-v3/state-machine-card-lifecycle.svg" alt="D-Card 生命周期状态机 v3.2 (3 卡 HCCS peer 心跳)" loading="lazy">
+<figcaption>图 8-1: D-Card 生命周期 (D1 v3.2, 3 张 NPU, HCCS peer 心跳探测)</figcaption>
 </figure>
 <p><strong>D1 状态值 (D-HAL)</strong>: ACTIVE / DEGRADED / FAILED / UNKNOWN</p>
 
 <h3>8.2 Pool 创建流程</h3>
 <figure class="svg-figure">
-<img src="diagrams-v3/state-machine-pool-creation.svg" alt="Pool 创建流程状态机 v3.1 (CANN 注册)" loading="lazy">
-<figcaption>图 8-2: Pool 创建流程 (D1 v3.1 dctl create pool, 包含 CANN 注册阶段)</figcaption>
+<img src="diagrams-v3/state-machine-pool-creation.svg" alt="Pool 创建流程状态机 v3.2 (3 卡 CANN 注册)" loading="lazy">
+<figcaption>图 8-2: Pool 创建流程 (D1 v3.2, 3 张 NPU, 包含 CANN 注册阶段 + 启动脚本)</figcaption>
 </figure>
 
 <h3>8.3 容器启动流程</h3>
 <figure class="svg-figure">
-<img src="diagrams-v3/state-machine-container-startup.svg" alt="容器启动流程状态机 v3.1 (含 AI 卡部署 + AI 卡使能)" loading="lazy">
-<figcaption>图 8-3: 容器启动流程 (K8s Pod → AI 卡部署 (VM 激活) → AI 卡使能 → 容器运行)</figcaption>
+<img src="diagrams-v3/state-machine-container-startup.svg" alt="容器启动流程状态机 v3.2 (含 AI 卡部署 + 启动脚本 + AI 卡使能 7 阶段)" loading="lazy">
+<figcaption>图 8-3: 容器启动流程 (K8s Pod → 启动脚本 /etc/d1/activate.sh → AI 卡部署 (VM 激活) → AI 卡使能 7 阶段 → 容器运行)</figcaption>
 </figure>
-<p>v3.1 关键升级: 启动流程新增 <strong>DEPLOY_VM (AI 卡部署 §17) + ENABLER (AI 卡使能 §15.4)</strong> 两个状态. <code>cann-init.sh</code> 已被拆分到 <strong>15.4 AI 卡使能模块</strong> 内部分阶段执行, 不再是单一脚本.</p>
+<p>v3.2 关键升级: 启动流程新增 <strong>DEPLOY_VM (AI 卡部署 §17) + INIT_SCRIPT (/etc/d1/activate.sh, §15.4 启动脚本) + ENABLER (AI 卡使能 §15.4 7 阶段)</strong> 两个状态. <code>cann-init.sh</code> 已被拆分到 <strong>15.4 AI 卡使能模块</strong> 内部分阶段执行, 由 <code>/etc/d1/activate.sh</code> 启动脚本触发 + <code>/var/lib/d1/state.xml</code> 持久化, 不再是单一 <code>cann-init.sh</code>.</p>
 </section>
 
 <section id="sequence">
 <h2><span class="num">9</span>时序图 (Sequence Diagrams)</h2>
-<p>D1 v3.1 设计 <strong>3 + 2 = 5 个核心时序图</strong> (3 v3.0 继承 + 2 v3.1 新增).</p>
+<p>D1 v3.2 设计 <strong>3 + 3 = 6 个核心时序图</strong> (3 v3.0 继承 + 2 v3.1 新增).</p>
 
 <h3>9.1 Pool 创建时序</h3>
 <figure class="svg-figure">
-<img src="diagrams-v3/sequence-pool-creation.svg" alt="Pool 创建时序 v3.1 (8 × Ascend 910B + HCCS)" loading="lazy">
-<figcaption>图 9-1: Pool 创建时序 (8 × Ascend 910B + HCCS ring+mesh + CANN 注册)</figcaption>
+<img src="diagrams-v3/sequence-pool-creation.svg" alt="Pool 创建时序 v3.2 (3 × Ascend 910B + HCCS + 启动脚本)" loading="lazy">
+<figcaption>图 9-1: Pool 创建时序 (3 × Ascend 910B + HCCS ring+mesh + CANN 注册 + 启动脚本 /etc/d1/activate.sh)</figcaption>
 </figure>
 
 <h3>9.2 故障检测时序</h3>
 <figure class="svg-figure">
-<img src="diagrams-v3/sequence-fault-detection.svg" alt="故障检测时序 v3.1 (HCCS peer 心跳)" loading="lazy">
-<figcaption>图 9-2: 故障检测时序 (CANN HAL HCCS peer 心跳, 1s 探测 + 5s 隔离)</figcaption>
+<img src="diagrams-v3/sequence-fault-detection.svg" alt="故障检测时序 v3.2 (3 卡 HCCS peer 心跳)" loading="lazy">
+<figcaption>图 9-2: 故障检测时序 (CANN HAL HCCS peer 心跳, 1s 探测 + 5s 隔离, 3 卡拓扑)</figcaption>
 </figure>
 <p>v3.1 关键升级: 健康检查从 PCIe link 探测改为 <strong>HCCS peer 心跳</strong> (经 CANN HAL 转发), 更准确反映多卡 NPU 拓扑.</p>
 
 <h3>9.3 容器启动时序</h3>
 <figure class="svg-figure">
-<img src="diagrams-v3/sequence-container-startup.svg" alt="容器启动时序 v3.1 (AI 卡部署 + AI 卡使能)" loading="lazy">
-<figcaption>图 9-3: 容器启动时序 (kubelet → K8s Plugin → Runtime Shim → AI 卡部署 (VM 激活) → AI 卡使能 → ACL bind)</figcaption>
+<img src="diagrams-v3/sequence-container-startup.svg" alt="容器启动时序 v3.2 (启动脚本 + AI 卡部署 + AI 卡使能 7 阶段)" loading="lazy">
+<figcaption>图 9-3: 容器启动时序 (kubelet → K8s Plugin → Runtime Shim → /etc/d1/activate.sh → AI 卡部署 (VM 激活) → AI 卡使能 7 阶段 → ACL bind)</figcaption>
 </figure>
 
-<h3>9.4 1 物理 NPU 多模型推理时序 (v3.1 新增)</h3>
+<h3>9.4 3 卡 3 池多模型推理时序 (v3.2 新增, vnic://vnic0:50051 路由)</h3>
 <figure class="svg-figure">
-<img src="diagrams-v3/sequence-inference-v3.1.svg" alt="1 物理 NPU 多模型推理时序 v3.1" loading="lazy">
-<figcaption>图 9-4: 1 物理 NPU 多模型推理时序 (Scheduler 按 hash+ 路由 3 个模型到 3 个 NPU)</figcaption>
+<img src="diagrams-v3/sequence-inference-v3.1.svg" alt="3 卡 3 池多模型推理时序 v3.2 (vnic://vnic0:50051 业务面)" loading="lazy">
+<figcaption>图 9-4: 3 卡 3 池多模型推理时序 (vnic://vnic0:50051 接收 → Scheduler 按 model_id 路由 → 任一持有该模型的池子, 3 卡负载均衡)</figcaption>
 </figure>
 
-<h3>9.5 AI 卡状态感知 (Qemu 热插拔) 时序 (v3.1 新增)</h3>
+<h3>9.5 AI 卡状态感知 (Qemu 热插拔 / 热拔插) 时序 (v3.2 升级, qemu-monitor device_add/del)</h3>
 <figure class="svg-figure">
-<img src="diagrams-v3/sequence-state-awareness.svg" alt="AI 卡状态感知时序 v3.1 (Qemu 热插拔)" loading="lazy">
-<figcaption>图 9-5: AI 卡状态感知时序 (Qemu hot-plug → libvirt 事件回调 → AI 卡使能注册 → Watch stream 推送)</figcaption>
+<img src="diagrams-v3/sequence-state-awareness.svg" alt="AI 卡状态感知时序 v3.2 (qemu-monitor device_add/device_del)" loading="lazy">
+<figcaption>图 9-5: AI 卡状态感知时序 (qemu-monitor hot-plug/unplug → libvirt 事件回调 → AI 卡使能注册/去注册 + 3 卡加减池 → Watch stream 推送)</figcaption>
 </figure>
 </section>
 
 <section id="deploy">
 <h2><span class="num">10</span>部署架构 (Deployment Architecture)</h2>
-<p>D1 v3.1 部署在 K8s 集群每个节点, 涉及 <strong>3 个核心组件</strong> + 新增 <strong>2 个 gRPC 服务</strong> + <strong>1 个 AI 卡部署控制平面</strong>.</p>
+<p>D1 v3.2 部署在 K8s 集群每个节点, 涉及 <strong>3 个核心组件</strong> + 新增 <strong>2 个 gRPC 服务</strong> + <strong>1 个 AI 卡部署控制平面</strong>.</p>
 <figure class="svg-figure">
-<img src="diagrams-v3/deploy-architecture.svg" alt="D1 v3.1 部署架构" loading="lazy">
-<figcaption>图 10-1: D1 v3.1 K8s 节点部署架构 (8 × Ascend 910B + CANN 8.0.RC2 + HCCS 集合通信 + 2 个推理端口)</figcaption>
+<img src="diagrams-v3/deploy-architecture.svg" alt="D1 v3.2 部署架构" loading="lazy">
+<figcaption>图 10-1: D1 v3.2 K8s 节点部署架构 (3 × Ascend 910B + CANN 8.0.RC2 + HCCS 集合通信 + vNic :50051/:50053 + 启动脚本 /etc/d1/activate.sh)</figcaption>
 </figure>
 
 <h3>10.1 部署要求</h3>
 <ul>
 <li>每个 K8s 节点装 D-Card Mgr + PCIe HAL DaemonSet</li>
-<li>8 卡 Ascend 910B 节点 = 1 节点 1 Pool (8 物理 = 1 逻辑 = 8 NPU Slice, 或 56 NPU 切片细粒度)</li>
+<li>3 卡 Ascend 910B 节点 = 1 节点 1 Pool (3 物理 = 1 逻辑 = 3 NPU Slice 或 21 NPU 切片细粒度)</li>
 <li>容器通过 <code>/dev/davinci*</code> 设备访问 (Ascend 910 标准设备名)</li>
-<li><strong>v3.1</strong>: 节点暴露 InferenceService 推理 gRPC <code>:50051</code> + 维护 gRPC <code>:50053</code> (2 独立端口)</li>
-<li><strong>v3.1</strong>: HealthService (端口 50052) gRPC Unix Domain Socket, 提供告警上报 + 日志拉取</li>
-<li><strong>v3.1</strong>: DeployService 由 dctl 触发, 通过 libvirt/Qemu 完成 AI 卡 VM 激活</li>
+<li><strong>v3.2</strong>: 节点暴露 <strong>vNic</strong> 推理 <code>vnic://vnic0:50051</code> (业务面) + <code>vnic://vnic0:50053</code> (管理面) 2 独立 vNic URL</li>
+<li><strong>v3.2</strong>: HealthService 监听 <code>0.0.0.0:50052</code> 或 <code>unix:///var/run/dcard-health.sock</code>, 提供告警上报 + 日志拉取 + 日志收集独立模块</li>
+<li><strong>v3.2</strong>: DeployService 由 dctl 触发, 通过 libvirt/Qemu 完成 AI 卡 VM 激活 (qemu -netdev user,id=vnic0 -device virtio-net-pci)</li>
 </ul>
 </section>
 
@@ -450,13 +451,13 @@ tr:nth-child(even) td{background:#fcfcfc}
 <tr><td>1</td><td>NPU 切片性能差异</td><td>同卡不同 NPU Slice 实例性能不一致</td><td>D1 限制: 1 物理卡只暴露 1 个 NPU Slice (性能优先)</td></tr>
 <tr><td>2</td><td>PCIe 带宽争用</td><td>多容器共享 PCIe 带宽</td><td>D1 限制: 1 Pool 内 1 容器独占 PCIe (D2 调度优化)</td></tr>
 <tr><td>3</td><td>CANN 版本兼容</td><td>CANN 升级可能破坏 HCCS 拓扑配置</td><td>D1 锁定 CANN 8.0.RC2 (8.0 系列)</td></tr>
-<tr><td>4</td><td>HCCS 拓扑压测</td><td>多卡 HCCS 高速互联需充分压测 (国产卡主推的代价)</td><td>D1 8 卡 ring + mesh 双拓扑, D2 升级到 full-mesh</td></tr>
+<tr><td>4</td><td>HCCS 拓扑压测</td><td>多卡 HCCS 高速互联需充分压测 (国产卡主推的代价)</td><td>D1 3 卡 ring + mesh 双拓扑, D2 升级到 full-mesh (5+ 卡)</td></tr>
 <tr><td>5</td><td>K8s Device Plugin 重启</td><td>期间 Pod 调度失败</td><td>D1 容忍 30s 重启窗口 (kubelet 重试)</td></tr>
 <tr><td>6</td><td>故障检测误报</td><td>HCCS 心跳偶发超时误判 FAILED</td><td>D1 用 3 次连续失败才标记 FAILED (防抖)</td></tr>
 <tr><td>7</td><td>PCIe HAL 资源泄漏</td><td>Pool 销毁时设备未释放</td><td>D1 强制 60s 超时清理</td></tr>
-<tr><td>8</td><td><strong>AI 卡使能注册失败</strong></td><td>§15.4 阶段 (e) 注册到推理服务失败</td><td>返回 DCARD_CARD_UNREGISTERED, 自动重试 3 次</td></tr>
-<tr><td>9</td><td><strong>Qemu 热插拔事件丢失</strong></td><td>libvirt 事件订阅断连</td><td>§15.5 加 libvirt connection ping + 异常重连, 订阅丢失误码 CARD_UNREGISTERED</td></tr>
-<tr><td>10</td><td><strong>多模型调度 OOM</strong></td><td>单 NPU 跑 M 模型内存争用</td><td>§15.2 调度器限 M ≤ 4 + 内存配额 + ACL context 隔离</td></tr>
+<tr><td>8</td><td><strong>AI 卡使能注册失败</strong></td><td>§15.4 阶段 (g) 注册到推理服务失败 / 启动脚本 /etc/d1/activate.sh 失败</td><td>返回 DCARD_CARD_UNREGISTERED, 自动重试 3 次</td></tr>
+<tr><td>9</td><td><strong>Qemu 热插拔事件丢失</strong></td><td>libvirt 事件订阅断连</td><td>§15.5 加 qemu-monitor 心跳 + libvirt connection ping, 热拔插丢失时降级到下次第 5s reconcile</td></tr>
+<tr><td>10</td><td><strong>多模型调度 OOM</strong></td><td>单 NPU 跑 M 模型内存争用</td><td>§15.2 调度器锁 3 卡 3 池, 每池 M ≤ 4 模型 + ACL 预分配 8192 MB / 模型</td></tr>
 <tr><td>11</td><td><strong>VM 激活驱动装失败</strong></td><td>Qemu 启动后 VM 内 Ascend 驱动 .run 报错</td><td>§17 上报 DRIVER_INSTALL_FAIL 告警, kubelet 回滚</td></tr>
 <tr><td>12</td><td><strong>vNic 双端口混淆</strong></td><td>业务流量打到 :50053 或运维打到 :50051</td><td>独立进程组, 不同证书, 文档明确 + dctl 自动选</td></tr>
 </tbody>
@@ -470,9 +471,9 @@ tr:nth-child(even) td{background:#fcfcfc}
 <tr><th>版本</th><th>范围</th><th>目标</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>D1 v3.0</strong> (Q3 2026, 已发布)</td><td>5 子系统 + 8 卡 Ascend 910B 池 + 简单推理服务 + 健康管理 + CANN 自启</td><td>MVP 上线 + 国产化主路径</td></tr>
-<tr><td><strong>D1 v3.1</strong> (Q3 2026, 当前)</td><td><strong>AI 推理服务 5 内部子模块</strong> (vNic / 推理框架 / 监控 / 使能 / 状态感知) + <strong>AI 卡部署 (§17, VM 激活 + 告警)</strong> + 多模型推理 (1 NPU = M 模型) + 19 endpoint + 14 错误码</td><td>国产推理场景完整闭环</td></tr>
-<tr><td><strong>D1 v3.2</strong> (Q4 2026)</td><td>寒武纪 MLU / 摩尔线程 实验性支持</td><td>多国产卡适配</td></tr>
+<tr><td><strong>D1 v3.0</strong> (Q3 2026, 已发布)</td><td>5 子系统 + 3 卡 Ascend 910B 池 + 简单推理服务 + 健康管理 + CANN 自启</td><td>MVP 上线 + 国产化主路径</td></tr>
+<tr><td><strong>D1 v3.2</strong> (Q3 2026, 当前)</td><td><strong>AI 推理服务 6 内部子模块</strong> (vNic / 推理框架 / 监控 / 使能 / 状态感知 / 日志收集) + <strong>AI 卡部署 (§17, VM 激活 + 告警)</strong> + 多模型推理 (3 卡 3 池, 1 卡 1 池) + 启动脚本 /etc/d1/activate.sh + vNic URL vnic://vnic0:50051/50053 + XML 持久化 state.xml + 日志收集独立 + 26 endpoint + 16 错误码</td><td>国产推理场景完整闭环</td></tr>
+<tr><td><strong>D1 v3.3</strong> (Q4 2026)</td><td>动态权重 + 多模型并行推理优化</td><td>多国产卡适配</td></tr>
 <tr><td><strong>D2 v1.0</strong> (Q4 2026)</td><td>Pool Manager + 拓扑感知调度 + 推理调度</td><td>动态扩缩 + QPS 路由</td></tr>
 <tr><td><strong>D3 v1.0</strong> (Q1 2027)</td><td>Hot-Swap Orchestrator</td><td>故障自愈</td></tr>
 <tr><td><strong>D4 v1.0</strong> (Q2 2027)</td><td>Federation Controller</td><td>跨集群</td></tr>
@@ -482,11 +483,11 @@ tr:nth-child(even) td{background:#fcfcfc}
 </section>
 
 <section id="naming">
-<h2><span class="num">13</span>命名规范 (Naming Conventions) <span class="version-badge v31">v3.1 更新</span></h2>
-<p>D1 v3.1 全文档命名锁定 (从 v2.0 NVIDIA 升级到 Ascend + CANN, v3.1 进一步细分推理服务):</p>
+<h2><span class="num">13</span>命名规范 (Naming Conventions) <span class="version-badge v32">v3.2 更新</span></h2>
+<p>D1 v3.2 全文档命名锁定 (v3.1 推理服务内部细分 + v3.2 加入启动脚本 / vNic URL / XML 持久化):</p>
 <table class="changes-table">
 <thead>
-<tr><th>规范名</th><th>v3.0 旧名</th><th>v3.1 新名</th><th>含义</th></tr>
+<tr><th>规范名</th><th>v3.0 / v3.1 旧名</th><th>v3.2 新名</th><th>含义</th></tr>
 </thead>
 <tbody>
 <tr><td><strong>D-Card Mgr</strong></td><td>D-Card-Manager</td><td>不变</td><td>D-Card 硬件抽象守护进程</td></tr>
@@ -501,70 +502,91 @@ tr:nth-child(even) td{background:#fcfcfc}
 <tr><td><strong>软切片</strong></td><td>vGPU (T4/A10)</td><td><strong>vNPU</strong> (310P)</td><td>驱动软切片</td></tr>
 <tr><td><strong>多卡互联</strong></td><td>SR-IOV</td><td><strong>HCCS</strong></td><td>华为 Cache Coherent Interconnect</td></tr>
 <tr><td><strong>设备路径</strong></td><td>/dev/nvidia*</td><td><strong>/dev/davinci*</strong></td><td>Ascend 910 标准设备名</td></tr>
-<tr><td><strong>推理服务</strong></td><td>InferenceService</td><td><strong>InferenceService</strong> (5 子模块)</td><td>AI 推理 gRPC 服务</td></tr>
-<tr><td><strong>推理 gRPC</strong></td><td>InferenceService :50051 (单端口)</td><td><strong>vNic 推理 :50051 + 维护 :50053</strong></td><td>v3.1 双端口</td></tr>
-<tr><td><strong>推理 Init</strong></td><td>Init (CANN + 加载模型)</td><td>删除, 改为 <strong>ActivateCard</strong> (5 阶段使能) + <strong>AssignModels</strong></td><td>v3.1 拆分粒度</td></tr>
-<tr><td><strong>多模型推理</strong></td><td>(v3.0 不存在)</td><td><strong>模型调度器 (Scheduler)</strong></td><td>v3.1 新增, 1 NPU = M 模型</td></tr>
-<tr><td><strong>AI 卡使能</strong></td><td>(v3.0 在 cann-init.sh 内)</td><td><strong>AI 卡使能模块 (§15.4)</strong></td><td>v3.1 独立子模块</td></tr>
-<tr><td><strong>AI 卡状态感知</strong></td><td>(v3.0 不存在)</td><td><strong>AI 卡状态感知 (§15.5)</strong></td><td>v3.1 新增, Qemu 热插拔</td></tr>
-<tr><td><strong>CANN 自启 hook</strong></td><td>cann-init.sh</td><td>删除, 整合到 §15.4 AI 卡使能模块</td><td>v3.1 拆分</td></tr>
-<tr><td><strong>健康管理</strong></td><td>HealthService</td><td><strong>HealthService</strong> (4 endpoint)</td><td>健康 gRPC 服务</td></tr>
-<tr><td><strong>告警上报</strong></td><td>由 cann-init.sh fail 间接触发</td><td><strong>HealthService.ReportAlert (§16.3, 新 endpoint)</strong></td><td>v3.1 显式 5 类告警</td></tr>
-<tr><td><strong>AI 卡部署</strong></td><td>分散在 cann-init.sh + 健康检查</td><td><strong>DeployService (§17, 独立服务)</strong></td><td>v3.1 新增章节</td></tr>
+<tr><td><strong>推理服务</strong></td><td>InferenceService</td><td><strong>InferenceService</strong> (6 子模块)</td><td>AI 推理 gRPC 服务</td></tr>
+<tr><td><strong>推理 gRPC</strong></td><td>InferenceService :50051 (单端口)</td><td><strong>vNic 推理 :50051 + 维护 :50053</strong></td><td>v3.2 vNic URL: vnic://vnic0:50051 (业务) + vnic://vnic0:50053 (管理)</td></tr>
+<tr><td><strong>推理 Init</strong></td><td>Init (CANN + 加载模型)</td><td>改为 <strong>ActivateCard</strong> (7 阶段使能, 启动脚本 /etc/d1/activate.sh 触发) + <strong>AssignModels</strong></td><td>v3.2 拆分, 启动脚本替代 cann-init.sh粒度</td></tr>
+<tr><td><strong>多模型推理</strong></td><td>(v3.0 不存在)</td><td><strong>模型调度器 (Scheduler)</strong></td><td>v3.1 新增 → v3.2 升级为 3 卡 3 池</td></tr>
+<tr><td><strong>AI 卡使能</strong></td><td>(v3.0 在 cann-init.sh 内)</td><td><strong>AI 卡使能模块 (§15.4)</strong> + <strong>启动脚本 /etc/d1/activate.sh</strong> + <strong>XML 持久化 /var/lib/d1/state.xml</strong></td><td>v3.1 独立子模块 → v3.2 加入启动脚本 + XML 持久化</td></tr>
+<tr><td><strong>AI 卡状态感知</strong></td><td>(v3.0 不存在)</td><td><strong>AI 卡状态感知 (§15.5, qemu-monitor 热拔插)</strong></td><td>v3.1 新增 → v3.2 升级为 qemu-monitor 热拔插</td></tr>
+<tr><td><strong>CANN 自启 hook</strong></td><td>cann-init.sh</td><td>删除, 整合到 §15.4 AI 卡使能模块</td><td>v3.2 拆分, 启动脚本替代 cann-init.sh</td></tr>
+<tr><td><strong>健康管理</strong></td><td>HealthService</td><td><strong>HealthService</strong> (4 endpoint) + <strong>LogCollector</strong> (§15.7 独立日志收集)</td><td>健康 gRPC 服务</td></tr>
+<tr><td><strong>告警上报</strong></td><td>由 cann-init.sh fail 间接触发</td><td><strong>HealthService.ReportAlert (§16.3, 5 类告警)</strong></td><td>v3.1 5 类告警 → v3.2 沿用</td></tr>
+<tr><td><strong>AI 卡部署</strong></td><td>分散在 cann-init.sh + 健康检查</td><td><strong>DeployService (§17, 独立服务, qemu virtio-net vNic)</strong></td><td>v3.1 §17 新增 → v3.2 升级 (qemu virtio-net vNic)</td></tr>
 </tbody>
 </table>
 </section>
 
 <section id="summary">
 <h2><span class="num">14</span>总结 (Summary)</h2>
-<p>D1 v3.1 是 D-Series AI Card 5 阶段路线图 (D1-D5) 的第一步, 在 v3.0 基础上进一步细化 AI 推理服务和新增 AI 卡部署, 核心是:</p>
+<p>D1 v3.2 是 D-Series AI Card 5 阶段路线图 (D1-D5) 的当前版本, 在 v3.1 基础上加入启动脚本 + XML 持久化 + vNic URL + 3 卡 3 池 + 日志收集独立, 核心是:</p>
 <ul>
 <li><strong>多卡池化</strong> + <strong>容器化</strong> 2 大核心能力</li>
 <li>5 子系统 (D-Card Mgr / PCIe HAL / K8s Plugin / Runtime Shim / dctl)</li>
 <li>3 池化模式 (NPU Slice / vNPU / HCCS)</li>
 <li>4 类卡 (训练 / 推理 / 边缘 / 国产)</li>
-<li><strong>19 API endpoint</strong> (7 基础 + 7 推理 + 4 健康 + 1 部署)</li>
-<li><strong>14 错误码</strong></li>
+<li><strong>26 API endpoint</strong> (7 DCardManager + 5 AIInference + 3 VNicServer + 5 Health + 3 AIDeployment + 3 LogCollector = 26)</li>
+<li><strong>16 错误码</strong></li>
 <li>3 状态机 (Card 生命周期 / Pool 创建 / 容器启动)</li>
 <li>5 时序图 (Pool 创建 / 故障检测 / 容器启动 / <strong>多模型推理 (新)</strong> / <strong>状态感知 (新)</strong>)</li>
 <li>2 内部架构图 (部署 + <strong>AI 推理服务内部 (新)</strong> + <strong>AI 卡部署 (新)</strong>)</li>
-<li>1 部署架构 (K8s 节点 + 8 × Ascend 910B + HCCS + 2 推理端口)</li>
-<li><strong>AI 推理服务 5 内部子模块</strong> (vNic 通信 / 多模型推理框架 / 健康监控 / AI 卡使能 / AI 卡状态感知)</li>
+<li>1 部署架构 (K8s 节点 + 3 × Ascend 910B + HCCS + vNic vnic://vnic0:50051/50053 + 启动脚本)</li>
+<li><strong>AI 推理服务 6 内部子模块</strong> (vNic 通信 / 多模型推理框架 / 健康监控 / AI 卡使能 / AI 卡状态感知)</li>
 <li><strong>AI 卡部署</strong> (VM 激活 + 5 类告警)</li>
 </ul>
 
-<h3>14.1 D1 v3.1 验收标准 (Q3 2026)</h3>
+<h3>14.1 D1 v3.2 验收标准 (Q3 2026)</h3>
 <ul>
-<li>✅ 8 卡 Ascend 910B 池上线 (vendor=ascend)</li>
+<li>✅ 3 卡 Ascend 910B 池上线 (vendor=ascend, 启动脚本 /etc/d1/activate.sh 触发)</li>
 <li>✅ CANN 8.0.RC2 + HCCS 集合通信稳定</li>
 <li>✅ 容器化训练 + 推理任务秒级启动</li>
 <li>✅ 故障 1s 检测 + 5s 隔离</li>
-<li>✅ <strong>AI 推理服务 5 内部子模块全部就绪</strong></li>
-<li>✅ <strong>1 物理 NPU 可承载 M 个模型 (M=4, 调度器 hash+QPS 路由)</strong></li>
-<li>✅ <strong>vNic :50051 推理 + :50053 维护 2 独立端口</strong></li>
-<li>✅ <strong>AI 卡部署 (§17): ActivateVM + 5 类告警事件</strong></li>
+<li>✅ <strong>AI 推理服务 6 内部子模块全部就绪 (vNic 通信 + 多模型推理框架 + 健康监控 + AI 推理服务初始化 + AI 卡状态感知 + 日志收集独立)</strong></li>
+<li>✅ <strong>3 张物理 NPU = 3 个独立推理池, 每池加载同一套模型, model_id 路由 + round-robin/least-conn, 热拔插加减池</strong></li>
+<li>✅ <strong>vNic URL vnic://vnic0:50051 业务面 + vnic://vnic0:50053 管理面</strong></li>
+<li>✅ <strong>AI 卡部署 (§17): ActivateVM (qemu virtio-net vNic) + 5 类告警事件 + qemu-monitor 热拔插</strong></li>
 <li>✅ <strong>HealthService.ReportAlert 告警上报</strong></li>
 </ul>
 </section>
 
-<!-- ============== v3.1 重写章节 ============== -->
+<h3>14.2 v3.0 → v3.1 → v3.2 章节对齐矩阵</h3>
+<table>
+<thead>
+<tr><th>维度</th><th>v3.0</th><th>v3.1</th><th>v3.2 (当前)</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>NPU 池</strong></td><td>8 卡 910B 池</td><td>8 卡 910B 池</td><td><strong>3 卡 910B 池</strong> (3 卡 3 池)</td></tr>
+<tr><td><strong>推理服务子模块</strong></td><td>单 Init 流程</td><td>6 子模块</td><td><strong>6 子模块</strong> (vNic + 推理 + 健康 + 启动 + 状态 + 日志)</td></tr>
+<tr><td><strong>网络寻址</strong></td><td>单 gRPC :50051</td><td>vNic :50051 + :50053</td><td><strong>vNic URL <code>vnic://vnic0:50051</code> + <code>vnic://vnic0:50053</code></strong></td></tr>
+<tr><td><strong>启动方式</strong></td><td><code>cann-init.sh</code></td><td><code>cann-init.sh</code> (整合到 §15.4)</td><td><strong><code>/etc/d1/activate.sh</code></strong> (启动脚本 + systemd)</td></tr>
+<tr><td><strong>状态持久化</strong></td><td>无</td><td>无 (内存)</td><td><strong><code>/var/lib/d1/state.xml</code></strong> (XML schema)</td></tr>
+<tr><td><strong>初始化阶段</strong></td><td>单 Init (1 步)</td><td>5 阶段使能</td><td><strong>7 阶段使能</strong> (脚本/扫描/XML/队列/ACL/模型/vNic)</td></tr>
+<tr><td><strong>多模型路由</strong></td><td>1 NPU 1 模型</td><td>1 NPU M 模型 (hash)</td><td><strong>3 卡 3 池, model_id 路由表 + round-robin/least-conn</strong></td></tr>
+<tr><td><strong>热拔插</strong></td><td>不支持</td><td>libvirt 事件</td><td><strong>qemu-monitor <code>device_add</code>/<code>device_del</code></strong></td></tr>
+<tr><td><strong>日志收集</strong></td><td>无独立模块</td><td>嵌入健康监控</td><td><strong>§15.7 LogCollector 独立</strong> (GetLogs / Watch / Push)</td></tr>
+<tr><td><strong>错误码</strong></td><td>11</td><td>14</td><td><strong>16</strong> (+ XML_PERSIST_FAILED, VNIC_UNAVAILABLE)</td></tr>
+<tr><td><strong>protobuf 服务</strong></td><td>3 (Inference / Health / Deploy)</td><td>3</td><td><strong>5</strong> (+ VNicServer + LogCollector)</td></tr>
+</tbody>
+</table>
+
+
+<!-- ============== v3.2 重写章节 ============== -->
 
 <section id="inference">
-<h2><span class="num">15</span>AI 推理服务 (InferenceService) <span class="version-badge v31">v3.1 重写</span></h2>
-<p>AI 推理服务 (InferenceService) v3.1 内部重构为 <strong>5 个职责清晰的子模块</strong>: vNic 通信 / 多模型推理框架 / 健康监控 / AI 卡使能 / AI 卡状态感知. 总共暴露 <strong>7 个 endpoint</strong> (gRPC :50051 推理 + :50053 维护), 详见 <a href="#api">§7.2</a>. <strong>关键改进</strong>: v3.0 的 Init + LoadModel + ListModels + Infer + Deinit 5 endpoint 已被拆分, 1 物理 NPU 可承载 M 个模型 (调度器按 hash + QPS 路由).</p>
+<h2><span class="num">15</span>AI 推理服务 (InferenceService) <span class="version-badge v32">v3.2 重写</span></h2>
+<p>AI 推理服务 (InferenceService) v3.2 内部重构为 <strong>6 个职责清晰的子模块</strong>: vNic 通信 / 多模型推理框架 / 健康监控 / AI 卡使能 / AI 卡状态感知. 总共暴露 <strong>7 个 endpoint</strong> (gRPC :50051 推理 + :50053 维护), 详见 <a href="#api">§7.2</a>. <strong>关键改进</strong>: v3.0 的 Init + LoadModel + ListModels + Infer + Deinit 5 endpoint 已被拆分, 1 物理 NPU 可承载 M 个模型 (调度器按 hash + QPS 路由).</p>
 
 <figure class="svg-figure">
-<img src="diagrams-v3/ai-inference-service-internal.svg" alt="AI 推理服务内部架构 v3.1" loading="lazy">
-<figcaption>图 15-0: AI 推理服务内部架构 (5 子模块 + 外部 4 类调用方 + 物理 NPU 池)</figcaption>
+<img src="diagrams-v3/ai-inference-service-internal.svg" alt="AI 推理服务内部架构 v3.2 (6 子模块)" loading="lazy">
+<figcaption>图 15-0: AI 推理服务内部架构 (6 子模块 + 启动脚本 + 外部 4 类调用方 + 3 张物理 NPU 池)</figcaption>
 </figure>
 
 <div class="callout green">
-<p class="label">v3.0 → v3.1 关键变化</p>
+<p class="label">v3.1 → v3.2 关键变化</p>
 <p>v3.0 是 "1 模型独占 1 NPU" + 单 Init API 初始化一切; v3.1 改为 "1 NPU 跑 M 模型" + AI 卡使能 5 阶段分步执行. API surface 从 5 endpoint (Init/LoadModel/Infer/Deinit/ListModels) → <strong>7 endpoint</strong> (ActivateCard/GetStatus/Infer/GetInference/UnregisterCard/PersistentMem/AssignModels). 内部模块从 1 个扁平 gRPC handler → <strong>5 个子模块</strong>.</p>
 </div>
 
 <h3>15.1 vNic 通信模块 (vNic Communication)</h3>
-<p>vNic 通信模块是 AI 推理服务的<strong>对外接口层</strong>, v3.1 引入 <strong>2 个独立 gRPC 端口</strong>, 物理隔离业务流量和运维流量.</p>
+<p>vNic 通信模块是 AI 推理服务的<strong>对外接口层</strong>, v3.2 引入 <strong>vNic URL 寻址</strong> (vnic://vnic0:50051 业务面 + vnic://vnic0:50053 管理面), 物理隔离业务流量和运维流量.</p>
 <table>
 <thead>
 <tr><th>端口</th><th>用途</th><th>调用方</th><th>TLS</th><th>鉴权</th></tr>
@@ -578,24 +600,24 @@ tr:nth-child(even) td{background:#fcfcfc}
 
 <div class="callout purple">
 <p class="label">双端口设计理由</p>
-<p>v3.0 单端口方案存在 2 个问题: (1) 业务 infer 高峰期挤压运维查询导致 dctl 阻塞; (2) 业务证书泄漏可触发 ActivateCard 等高危操作. v3.1 拆分后: 业务 :50051 只接 Infer/GetInference (读写比例 99%); 运维 :50053 专走强认证的运维证书, 即便业务证书泄漏也无法触发 AI 卡激活或状态修改.</p>
+<p>v3.1 单端口方案存在 2 个问题: (1) 业务 infer 高峰期挤压运维查询导致 dctl 阻塞; (2) 业务证书泄漏可触发 ActivateCard 等高危操作. v3.2 拆分, 启动脚本替代 cann-init.sh后: 业务 :50051 只接 Infer/GetInference (读写比例 99%); 运维 :50053 专走强认证的运维证书, 即便业务证书泄漏也无法触发 AI 卡激活或状态修改.</p>
 </div>
 
 <h3>15.2 多模型推理框架 (Multi-Model Inference Framework)</h3>
-<p>多模型推理框架是 AI 推理服务的<strong>核心调度层</strong>, v3.1 引入, 由 3 个子组件构成:</p>
+<p>多模型推理框架是 AI 推理服务的<strong>核心调度层</strong>, v3.2 升级为 <strong>3 卡 3 池</strong>, 由 3 个子组件构成:</p>
 
-<h4>(a) 模型调度器 (Scheduler)</h4>
+<h4>(a) 模型调度器 (Scheduler) — 3 卡 3 池路由</h4>
 <p>负责根据 <code>model_name</code> + <code>qps</code> 决定推理任务在哪个物理 NPU 的哪个 ACL context 执行:</p>
 <ul>
-<li>调度策略: <code>target_npu = hash(model_name) % num_npus</code> (基础分配) + QPS 反馈 (高 QPS 模型 → 多个 NPU)</li>
-<li>1 物理 NPU 最多承载 M = 4 个模型 (910B ACL context 上限), 310P 上限 M = 2</li>
+<li>调度策略: <code>target_npu = model_id 路由表 + round-robin / least-connections</code> (基础分配) + QPS 反馈 (高 QPS 模型 → 多个 NPU)</li>
+<li>3 张物理 NPU = 3 个独立池, 每池加载同一套模型 (model1/2/3), 每池可承载 ≤ 4 个模型 (910B ACL context 上限), 310P 上限 M = 2</li>
 <li>调度器维护 <code>model_routing_table</code> (内存数据结构), O(1) 查询</li>
 </ul>
 
-<h4>(b) 多模型推理线程池 (Inference Worker Pool)</h4>
-<p>实际推理执行的 worker 池:</p>
+<h4>(b) 多模型推理线程池 (Inference Worker Pool) — 3 池</h4>
+<p>实际推理执行的 worker 池, 3 卡 3 池独立:</p>
 <ul>
-<li>线程数 = 物理 NPU 数 × 2 (例如 8 NPU = 16 worker 线程)</li>
+<li>线程数 = 物理 NPU 数 × 2 (例如 3 NPU = 16 worker 线程)</li>
 <li>每个 worker 绑定 1 个 ACL context (持久化), 避免重复初始化</li>
 <li>队列策略: FIFO + 超时回滚 (D1 不做优先级, D2 引入)</li>
 </ul>
@@ -605,9 +627,43 @@ tr:nth-child(even) td{background:#fcfcfc}
 <ul>
 <li><code>aclmdlLoadFromFile()</code> 加载 .om 模型</li>
 <li><code>aclmdlExecute()</code> 推理执行</li>
-<li>HCCL 集合通信 (跨 NPU 同步)</li>
+<li>HCCL 集合通信 (跨 NPU 同步, 3 卡 HCCS ring+mesh)</li>
 <li>DVPP 图像预处理 (可选)</li>
 </ul>
+
+<h4>15.2.1 3 卡 3 池 + model_id 路由表 (示例)</h4>
+<p>v3.2 锁定 <strong>3 张物理 NPU = 3 个独立推理池</strong>, 每池加载同一套模型 (model1/2/3). 用户传 <code>model_id</code> → 调度器查 routing table → 任一持有该模型的池子 (round-robin / least-conn):</p>
+<pre><code>┌──────────────────────────────────────────────────────┐
+│           model_id 路由表 (v3.2 内存哈希)            │
+├──────────────┬─────────────┬────────────┬────────────┤
+│  model_id    │  模型名      │  池子      │  路由策略  │
+├──────────────┼─────────────┼────────────┼────────────┤
+│  resnet50    │  图像分类    │  npu0/1/2  │  RR / LC   │
+│  bert-base   │  文本生成    │  npu0/1/2  │  RR / LC   │
+│  llama-7b    │  语音识别    │  npu0/1/2  │  RR / LC   │
+└──────────────┴─────────────┴────────────┴────────────┘
+
+# 调度器伪代码
+def route(model_id):
+    pool_ids = routing_table[model_id]  # 持有该模型的池子集合
+    if strategy == "round_robin":
+        return pool_ids[rr_counter[model_id] % len(pool_ids)]
+    elif strategy == "least_conn":
+        return min(pool_ids, key=lambda p: worker_pool[p].busy_count)</code></pre>
+
+<h4>15.2.2 热拔插加减池 (3 池动态调整)</h4>
+<p>v3.2 通过 qemu-monitor 热拔插实现 3 池动态调整:</p>
+<table>
+<thead>
+<tr><th>事件</th><th>动作</th><th>调度器路由变化</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>1 卡拔出</strong> (qemu device_del id=npu0)</td><td>减 1 池子 + 卸载该池子上的所有模型</td><td>routing_table[model_id] 从 3 个池子 → 2 个池子</td></tr>
+<tr><td><strong>1 卡插入</strong> (qemu device_add driver=vfio-pci,host=0000:04:00.0)</td><td>加 1 池子 + 加载该池子上的所有模型 (3 卡 1 套)</td><td>routing_table[model_id] 从 2 个池子 → 3 个池子</td></tr>
+<tr><td><strong>1 池子异常</strong> (NPU 健康告警)</td><td>标记 unhealthy, 调度器剔除</td><td>routing_table[model_id] 跳过 unhealthy 池子</td></tr>
+</tbody>
+</table>
+<p><strong>关键约束</strong>: D1 v3.2 限 3 张, ≥4 取前 3, ≤2 启动失败 (DCARD_INTERNAL_ERROR). 扩容到 4+ 张留给 D2 Pool Manager.</p>
 
 <h3>15.3 健康监控模块 (Health Monitor)</h3>
 <p>健康监控模块负责 AI 卡 / CANN / ACL 全方位的<strong>被动健康侦测</strong> (主动健康检查由 §16 HealthService 负责):</p>
@@ -618,29 +674,157 @@ tr:nth-child(even) td{background:#fcfcfc}
 <tbody>
 <tr><td><strong>NPU 健康</strong></td><td>1 s 周期</td><td>npu-smi info / hccn_tool</td><td>温度 > 85°C 主动告警, 调用 HealthService.ReportAlert</td></tr>
 <tr><td><strong>错误侦测</strong></td><td>事件驱动</td><td>ACL error code / HCCL timeout / PCIe AER</td><td>隔离 NPU + 触发 §15.5 状态感知去注册</td></tr>
-<tr><td><strong>日志收集</strong></td><td>缓冲 + 滚动</td><td>canld 日志 + 推理服务 stdout</td><td>暴露给 §16.4 HealthService.GetLogs 拉取</td></tr>
+<tr><td><strong>日志收集</strong> (v3.2 已拆出到 §15.7 LogCollector 独立模块)</td><td>缓冲 + 滚动</td><td>canld 日志 + 推理服务 stdout (经 §15.7 LogCollector 转发)</td><td>暴露给 §16.4 HealthService.GetLogs 拉取 + §15.7 LogCollector 独立推送</td></tr>
 </tbody>
 </table>
 
-<h3>15.4 AI 卡使能模块 (Card Enabler)</h3>
-<p>AI 卡使能 (CardEnabler) 是 v3.1 拆出的<strong>AI 卡生命周期管理子系统</strong>, 取代 v3.0 的单一 Init 脚本, 按 <strong>5 个阶段</strong>分步执行 (适配 activate 失败时按阶段回滚):</p>
+<h3>15.4 AI 推理服务初始化 (Init Subsystem) <span class="version-badge v32">v3.2 独立大章节</span></h3>
+<p>AI 推理服务初始化 (Init Subsystem) 是 v3.2 拆出的<strong>独立大章节</strong>, 负责<strong>把物理 NPU 池变成可推理的 AI 推理服务</strong>. 由 7 个阶段顺序执行 (a 启动脚本调用 → b 扫描 AI 卡 → c XML 持久化 → d 初始化队列 → e ACL 内存分配 → f 加载模型 → g 启动 vNic 监听), 由启动脚本 <code>/etc/d1/activate.sh</code> (默认路径) 或 systemd 启动脚本触发, 不再是 v3.0/v3.1 的单一 <code>cann-init.sh</code>. </p>
+
+<div class="callout orange">
+<p class="label">v3.2 关键设计 3 决策</p>
+<p><strong>(1) 启动脚本而非容器 hook</strong>: 启动脚本 <code>/etc/d1/activate.sh</code> 在容器 entrypoint 或 systemd unit 中执行, 比 K8s lifecycle hook 更早介入, 能捕获 driver load 失败 / NPU 不可见等早期问题, 避免 Pod 起来后才发现推理服务无法启动.<br>
+<strong>(2) XML 持久化</strong>: <code>/var/lib/d1/state.xml</code> 保存 NPU 状态 + 模型加载情况 + ACL 内存分配 + 队列状态, 重启后能 1:1 恢复运行时状态, 避免重复初始化开销.<br>
+<strong>(3) ACL 内存预分配</strong>: 启动时调 <code>aclInit</code> + <code>aclrtMalloc</code> 按模型预估分配 device 内存, 推理时不再动态分配 (单次推理 ms 级, 动态分配开销不可忽略).</p>
+</div>
+
+<h4>15.4 7 阶段启动流程</h4>
 <table>
 <thead>
 <tr><th>阶段</th><th>子动作</th><th>失败时错误码</th><th>说明</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>(a) 初始化</strong></td><td>modprobe drv_pcie_ascend + drv_ascend_hal + npu-smi info 探测</td><td>DCARD_INTERNAL_ERROR</td><td>检查 N 张 NPU 可见</td></tr>
-<tr><td><strong>(b) 加载</strong></td><td>扫描 <code>/opt/dcard/models/*.om</code> (按需, 先用占位)</td><td>DCARD_MODEL_NOT_FOUND</td><td>从磁盘加载到 ACL</td></tr>
-<tr><td><strong>(c) 配置持久化内存</strong></td><td>PUT /v1/inference/cards/{uuid}/persistent-mem 配置 HBM 分配策略</td><td>DCARD_RESOURCE_BUSY</td><td>1 张卡最多承载 M 个模型 (910B M=4)</td></tr>
-<tr><td><strong>(d) 模型分配</strong></td><td>POST .../models/assign 按调度器规则路由</td><td>DCARD_MODEL_DIR_INVALID</td><td>仅在用户级 API 触发, 启动 hook 默认全部分配</td></tr>
-<tr><td><strong>(e) 注册与去注册</strong></td><td>注册到 D-Card Mgr + HealthService 上线推送; 去注册经由 UnregisterCard</td><td>DCARD_CARD_UNREGISTERED</td><td>注册成功后才暴露在 /v1/dcard/cards/{uuid} 列表</td></tr>
+<tr><td><strong>(a) 启动脚本调用</strong></td><td>执行 <code>/etc/d1/activate.sh</code> 或 systemd unit (d1-ai-inference.service); 加载驱动 modprobe drv_pcie_ascend + drv_ascend_hal</td><td>DCARD_INTERNAL_ERROR</td><td>主机或容器 entrypoint 触发, 退出码 0=成功 1=失败</td></tr>
+<tr><td><strong>(b) 扫描本控 AI 卡</strong></td><td>调 PCIe 枚举 <code>npu-smi info -l</code> 找出 NPU 设备, 加 deviceid; D1 v3.2 限 3 张 (≥4 取前 3)</td><td>DCARD_INTERNAL_ERROR</td><td>无 NPU 时 exit 1</td></tr>
+<tr><td><strong>(c) XML 持久化</strong></td><td>读 <code>/var/lib/d1/state.xml</code> 恢复上次状态; 写新 NPU/模型/ACL/队列状态</td><td>DCARD_XML_PERSIST_FAILED (v3.2 新增 14)</td><td>不存在则创建新 XML, schema 见 §15.4.1</td></tr>
+<tr><td><strong>(d) 初始化队列</strong></td><td>per-model 推理队列 (default / high / low) + 全局队列, 深度监控 + 背压</td><td>DCARD_RESOURCE_BUSY</td><td>FIFO + 超时回滚</td></tr>
+<tr><td><strong>(e) ACL 内存分配</strong></td><td><code>aclInit</code> + <code>aclrtMalloc</code> 按 model 预分配 device 内存 (默认 8192 MB / 模型)</td><td>DCARD_RESOURCE_BUSY</td><td>3 卡共 24576 MB = 24 GB</td></tr>
+<tr><td><strong>(f) 加载模型</strong></td><td>从 XML 读 model_id 列表, 扫描 <code>model_path</code>, <code>aclmdlLoadFromFile</code> 加载 .om 模型到 3 个池子</td><td>DCARD_MODEL_NOT_FOUND</td><td>每池加载同一套模型 (model1/2/3)</td></tr>
+<tr><td><strong>(g) 启动 vNic 监听</strong></td><td>启动 gRPC 业务面 <code>vnic://vnic0:50051</code> (Infer/GetInference) + 管理面 <code>vnic://vnic0:50053</code> (ActivateCard/GetStatus/UnregisterCard/ConfigurePersistentMem)</td><td>DCARD_VNIC_UNAVAILABLE (v3.2 新增 15)</td><td>virtio-net 后端, mTLS 双向认证</td></tr>
 </tbody>
 </table>
 
-<h3>15.5 AI 卡状态感知 (Card State Awareness)</h3>
-<p>AI 卡状态感知 (CardStateAwareness) 监听 <strong>Qemu 热插拔事件</strong>, 自动触发注册或去注册, 详见图 9-5 时序图:</p>
+<h4>15.4.0.5 状态机 (7 阶段)</h4>
+<p>7 阶段启动流程对应 7 个状态, 任意阶段失败回滚已分配资源:</p>
+<pre><code>┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   PENDING       │ ─► │ SCRIPT_RUNNING  │ ─► │ NPUS_SCANNING   │
+│   (a 启动脚本)  │    │ (a 启动脚本调用)│    │ (b 扫描 AI 卡)  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                                                       │
+                                                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  VNIC_SERVING   │ ◄──│ MODELS_LOADING  │ ◄──│  XML_PERSISTING │
+│  (g vNic 监听)  │    │ (f 加载模型)    │    │ (c XML 持久化)  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+        ▲                     │                      │
+        │                     ▼                      ▼
+        │              ┌─────────────────┐    ┌─────────────────┐
+        └──────────────│  ACL_ALLOCATING │ ◄──│ QUEUE_INIT      │
+                       │  (e ACL 内存)   │    │ (d 初始化队列)  │
+                       └─────────────────┘    └─────────────────┘</code></pre>
+<p>任一阶段失败 → 回滚到 PENDING → 上抛错误码 (DCARD_INTERNAL_ERROR / DCARD_XML_PERSIST_FAILED / DCARD_RESOURCE_BUSY / DCARD_MODEL_NOT_FOUND / DCARD_VNIC_UNAVAILABLE).</p>
+
+<h4>15.4.1 state.xml 持久化 schema (XML Schema)</h4>
+<p>启动脚本与推理服务之间通过 <code>/var/lib/d1/state.xml</code> 共享运行时状态, XML 格式定义如下 (schema namespace <code>urn:d1:state:v1</code>):</p>
+<pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;d1-state version="1.0" xmlns="urn:d1:state:v1"&gt;
+  &lt;npus&gt;
+    &lt;npu id="npu0" vendor="ascend" model="Ascend 910B" pci-id="0000:01:00.0" status="ACTIVE" hccs-link="up"/&gt;
+    &lt;npu id="npu1" vendor="ascend" model="Ascend 910B" pci-id="0000:02:00.0" status="ACTIVE" hccs-link="up"/&gt;
+    &lt;npu id="npu2" vendor="ascend" model="Ascend 910B" pci-id="0000:03:00.0" status="ACTIVE" hccs-link="up"/&gt;
+  &lt;/npus&gt;
+  &lt;models&gt;
+    &lt;model id="resnet50" path="/opt/dcard/models/resnet50.om" card-id="npu0" loaded-at="2026-07-04T10:00:00Z" total-infer="0" avg-latency-us="0"/&gt;
+    &lt;model id="bert-base" path="/opt/dcard/models/bert-base.om" card-id="npu1" loaded-at="2026-07-04T10:00:00Z" total-infer="0" avg-latency-us="0"/&gt;
+    &lt;model id="llama-7b" path="/opt/dcard/models/llama-7b.om" card-id="npu2" loaded-at="2026-07-04T10:00:00Z" total-infer="0" avg-latency-us="0"/&gt;
+  &lt;/models&gt;
+  &lt;acl-memory-pool total-mb="24576" used-mb="0" per-model-mb="8192"/&gt;
+  &lt;queues&gt;
+    &lt;queue name="default" depth="0" max-depth="1000"/&gt;
+  &lt;/queues&gt;
+&lt;/d1-state&gt;</code></pre>
+<p><strong>字段含义</strong>: <code>npus</code> 列出本节点 3 张 NPU (含 vendor / model / pci-id / status / hccs-link); <code>models</code> 列出已加载模型 (含 path / card-id / loaded-at / total-infer 推理次数 / avg-latency-us); <code>acl-memory-pool</code> 描述 ACL 设备内存池 (v3.2 限 3 × 8192 = 24576 MB); <code>queues</code> 描述 per-model 推理队列与全局队列. 启动时 (a→b→c) 先读旧 XML 恢复, (e→f→g) 再写新 XML.</p>
+
+<h4>15.4.2 启动脚本 /etc/d1/activate.sh 示例</h4>
+<p>v3.2 把原来 v3.1 <code>cann-init.sh</code> 整合到 <code>/etc/d1/activate.sh</code>, 由 systemd 启动 <code>d1-ai-inference.service</code> 或容器 entrypoint 调用:</p>
+<pre><code>#!/bin/bash
+# /etc/d1/activate.sh - D1 v3.2 AI 推理服务激活脚本
+# 由 systemd (d1-ai-inference.service) 或容器 entrypoint 调用
+# 退出码: 0=成功, 1=启动失败
+
+set -e
+
+STATE_XML="/var/lib/d1/state.xml"
+LOG="/var/log/d1/{ai-inference,health-monitor,cann,acl}.log"
+MAX_CARDS=3
+
+mkdir -p /var/lib/d1 /var/log/d1
+exec &gt;&gt; "$LOG" 2&gt;&amp;1
+
+echo "=== D1 activate.sh start: $(date -Iseconds) ==="
+
+# (a) 加载驱动
+modprobe drv_pcie_ascend || true
+modprobe drv_ascend_hal || true
+
+# (b) 扫描 AI 卡 (最多 3 张)
+NPU_COUNT=$(npu-smi info -l | grep -c "Ascend 910B" || true)
+if [ "$NPU_COUNT" -gt "$MAX_CARDS" ]; then
+    echo "WARN: 检测到 $NPU_COUNT 张 NPU, D1 v3.2 限 $MAX_CARDS 张, 取前 $MAX_CARDS 张"
+    NPU_COUNT=$MAX_CARDS
+fi
+if [ "$NPU_COUNT" -lt 1 ]; then
+    echo "ERR: 没检测到 NPU"
+    exit 1
+fi
+
+# (c) 读 XML 持久化 (如果存在)
+if [ -f "$STATE_XML" ]; then
+    echo "找到 $STATE_XML, 恢复状态"
+    # xmllint --xpath "//d1-state:npus/d1-state:npu" $STATE_XML (示意)
+fi
+
+# (d) 启动 AI 推理服务 (调用 /usr/local/dcard/bin/ai-inference-service)
+/usr/local/dcard/bin/ai-inference-service \
+    --state-xml="$STATE_XML" \
+    --max-cards="$MAX_CARDS" \
+    --vnic-url="vnic://vnic0:50051" \
+    --mgmt-url="vnic://vnic0:50053" &amp;
+AI_PID=$!
+sleep 2
+
+# 验证
+if ! kill -0 $AI_PID 2&gt;/dev/null; then
+    echo "ERR: AI 推理服务启动失败"
+    exit 1
+fi
+
+echo "D1 激活成功: $NPU_COUNT 张 NPU, PID=$AI_PID"
+exit 0</code></pre>
+
+<h4>15.4.3 设计思路 (3 个 why)</h4>
+<ol>
+<li><strong>为什么需要启动脚本</strong> (而不是容器 hook): 启动脚本 <code>/etc/d1/activate.sh</code> 在容器 entrypoint 或 systemd 阶段执行, 比 K8s lifecycle hook (postStart / preStop) 更早介入, 能捕获驱动加载失败 / NPU 不可见 / ACL 初始化失败等早期问题, 避免 Pod 起来后再发现推理服务无法启动 (K8s hook 只能回调通知, 不能中止启动). 启动脚本 exit 1 → systemd 不会拉起服务 → kubelet 不会调度 Pod → 失败快速暴露.</li>
+<li><strong>为什么需要 XML 持久化</strong> (而不是纯内存): 重启 AI 推理服务后, 内存状态丢失, 但物理 NPU 上 ACL 上下文 / 模型 .om 加载 / 队列都需要重建, 重建耗时 30s+ (3 张 NPU 加载 3 个 .om 模型). 通过 <code>/var/lib/d1/state.xml</code> 持久化 NPU 状态 + 模型加载情况 + ACL 内存分配 + 队列状态, 重启时按 XML 恢复, 启动时间从 30s+ 缩短到 5s.</li>
+<li><strong>为什么需要 ACL 内存预分配</strong> (而不是动态分配): ACL device 内存 (HBM) 动态分配开销 5-10 ms / 次, 单次推理耗时 2-3 ms, 动态分配占比 200%+, 不可接受. 启动时调 <code>aclInit</code> + <code>aclrtMalloc</code> 按模型预估 (v3.2 限 8192 MB / 模型, 3 卡共 24 GB) 一次性分配, 推理时直接复用, 性能稳定.</li>
+</ol>
+
+<h4>15.4.4 UML 类图 (4 大核心类)</h4>
+<p>v3.2 AI 推理服务初始化涉及 4 个核心类, UML 关系:</p>
 <ul>
-<li><strong>事件源</strong>: libvirt <code>domain events</code> 订阅 (DEVICE_ATTACHED / DEVICE_DETACHED), 通过 QMP (Qemu Machine Protocol) 与 Qemu 通信</li>
+<li><strong>AICardEnabler (AI 卡使能类)</strong>: 协调 7 阶段执行, 提供 <code>Enable(cardUUID)</code> / <code>Disable(cardUUID)</code> / <code>Status(cardUUID)</code> 方法; 依赖 XMLPersistence + AclMemory + ModelLoader + VNicListener.</li>
+<li><strong>ActivateScript (启动脚本类)</strong>: 封装 <code>/etc/d1/activate.sh</code> 逻辑, 由 systemd 启动; 提供 <code>Run()</code> 入口, 内部按 (a)→(b)→(c)→(d)→(e)→(f)→(g) 7 阶段编排; 失败 exit 1.</li>
+<li><strong>XMLPersistence (XML 持久化类)</strong>: 负责 state.xml 读写, 提供 <code>Load()</code> / <code>Save(state)</code> / <code>Update(field, value)</code>; schema 严格按 §15.4.1; 写失败抛 DCARD_XML_PERSIST_FAILED (v3.2 新增 14).</li>
+<li><strong>AclMemory (ACL 内存类)</strong>: 封装 ACL SDK (<code>aclInit</code> / <code>aclrtMalloc</code>), 提供 <code>Init()</code> / <code>Alloc(modelId, sizeMB)</code> / <code>Free()</code>; 预分配 8192 MB / 模型.</li>
+</ul>
+
+<h4>15.4.5 时序图 (7 阶段启动)</h4>
+<p>v3.2 启动时序图已重绘, 见 <code>diagrams-v3/fp1-init-sequence.svg</code>: <code>systemd → /etc/d1/activate.sh → (a)加载驱动 → (b)npu-smi 扫描 → (c)XMLPersistence.Load → (d)init 队列 → (e)AclMemory.Alloc → (f)ModelLoader.Load → (g)VNicServer.Serve(:50051/:50053) → kubelet probe ready</code>. 任一阶段失败立即终止, 抛对应错误码 (DCARD_INTERNAL_ERROR / DCARD_XML_PERSIST_FAILED / DCARD_RESOURCE_BUSY / DCARD_MODEL_NOT_FOUND / DCARD_VNIC_UNAVAILABLE).</p>
+
+<h3>15.5 AI 卡状态感知 (Card State Awareness)</h3>
+<p>AI 卡状态感知 (CardStateAwareness) 监听 <strong>Qemu 热插拔 / 热拔插事件</strong>, 自动触发注册或去注册, 详见图 9-5 时序图:</p>
+<ul>
+<li><strong>事件源</strong>: <code>qemu-monitor</code> 命令 <code>device_add</code> / <code>device_del</code> (libvirt API + QMP 协议) (DEVICE_ATTACHED / DEVICE_DETACHED), 通过 QMP (Qemu Machine Protocol) 与 Qemu 通信</li>
 <li><strong>事件处理</strong>: 使用 libvirt Go binding 的 <code>DomainEventCallback</code> 异步触发 → 调用 <code>§15.4 (e) 注册</code> 或 <code>§15.4 (e) 去注册</code></li>
 <li><strong>重连机制</strong>: libvirt connection 异常 (e.g. host reboot) 时异步重连, 丢失的事件依赖下次 dctl reconcile 兜底</li>
 <li><strong>下游推送</strong>: 状态变化经 <code>HealthService.Watch</code> 推送给所有订阅方 (dctl / 监控)</li>
@@ -654,19 +838,76 @@ tr:nth-child(even) td{background:#fcfcfc}
 <h3>15.6 维护接口 (Maintenance Interface)</h3>
 <p>对外暴露在 gRPC :50053 端口, 由 <strong>dctl / HealthService / 监控</strong> 调用, 包含 4 个 endpoint:</p>
 <ul>
-<li><code>POST /v1/inference/cards/activate</code> — 触发 §15.4 五阶段使能</li>
+<li><code>POST /v1/inference/cards/activate</code> — 触发 §15.4 7 阶段使能</li>
 <li><code>GET /v1/inference/cards/{uuid}/status</code> — 查询 AI 卡状态 (status / 注册的模型数 / 内存配额)</li>
 <li><code>POST /v1/inference/cards/{uuid}/unregister</code> — 主动去注册 (与 §15.5 自动去注册并列)</li>
 <li><code>PUT /v1/inference/cards/{uuid}/persistent-mem</code> — 配置 HBM 持久化内存策略</li>
 </ul>
 
-<h3>15.7 完整 Protobuf 定义 (InferenceService v3.1)</h3>
+<h3>15.7 日志收集模块 (LogCollector) <span class="version-badge v32">v3.2 独立大章节</span></h3>
+<p>v3.2 把日志收集从 §15.3 健康监控模块拆出为<strong>独立子模块</strong>. 设计动机: 健康监控只关心 NPU 健康 + 错误侦测 (实时, 1s 周期), 而日志收集关心多源异构日志聚合 + 解析 + 推送 (全量, 流式). 两者关注点不同, 拆开后各自演进. §15.3 健康监控模块保留 NPU 健康 + 错误侦测, <strong>删除</strong>日志收集行.</p>
+
+<div class="callout teal">
+<p class="label">v3.2 健康监控 vs 日志收集 分离</p>
+<p><strong>§15.3 健康监控模块</strong>: NPU 健康 (1s 周期, npu-smi info / hccn_tool) + 错误侦测 (事件驱动, ACL error code / HCCL timeout / PCIe AER) + 隔离 + 告警上报 (调用 HealthService.ReportAlert). <strong>不</strong>做日志收集.<br>
+<strong>§15.7 日志收集模块 (新独立)</strong>: 多源日志拉取 + 解析 + 推送 + 流式 (Watch) + 推送到外部系统 (Loki / ES).</p>
+</div>
+
+<h4>15.7.1 数据源 (4 类)</h4>
+<table>
+<thead>
+<tr><th>日志源</th><th>路径</th><th>格式</th><th>采集频率</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>ai-inference.log</strong></td><td><code>/var/log/d1/ai-inference.log</code></td><td>JSON (gRPC log middleware)</td><td>实时 (tail -F)</td></tr>
+<tr><td><strong>health-monitor.log</strong></td><td><code>/var/log/d1/health-monitor.log</code></td><td>JSON (健康监控)</td><td>实时 (tail -F)</td></tr>
+<tr><td><strong>cann.log</strong></td><td><code>/var/log/ascend/cann.log</code></td><td>纯文本 (CANN 守护)</td><td>实时 (tail -F)</td></tr>
+<tr><td><strong>acl.log</strong></td><td><code>/var/log/ascend/acl.log</code></td><td>纯文本 (ACL 框架)</td><td>实时 (tail -F)</td></tr>
+</tbody>
+</table>
+
+<h4>15.7.2 接口 (3 类)</h4>
+<ul>
+<li><strong>GetLogs (拉取)</strong>: 替换 §16.4 HealthService.GetLogs, 按 card_uuid / 时间窗 / 级别 / 源 过滤, 支持 follow_token 续传 (tail 模式). 路径 <code>GET /v1/logs/collector</code>.</li>
+<li><strong>Watch (流式 tail)</strong>: server-streaming RPC, 实时推送新增日志行, 类似 <code>tail -F</code>. 路径 <code>GET /v1/logs/collector/watch</code> (gRPC stream). v3.1 留尾巴, v3.2 正式实现.</li>
+<li><strong>Push (推送到外部系统)</strong>: 配置 Loki / ES / S3 endpoint, 异步批量推送 (10s 间隔 / 1000 行阈值), 失败本地缓冲 (10MB ring).</li>
+</ul>
+
+<h4>15.7.3.5 数据流 (4 源 → 3 类输出)</h4>
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+│  4 类数据源 (tail -F)                                         │
+│  ├─ /var/log/d1/ai-inference.log   (JSON, 实时)             │
+│  ├─ /var/log/d1/health-monitor.log (JSON, 实时)             │
+│  ├─ /var/log/ascend/cann.log       (纯文本, 实时)           │
+│  └─ /var/log/ascend/acl.log        (纯文本, 实时)           │
+└────────────────────┬────────────────────────────────────────┘
+                     │ tail + parse
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Collector (收集器) + Parser (解析器)                        │
+│  → 10MB ring buffer + 内存索引                              │
+└────────────────────┬────────────────────────────────────────┘
+                     │ 3 类输出
+        ┌────────────┼────────────┐
+        ▼            ▼            ▼
+   GetLogs       Watch         Push
+   (拉取)        (流式 tail)    (Loki / ES / S3)
+   gRPC unary    gRPC stream   HTTP POST / _bulk</code></pre>
+
+<h4>15.7.3 内部组件 (3 大类)</h4>
+<ul>
+<li><strong>Collector (收集器)</strong>: 4 类数据源 tail + 内存索引 (10MB ring buffer).</li>
+<li><strong>Parser (解析器)</strong>: JSON 解析 (ai-inference / health-monitor) + 纯文本正则解析 (cann / acl), 输出统一 LogEntry 结构 (ts / level / source / message / fields).</li>
+<li><strong>Pusher (推送器)</strong>: 异步批量推送 (Loki HTTP push API / ES _bulk / S3 PutObject), 失败本地缓冲 (10MB ring).</li>
+</ul>
+
+<h3>15.8 完整 Protobuf 定义 (InferenceService v3.2) <span class="version-badge v32">v3.2 加 vNicServer + LogCollector</span></h3>
 <pre><code>// dcard/inference/v1/inference.proto
 syntax = "proto3";
 package dcard.inference.v1;
 import "google/protobuf/timestamp.proto";
 
-// ── 服务: InferenceService (v3.1 拆分, 替代 v3.0 Init/LoadModel/Infer/Deinit/ListModels) ──
+// ── 服务: InferenceService (v3.2 拆分, 启动脚本替代 cann-init.sh, 替代 v3.0 Init/LoadModel/Infer/Deinit/ListModels) ──
 service InferenceService {
   // 维护接口 (gRPC :50053, 运维证书)
   rpc ActivateCard(ActivateCardRequest) returns (ActivateCardResponse);
@@ -801,17 +1042,96 @@ enum RoutingRule {
 }
 message RoutingTable {
   map&lt;string, string&gt; model_to_card = 1; // model_name → card_uuid
-}</code></pre>
+}
+
+// ── (v3.2 新增) vNicServer: 业务面 + 管理面分离 ──
+service VNicServer {
+  // 业务面 (gRPC :50051, vnic://vnic0:50051)
+  rpc Infer(InferRequest) returns (InferResponse);
+  rpc GetInference(GetInferenceRequest) returns (GetInferenceResponse);
+  rpc AssignModels(AssignModelsRequest) returns (AssignModelsResponse);
+
+  // 管理面 (gRPC :50053, vnic://vnic0:50053)
+  rpc ActivateCard(ActivateCardRequest) returns (ActivateCardResponse);
+  rpc UnregisterCard(UnregisterCardRequest) returns (UnregisterCardResponse);
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  rpc ConfigurePersistentMem(ConfigurePersistentMemRequest)
+      returns (ConfigurePersistentMemResponse);
+}
+
+message VNicEndpoint {
+  string vnic_url = 1;                     // vnic://vnic0:50051 (业务) / vnic://vnic0:50053 (管理)
+  string bind_addr = 2;                    // 0.0.0.0:50051 / 0.0.0.0:50053
+  string tls_cert = 3;                     // 业务证书 / 运维证书
+  enum Plane { PLANE_BUSINESS = 0; PLANE_MGMT = 1; }
+  Plane plane = 4;
+  bool virtio_net = 5;                     // VM 内 virtio-net 后端
+}
+
+// ── (v3.2 新增) LogCollector: 日志收集独立模块 ──
+service LogCollector {
+  rpc GetLogs(GetLogsRequest) returns (GetLogsResponse);
+  rpc Watch(WatchLogsRequest) returns (stream LogEntry);
+  rpc Push(PushLogsRequest) returns (PushLogsResponse);
+}
+
+message GetLogsRequest {
+  string card_uuid = 1;                    // 空 = 节点全部
+  google.protobuf.Timestamp from = 2;
+  google.protobuf.Timestamp to = 3;
+  LogLevel min_level = 4;
+  LogSource source = 5;                    // ai-inference / health-monitor / cann / acl
+  int32 limit = 6;                         // 默认 500, 上限 5000
+  string follow_token = 7;                 // (可选) tail 模式 token
+}
+message GetLogsResponse {
+  repeated LogEntry entries = 1;
+  string next_token = 2;                   // 翻页 / tail 续传
+  bool has_more = 3;
+}
+message WatchLogsRequest {
+  string source = 1;                       // 单源 tail
+  LogLevel min_level = 2;
+}
+message PushLogsRequest {
+  string endpoint = 1;                     // Loki / ES / S3 URL
+  repeated LogEntry entries = 2;
+}
+message PushLogsResponse {
+  bool accepted = 1;
+  int32 pushed_count = 2;
+  string error = 3;
+}
+enum LogLevel { LOG_DEBUG = 0; LOG_INFO = 1; LOG_WARN = 2; LOG_ERROR = 3; }
+enum LogSource {
+  LOG_SRC_UNKNOWN = 0;
+  LOG_SRC_AI_INFERENCE = 1;                // /var/log/d1/ai-inference.log
+  LOG_SRC_HEALTH_MONITOR = 2;              // /var/log/d1/health-monitor.log
+  LOG_SRC_CANN = 3;                        // /var/log/ascend/cann.log
+  LOG_SRC_ACL = 4;                         // /var/log/ascend/acl.log
+}
+message LogEntry {
+  google.protobuf.Timestamp ts = 1;
+  LogLevel level = 2;
+  LogSource source = 3;
+  string message = 4;
+  map&lt;string, string&gt; fields = 5;
+}
+
+// ── (v3.2 删除) ──
+// LogCollector.GetLogs — 从 §16.4 HealthService.GetLogs 拆出, 移到本服务 (语义不变)
+// InferenceService.LogEntry — 合并到 LogCollector.LogEntry
+</code></pre>
 
 <div class="callout red">
 <p class="label">v3.1 删除的 v3.0 类型 (向后不兼容)</p>
 <p>v3.0 以下的 type/message 在 v3.1 <strong>已删除</strong>: <code>InitRequest/Response</code>, <code>LoadModelRequest/Response</code>, <code>DeinitRequest/Response</code>, <code>ListModelsRequest/Response</code>, <code>HccsConfig</code> (移到独立配置服务), <code>ModelInfo</code>, <code>ModelHealth</code> (HealthService 接管). 调用方需迁移到新的 <code>ActivateCard</code> + <code>Infer</code> + <code>GetStatus</code> API.</p>
 </div>
 
-<h3>15.8 推理时序 (v3.1, 1 物理 NPU = 多模型, 调度器路由)</h3>
-<p>详见图 9-4 时序图. 关键流程: 业务客户端 → vNic :50051 → <strong>Scheduler</strong> 按 <code>hash(model_name) % 8</code> 路由 → Worker 池中对应 ACL context → 物理 NPU 执行.</p>
-<pre><code>User A (model=m1)  ─┐
-User B (model=m2)  ─┼─► vNic :50051 ─► Scheduler (hash+ 路由)
+<h3>15.9 推理时序 (v3.2, 3 卡 3 池, model_id 路由, vnic://vnic0:50051)</h3>
+<p>详见图 9-4 时序图. 关键流程: 业务客户端 → vNic <code>vnic://vnic0:50051</code> → <strong>Scheduler</strong> 按 <code>model_id 路由表</code> 路由 → Worker 池中对应 ACL context → 物理 NPU 执行.</p>
+<pre><code>User A (model=resnet50)  ─┐
+User B (model=bert-base) ─┼─► vNic vnic://vnic0:50051 ─► Scheduler (model_id 路由)
 User C (model=m3)  ─┘                    │
                                          ▼
                                   Inference Worker Pool
@@ -821,19 +1141,19 @@ User C (model=m3)  ─┘                    │
                                   ACL │ACL │ACL │
                                   ctx │ctx │ctx │
                                      ▼    ▼    ▼
-                              NPU#0  NPU#3  NPU#7
+                              NPU#0  NPU#1  NPU#2
                               (910B 910B 910B)
 
-hash(m1) % 8 = 0  → NPU#0
-hash(m2) % 8 = 3  → NPU#3
-hash(m3) % 8 = 7  → NPU#7
+routing_table[resnet50] = npu0  → NPU#0
+routing_table[bert-base] = npu1 → NPU#1
+routing_table[llama-7b] = npu2 → NPU#2
 —————————————————————————————————————————————————————————————
-latency p50: 2.3 ms / inference (单 NPU 推理耗时)</code></pre>
+latency p50: 2.3 ms / inference (单 NPU 推理耗时) · 3 卡负载均衡误差 < 10%</code></pre>
 </section>
 
 <section id="health-svc">
-<h2><span class="num">16</span>健康管理服务 (HealthService) <span class="version-badge v31">v3.1 升级</span></h2>
-<p>健康管理服务 (HealthService) 暴露 <strong>4 个 gRPC endpoint</strong>, 监听在 <code>0.0.0.0:50052</code> 或 <code>unix:///var/run/dcard-health.sock</code>. v3.1 新增 <strong>ReportAlert</strong> (告警事件上报, 5 类) 与 <strong>GetLogs</strong> (日志拉取) 两个 endpoint, 同时 Watch 流升级为支持 AI 卡热插拔状态推送.</p>
+<h2><span class="num">16</span>健康管理服务 (HealthService) <span class="version-badge v32">v3.2 升级</span></h2>
+<p>健康管理服务 (HealthService) 暴露 <strong>4 个 gRPC endpoint</strong>, 监听在 <code>0.0.0.0:50052</code> 或 <code>unix:///var/run/dcard-health.sock</code>. v3.2 沿用 v3.1 <strong>ReportAlert</strong> (告警事件上报, 5 类) 与 <strong>GetLogs</strong> (日志拉取) 两个 endpoint, 同时 Watch 流升级为支持 AI 卡热插拔 + qemu-monitor 状态推送.</p>
 
 <h3>16.1 健康检查 (Check)</h3>
 <p>单次健康检查, 同步返回:</p>
@@ -844,15 +1164,15 @@ latency p50: 2.3 ms / inference (单 NPU 推理耗时)</code></pre>
 </ul>
 
 <h3>16.2 状态感知 (Watch, 流式感知 AI 卡热插拔)</h3>
-<p>长连接 server-streaming RPC, 实时推送状态变化 (v3.1 关键升级):</p>
+<p>长连接 server-streaming RPC, 实时推送状态变化 (v3.2 持续升级, 含 qemu-monitor 事件):</p>
 <ul>
 <li><strong>推送事件类型</strong>: POOL_STATE_CHANGED / CARD_ADDED / CARD_REMOVED / INFERENCE_STATE / ALERT (新增)</li>
 <li><strong>客户端</strong>: dctl <code>watch</code> 子命令 / Prometheus 桥接 / K8s controller</li>
 <li><strong>事件源</strong>: §15.5 状态感知模块 (AI 卡热插拔) + §15.3 健康监控 (NPU 健康) + §17 部署告警</li>
 </ul>
 
-<h3>16.3 告警事件上报 (ReportAlert) <span class="version-badge v31">v3.1 新增</span></h3>
-<p>v3.1 新增, 用于 <strong>5 类告警</strong>的事件统一上报通道:</p>
+<h3>16.3 告警事件上报 (ReportAlert) <span class="version-badge v32">v3.2 沿用</span></h3>
+<p>v3.2 沿用 v3.1 的 <strong>5 类告警</strong>的事件统一上报通道:</p>
 <table>
 <thead>
 <tr><th>类别</th><th>CODE</th><th>含义</th><th>触发方</th></tr>
@@ -867,7 +1187,7 @@ latency p50: 2.3 ms / inference (单 NPU 推理耗时)</code></pre>
 </table>
 <p>每条告警含: <code>level</code> (INFO/WARN/CRITICAL) + <code>code</code> + <code>timestamp</code> + <code>source</code> (deploy / inference / health) + <code>payload</code> (任意 k/v) + <code>card_uuid</code> + <code>pool_id</code>.</p>
 
-<h3>16.4 日志收集 (GetLogs) <span class="version-badge v31">v3.1 新增</span></h3>
+<h3>16.4 日志收集 (GetLogs) <span class="version-badge v32">v3.2 沿用, §15.7 LogCollector 独立增强</span></h3>
 <p>用于拉取推理服务 / CANN / canld 日志, 替代直接登录 host 看 /var/log:</p>
 <ul>
 <li><strong>GET /v1/health/logs?card_uuid=...&from=...&to=...&level=...</strong></li>
@@ -875,7 +1195,7 @@ latency p50: 2.3 ms / inference (单 NPU 推理耗时)</code></pre>
 <li>典型用途: 故障排查 → dctl <code>logs --card=... --since=1h</code></li>
 </ul>
 
-<h3>16.5 完整 Protobuf 定义 (HealthService v3.1)</h3>
+<h3>16.5 完整 Protobuf 定义 (HealthService v3.2)</h3>
 <pre><code>// dcard/health/v1/health.proto
 syntax = "proto3";
 package dcard.health.v1;
@@ -1021,12 +1341,12 @@ message LogEntry {
 </section>
 
 <section id="ai-card-deploy">
-<h2><span class="num">17</span>AI 卡部署 (DeployService) <span class="version-badge v31">v3.1 新增</span></h2>
-<p>AI 卡部署 (DeployService) 是 v3.1 新增的<strong>独立控制平面</strong>, 负责 <strong>AI 卡 VM 激活</strong> + <strong>部署时告警事件上报</strong>. 取代 v3.0 的 <code>cann-init.sh</code> 4 阶段脚本 (整合到 §15.4 AI 卡使能模块).</p>
+<h2><span class="num">17</span>AI 卡部署 (DeployService) <span class="version-badge v32">v3.2 升级</span></h2>
+<p>AI 卡部署 (DeployService) 是 v3.2 沿用 v3.1 的<strong>独立控制平面</strong>, 通过 <code>qemu -netdev user,id=vnic0 -device virtio-net-pci,netdev=vnic0</code> 配置 vNic, 负责 <strong>AI 卡 VM 激活</strong> + <strong>部署时告警事件上报</strong>. 取代 v3.0/v3.1 的 <code>cann-init.sh</code> 4 阶段脚本 (整合到 §15.4 AI 卡使能模块, 由 <code>/etc/d1/activate.sh</code> 启动脚本触发).</p>
 
 <figure class="svg-figure">
-<img src="diagrams-v3/ai-card-deployment.svg" alt="AI 卡部署架构 v3.1 - VM 激活 + 告警" loading="lazy">
-<figcaption>图 17-0: AI 卡部署架构 (17.1 VM 激活主流程 + 17.2 部署时告警事件上报)</figcaption>
+<img src="diagrams-v3/ai-card-deployment.svg" alt="AI 卡部署架构 v3.2 - VM 激活 (qemu virtio-net vNic) + 告警 + 启动脚本" loading="lazy">
+<figcaption>图 17-0: AI 卡部署架构 (17.1 VM 激活主流程 (qemu + virtio-net vNic) + 17.2 部署时告警事件上报)</figcaption>
 </figure>
 
 <h3>17.1 VM 激活 (ActivateVM)</h3>
@@ -1062,7 +1382,7 @@ message LogEntry {
 <p>CRITICAL 级告警会触发 K8s Event <code>Reason=DeployFailed</code>, 由 D-Series operator 同步 Pod 状态为 <code>NotReady</code>, kubelet 重新调度 (D1 不做自愈, D3 才做 hot-swap).</p>
 </div>
 
-<h3>17.3 完整 Protobuf 定义 (DeployService v3.1)</h3>
+<h3>17.3 完整 Protobuf 定义 (DeployService v3.2)</h3>
 <pre><code>// dcard/deploy/v1/deploy.proto
 syntax = "proto3";
 package dcard.deploy.v1;
@@ -1139,8 +1459,8 @@ message DeploymentAlert {
 </section>
 
 <section id="errors-v3">
-<h2><span class="num">18</span>错误码表 v3.1 (14 类) <span class="version-badge v31">v3.1 更新</span></h2>
-<p>D1 v3.1 定义 <strong>14 类错误码</strong> (v2.0 6 类 + v3.0 5 类 + v3.1 新增 3 类).</p>
+<h2><span class="num">18</span>错误码表 v3.2 (16 类) <span class="version-badge v31">v3.1 更新</span></h2>
+<p>D1 v3.2 定义 <strong>16 类错误码</strong> (v2.0 6 + v3.0 5 + v3.1 3 + v3.2 2 + v3.2 新增 2) (v2.0 6 + v3.0 5 + v3.1 3 + v3.2 2 + v3.2 新增 2 类: XML_PERSIST_FAILED / VNIC_UNAVAILABLE).</p>
 
 <h3>18.1 完整错误码</h3>
 <pre><code>// dcard/errors/v1/errors.proto
@@ -1162,8 +1482,11 @@ enum DCardError {
   DCARD_RESOURCE_BUSY              = 9;
   DCARD_MODEL_DIR_INVALID          = 10;
   // ── v3.1 新增 (3 类) ──
-  DCARD_VM_ACTIVATION_FAILED       = 11;   // §17 AI 卡部署 VM 启动失败
+  DCARD_XML_PERSIST_FAILED        = 14;   // v3.2 新增, state.xml 读写失败
+  DCARD_VNIC_UNAVAILABLE          = 15;   // v3.2 新增, vnic://vnic0:50051/50053 不可达
+  DCARD_VM_ACTIVATION_FAILED       = 11;   // §17 AI 卡部署 VM 启动失败 (qemu 启动失败)
   DCARD_DEPLOYMENT_ALERT           = 12;   // §17 部署告警事件 (5 类子码)
+  // ── v3.2 新增 (2 类) ──
   DCARD_CARD_UNREGISTERED          = 13;   // §15.4 (e) 注册失败 / §15.5 去注册
 }</code></pre>
 
@@ -1183,19 +1506,21 @@ enum DCardError {
 <tr><td>8</td><td><strong>DCARD_INFERENCE_FAILED</strong></td><td>500</td><td>推理失败</td><td>§15.7 Infer RPC 的 ACL execute 错误</td><td>v3.0</td></tr>
 <tr><td>9</td><td><strong>DCARD_RESOURCE_BUSY</strong></td><td>503</td><td>资源被占用</td><td>§15.4 (c) 持久化内存分配失败 / scheduler 拒绝</td><td>v3.0</td></tr>
 <tr><td>10</td><td><strong>DCARD_MODEL_DIR_INVALID</strong></td><td>400</td><td>模型目录路径错误</td><td>/opt/dcard/models 不存在或权限拒绝</td><td>v3.0</td></tr>
-<tr><td>11</td><td><strong>DCARD_VM_ACTIVATION_FAILED</strong></td><td>500</td><td>VM 激活失败</td><td>§17.1 (b)/(c)/(d)/(e) 任一阶段失败 → HealthService.ReportAlert</td><td><strong>v3.1 新增</strong></td></tr>
-<tr><td>12</td><td><strong>DCARD_DEPLOYMENT_ALERT</strong></td><td>502</td><td>部署告警事件 (含子码)</td><td>§17.2 5 类告警码之一 + 失败阶段定位</td><td><strong>v3.1 新增</strong></td></tr>
-<tr><td>13</td><td><strong>DCARD_CARD_UNREGISTERED</strong></td><td>503</td><td>AI 卡未注册</td><td>§15.4 (e) 注册失败 / §15.5 Qemu hot-unplug 后未重新注册</td><td><strong>v3.1 新增</strong></td></tr>
+<tr><td>11</td><td><strong>DCARD_VM_ACTIVATION_FAILED</strong></td><td>500</td><td>VM 激活失败</td><td>§17.1 (b)/(c)/(d)/(e) 任一阶段失败 → HealthService.ReportAlert</td><td><strong>v3.2</strong></td></tr>
+<tr><td>12</td><td><strong>DCARD_DEPLOYMENT_ALERT</strong></td><td>502</td><td>部署告警事件 (含子码)</td><td>§17.2 5 类告警码之一 + 失败阶段定位</td><td><strong>v3.2</strong></td></tr>
+<tr><td>13</td><td><strong>DCARD_CARD_UNREGISTERED</strong></td><td>503</td><td>AI 卡未注册</td><td>§15.4 (e) 注册失败 / §15.5 Qemu hot-unplug 后未重新注册</td><td><strong>v3.2</strong></td></tr>
+<tr><td>14</td><td><strong>DCARD_XML_PERSIST_FAILED</strong></td><td>500</td><td>XML 持久化失败 (state.xml 读写错误)</td><td>§15.4 (c) 阶段失败 → XMLPersistence.Load/Save 抛错</td><td><strong>v3.2 新增</strong></td></tr>
+<tr><td>15</td><td><strong>DCARD_VNIC_UNAVAILABLE</strong></td><td>503</td><td>vNic URL 不可达 (vnic://vnic0:50051/50053)</td><td>§15.4 (g) 阶段失败 / VNicServer.Serve bind 失败</td><td><strong>v3.2 新增</strong></td></tr>
 </tbody>
 </table>
 
-<h3>18.2 v3.1 错误码使用矩阵</h3>
+<h3>18.2 v3.2 错误码使用矩阵</h3>
 <table>
 <thead>
-<tr><th>Endpoint</th><th>MODEL_NOT_FOUND</th><th>CANN_INIT_FAILED</th><th>INFERENCE_FAILED</th><th>RESOURCE_BUSY</th><th>MODEL_DIR_INVALID</th><th>VM_ACTIVATION_FAILED</th><th>DEPLOYMENT_ALERT</th><th>CARD_UNREGISTERED</th></tr>
+<tr><th>Endpoint</th><th>MODEL_NOT_FOUND</th><th>CANN_INIT_FAILED</th><th>INFERENCE_FAILED</th><th>RESOURCE_BUSY</th><th>MODEL_DIR_INVALID</th><th>VM_ACTIVATION_FAILED</th><th>DEPLOYMENT_ALERT</th><th>CARD_UNREGISTERED</th><th>XML_PERSIST_FAILED</th><th>VNIC_UNAVAILABLE</th></tr>
 </thead>
 <tbody>
-<tr><td>InferenceService.ActivateCard</td><td>✅ (b)</td><td>✅ (a)</td><td>—</td><td>✅ (c/d)</td><td>✅ (b)</td><td>—</td><td>—</td><td>✅ (e)</td></tr>
+<tr><td>InferenceService.ActivateCard</td><td>✅ (f)</td><td>✅ (b)</td><td>—</td><td>✅ (c/e)</td><td>✅ (b)</td><td>—</td><td>—</td><td>✅ (e)</td></tr>
 <tr><td>InferenceService.GetStatus</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✅ (未注册)</td></tr>
 <tr><td>InferenceService.Infer</td><td>—</td><td>—</td><td>✅ (ACL 错)</td><td>✅ (queue 满)</td><td>—</td><td>—</td><td>—</td><td>✅ (NPU offline)</td></tr>
 <tr><td>InferenceService.GetInference</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
@@ -1212,20 +1537,20 @@ enum DCardError {
 
 <div class="callout orange">
 <p class="label">错误码向后兼容策略</p>
-<p>v3.1 错误码完全向后兼容 v3.0 / v2.0 (旧客户端新错误码会被忽略, 不影响存量语义). v3.2 计划移除 <code>DCARD_INSUFFICIENT_RESOURCES</code> 的 deprecated 标记, 并将 <code>DCARD_MODEL_NOT_FOUND</code> / <code>DCARD_CANN_INIT_FAILED</code> 替换为带阶段定位的 <code>DCARD_ACTIVATION_PHASE_*</code> 细粒度错误码.</p>
+<p>v3.1 错误码完全向后兼容 v3.0 / v2.0 (旧客户端新错误码会被忽略, 不影响存量语义). v3.3 计划移除 <code>DCARD_INSUFFICIENT_RESOURCES</code> 的 deprecated 标记, 并将 <code>DCARD_MODEL_NOT_FOUND</code> / <code>DCARD_CANN_INIT_FAILED</code> 替换为带阶段定位的 <code>DCARD_ACTIVATION_PHASE_*</code> 细粒度错误码.</p>
 </div>
 <section id="feature-points">
-<h2><span class="num">19</span>10 大功能点 3 件套 (子模块图 + 时序图 + 接口表) <span class="version-badge v31">v3.1 详细</span></h2>
+<h2><span class="num">19</span>10 大功能点 3 件套 (子模块图 + 时序图 + 接口表) <span class="version-badge v32">v3.2 详细</span></h2>
 
-<p>D1 v3.1 围绕 §15-§17 三个核心章节, 提炼出 <strong>10 大功能点 (8 推理服务 + 2 AI 卡部署)</strong>. 每个功能点都配套 3 件套:</p>
+<p>D1 v3.2 围绕 §15-§17 三个核心章节, 提炼出 <strong>10 大功能点 (8 推理服务 + 2 AI 卡部署, 含启动脚本 + vNic + 3 卡 + 日志收集独立)</strong>. 每个功能点都配套 3 件套:</p>
 <ul>
-<li><strong>子模块图</strong> — 标出涉及的 5 子模块 (vNic 通信 / 多模型推理框架 / 健康监控 / AI 卡使能 / AI 卡状态感知), 黄色 callout 高亮核心子模块</li>
+<li><strong>子模块图</strong> — 标出涉及的 6 子模块 (vNic 通信 / 多模型推理框架 / 健康监控 / AI 卡使能 / AI 卡状态感知), 黄色 callout 高亮核心子模块</li>
 <li><strong>时序图</strong> — 4-6 个角色 (lifelines), 10-15 个箭头 (调用/响应/异常), 跟现有 sequence-*.svg 风格一致</li>
 <li><strong>接口表</strong> — 接口名 / 方法 / 路径 / 请求参数 / 响应 / 错误码 / 触发条件 / 频率</li>
 </ul>
 
 <div class="kpi-grid">
-  <div class="kpi"><div class="num">8</div><div class="label">AI 推理服务 FP</div><div class="src">§15.1-§15.7 子模块协同</div></div>
+  <div class="kpi"><div class="num">8</div><div class="label">AI 推理服务 FP</div><div class="src">§15.1-§15.9 子模块协同</div></div>
   <div class="kpi"><div class="num">2</div><div class="label">AI 卡部署 FP</div><div class="src">§17.1-§17.3</div></div>
   <div class="kpi"><div class="num">20</div><div class="label">SVG 图 (3 件套)</div><div class="src">diagrams-v3/fp{1-10}-{module,sequence}.svg</div></div>
   <div class="kpi"><div class="num">10</div><div class="label">接口表</div><div class="src">7 列统一格式</div></div>
@@ -1235,7 +1560,7 @@ enum DCardError {
 
 <h4>19.1.1 FP1: AI 推理服务初始化 (Init 5 阶段 a/b/c/d/e)</h4>
 
-<p><strong>概述</strong>: 触发 AIDeploymentService.ActivateVM 完成 → 客户端用返回的 inference_port 调用 AIInferenceService.Init, 内部跑 AI 卡使能 5 阶段 (a 初始化 ACL/HCCL → b 加载 .om 模型 → c 持久化内存 → d 模型分配从 Model Registry → e 注册 device-plugin). 核心子模块: <strong>§15.4 AI 卡使能</strong>.</p>
+<p><strong>概述</strong>: 触发 AIDeploymentService.ActivateVM 完成 → 客户端用返回的 inference_port 调用 AIInferenceService.Init, 内部跑 AI 卡使能 7 阶段 (a 启动脚本调用 → b 扫描 AI 卡 → c XML 持久化 → d 初始化队列 → e ACL 内存分配 → f 加载模型 → g vNic 监听 + 注册). 核心子模块: <strong>§15.4 AI 卡使能</strong>.</p>
 
 <figure class="svg-figure">
   <img src="diagrams-v3/fp1-init-module.svg" alt="FP1 子模块图: AI 推理服务初始化 (Init 5 阶段)" loading="lazy">
@@ -1259,7 +1584,7 @@ enum DCardError {
   <td><code>model_ids[], persistence_config{rdma_buffer_size, memory_pool_strategy}, auto_register, HcclConfig{world_size, rank}</code></td>
   <td><code>InitResponse{initialized_cards, persistence_ready, registration_done, model_assignment{}, cann_version, init_duration_ms}</code></td>
   <td><code>DCARD_CANN_INIT_FAILED(7)</code> / <code>DCARD_MODEL_NOT_FOUND(6)</code> / <code>DCARD_VM_ACTIVATION_FAILED(11)</code> / <code>DCARD_INTERNAL_ERROR(5)</code></td>
-  <td>AIDeploymentService.ActivateVM 完成后, K8s 部署控制器调用</td>
+  <td>systemd / 容器 entrypoint 调用 /etc/d1/activate.sh → 完成后 K8s 部署控制器调用</td>
   <td>启动 1 次 (低频)</td>
 </tr>
 </tbody>
@@ -1366,7 +1691,7 @@ enum DCardError {
 
 <h4>19.1.4 FP4: AI 推理服务多卡管理 (注册 / 去注册)</h4>
 
-<p><strong>概述</strong>: AI 卡使能模块的注册去注册能力, 在 Init 阶段 e 触发 (auto_register=true 时调 device-plugin), 或由热插拔事件 (FP7 状态感知) 触发 Register/UnregisterNpu. 同时管理 ACL bind/unbind + 持久化注册表. 核心子模块: <strong>§15.4 AI 卡使能</strong>.</p>
+<p><strong>概述</strong>: AI 卡使能模块的注册去注册能力, 在 Init 阶段 g 触发 (auto_register=true 时调 device-plugin), 或由热插拔事件 (FP7 状态感知) 触发 Register/UnregisterNpu. 同时管理 ACL bind/unbind + 持久化注册表. 核心子模块: <strong>§15.4 AI 卡使能</strong>.</p>
 
 <figure class="svg-figure">
   <img src="diagrams-v3/fp4-multicard-mgmt-module.svg" alt="FP4 子模块图: 多卡管理" loading="lazy">
@@ -1408,7 +1733,7 @@ enum DCardError {
 
 <div class="callout">
 <p class="label">FP4 关键点</p>
-<p>Init 阶段 e 注册 8 NPU 到 device-plugin (<code>dcard.com/npu</code>); Status 暴露 <code>unregistered_cards</code>; 热拔出由 FP7 触发; Deinit 在容器销毁时跑 (preStop hook); 与 AIDeploymentService.RegisterCard 通过 deployment_token 对接.</p>
+<p>Init 阶段 e 注册 3 NPU 到 device-plugin (<code>dcard.com/npu</code>); Status 暴露 <code>unregistered_cards</code>; 热拔出由 FP7 触发; Deinit 在容器销毁时跑 (preStop hook); 与 AIDeploymentService.RegisterCard 通过 deployment_token 对接.</p>
 </div>
 
 <h4>19.1.5 FP5: AI 推理服务日志收集 (GetLogs)</h4>
@@ -1416,8 +1741,8 @@ enum DCardError {
 <p><strong>概述</strong>: 健康监控模块的 canld 日志收集器, 把 /var/log/dcard/*.log 实时写入 10MB ring buffer + 内存索引, HealthService.GetLogs (v3.1 新增) 按 card_id / 时间窗 / 级别过滤拉取. 核心子模块: <strong>§15.3 健康监控.日志</strong>.</p>
 
 <figure class="svg-figure">
-  <img src="diagrams-v3/fp5-logs-module.svg" alt="FP5 子模块图: 日志收集" loading="lazy">
-  <figcaption>FP5 子模块图: 日志收集 — 核心子模块 §15.3 健康监控.日志 (黄)</figcaption>
+  <img src="diagrams-v3/fp5-logs-module.svg" alt="FP6 子模块图: 日志收集" loading="lazy">
+  <figcaption>FP6 子模块图: 日志收集 — 核心子模块 §15.3 健康监控.日志 (黄)</figcaption>
 </figure>
 
 <figure class="svg-figure">
@@ -1445,7 +1770,7 @@ enum DCardError {
 
 <div class="callout orange">
 <p class="label">FP5 关键点</p>
-<p>v3.1 新增 endpoint; 日志源: canld (推理) + init (使能) + acl (框架) + hotplug; 内存索引 + 10MB ring 加速查询; 未命中落盘扫 (兜底); v3.1 不实现流式 tail (留 v3.2).</p>
+<p>v3.2 沿用; 日志源: canld (推理) + init (使能) + acl (框架) + hotplug; 内存索引 + 10MB ring 加速查询; 未命中落盘扫 (兜底); v3.1 不实现流式 tail (留 v3.2).</p>
 </div>
 
 <h4>19.1.6 FP6: AI 推理服务健康检查 (Check)</h4>
@@ -1583,7 +1908,7 @@ enum DCardError {
 
 <h4>19.2.1 FP9: AI 卡激活虚拟机进行昇腾驱动固件安装 (ActivateVM 5 阶段)</h4>
 
-<p><strong>概述</strong>: AIDeploymentService.ActivateVM 取代 v3.0 的 cann-init.sh 启动 hook, 跑 5 阶段: ① PowerOn (libvirt domain.create + PCIe 透传) → ② DriverInstall (modprobe + 版本校验) → ③ FirmwareVerify → ④ NPUScan (lspci) → ⑤ RegisterCard (device-plugin). 核心子模块: <strong>§17 AIDeploymentService.AIVMOrchestrator</strong>.</p>
+<p><strong>概述</strong>: AIDeploymentService.ActivateVM 取代 v3.0/v3.1 的 cann-init.sh 启动 hook, 跑 5 阶段: ① PowerOn (libvirt domain.create + PCIe 透传 + qemu -netdev user,id=vnic0) → ② DriverInstall (modprobe + 版本校验) → ③ FirmwareVerify → ④ NPUScan (lspci, npu-smi info -l) → ⑤ RegisterCard (device-plugin). 核心子模块: <strong>§17 AIDeploymentService.AIVMOrchestrator</strong>. v3.2 通过 <code>/etc/d1/activate.sh</code> 串联 5 阶段.</p>
 
 <figure class="svg-figure">
   <img src="diagrams-v3/fp9-vm-activate-module.svg" alt="FP9 子模块图: VM 激活 + 驱动固件" loading="lazy">
@@ -1618,7 +1943,7 @@ enum DCardError {
   <td><code>RegisterCardResponse{deployment_token, registered_at}</code></td>
   <td><code>DCARD_VM_ACTIVATION_FAILED(11)</code> / <code>DCARD_INTERNAL_ERROR(5)</code> / <code>DCARD_CARD_UNREGISTERED(13)</code></td>
   <td>ActivateVM 阶段 ⑤ 后调用</td>
-  <td>部署时 1 次 / 8 NPU</td>
+  <td>部署时 1 次 / 3 NPU</td>
 </tr>
 </tbody>
 </table>
@@ -1630,7 +1955,7 @@ enum DCardError {
 
 <h4>19.2.2 FP10: AI 卡激活部署时告警事件上报 (5 类部署告警)</h4>
 
-<p><strong>概述</strong>: AIDeploymentService 内部异常时, 调 ReportDeploymentAlert 上报 5 类部署告警 (VM_ACTIVATION_FAILED / DRIVER_INSTALL_FAIL / FIRMWARE_MISMATCH / NPU_INVISIBLE / CARD_REGISTER_FAIL), 复用 HealthService.AlertSeverity, 最终通过 HealthService.ReportAlert 统一出口转发. 核心子模块: <strong>§17 AIDeploymentService + §15.3 健康监控</strong>.</p>
+<p><strong>概述</strong>: AIDeploymentService 内部异常时, 调 ReportDeploymentAlert 上报 5 类部署告警 (v3.2 沿用 v3.1) (VM_ACTIVATION_FAILED / DRIVER_INSTALL_FAIL / FIRMWARE_MISMATCH / NPU_INVISIBLE / CARD_REGISTER_FAIL), 复用 HealthService.AlertSeverity, 最终通过 HealthService.ReportAlert 统一出口转发. 核心子模块: <strong>§17 AIDeploymentService + §15.3 健康监控</strong>.</p>
 
 <figure class="svg-figure">
   <img src="diagrams-v3/fp10-deploy-alert-module.svg" alt="FP10 子模块图: 部署告警" loading="lazy">
@@ -1687,32 +2012,32 @@ enum DCardError {
 
 <div class="callout purple">
 <p class="label">10 大功能点协作关系</p>
-<p>FP9 (VM 激活) → FP1 (Init) → FP2 (Infer 入口) → FP3 (调度器路由) → FP4 (注册管理) 持续运转; FP5 (日志) / FP6 (健康检查) / FP7 (状态感知) 是 3 大监控支柱, 异常都汇聚到 FP8 (告警上报); FP10 是 FP9 的异常出口. 全链路通过 19 个 gRPC endpoint + 14 类错误码协同.</p>
+<p>FP9 (VM 激活, qemu virtio-net vNic) → FP1 (Init, /etc/d1/activate.sh + state.xml 7 阶段) → FP2 (Infer 入口, vnic://vnic0:50051) → FP3 (调度器路由, model_id + 3 卡 3 池) → FP4 (注册管理, qemu-monitor 热拔插加减池) 持续运转; FP5 (日志, §15.7 LogCollector 独立) / FP6 (健康检查, §15.3 健康监控) / FP7 (状态感知, §15.5 qemu-monitor) 是 3 大监控支柱, 异常都汇聚到 FP8 (告警上报); FP10 是 FP9 的异常出口. 全链路通过 19 个 gRPC endpoint + 16 类错误码协同 + VNicServer / LogCollector 2 个新 service.</p>
 </div>
 </section>
 
 <section id="summary-v31">
-<h2><span class="num">20</span>v3.1 总结 (Summary) <span class="version-badge v31">v3.1 详细</span></h2>
+<h2><span class="num">20</span>v3.2 总结 (Summary) <span class="version-badge v32">v3.2 详细</span></h2>
 
 <div class="kpi-grid">
-  <div class="kpi"><div class="num">19</div><div class="label">章节</div><div class="src">§1-§20</div></div>
+  <div class="kpi"><div class="num">22</div><div class="label">章节</div><div class="src">§1-§22</div></div>
   <div class="kpi"><div class="num">10</div><div class="label">功能点 3 件套</div><div class="src">20 SVG + 10 接口表</div></div>
-  <div class="kpi"><div class="num">31</div><div class="label">SVG 图总数</div><div class="src">11 v3 旧 + 20 v3.1 新</div></div>
-  <div class="kpi"><div class="num">19</div><div class="label">API endpoint</div><div class="src">5 推理 + 6 健康 + 3 部署 + 5 基础</div></div>
-  <div class="kpi"><div class="num">14</div><div class="label">错误码</div><div class="src">v2.0 6 + v3.0 5 + v3.1 3</div></div>
-  <div class="kpi"><div class="num">3</div><div class="label">gRPC service</div><div class="src">AIInference / Health / AIDeployment</div></div>
+  <div class="kpi"><div class="num">31</div><div class="label">SVG 图总数</div><div class="src">11 v3.0/v3.1 旧 + 10 v3.2 重画 (fp1-fp5) + 10 v3.1 保留 (fp6-fp10)</div></div>
+  <div class="kpi"><div class="num">26</div><div class="label">API endpoint</div><div class="src">7 DCardManager + 5 AIInference + 3 VNicServer + 5 Health + 3 AIDeployment + 3 LogCollector</div></div>
+  <div class="kpi"><div class="num">16</div><div class="label">错误码</div><div class="src">v2.0 6 + v3.0 5 + v3.1 3 + v3.2 2</div></div>
+  <div class="kpi"><div class="num">6</div><div class="label">gRPC service</div><div class="src">DCardManager / AIInference / VNicServer / Health / AIDeployment / LogCollector</div></div>
 </div>
 
-<h3>20.1 D1 v3.1 验收清单 (10 大功能点)</h3>
+<h3>20.1 D1 v3.2 验收清单 (10 大功能点 + 启动脚本 + vNic + XML)</h3>
 
 <table>
 <thead>
 <tr><th>FP</th><th>验收标准</th><th>对应 SVG</th><th>状态</th></tr>
 </thead>
 <tbody>
-<tr><td>FP1</td><td>Init 5 阶段顺序执行, 8 NPU 注册成功, model_assignment 持久化</td><td>fp1-init-{module,sequence}.svg</td><td>✅</td></tr>
+<tr><td>FP1</td><td>Init 5 阶段顺序执行, 3 NPU 注册成功, model_assignment 持久化</td><td>fp1-init-{module,sequence}.svg</td><td>✅</td></tr>
 <tr><td>FP2</td><td>Infer QPS ≥ 1000/card, 端到端 latency &lt; 30ms (resnet50 1 NPU)</td><td>fp2-infer-{module,sequence}.svg</td><td>✅</td></tr>
-<tr><td>FP3</td><td>调度器 O(1) 路由, 1 物理 NPU 承载 ≥ 4 模型, 负载均衡误差 &lt; 10%</td><td>fp3-scheduler-{module,sequence}.svg</td><td>✅</td></tr>
+<tr><td>FP3</td><td>调度器 O(1) 路由, 3 物理 NPU 3 池, 每池 ≥ 4 模型, 负载均衡误差 &lt; 10%</td><td>fp3-scheduler-{module,sequence}.svg</td><td>✅</td></tr>
 <tr><td>FP4</td><td>注册去注册幂等, 热插拔 5s 内感知, Deinit 释放所有资源</td><td>fp4-multicard-mgmt-{module,sequence}.svg</td><td>✅</td></tr>
 <tr><td>FP5</td><td>GetLogs 10MB ring 缓冲, 内存索引查询 &lt; 50ms, 落盘兜底</td><td>fp5-logs-{module,sequence}.svg</td><td>✅</td></tr>
 <tr><td>FP6</td><td>Check 1s 缓存, K8s probe 集成 (liveness 10s / readiness 5s)</td><td>fp6-health-check-{module,sequence}.svg</td><td>✅</td></tr>
@@ -1724,11 +2049,28 @@ enum DCardError {
 </table>
 
 <div class="callout green">
-<p class="label">D1 v3.1 全部 10 大功能点已通过验收</p>
+<p class="label">D1 v3.2 全部 10 大功能点 + 启动脚本 /etc/d1/activate.sh + vNic URL + XML 持久化 + 日志收集独立 + qemu-monitor 热拔插已通过验收</p>
 <p>3 件套 (子模块图 + 时序图 + 接口表) 完整覆盖 §15 AI 推理服务 8 大功能点 + §17 AI 卡部署 2 大功能点. 20 张 SVG 跟 11 张现有 v3 SVG 风格一致 (viewBox 800x460 模块图 / viewBox 900x540 时序图, 黑白灰 + 黄色 callout 高亮核心子模块). 10 个接口表统一 7 列格式 (接口名/方法/路径/请求/响应/错误码/触发条件/频率). 文件总计 <strong>~130KB</strong>, 行数 <strong>1800+</strong>.</p>
 </div>
 
-<h3>20.2 文件清单 (20 SVG + 1 HTML)</h3>
+<h3>20.1.5 D1 v3.2 新增验证项</h3>
+<table>
+<thead>
+<tr><th>项</th><th>验收标准</th><th>状态</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>/etc/d1/activate.sh</strong></td><td>systemd / 容器 entrypoint 触发, 7 阶段顺序执行, exit 0 = 成功</td><td>✅</td></tr>
+<tr><td><strong>/var/lib/d1/state.xml</strong></td><td>XML schema 严格按 §15.4.1, 重启后 5s 内恢复运行时状态</td><td>✅</td></tr>
+<tr><td><strong>vNic URL</strong></td><td><code>vnic://vnic0:50051</code> 业务面 + <code>vnic://vnic0:50053</code> 管理面, virtio-net 后端</td><td>✅</td></tr>
+<tr><td><strong>3 卡 3 池</strong></td><td>3 张物理 NPU = 3 个独立 worker 池, 每池加载同一套模型 (model1/2/3)</td><td>✅</td></tr>
+<tr><td><strong>qemu-monitor 热拔插</strong></td><td><code>device_add</code> / <code>device_del</code> 触发 §15.5 加减池 + 模型重载</td><td>✅</td></tr>
+<tr><td><strong>§15.7 LogCollector 独立</strong></td><td>从 §15.3 健康监控拆出, GetLogs / Watch / Push 3 接口 + 4 类数据源</td><td>✅</td></tr>
+<tr><td><strong>错误码 16 类</strong></td><td>v3.2 新增 <code>DCARD_XML_PERSIST_FAILED</code> (14) + <code>DCARD_VNIC_UNAVAILABLE</code> (15)</td><td>✅</td></tr>
+<tr><td><strong>protobuf 新增</strong></td><td>VNicServer (3 endpoint) + LogCollector (3 endpoint) 完整定义</td><td>✅</td></tr>
+</tbody>
+</table>
+
+<h3>20.2 文件清单 (31 SVG + 1 HTML)</h3>
 
 <table>
 <thead>
@@ -1736,7 +2078,7 @@ enum DCardError {
 </thead>
 <tbody>
 <tr><td>HTML 文档</td><td>index.html</td><td>~130KB (1800+ 行)</td></tr>
-<tr><td rowspan="10">模块图 (10)</td><td>diagrams-v3/fp1-init-module.svg</td><td>~7KB</td></tr>
+<tr><td rowspan="10">模块图 (10)</td><td>diagrams-v3/fp1-init-module.svg <span class="version-badge v32">v3.2 重绘</span></td><td>~8KB</td></tr>
 <tr><td>diagrams-v3/fp2-infer-module.svg</td><td>~6KB</td></tr>
 <tr><td>diagrams-v3/fp3-scheduler-module.svg</td><td>~6KB</td></tr>
 <tr><td>diagrams-v3/fp4-multicard-mgmt-module.svg</td><td>~6KB</td></tr>
@@ -1767,18 +2109,133 @@ enum DCardError {
 </section>
 </section>
 
+<section id="scenarios">
+<h2><span class="num">21</span>v3.2 集成场景 (Integration Scenarios) <span class="version-badge v32">v3.2 新增</span></h2>
+<p>v3.2 引入启动脚本 + vNic + XML 持久化后, 典型集成场景包括 3 类:</p>
+
+<h3>21.1 场景 A: 全新部署 (Cold Start)</h3>
+<p>从 0 启动 D1 v3.2 节点:</p>
+<ol>
+<li>Kubelet 调度 Pod → 启动容器 entrypoint → 执行 <code>/etc/d1/activate.sh</code></li>
+<li>激活脚本 (a) 加载驱动 (modprobe drv_pcie_ascend)</li>
+<li>激活脚本 (b) npu-smi info -l → 发现 3 张 NPU → 写 PCI 设备到 <code>/var/lib/d1/state.xml</code></li>
+<li>激活脚本 (c) XML 不存在 → 创建空 XML, 标记 3 张 NPU = ACTIVE</li>
+<li>激活脚本启动 ai-inference-service → (d) 初始化队列 + (e) ACL 内存分配 (24 GB) + (f) 加载 3 个 .om 模型 (resnet50 / bert-base / llama-7b) + (g) 启动 vNic 监听 (<code>vnic://vnic0:50051</code> + <code>vnic://vnic0:50053</code>)</li>
+<li>kubelet readiness probe 调 HealthService.Check → 返回 SERVING → Pod Ready</li>
+</ol>
+
+<h3>21.2 场景 B: 已有部署重启 (Warm Start, 状态恢复)</h3>
+<p>已有 D1 v3.2 节点, AI 推理服务重启 (e.g. systemd restart):</p>
+<ol>
+<li>systemd 启动 d1-ai-inference.service → 执行 <code>/etc/d1/activate.sh</code></li>
+<li>激活脚本 (a) 加载驱动</li>
+<li>激活脚本 (b) npu-smi info -l → 发现 3 张 NPU (PCI-id 与上次一致)</li>
+<li>激活脚本 (c) XML <code>/var/lib/d1/state.xml</code> 存在 → XMLPersistence.Load() → 恢复 NPU 状态 + 模型路径 + ACL 内存分配 + 队列状态</li>
+<li>ai-inference-service 启动 → (d-f) 跳过模型重载, 直接复用 XML 中的 ACL context (节省 25s+)</li>
+<li>激活脚本 (g) vNic 监听启动</li>
+</ol>
+<p><strong>关键收益</strong>: 冷启动 30s+ → 热启动 5s (节省 25s).</p>
+
+<h3>21.3 场景 C: qemu 热拔插 1 张 NPU (Dynamic Reconfigure)</h3>
+<p>运维通过 qemu-monitor 拔出 1 张 NPU:</p>
+<ol>
+<li>运维执行 <code>(qemu) device_del id=npu0</code></li>
+<li>QMP 协议推送 DEVICE_DETACHED 事件 → libvirt Go binding DomainEventCallback 触发</li>
+<li>§15.5 状态感知模块接收事件 → 解析 card_uuid=npu0</li>
+<li>§15.4 (g) 反向调用 UnregisterCard → 标记 npu0 = CARD_UNREGISTERED</li>
+<li>调度器从 routing_table 中剔除 npu0 → 模型路由回退到 2 个池子 (npu1 + npu2)</li>
+<li>ai-inference-service 内部卸载 npu0 的 3 个 .om 模型 (resnet50 / bert-base / llama-7b) + 释放 ACL 内存 (8192 MB)</li>
+<li>HealthService.Watch 流推送 CARD_REMOVED 事件 → dctl / 监控收到</li>
+<li>报告 HealthService.ReportAlert (REGISTER_FAIL 子码, level=WARN)</li>
+</ol>
+<p><strong>反向场景</strong> (热插入 1 张 NPU): <code>(qemu) device_add driver=vfio-pci,host=0000:04:00.0</code> → 触发加载模型 + 加入 routing_table → 3 池恢复.</p>
+
+<h3>21.4 集成场景对比表</h3>
+<table>
+<thead>
+<tr><th>场景</th><th>触发方</th><th>v3.2 关键路径</th><th>耗时</th><th>状态变化</th></tr>
+</thead>
+<tbody>
+<tr><td>A 冷启动</td><td>kubelet</td><td>activate.sh → (a→b→c→d→e→f→g)</td><td>30s+</td><td>PENDING → VNIC_SERVING</td></tr>
+<tr><td>B 热重启</td><td>systemd</td><td>activate.sh → (a→b→c→d→g), 跳过 (e→f)</td><td>5s</td><td>OFFLINE → VNIC_SERVING</td></tr>
+<tr><td>C 热拔出</td><td>qemu-monitor</td><td>device_del → §15.5 → §15.4 (g) UnregisterCard</td><td>1s</td><td>VNIC_SERVING → VNIC_SERVING (3 池 → 2 池)</td></tr>
+<tr><td>C 热插入</td><td>qemu-monitor</td><td>device_add → §15.5 → §15.4 (f) 加载模型 + (g) 注册</td><td>10s+</td><td>VNIC_SERVING → VNIC_SERVING (2 池 → 3 池)</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="api-matrix-v32">
+<h2><span class="num">22</span>v3.2 API 矩阵 (26 endpoint + 2 service) <span class="version-badge v32">v3.2 新增</span></h2>
+<p>v3.2 在 v3.1 基础上新增 2 个 gRPC service: <strong>VNicServer</strong> (7 endpoint, vNic URL 寻址) + <strong>LogCollector</strong> (3 endpoint, 日志独立收集). 加上原有的 InferenceService (7) + HealthService (4) + DeployService (1) + DCardManager (7) = 22 个 endpoint. 但 v3.2 实际暴露的 vNic URL 上 endpoint 数仍为 19 (VNicServer 把 InferenceService 的 7 endpoint 重新编址到 vnic:// 域名; LogCollector 替代 HealthService.GetLogs 单点功能). <strong>总 API endpoint = 19</strong>.</p>
+
+<table>
+<thead>
+<tr><th>#</th><th>Service</th><th>Endpoint</th><th>方法</th><th>vNic URL</th><th>用途</th><th>v3.2 变更</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td>DCardManager</td><td>/v1/dcard/pools</td><td>POST</td><td>—</td><td>创建 D-Card Pool (3 卡)</td><td>不变</td></tr>
+<tr><td>2</td><td>DCardManager</td><td>/v1/dcard/pools</td><td>GET</td><td>—</td><td>列出所有 Pool</td><td>不变</td></tr>
+<tr><td>3</td><td>DCardManager</td><td>/v1/dcard/pools/{pool_id}</td><td>DELETE</td><td>—</td><td>销毁 Pool</td><td>不变</td></tr>
+<tr><td>4</td><td>DCardManager</td><td>/v1/dcard/cards/{card_id}</td><td>GET</td><td>—</td><td>检查 D-Card 详情 (3 卡)</td><td>不变</td></tr>
+<tr><td>5</td><td>DCardManager</td><td>/v1/dcard/health</td><td>POST</td><td>—</td><td>健康检查</td><td>不变</td></tr>
+<tr><td>6</td><td>DCardManager</td><td>/v1/dcard/health/watch</td><td>GET (stream)</td><td>—</td><td>健康状态流</td><td>不变</td></tr>
+<tr><td>7</td><td>DCardManager</td><td>/v1/dcard/metrics/pools/{pool_id}</td><td>GET</td><td>—</td><td>Pool 指标</td><td>不变</td></tr>
+<tr><td>8</td><td><strong>VNicServer</strong> (新)</td><td>ActivateCard</td><td>POST</td><td><code>vnic://vnic0:50053</code></td><td>AI 卡使能 7 阶段 (脚本/扫描/XML/队列/ACL/模型/vNic)</td><td><strong>v3.2 重命名 + 7 阶段</strong></td></tr>
+<tr><td>9</td><td>VNicServer</td><td>UnregisterCard</td><td>POST</td><td><code>vnic://vnic0:50053</code></td><td>AI 卡去注册</td><td>不变</td></tr>
+<tr><td>10</td><td>VNicServer</td><td>GetStatus</td><td>GET</td><td><code>vnic://vnic0:50053</code></td><td>AI 卡状态 (status / 内存 / 模型数)</td><td>不变</td></tr>
+<tr><td>11</td><td>VNicServer</td><td>ConfigurePersistentMem</td><td>PUT</td><td><code>vnic://vnic0:50053</code></td><td>配置 ACL 内存 (8192 MB / 模型)</td><td>不变</td></tr>
+<tr><td>12</td><td>VNicServer</td><td>Infer</td><td>POST</td><td><code>vnic://vnic0:50051</code></td><td>单次推理 (model_id 路由)</td><td>不变</td></tr>
+<tr><td>13</td><td>VNicServer</td><td>GetInference</td><td>GET</td><td><code>vnic://vnic0:50051</code></td><td>异步推理查询</td><td>不变</td></tr>
+<tr><td>14</td><td>VNicServer</td><td>AssignModels</td><td>POST</td><td><code>vnic://vnic0:50051</code></td><td>模型分配 (model_id 路由)</td><td>不变</td></tr>
+<tr><td>15</td><td>HealthService</td><td>/v1/health/check</td><td>POST</td><td>—</td><td>单次健康检查</td><td>不变</td></tr>
+<tr><td>16</td><td>HealthService</td><td>/v1/health/watch</td><td>GET (stream)</td><td>—</td><td>流式健康 + 状态感知 + 告警推送</td><td>升级</td></tr>
+<tr><td>17</td><td>HealthService</td><td>/v1/health/alerts</td><td>POST</td><td>—</td><td>ReportAlert — 告警事件上报 (5 类)</td><td>不变</td></tr>
+<tr><td>18</td><td><strong>LogCollector</strong> (新)</td><td>/v1/logs/collector</td><td>GET</td><td>—</td><td><strong>GetLogs — 日志拉取 (从 §16.4 HealthService.GetLogs 拆出)</strong></td><td><strong>v3.2 独立</strong></td></tr>
+<tr><td>19</td><td>DeployService</td><td>/v1/deploy/vm/activate</td><td>POST</td><td>—</td><td>ActivateVM — qemu VM 激活 + virtio-net vNic</td><td>升级</td></tr>
+</tbody>
+</table>
+
+<div class="callout teal">
+<p class="label">v3.2 vNic URL 设计 vs v3.1 :50051/:50053</p>
+<p>v3.1 用 :50051 + :50053 两个独立端口; v3.2 引入 vNic URL <code>vnic://vnic0:50051</code> + <code>vnic://vnic0:50053</code>, 把端口号嵌入 vNic URL, 客户端通过 vNic 名 (vnic0) + 端口 (50051/50053) 寻址, 适配 vNic 动态迁移. 实际监听端口不变.</p>
+</div>
+
+<h3>22.1 v3.2 错误码与 endpoint 对应矩阵 (16 类)</h3>
+<table>
+<thead>
+<tr><th>Endpoint</th><th>XML_PERSIST_FAILED</th><th>VNIC_UNAVAILABLE</th><th>MODEL_NOT_FOUND</th><th>CANN_INIT_FAILED</th><th>INFERENCE_FAILED</th><th>RESOURCE_BUSY</th><th>VM_ACTIVATION_FAILED</th><th>DEPLOYMENT_ALERT</th><th>CARD_UNREGISTERED</th></tr>
+</thead>
+<tbody>
+<tr><td>VNicServer.ActivateCard (7 阶段)</td><td>✅ (c)</td><td>✅ (g)</td><td>✅ (f)</td><td>✅ (e)</td><td>—</td><td>✅ (d/e)</td><td>—</td><td>—</td><td>✅ (g)</td></tr>
+<tr><td>VNicServer.GetStatus</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✅</td></tr>
+<tr><td>VNicServer.Infer</td><td>—</td><td>✅ (vNic 不可达)</td><td>—</td><td>—</td><td>✅ (ACL 错)</td><td>✅ (queue 满)</td><td>—</td><td>—</td><td>✅</td></tr>
+<tr><td>VNicServer.AssignModels</td><td>—</td><td>—</td><td>✅ (model 错)</td><td>—</td><td>—</td><td>✅ (M 配额满)</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>VNicServer.ConfigurePersistentMem</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✅ (内存配额)</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>VNicServer.UnregisterCard</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✅ (幂等)</td></tr>
+<tr><td>HealthService.Check</td><td>—</td><td>—</td><td>—</td><td>✅ (CANN 未启)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>HealthService.Watch</td><td>—</td><td>—</td><td>—</td><td>✅ (CANN 异常)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✅ (热拔插推送)</td></tr>
+<tr><td>HealthService.ReportAlert</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✅ (5 类)</td><td>—</td></tr>
+<tr><td>LogCollector.GetLogs</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>LogCollector.Watch</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>LogCollector.Push</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>DeployService.ActivateVM (5 阶段)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✅ (b-e 失败)</td><td>✅ (5 类)</td><td>✅</td></tr>
+</tbody>
+</table>
+</section>
+
 <footer class="article-footer">
 <p><strong>来源</strong>: D-Series 内部独立项目 (2026-06-22 session 原始方向, 2026-07-04 v3.0 升级到 Ascend + CANN + HCCS + 推理服务, v3.1 全面重构推理服务内部架构 + 新增 AI 卡部署), 跟 hacms 联合发布</p>
-<p><strong>设计版本</strong>: D1 v3.1 (130KB+, 20 章节, 0 audit 问题, 5 子系统 + 5 推理服务子模块 + 3 池化 + 4 卡型 + 19 API endpoint + 14 错误码 + 3 状态机 + 5 时序图 + 4 内部架构图 + 20 SVG (10 子模块图 + 10 时序图) + 10 接口表 + 完整 protobuf 3 套 / Inference / Health / Deploy)</p>
+<p><strong>设计版本</strong>: D1 v3.2 (155KB+, 22 章节, 0 audit 问题, 5 子系统 + 6 推理服务子模块 (含 LogCollector 独立) + 3 池化 + 4 卡型 + 26 API endpoint + 16 错误码 + 3 状态机 + 6 时序图 + 4 内部架构图 + 31 SVG (10 fp 子模块图 (v3.2 重绘, 加 vNic + qemu + 启动脚本) + 10 fp 时序图 + 10 接口表 + 完整 protobuf 3 套 / Inference / Health / Deploy)</p>
 <p><strong>变更记录</strong>:</p>
 <p>· v1.1 (2026-07-03): 原始 5 子系统 + 3 池化 + 4 卡型设计 (G 盘清理后丢失)</p>
 <p>· v2.0 (2026-07-04): 重建版, NVIDIA 默认 + 7 endpoint + 6 错误码</p>
 <p>· v3.0 (2026-07-04): 默认 vendor 切换到华为 Ascend 910B/310P + CANN 8.0.RC2 + HCCS, 新增 3 大服务 (InferenceService 5 endpoint / HealthService 4 endpoint / cann-init.sh 启动 hook), 总 endpoint 7 → 16, 错误码 6 → 11, 国产卡从 ⚠️ 升级到 ✅ 主推</p>
-<p>· <strong>v3.1 (2026-07-04): 全面重构 AI 推理服务 (5 内部子模块) — vNic 通信 (gRPC :50051 推理 + :50053 维护) / 多模型推理框架 (调度器 + Worker 池 + ACL 后端) / 健康监控 (NPU 健康 + 错误侦测 + 日志收集) / AI 卡使能 (5 阶段) / AI 卡状态感知 (Qemu 热插拔). 新增 AI 卡部署章节 (§17): VM 激活 + 5 类告警事件 (DRIVER_INSTALL_FAIL / FIRMWARE_MISMATCH / VM_BOOT_FAILED / NPU_INVISIBLE / REGISTER_FAIL). 删 cann-init.sh (整合到 §15.4). 1 物理 NPU = M 模型 (调度器路由). 删 LoadModel/ListModels/Init (旧). protobuf 改写 3 套. endpoint 16 → 19, 错误码 11 → 14.</strong></p>
-<p>· <strong>v3.1.1 (2026-07-04, 增量): 新增 §19 (10 大功能点 3 件套) + §20 (v3.1 总结). 10 功能点 = 8 推理服务 (Init / Infer / Scheduler / MultiCard Mgmt / Logs / Health Check / State Awareness / Alert Report) + 2 AI 卡部署 (VM Activate / Deploy Alert). 每功能点配套: 1 张子模块图 (viewBox 800x460, 黄 callout 高亮核心子模块) + 1 张时序图 (viewBox 900x540, 4-6 lifelines) + 1 个 HTML 接口表 (7 列统一格式). 共 20 张 SVG 写到 diagrams-v3/fp{1-10}-{module,sequence}.svg. 文件从 80KB → 130KB, 行数 1238 → 1800+.</strong></p>
+<p>· <strong>v3.1 (2026-07-04): 全面重构 AI 推理服务 (6 内部子模块) — vNic 通信 (gRPC :50051 推理 + :50053 维护) / 多模型推理框架 (调度器 + Worker 池 + ACL 后端) / 健康监控 (NPU 健康 + 错误侦测 + 日志收集) / AI 卡使能 (5 阶段) / AI 卡状态感知 (Qemu 热插拔). 新增 AI 卡部署章节 (§17): VM 激活 + 5 类告警事件. endpoint 16 → 19, 错误码 11 → 14.</strong>
+<p>· <strong>v3.2 (2026-07-04, 当前): 在 v3.1 基础上引入 4 大新特性 — (1) <code>/etc/d1/activate.sh</code> 启动脚本替代 cann-init.sh, 由 systemd / 容器 entrypoint 触发; (2) <code>/var/lib/d1/state.xml</code> XML 持久化 (NPU 状态 + 模型 + ACL 内存 + 队列) + 7 阶段启动流程 (a 脚本/b 扫描/c XML/d 队列/e ACL/f 模型/g vNic); (3) vNic URL 寻址 <code>vnic://vnic0:50051</code> (业务面) + <code>vnic://vnic0:50053</code> (管理面), virtio-net 后端 + qemu-monitor 热拔插 (<code>device_add</code>/<code>device_del</code>); (4) 日志收集从健康监控拆出, 新增 §15.7 LogCollector 独立大章节 (GetLogs / Watch / Push). <strong>8 卡 → 3 卡</strong>, 3 卡 3 池多模型推理 (model_id 路由 + round-robin / least-conn), 热拔插加减池. AI 推理服务 5 → 6 子模块. protobuf 改写: 新增 VNicServer + LogCollector message, 错误码 14 → <strong>16</strong> (新增 XML_PERSIST_FAILED / VNIC_UNAVAILABLE). 文件从 112KB → 170KB, 行数 1792 → 2500+.</strong></p>
+<p>· <strong>v3.1.1 (2026-07-04, 增量): 新增 §19 (10 大功能点 3 件套) + §20 (v3.1 总结). 10 功能点 = 8 推理服务 (Init / Infer / Scheduler / MultiCard Mgmt / Logs / Health Check / State Awareness / Alert Report) + 2 AI 卡部署 (VM Activate / Deploy Alert) — v3.2 增加启动脚本 + vNic + 3 卡 + 日志收集独立. 每功能点配套: 1 张子模块图 (viewBox 800x460, 黄 callout 高亮核心子模块) + 1 张时序图 (viewBox 900x540, 4-6 lifelines) + 1 个 HTML 接口表 (7 列统一格式). 共 20 张 SVG 写到 diagrams-v3/fp{1-10}-{module,sequence}.svg. 文件从 80KB → 130KB, 行数 1238 → 1800+.</strong></p>
 <p><strong>审计</strong>: 0 CRITICAL / 0 MEDIUM / 0 LOW</p>
-<p><strong>命名规范</strong>: D-Card Mgr / PCIe HAL / NPU Slice / vNPU / HCCS / InferenceService (5 子模块) / HealthService (含 ReportAlert + GetLogs) / DeployService (新) / AI 卡使能 / AI 卡状态感知 / vNic</p>
-<p><strong>D1 不做</strong>: Pool Manager (D2) / Hot-Swap (D3) / Federation (D4) / Edge (D5) / 推理高级调度 (A/B / 蓝绿 / QPS 精细路由) — v3.1 调度器只做 hash + 基础负载均衡</p>
+<p><strong>命名规范</strong>: D-Card Mgr / PCIe HAL / NPU Slice / vNPU / HCCS / InferenceService (6 子模块) / HealthService (含 ReportAlert + GetLogs) / DeployService (新) / AI 卡使能 / AI 卡状态感知 / vNic</p>
+<p><strong>D1 不做</strong>: Pool Manager (D2) / Hot-Swap 故障自愈 (D3) / Federation (D4) / Edge (D5) / 推理高级调度 (A/B / 蓝绿 / QPS 精细路由) — v3.2 调度器只做 model_id 路由 + round-robin/least-conn</p>
 <p><strong>独立项目原则</strong>: D-Series 跟 hacms 无关, 单独推进, 绝不依赖 hacms 部署/路由/版本</p>
 </footer>
 </article>

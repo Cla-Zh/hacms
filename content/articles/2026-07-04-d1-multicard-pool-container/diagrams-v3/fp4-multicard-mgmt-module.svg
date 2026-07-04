@@ -5,12 +5,12 @@
     .box-fade { fill: #fafafa; stroke: #ccc; stroke-width: 1; }
     .label { fill: #333; font-size: 13px; font-weight: 600; text-anchor: middle; }
     .label-core { fill: #5a4400; font-size: 13px; font-weight: 700; text-anchor: middle; }
-    .label-fade { fill: #999; font-size: 13px; text-anchor: middle; }
     .sub { fill: #666; font-size: 10px; text-anchor: middle; }
     .sub-fade { fill: #aaa; font-size: 10px; text-anchor: middle; }
     .arrow { stroke: #333; stroke-width: 1.5; fill: none; marker-end: url(#arr); }
     .arrow-thin { stroke: #666; stroke-width: 1; fill: none; marker-end: url(#arr2); }
     .callout-core { fill: #fff3b0; stroke: #b89000; stroke-width: 1.5; }
+    .mono { font-family: monospace; }
   </style>
   <defs>
     <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
@@ -21,76 +21,74 @@
     </marker>
   </defs>
 
-  <text x="400" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">FP4: AI 推理服务多卡管理 — 子模块图 (注册 / 去注册 + AI 卡使能)</text>
-  <text x="400" y="40" text-anchor="middle" fill="#666" font-size="11">核心子模块: AI 卡使能 (黄) · 联动: AI 卡状态感知 + vNic 维护端口</text>
+  <text x="400" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">FP4: 多卡管理 — 子模块图 (qemu 热拔插)</text>
+  <text x="400" y="40" text-anchor="middle" fill="#666" font-size="11">K8s/运维 热拔插请求 · AI 卡使能 (d 模型分配 + e 注册去注册) · qemu-monitor device_add/del</text>
 
-  <!-- Input -->
-  <rect class="box" x="20" y="60" width="760" height="50" rx="3"/>
-  <text x="400" y="80" class="label" font-size="12">触发: Init 阶段 e + 热插拔事件 (onAttach / onDetach) + Deinit</text>
-  <text x="400" y="98" class="sub">操作: register_card / unregister_card → device-plugin + ACL bind/unbind</text>
+  <!-- Top: K8s / 运维 -->
+  <rect class="box" x="20" y="52" width="760" height="40" rx="3"/>
+  <text x="400" y="70" class="label" font-size="12">① K8s / 运维 (热拔插请求)</text>
+  <text x="400" y="85" class="sub">InitRequest / DeinitRequest(release_npu) — 调度扩缩容 / 故障隔离</text>
 
-  <!-- vNic (淡灰) -->
-  <rect class="box-fade" x="20" y="130" width="148" height="240" rx="4"/>
-  <text x="94" y="150" class="label-fade">§15.1 vNic 通信</text>
-  <rect class="box-fade" x="30" y="160" width="128" height="40" rx="3"/>
-  <text x="94" y="178" class="label-fade" font-size="11">维护 :50053</text>
-  <text x="94" y="192" class="sub-fade" font-size="9">Register / Unregister 入口</text>
-  <text x="94" y="345" class="sub-fade" font-size="9">—— 入口层 ——</text>
+  <line class="arrow" x1="400" y1="92" x2="400" y2="104"/>
 
-  <!-- 多模型推理框架 (淡灰) -->
-  <rect class="box-fade" x="178" y="130" width="148" height="240" rx="4"/>
-  <text x="252" y="150" class="label-fade">§15.2 多模型推理框架</text>
-  <rect class="box-fade" x="188" y="160" width="128" height="40" rx="3"/>
-  <text x="252" y="178" class="label-fade" font-size="11">model_routing_table</text>
-  <text x="252" y="192" class="sub-fade" font-size="9">注册时增项 / 去注册时删项</text>
-  <text x="252" y="345" class="sub-fade" font-size="9">—— 路由表同步 ——</text>
+  <!-- 上部: AI 卡使能 callout -->
+  <rect class="callout-core" x="20" y="104" width="470" height="88" rx="4"/>
+  <text x="255" y="122" class="label-core" font-size="12">② AI 卡使能模块 ⭐</text>
+  <rect class="box" x="34" y="130" width="215" height="52" rx="3"/>
+  <text x="141" y="149" class="label" font-size="11">阶段 (d) 模型分配</text>
+  <text x="141" y="165" class="sub" font-size="9">撤销 / 重建 NPU 模型分配</text>
+  <text x="141" y="178" class="sub-fade" font-size="9">Model Registry 同步</text>
+  <rect class="box" x="259" y="130" width="221" height="52" rx="3"/>
+  <text x="369" y="149" class="label" font-size="11">阶段 (e) 注册 / 去注册</text>
+  <text x="369" y="165" class="sub" font-size="9">device-plugin register/unregister</text>
+  <text x="369" y="178" class="sub-fade" font-size="9">state.xml 状态更新</text>
 
-  <!-- 健康监控 (淡灰) -->
-  <rect class="box-fade" x="336" y="130" width="148" height="240" rx="4"/>
-  <text x="410" y="150" class="label-fade">§15.3 健康监控</text>
-  <rect class="box-fade" x="346" y="160" width="128" height="40" rx="3"/>
-  <text x="410" y="178" class="label-fade" font-size="11">新增 NPU 健康探测</text>
-  <text x="410" y="192" class="sub-fade" font-size="9">注册时建 1s 探针</text>
-  <text x="410" y="345" class="sub-fade" font-size="9">—— 健康状态联动 ——</text>
+  <!-- 中部右侧: device-plugin -->
+  <rect class="box-fade" x="510" y="104" width="270" height="88" rx="4"/>
+  <text x="645" y="122" class="label" font-size="12">③ device-plugin</text>
+  <text x="645" y="142" class="sub">huawei.com/ascend-pool</text>
+  <text x="645" y="160" class="sub-fade">ListAndWatch → K8s kubelet</text>
+  <text x="645" y="176" class="sub-fade" font-size="9">卡数变化上报调度器</text>
 
-  <!-- AI 卡使能 (核心, 黄) -->
-  <rect class="box-core" x="494" y="130" width="148" height="240" rx="4"/>
-  <text x="568" y="150" class="label-core">§15.4 AI 卡使能 ⭐</text>
-  <rect class="box" x="504" y="158" width="128" height="26" rx="3"/>
-  <text x="568" y="175" class="label" font-size="10">RegisterNpu(device, card_id)</text>
-  <rect class="box" x="504" y="186" width="128" height="26" rx="3"/>
-  <text x="568" y="203" class="label" font-size="10">UnregisterNpu(device, reason)</text>
-  <rect class="box" x="504" y="214" width="128" height="26" rx="3"/>
-  <text x="568" y="231" class="label" font-size="10">device-plugin 通信</text>
-  <rect class="box" x="504" y="242" width="128" height="26" rx="3"/>
-  <text x="568" y="259" class="label" font-size="10">ACL bind / unbind</text>
-  <rect class="box" x="504" y="270" width="128" height="26" rx="3"/>
-  <text x="568" y="287" class="label" font-size="10">持久化注册表</text>
-  <text x="568" y="335" class="sub" font-weight="600">"AI 卡生命周期核心"</text>
-  <text x="568" y="350" class="sub" font-size="9">d 注册 + e 去注册</text>
+  <line class="arrow-thin" x1="480" y1="156" x2="510" y2="148"/>
 
-  <!-- AI 卡状态感知 (淡灰) -->
-  <rect class="box-fade" x="652" y="130" width="128" height="240" rx="4"/>
-  <text x="716" y="150" class="label-fade">§15.5 状态感知</text>
-  <rect class="box-fade" x="662" y="160" width="108" height="40" rx="3"/>
-  <text x="716" y="178" class="label-fade" font-size="11">Qemu 热插拔</text>
-  <text x="716" y="192" class="sub-fade" font-size="9">触发 onAttach/onDetach</text>
-  <text x="716" y="345" class="sub-fade" font-size="9">—— 触发源 ——</text>
+  <!-- 中部: qemu -->
+  <rect class="box" x="20" y="204" width="760" height="98" rx="4"/>
+  <text x="400" y="224" class="label">④ qemu (虚拟化层)</text>
 
-  <!-- Output -->
-  <rect class="box" x="20" y="385" width="760" height="55" rx="3"/>
-  <text x="400" y="405" class="label" font-size="12">输出: K8s 设备资源 + ACL 句柄表 + 告警 (CARD_REGISTER_FAIL / CARD_UNREGISTERED)</text>
-  <text x="400" y="423" class="sub">频率: 启动一次 + 热插拔事件触发 (低频); 与 AIDeploymentService.RegisterCard 对接</text>
+  <rect class="box-fade" x="40" y="234" width="340" height="58" rx="3"/>
+  <text x="210" y="252" class="label" font-size="11">libvirt API</text>
+  <text x="210" y="269" class="sub">virDomainAttachDevice / Detach</text>
+  <text x="210" y="284" class="sub-fade" font-size="9">高层编排接口</text>
 
-  <!-- Yellow callout -->
-  <rect class="callout-core" x="494" y="110" width="148" height="14" rx="2" opacity="0.85"/>
-  <text x="568" y="121" text-anchor="middle" fill="#5a4400" font-size="9" font-weight="700">CORE: §15.4 AI 卡使能</text>
+  <rect class="box-core" x="400" y="234" width="360" height="58" rx="3"/>
+  <text x="580" y="252" class="label-core" font-size="11">qemu-monitor (QMP)</text>
+  <text x="580" y="269" text-anchor="middle" fill="#5a4400" font-size="10" font-family="monospace">device_add / device_del</text>
+  <text x="580" y="284" text-anchor="middle" fill="#5a4400" font-size="9">PCIe VFIO 热插拔核心</text>
 
-  <!-- Arrows -->
-  <line class="arrow" x1="568" y1="130" x2="568" y2="158"/>
-  <line class="arrow" x1="716" y1="160" x2="622" y2="190" stroke="#bbb" stroke-dasharray="2,2"/>
-  <line class="arrow" x1="252" y1="160" x2="504" y2="270" stroke="#bbb" stroke-dasharray="2,2"/>
-  <line class="arrow" x1="410" y1="160" x2="504" y2="240" stroke="#bbb" stroke-dasharray="2,2"/>
-  <line class="arrow" x1="94" y1="160" x2="504" y2="180" stroke="#bbb" stroke-dasharray="2,2"/>
-  <line class="arrow" x1="568" y1="370" x2="400" y2="385"/>
+  <line class="arrow" x1="255" y1="192" x2="255" y2="204"/>
+  <line class="arrow" x1="380" y1="263" x2="400" y2="263"/>
+
+  <!-- 底部: 3 × NPU -->
+  <rect class="box" x="20" y="314" width="760" height="134" rx="4"/>
+  <text x="400" y="332" class="label" font-size="12">⑤ 物理层: 3 × NPU (热插拔事件)</text>
+
+  <rect class="box-fade" x="60" y="342" width="210" height="94" rx="3"/>
+  <text x="165" y="362" class="sub" font-weight="600">NPU 0 (READY)</text>
+  <text x="165" y="382" class="sub-fade" font-size="9">deviceid 0</text>
+  <text x="165" y="400" class="sub-fade" font-size="9">在池服务中</text>
+
+  <rect class="box-fade" x="295" y="342" width="210" height="94" rx="3"/>
+  <text x="400" y="362" class="sub" font-weight="600">NPU 1 (READY)</text>
+  <text x="400" y="382" class="sub-fade" font-size="9">deviceid 1</text>
+  <text x="400" y="400" class="sub-fade" font-size="9">在池服务中</text>
+
+  <rect class="box" x="530" y="342" width="210" height="94" rx="3" stroke-dasharray="4,2"/>
+  <text x="635" y="362" class="sub" font-weight="600" fill="#a02020">NPU 2 (热拔插)</text>
+  <text x="635" y="382" class="sub-fade" font-size="9">device_del → 拔出</text>
+  <text x="635" y="400" class="sub-fade" font-size="9">device_add → 加入</text>
+  <text x="635" y="418" class="sub-fade" font-size="9">释放回 / 加入设备池</text>
+
+  <line class="arrow" x1="580" y1="292" x2="635" y2="342"/>
+  <text x="640" y="322" fill="#999" font-size="8">VFIO 热插拔</text>
 </svg>

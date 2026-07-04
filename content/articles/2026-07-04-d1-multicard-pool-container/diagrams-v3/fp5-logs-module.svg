@@ -5,12 +5,12 @@
     .box-fade { fill: #fafafa; stroke: #ccc; stroke-width: 1; }
     .label { fill: #333; font-size: 13px; font-weight: 600; text-anchor: middle; }
     .label-core { fill: #5a4400; font-size: 13px; font-weight: 700; text-anchor: middle; }
-    .label-fade { fill: #999; font-size: 13px; text-anchor: middle; }
     .sub { fill: #666; font-size: 10px; text-anchor: middle; }
     .sub-fade { fill: #aaa; font-size: 10px; text-anchor: middle; }
     .arrow { stroke: #333; stroke-width: 1.5; fill: none; marker-end: url(#arr); }
     .arrow-thin { stroke: #666; stroke-width: 1; fill: none; marker-end: url(#arr2); }
     .callout-core { fill: #fff3b0; stroke: #b89000; stroke-width: 1.5; }
+    .mono { font-family: monospace; }
   </style>
   <defs>
     <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
@@ -21,76 +21,74 @@
     </marker>
   </defs>
 
-  <text x="400" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">FP5: AI 推理服务日志收集 — 子模块图 (GetLogs 拉取 canld 日志)</text>
-  <text x="400" y="40" text-anchor="middle" fill="#666" font-size="11">核心子模块: 健康监控 (黄) · 触发: HealthService.GetLogs (新 v3.1)</text>
+  <text x="400" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">FP5: 日志收集 — 子模块图 (独立模块, 与健康监控分离)</text>
+  <text x="400" y="40" text-anchor="middle" fill="#666" font-size="11">日志收集只负责日志 (采集/解析/推送) · 健康监控只负责 NPU 健康 · 二者职责分离</text>
 
-  <!-- Input -->
-  <rect class="box" x="20" y="60" width="760" height="50" rx="3"/>
-  <text x="400" y="80" class="label" font-size="12">触发: HealthService.GetLogs(card_id?, since_timestamp, max_lines, level_filter) — 运维 / 告警系统</text>
-  <text x="400" y="98" class="sub">输入: 卡 ID 过滤 + 时间窗 + 行数限制 + 级别过滤 (DEBUG/INFO/WARN/ERROR)</text>
+  <!-- Top: 外部 -->
+  <rect class="box" x="20" y="52" width="760" height="38" rx="3"/>
+  <text x="400" y="70" class="label" font-size="12">① 外部 (Loki / ES / 运维)</text>
+  <text x="400" y="84" class="sub">GetLogs 查询 · Watch 订阅 · Push sink 目标</text>
 
-  <!-- vNic (淡灰) -->
-  <rect class="box-fade" x="20" y="130" width="148" height="240" rx="4"/>
-  <text x="94" y="150" class="label-fade">§15.1 vNic 通信</text>
-  <rect class="box-fade" x="30" y="160" width="128" height="40" rx="3"/>
-  <text x="94" y="178" class="label-fade" font-size="11">Health gRPC :50052</text>
-  <text x="94" y="192" class="sub-fade" font-size="9">GetLogs RPC 入口</text>
-  <text x="94" y="345" class="sub-fade" font-size="9">—— 入口层 ——</text>
+  <line class="arrow" x1="400" y1="90" x2="400" y2="102"/>
 
-  <!-- 多模型推理框架 (淡灰) -->
-  <rect class="box-fade" x="178" y="130" width="148" height="240" rx="4"/>
-  <text x="252" y="150" class="label-fade">§15.2 多模型推理框架</text>
-  <rect class="box-fade" x="188" y="160" width="128" height="40" rx="3"/>
-  <text x="252" y="178" class="label-fade" font-size="11">ACL 调用栈日志</text>
-  <text x="252" y="192" class="sub-fade" font-size="9">/var/log/dcard/acl-*.log</text>
-  <text x="252" y="345" class="sub-fade" font-size="9">—— 日志源之一 ——</text>
+  <!-- 上部: 日志收集模块 callout -->
+  <rect class="callout-core" x="20" y="102" width="470" height="146" rx="4"/>
+  <text x="255" y="120" class="label-core" font-size="12">② 日志收集模块 ⭐ (独立)</text>
 
-  <!-- 健康监控 (核心, 黄) -->
-  <rect class="box-core" x="336" y="130" width="160" height="240" rx="4"/>
-  <text x="416" y="150" class="label-core">§15.3 健康监控 ⭐</text>
-  <rect class="box" x="346" y="160" width="140" height="36" rx="3"/>
-  <text x="416" y="178" class="label" font-size="11">canld 日志收集器</text>
-  <text x="416" y="190" class="sub" font-size="9">/var/log/dcard/*.log</text>
-  <rect class="box" x="346" y="200" width="140" height="36" rx="3"/>
-  <text x="416" y="218" class="label" font-size="11">日志缓冲 (10MB ring)</text>
-  <text x="416" y="230" class="sub" font-size="9">内存索引</text>
-  <rect class="box" x="346" y="240" width="140" height="36" rx="3"/>
-  <text x="416" y="258" class="label" font-size="11">级别过滤 + 时间窗</text>
-  <text x="416" y="270" class="sub" font-size="9">条件解析</text>
-  <rect class="box" x="346" y="280" width="140" height="36" rx="3"/>
-  <text x="416" y="298" class="label" font-size="11">tail -f / since_ts</text>
-  <text x="416" y="310" class="sub" font-size="9">增量拉取</text>
-  <text x="416" y="345" class="sub" font-weight="600">GetLogs handler 主体</text>
+  <rect class="box" x="34" y="128" width="215" height="52" rx="3"/>
+  <text x="141" y="147" class="label" font-size="11">收集器</text>
+  <text x="141" y="163" class="sub" font-size="9">tail /var/log/d1/*.log</text>
+  <text x="141" y="176" class="sub-fade" font-size="9">增量读取 + inotify</text>
 
-  <!-- AI 卡使能 (淡灰) -->
-  <rect class="box-fade" x="506" y="130" width="148" height="240" rx="4"/>
-  <text x="580" y="150" class="label-fade">§15.4 AI 卡使能</text>
-  <rect class="box-fade" x="516" y="160" width="128" height="40" rx="3"/>
-  <text x="580" y="178" class="label-fade" font-size="11">Init/Deinit 日志</text>
-  <text x="580" y="192" class="sub-fade" font-size="9">/var/log/dcard/init-*.log</text>
-  <text x="580" y="345" class="sub-fade" font-size="9">—— 日志源之一 ——</text>
+  <rect class="box" x="259" y="128" width="221" height="52" rx="3"/>
+  <text x="369" y="147" class="label" font-size="11">解析器</text>
+  <text x="369" y="163" class="sub" font-size="9">LogEntry schema</text>
+  <text x="369" y="176" class="sub-fade" font-size="9">ts+level+source+message+fields</text>
 
-  <!-- AI 卡状态感知 (淡灰) -->
-  <rect class="box-fade" x="664" y="130" width="116" height="240" rx="4"/>
-  <text x="722" y="150" class="label-fade">§15.5 状态感知</text>
-  <rect class="box-fade" x="674" y="160" width="96" height="40" rx="3"/>
-  <text x="722" y="178" class="label-fade" font-size="11">热插拔日志</text>
-  <text x="722" y="192" class="sub-fade" font-size="9">hotplug.log</text>
-  <text x="722" y="345" class="sub-fade" font-size="9">—— 日志源 ——</text>
+  <rect class="box" x="34" y="184" width="215" height="52" rx="3"/>
+  <text x="141" y="203" class="label" font-size="11">推送器</text>
+  <text x="141" y="219" class="sub" font-size="9">Loki / ES sink</text>
+  <text x="141" y="232" class="sub-fade" font-size="9">批量 + 重试</text>
 
-  <!-- Output -->
-  <rect class="box" x="20" y="385" width="760" height="55" rx="3"/>
-  <text x="400" y="405" class="label" font-size="12">输出: GetLogsResponse { entries=[LogEntry{timestamp, level, source, message, card_id}], next_offset }</text>
-  <text x="400" y="423" class="sub">频率: 中等 (运维 / 告警时按需); 可选 streaming 模式 (v3.1 不实现, 留给 v3.2)</text>
+  <rect class="box-fade" x="259" y="184" width="221" height="52" rx="3"/>
+  <text x="369" y="200" class="label" font-size="11">接口</text>
+  <text x="369" y="216" class="sub" font-size="9" font-family="monospace">GetLogs / Watch / Push</text>
+  <text x="369" y="229" class="sub-fade" font-size="9">gRPC / streaming</text>
 
-  <!-- Yellow callout -->
-  <rect class="callout-core" x="336" y="110" width="160" height="14" rx="2" opacity="0.85"/>
-  <text x="416" y="121" text-anchor="middle" fill="#5a4400" font-size="9" font-weight="700">CORE: §15.3 健康监控.日志</text>
+  <!-- 中部右侧: 5 模块写日志 -->
+  <rect class="box-fade" x="510" y="102" width="270" height="146" rx="4"/>
+  <text x="645" y="120" class="label" font-size="12">③ 5 模块写日志</text>
+  <text x="645" y="140" class="sub-fade" font-size="10">vNic 通信</text>
+  <text x="645" y="158" class="sub-fade" font-size="10">多模型推理框架</text>
+  <text x="645" y="176" class="sub-fade" font-size="10">健康监控 (只 NPU 健康)</text>
+  <text x="645" y="194" class="sub-fade" font-size="10">AI 卡使能</text>
+  <text x="645" y="212" class="sub-fade" font-size="10">AI 卡状态感知</text>
+  <text x="645" y="234" class="sub" font-size="9" font-weight="600">各模块 → 写 /var/log/d1/</text>
 
-  <!-- Arrows -->
-  <line class="arrow" x1="94" y1="180" x2="346" y2="200"/>
-  <line class="arrow" x1="252" y1="160" x2="356" y2="220" stroke="#bbb" stroke-dasharray="2,2"/>
-  <line class="arrow" x1="580" y1="160" x2="446" y2="220" stroke="#bbb" stroke-dasharray="2,2"/>
-  <line class="arrow" x1="722" y1="160" x2="476" y2="240" stroke="#bbb" stroke-dasharray="2,2"/>
-  <line class="arrow" x1="416" y1="370" x2="400" y2="385"/>
+  <!-- 中部: 数据源 -->
+  <rect class="box" x="20" y="260" width="760" height="96" rx="4"/>
+  <text x="400" y="278" class="label" font-size="12">④ 数据源 /var/log/d1/</text>
+  <rect class="box-fade" x="40" y="288" width="172" height="58" rx="3"/>
+  <text x="126" y="308" class="sub" font-weight="600" font-family="monospace">ai-inference.log</text>
+  <text x="126" y="324" class="sub-fade" font-size="9">推理请求 / 错误</text>
+  <rect class="box-fade" x="222" y="288" width="172" height="58" rx="3"/>
+  <text x="308" y="308" class="sub" font-weight="600" font-family="monospace">health-monitor.log</text>
+  <text x="308" y="324" class="sub-fade" font-size="9">NPU 健康事件</text>
+  <rect class="box-fade" x="404" y="288" width="172" height="58" rx="3"/>
+  <text x="490" y="308" class="sub" font-weight="600" font-family="monospace">cann.log</text>
+  <text x="490" y="324" class="sub-fade" font-size="9">CANN 运行时</text>
+  <rect class="box-fade" x="586" y="288" width="172" height="58" rx="3"/>
+  <text x="672" y="308" class="sub" font-weight="600" font-family="monospace">acl.log</text>
+  <text x="672" y="324" class="sub-fade" font-size="9">ACL 调用栈</text>
+
+  <line class="arrow" x1="141" y1="248" x2="141" y2="260"/>
+  <line class="arrow-thin" x1="126" y1="288" x2="130" y2="180" stroke="#bbb" stroke-dasharray="2,2"/>
+  <line class="arrow-thin" x1="645" y1="248" x2="490" y2="288" stroke="#bbb" stroke-dasharray="2,2"/>
+
+  <!-- 底部: 分离说明 -->
+  <rect class="box-fade" x="20" y="366" width="760" height="82" rx="4"/>
+  <text x="400" y="386" class="label" font-size="12">⑤ 关键: 与健康监控职责分离</text>
+  <text x="40" y="408" fill="#666" font-size="10">• 日志收集模块: 只负责日志 (采集 tail / 解析 LogEntry / 推送 Loki·ES), 不判断健康</text>
+  <text x="40" y="426" fill="#666" font-size="10">• 健康监控模块: 只负责 NPU 健康 (temp/power/util 探测, 错误侦测), 只是日志源之一</text>
+  <text x="40" y="443" fill="#666" font-size="10" font-family="monospace">• 输出: GetLogsResponse { entries=[LogEntry], next_offset } / Watch stream / Push sink</text>
 </svg>
