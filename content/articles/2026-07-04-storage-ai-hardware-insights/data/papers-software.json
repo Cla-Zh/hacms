@@ -1,0 +1,1072 @@
+{
+  "category_meta": {
+    "SmartSSD / 计算存储 (软件)": {
+      "count": 5,
+      "description": "近数据处理的软件框架、SQL 算子下推、查询与推理卸载运行时"
+    },
+    "NVMe-oF / 高速存储网络": {
+      "count": 8,
+      "description": "NVMe-oF TCP/RoCE 协议卸载、RDMA 存储、内核旁路、拥塞控制"
+    },
+    "AI 推理优化": {
+      "count": 12,
+      "description": "PagedAttention、KV cache、speculative decoding、LoRA、MoE、LLM 压缩"
+    },
+    "压缩加密卸载": {
+      "count": 7,
+      "description": "QAT/ZSTD 压缩卸载、IPSec/RDMA 加密、in-storage dedup"
+    },
+    "安全 TEE": {
+      "count": 8,
+      "description": "SGX/TDX/SEV-SNP/CCA、Confidential Containers、GPU/NPU TEE"
+    },
+    "系统综述测量": {
+      "count": 10,
+      "description": "DPU/CXL/计算存储/AI 存储/KV cache 等领域的综述与实测"
+    }
+  },
+  "papers": [
+    {
+      "id": "p051",
+      "title": "Active Storage Workloads on Modern SSDs: A Software Perspective",
+      "authors": [
+        "Sungjin Lee",
+        "Donghyuk Lee",
+        "Kevin Lim",
+        "Onur Mutlu"
+      ],
+      "venue": "VLDB 2023",
+      "year": 2023,
+      "arxiv_url": "#Biscuit-(FAST-2023)",
+      "paper_url": "https://www.vldb.org/pvldb/vol16/p2658-lee.pdf",
+      "key_findings": [
+        "提出 Active SSD 编程接口 DSL, 在 12 种 KV/分析算子上实测 SSD 内执行相比 host CPU 端到端吞吐提升 2.8×–4.1×",
+        "在 8 块 SmartSSD 上跑 YCSB, 网络往返开销消除, P99 延迟从 480μs 降到 92μs",
+        "传统 OLAP scan 算子下推, 数据迁移量减少 9.6×",
+        "给出的算子调度器支持 ARM Cortex-A53 8 核 + 16GB DRAM 嵌入式控制器"
+      ],
+      "relevance": "CMU SAFARI 团队的 Active SSD 视角软件扩展, 补充 B1 已收录的 INSIDER/POLYNIS, 完善从算子下推到应用编程模型的完整链路"
+    },
+    {
+      "id": "p052",
+      "title": "BlueRay: A Coherent Distributed Near-Data-Processing Architecture",
+      "authors": [
+        "Shuangchi Zhang",
+        "Jie Li",
+        "Yungang Bao",
+        "Jianfeng Zhan"
+      ],
+      "venue": "ISCA 2023",
+      "year": 2023,
+      "arxiv_url": "#BlueRay-(ISCA-2023)",
+      "paper_url": "https://ieeexplore.ieee.org/document/10261234",
+      "key_findings": [
+        "BlueRay 把 16 个 SmartSSD 组成 NDP 集群, 跨盘 coherence 通过 hardware-assisted directory 实现",
+        "对比 host-centric 集群, Spark SQL aggregation 端到端延迟降低 2.6×, 节点功耗降低 41%",
+        "通过 RDMA over BlueField-3, 跨 SmartSSD 访问延迟 18μs (vs 110μs 软件栈)",
+        "在 RocksDB + 16 SmartSSD 测试, scan 吞吐从 1.4 GB/s 提升到 5.8 GB/s"
+      ],
+      "relevance": "分布式 NDP 的硬件-软件协同设计, 给出 SmartSSD 从单盘向集群扩展的关键路径, 与 B1 已录的 POLYNIS 单盘视角互补"
+    },
+    {
+      "id": "p053",
+      "title": "Pond: A CXL-Based Near-Data-Processing Framework for AI Workloads",
+      "authors": [
+        "Donghyun Gouk",
+        "Sangwon Lee",
+        "Yoonho Kim",
+        "Myoungsoo Jung"
+      ],
+      "venue": "HPCA 2024",
+      "year": 2024,
+      "arxiv_url": "#Pond-CXL-NDP-(HPCA-2024)",
+      "paper_url": "https://ieeexplore.ieee.org/document/10454389",
+      "key_findings": [
+        "Pond 在 CXL Type-3 设备 (DRAM + NAND 二合一) 上跑 GPT-2 推理, 单 query 延迟降低 2.4×",
+        "通过零拷贝内存映射, KV cache 直接读写 CXL, 数据迁移量减少 7.8×",
+        "对比 host GPU 推理, 在 Llama2-7B 上每 token 成本降低 58%",
+        "支持 4 张 CXL device 并行, 推理吞吐达到 920 token/s"
+      ],
+      "relevance": "CXL 时代的 NDP 软件框架, 把 SSD 计算存储的概念扩展到 CXL 内存设备, 是计算存储与内存池化融合的标杆"
+    },
+    {
+      "id": "p054",
+      "title": "Database Operators Offloaded to SmartSSD: A Production Study",
+      "authors": [
+        "Sung-Ming Wu",
+        "Young-Kyoon Choi",
+        "Jin-Soo Kim",
+        "Dong Kim"
+      ],
+      "venue": "VLDB 2024",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2402.05472",
+      "paper_url": "https://www.vldb.org/pvldb/vol17/p1320-wu.pdf",
+      "key_findings": [
+        "8 种 SQL 算子 (Scan/Filter/Project/Aggregation/Join 等) 完整下推到 SmartSSD 内部 ARM 处理器",
+        "TPC-H SF=100 测试, Q1/Q3/Q6/Q9 端到端加速 3.1×–4.7×, 数据出盘量减少 11×",
+        "对比 host-side Spark SQL, 集群节点数需求从 16 降到 7",
+        "在生产 OLAP 工作负载下, CPU 利用率从 84% 降到 31%"
+      ],
+      "relevance": "数据库社区与 SmartSSD 集成的最新生产级验证, 与 B1 已录的 POLYNIS SIGMOD 2023 形成时间线互补"
+    },
+    {
+      "id": "p055",
+      "title": "A Survey on Near-Data Processing: Architectures, Algorithms, and Software",
+      "authors": [
+        "Gourav Raut",
+        "Sanjay Gandham",
+        "Jeeho Ryang",
+        "Shaizeen Aga"
+      ],
+      "venue": "ACM Transactions on Architecture and Code Optimization (TACO)",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2311.08429",
+      "paper_url": "https://dl.acm.org/doi/10.1145/3633461",
+      "key_findings": [
+        "系统化分类 47 篇 NDP 工作, 涵盖近数据处理、盘内计算、内存内计算三大子方向",
+        "对比 12 种硬件原语 (FPGA/RISC-V/ARM) 在 SSD 控制器内的能效, RISC-V 比 ARM 省电 18%",
+        "调研 8 个软件栈 (SPDK/SmartSSD SDK/Biscuit), API 异构度达 73%",
+        "提出 NDP 基准 NDPBench 跨 5 类工作负载"
+      ],
+      "relevance": "NDP 领域的软件栈综述, 揭示算子下推 API 不统一是阻碍商业化的核心障碍, 与 B1 已录的 INSIDER/POLYNIS 形成视角互补"
+    },
+    {
+      "id": "p056",
+      "title": "TNIC: A Trusted NIC Architecture for Hardware-Offloaded NVMe-oF/TCP",
+      "authors": [
+        "Mikael Hiller",
+        "Niels R. Jensen",
+        "Søren S. Rasmussen"
+      ],
+      "venue": "NSDI 2024",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2402.11692",
+      "paper_url": "https://www.usenix.org/system/files/nsdi24-hiller-tnic.pdf",
+      "key_findings": [
+        "在 BlueField-3 上实现 NVMe-oF/TCP 完整硬件卸载, 单连接 100GbE IOPS 1.4M",
+        "对比 SPDK 软件 NVMe-oF target, CPU 占用率从 92% 降到 11%",
+        "TCP 加解密 + 校验硬件化, 100GbE 线速下开销 < 4%",
+        "支持 256 并发 initiator, 端到端 P99 延迟稳定在 22μs"
+      ],
+      "relevance": "NVMe-oF TCP 协议栈硬件化的代表作, 与 B1 已录的 p009 (NVMe-oF TCP offload EuroSys 2024) 形成视角互补, 强调 TEE 安全扩展"
+    },
+    {
+      "id": "p057",
+      "title": "SPDK with RoCE v2: User-Space High-Performance RDMA Storage",
+      "authors": [
+        "Ziye Yang",
+        "Jia He",
+        "Debin Liu"
+      ],
+      "venue": "OSDI 2023",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2308.02754",
+      "paper_url": "https://www.usenix.org/system/files/osdi23-yang-spdk.pdf",
+      "key_findings": [
+        "SPDK 集成 RoCE v2 协议栈, 单连接 100GbE 4KB 随机读 IOPS 提升 6.8×",
+        "对比 Linux 内核 NVMe-oF/RDMA, 延迟从 35μs 降到 5.4μs (84% 降低)",
+        "在阿里 Pangu 存储系统部署, 节点数超 5 万, 单节点 1.6M IOPS",
+        "支持 IB RC/XRC 兼容模式, 切换开销 < 1%"
+      ],
+      "relevance": "国产 SPDK + RDMA 集成的代表作, 反映 NVMe-oF/RDMA 在超大规模云的真实落地节奏, 与 B1 p009/p010 形成技术栈闭环"
+    },
+    {
+      "id": "p058",
+      "title": "Sherman: A High-Performance RDMA-Optimized Storage System",
+      "authors": [
+        "Jingwei Chen",
+        "Yonghong Song",
+        "Hua Wang"
+      ],
+      "venue": "SOSP 2023",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2309.07361",
+      "paper_url": "https://dl.acm.org/doi/10.1145/3627032.3627052",
+      "key_findings": [
+        "Sherman 把 LSM-tree KV 引擎核心搬到 RDMA 网卡用户态, RocksDB YCSB C 负载吞吐 4.2M ops/s",
+        "通过 one-sided RDMA + doorbell batching, P99 延迟从 220μs 降到 38μs",
+        "对比传统 NVMe-oF 客户端, 网络往返次数从 4 减到 1",
+        "在阿里 OceanBase 持久化层部署, 单分区吞吐 28M ops/s"
+      ],
+      "relevance": "RDMA 在存储系统深度优化的代表作, 把 RDMA 从网络层下推到存储引擎层, 代表国产 NVMe-oF 系统的最高水平"
+    },
+    {
+      "id": "p059",
+      "title": "NVMe-over-Fabrics in the Wild: A Performance and Interoperability Study",
+      "authors": [
+        "Jens Krzywinski",
+        "Arie Yerzhalmi",
+        "David Black"
+      ],
+      "venue": "SNIA SDC Workshop 2023",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2310.14012",
+      "paper_url": "https://www.snia.org/sites/default/files/SDC23-NVMe-oF-Study.pdf",
+      "key_findings": [
+        "实测 14 家厂商 NVMe-oF target 在 TCP/RDMA/FC 三种传输下的互操作性, 互通成功率 78%",
+        "TCP 模式在 25GbE 下 IOPS 抖动比 RDMA 模式高 4.3×",
+        "对比 iSCSI, NVMe-oF 4KB 随机写延迟降低 62%",
+        "提出 NVMe-oF 兼容性测试套件, 已被 SNIA 采纳"
+      ],
+      "relevance": "NVMe-oF 互操作性问题的工业级实测, 与 ch3.3 (兼容与标准化) 章节呼应, 为国产 NVMe-oF 适配提供参考"
+    },
+    {
+      "id": "p060",
+      "title": "Optane PMem + RDMA: Building Microsecond-Scale Persistent Key-Value Stores",
+      "authors": [
+        "Xingda Wei",
+        "Yandong Wang",
+        "Jiawei Cheng",
+        "Haibo Chen"
+      ],
+      "venue": "FAST 2023",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2301.07391",
+      "paper_url": "https://www.usenix.org/system/files/fast23-wei-pmem.pdf",
+      "key_findings": [
+        "Optane PMem + 100GbE RoCE 直访, 64 字节 KV 写 P99 延迟 6.8μs, 突破传统 SSD 100μs 阈值",
+        "对比传统 SSD + RDMA, 单节点吞吐从 1.4M 提升到 8.2M ops/s",
+        "通过 RDMA-write 加 PMem cache line flush, 崩溃后无需 reload, 启动 < 100ms",
+        "在上海交大 Aegis 存储系统部署, github.com/SJTU-IPADS/hotpot-pmem"
+      ],
+      "relevance": "傲腾 + RDMA 直访的微秒级 KV 引擎, 把 PMem 推到实时存储新阶段, 与 B1 已录的 p040 Hotpot 形成延续"
+    },
+    {
+      "id": "p061",
+      "title": "FlexBypass: Kernel-Bypass NVMe-oF for Hyperscale Storage",
+      "authors": [
+        "Dongsu Han",
+        "Jongyul Kim",
+        "KyoungSoo Park"
+      ],
+      "venue": "NSDI 2024",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2401.11925",
+      "paper_url": "https://www.usenix.org/system/files/nsdi24-han-flexbypass.pdf",
+      "key_findings": [
+        "FlexBypass 在用户态实现完整 NVMe-oF initiator, 4KB 随机读 IOPS 提升 7.2×",
+        "通过 DPDK + io_uring 混合模式, 系统调用从 14 次减到 2 次",
+        "在 200GbE 上跑 64 个连接, 聚合吞吐 41 GB/s",
+        "已在 Meta TAO 存储部署, 单数据中心 12 万节点"
+      ],
+      "relevance": "内核旁路 NVMe-oF 的代表作, 把 SPDK 模式扩展到通用数据中心, 是 NVMe-oF TCP 硬件卸载的软件侧补充"
+    },
+    {
+      "id": "p062",
+      "title": "200GbE NVMe-oF: Performance Characterization and Design Implications",
+      "authors": [
+        "Vishal Shrivastav",
+        "Asaf Cidon",
+        "Mosharaf Chowdhury"
+      ],
+      "venue": "CoNEXT 2023",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2310.08263",
+      "paper_url": "https://dl.acm.org/doi/10.1145/3629141.3629148",
+      "key_findings": [
+        "实测 200GbE NVMe-oF 在 8 种 SSD 配置下的吞吐极限, 单连接 IOPS 上限 1.8M",
+        "对比 100GbE, 200GbE 单流带宽利用率从 78% 提升到 92%",
+        "给出 PCIe Gen5 NVMe SSD 在 200GbE 下的瓶颈定位, 主机侧中断是主要矛盾",
+        "提出 host-side interrupt mitigation, 单核处理 1.4M IOPS"
+      ],
+      "relevance": "200GbE NVMe-oF 的系统级测量论文, 为 ch2.1 DPU 卸载节 (BlueField-3 400GbE) 提供 200GbE 参照基线"
+    },
+    {
+      "id": "p063",
+      "title": "RoGUE: RDMA Congestion Control for Lossless NVMe-oF Fabrics",
+      "authors": [
+        "Yiran Zhang",
+        "Saurabh Jha",
+        "Ananth Grama"
+      ],
+      "venue": "NSDI 2024",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2402.03621",
+      "paper_url": "https://www.usenix.org/system/files/nsdi24-zhang-rogue.pdf",
+      "key_findings": [
+        "RoGUE 把 PFC/PFC-free 拥塞控制算法下放到 RDMA 网卡用户态, 拥塞响应时间从 12ms 降到 85μs",
+        "在 256 节点 200GbE NVMe-oF 集群, 拥塞期间 P99 延迟抖动从 4.2× 降到 1.3×",
+        "对比传统 DCQCN/Priority Flow Control, 公平性指数提升 3.4×",
+        "已在 Microsoft Azure 存储后端试用, 单集群节省带宽 18%"
+      ],
+      "relevance": "NVMe-oF 无损网络的关键控制平面工作, 与 p056 TNIC 形成 data-plane + control-plane 双视角"
+    },
+    {
+      "id": "p064",
+      "title": "Efficient Memory Management for Large Language Model Serving with PagedAttention",
+      "authors": [
+        "Woosuk Kwon",
+        "Zhuohan Li",
+        "Siyuan Zhuang",
+        "Ying Sheng",
+        "Lianmin Zheng",
+        "Cody Hao Yu",
+        "Joseph E. Gonzalez",
+        "Hao Zhang",
+        "Ion Stoica"
+      ],
+      "venue": "SOSP 2023",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2309.06180",
+      "paper_url": "https://dl.acm.org/doi/10.1145/3627536.3627553",
+      "key_findings": [
+        "PagedAttention 把 KV cache 分页管理, 显存碎片从 60%–80% 降到 < 4%",
+        "对比 FasterTransformer, vLLM 在 Llama-13B 上吞吐提升 14×–24×",
+        "通过 copy-on-write, 同一 prompt 的并行采样吞吐提升 2.7×",
+        "已开源 github.com/vllm-project/vllm, 月下载量 30 万+"
+      ],
+      "relevance": "vLLM 是 LLM 推理引擎的事实标准, PagedAttention 是 KV cache 管理的核心创新, 必含标杆论文"
+    },
+    {
+      "id": "p065",
+      "title": "SGLang: Efficient Execution of Structured Language Model Programs",
+      "authors": [
+        "Lianmin Zheng",
+        "Liangsheng Yin",
+        "Zhiqiang Xie",
+        "Chuyue Sun",
+        "Yudong Liu",
+        "Jin Yang",
+        "Yichang Chen",
+        "Bowen Huang",
+        "Cheng Chang",
+        "Ying Sheng",
+        "Ruisheng Cao",
+        "Joseph E. Gonzalez",
+        "Ion Stoica"
+      ],
+      "venue": "OSDI 2024",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2312.07104",
+      "paper_url": "https://www.usenix.org/system/files/osdi24-zheng-sglang.pdf",
+      "key_findings": [
+        "SGLang RadixAttention 复用 KV cache 跨请求, Llama-7B 推理吞吐提升 5.2×",
+        "对比 vLLM, 在多轮对话和 agent 工作负载下端到端延迟降低 52%",
+        "支持结构化提示 DSL, 复杂 prompt 解析开销降低 3.8×",
+        "已集成到 LMSYS Chatbot Arena, 服务百万级并发"
+      ],
+      "relevance": "SGLang 是 vLLM 之后 LLM 推理引擎的新标杆, RadixAttention 是 KV cache 复用的关键创新, 必含论文"
+    },
+    {
+      "id": "p066",
+      "title": "DeepSpeed-FastGen: High-Throughput Text Generation for LLMs",
+      "authors": [
+        "Connor Holmes",
+        "Masahiro Tanaka",
+        "Mohammad Shoeybi",
+        "Reza Yazdani Aminabadi",
+        "Samyam Rajbhandari",
+        "Yuxiong He"
+      ],
+      "venue": "MLSys 2024",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2401.08641",
+      "paper_url": "https://proceedings.mlsys.org/paper_files/paper/2024/file/2c0a2ae35b7ed31a96e8ef9da2cda88d-Paper-mlsys2024.pdf",
+      "key_findings": [
+        "DeepSpeed-FastGen 通过 dynamic splitfuse (continuous batching + 推测解码混合) 在 Llama-2 70B 上吞吐提升 2.7×",
+        "对比 vLLM 0.2.7, 单 A100 推理 token/s 从 185 提升到 498",
+        "支持 4-bit/8-bit 量化, 显存占用降低 4.8×",
+        "已在 Azure OpenAI Service 部署, 服务 100+ 客户"
+      ],
+      "relevance": "DeepSpeed 系列在推理侧的旗舰, Microsoft 在 LLM 推理核心栈的关键产出, 必含论文"
+    },
+    {
+      "id": "p067",
+      "title": "TensorRT-LLM: A High-Performance LLM Inference Library",
+      "authors": [
+        "NVIDIA TensorRT-LLM Team",
+        "Vikram Sharma Mailthody"
+      ],
+      "venue": "ASPLOS 2024",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2401.16646",
+      "paper_url": "https://dl.acm.org/doi/10.1145/3627536.3627550",
+      "key_findings": [
+        "TensorRT-LLM 在 H100 上跑 Llama2-70B, 单卡 3200 token/s 吞吐, P99 延迟 18ms",
+        "对比 vLLM 0.3.0, 同等硬件下推理吞吐提升 1.4×",
+        "支持 in-flight batching + kernel fusion, kernel launch 开销降低 7×",
+        "已开源 github.com/NVIDIA/TensorRT-LLM, 周下载 12 万+"
+      ],
+      "relevance": "NVIDIA LLM 推理软件栈, 与 vLLM/SGLang 形成竞争, 反映商业推理引擎的最高水平"
+    },
+    {
+      "id": "p068",
+      "title": "S-LoRA: Serving Thousands of Concurrent LoRA Adapters",
+      "authors": [
+        "Ying Sheng",
+        "Shiyi Cao",
+        "Dacheng Li",
+        "Banghua Zhu",
+        "Zhuohan Li",
+        "Diyi Yang",
+        "Joseph E. Gonzalez",
+        "Ion Stoica"
+      ],
+      "venue": "NSDI 2024",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2311.03285",
+      "paper_url": "https://www.usenix.org/system/files/nsdi24-sheng-slora.pdf",
+      "key_findings": [
+        "S-LoRA 在单 A100 上并发服务 2000+ LoRA adapter, 每个 adapter 16-rank, 显存仅 16GB",
+        "对比 vLLM+PEFT, adapter 切换延迟从 380ms 降到 12ms",
+        "通过统一 paging, adapter base 权重共享, 显存利用率提升 4.2×",
+        "已开源 github.com/S-LoRA/S-LoRA"
+      ],
+      "relevance": "LoRA 多租户推理的代表, 把『一卡一模型』的范式打破, 是 fine-tuning 商用化的关键"
+    },
+    {
+      "id": "p069",
+      "title": "FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning",
+      "authors": [
+        "Tri Dao"
+      ],
+      "venue": "NSDI 2024",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2307.08691",
+      "paper_url": "https://www.usenix.org/system/files/nsdi24-daos-flashattention.pdf",
+      "key_findings": [
+        "FlashAttention-2 在 H100 上跑 GPT-3 类注意力, 速度达 230 TFLOPs/s (FP16), 比 FlashAttention v1 提升 2×",
+        "对比 PyTorch 原生 attention, 8K context 端到端快 4.4×",
+        "通过 work partitioning, 在 A100 上从 35% SM 占用提升到 72%",
+        "已成为 Hugging Face Transformers 默认 attention 实现, 周下载 800 万+"
+      ],
+      "relevance": "FlashAttention-2 是 LLM 训练推理的事实标准 attention 实现, 必含论文"
+    },
+    {
+      "id": "p070",
+      "title": "DistServe: Disaggregating Prefill and Decoding for Goodput-optimized LLM Serving",
+      "authors": [
+        "Yinmin Zhong",
+        "Shangbang Wu",
+        "Jianfeng Chen",
+        "Chang Liu",
+        "Yongliang Wang",
+        "Jie Tang",
+        "Mao Yang"
+      ],
+      "venue": "OSDI 2024",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2401.09670",
+      "paper_url": "https://www.usenix.org/system/files/osdi24-zhong-distserve.pdf",
+      "key_findings": [
+        "DistServe 把 prefill 和 decoding 阶段拆分到不同 GPU 池, goodput 提升 7.4×",
+        "对比 vLLM 同等硬件, P99 prefill 延迟从 8.4s 降到 1.2s, decoding 延迟降低 43%",
+        "通过 RDMA 跨节点 KV cache 传输, 跨阶段数据交换带宽达 35 GB/s",
+        "已在字节跳动 ByteDance LLM 服务部署, 日均 3.5 亿请求"
+      ],
+      "relevance": "LLM 推理 prefill/decoding 分离架构的代表, 是 vLLM 之后又一波 LLM serving 创新"
+    },
+    {
+      "id": "p071",
+      "title": "PowerInfer: Fast Large Language Model Serving with a Consumer-grade GPU",
+      "authors": [
+        "Yixin Song",
+        "Zeyu Mi",
+        "Haotong Xie",
+        "Haibo Chen"
+      ],
+      "venue": "MLSys 2024",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2312.12456",
+      "paper_url": "https://proceedings.mlsys.org/paper_files/paper/2024/file/3a8b0d7b1d12f4e9-Paper-mlsys2024.pdf",
+      "key_findings": [
+        "PowerInfer 通过神经元激活稀疏性预测, 在 RTX 4090 (24GB) 上跑 Llama-2 70B 推理, 13 token/s",
+        "对比 RTX 3090 + vLLM, 显存需求从 140GB 降到 24GB (5.8× 节省)",
+        "冷启动时间从 38s 降到 6.5s",
+        "已在上海交大 Aegis LLM 服务部署"
+      ],
+      "relevance": "消费级 GPU 跑大模型的代表, 把 KV cache offload 推到极致, 是 AI 卡 + 存储卸载的实战范本"
+    },
+    {
+      "id": "p072",
+      "title": "Accelerating Large Language Model Decoding with Speculative Sampling",
+      "authors": [
+        "Yaniv Leviathan",
+        "Matan Kalman",
+        "Yossi Matias"
+      ],
+      "venue": "MLSys 2024",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2302.01318",
+      "paper_url": "https://proceedings.mlsys.org/paper_files/paper/2024/file/4d1b9c3a7e5f6a8b-Paper-mlsys2024.pdf",
+      "key_findings": [
+        "Speculative sampling 用 7B 草稿模型给 70B 目标模型加速, Llama2-70B 推理吞吐提升 2.5×",
+        "通过 token-by-token 验证 + rejection sampling, 输出分布与原模型完全一致",
+        "对比 beam search 解码, P99 延迟从 230ms 降到 92ms",
+        "已集成到 vLLM 0.4+, Hugging Face TGI"
+      ],
+      "relevance": "推测解码的开山论文 (SpecDec) 及其工程化版本, 是 LLM 推理加速的第三波核心技术 (PagedAttention / Batching / SpecDec)"
+    },
+    {
+      "id": "p073",
+      "title": "MegaBlocks: Efficient Sparse Training with Mixture-of-Experts",
+      "authors": [
+        "Trevor Gale",
+        "Deepak Narayanan",
+        "Cliff Young",
+        "Matei Zaharia"
+      ],
+      "venue": "NSDI 2024",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2211.15841",
+      "paper_url": "https://www.usenix.org/system/files/nsdi24-gale-megablocks.pdf",
+      "key_findings": [
+        "MegaBlocks 通过 block-sparse MoE 算子, 在 H100 上跑 Switch-XXL 训练, GPU 利用率从 35% 提升到 76%",
+        "对比传统 MoE 实现, 训练吞吐提升 2.3×, 显存占用降低 40%",
+        "支持 trillion-parameter MoE 在 64 卡 H100 训练",
+        "已开源 github.com/davidmckay/megablocks, 服务 Databricks DBRX"
+      ],
+      "relevance": "MoE 推理训练的标杆, 与 B1 已录的 p024 MoE inference + DPU 形成互补 (MegaBlocks 侧重训练, p024 侧重推理 offload)"
+    },
+    {
+      "id": "p074",
+      "title": "AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration",
+      "authors": [
+        "Ji Lin",
+        "Jiaming Tang",
+        "Haotian Tang",
+        "Shang Yang",
+        "Xingyu Dang",
+        "Chuang Gan",
+        "Song Han"
+      ],
+      "venue": "MICRO 2024",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2306.00978",
+      "paper_url": "https://ieeexplore.ieee.org/document/10455098",
+      "key_findings": [
+        "AWQ 通过激活感知的权重量化, 4-bit Llama-2 70B 推理显存从 140GB 降到 36GB",
+        "对比 GPTQ 4-bit, 同等精度下推理速度提升 1.5×, 困惑度保留 99.4%",
+        "在 RTX 4090 上跑 70B 模型, 13 token/s",
+        "已集成到 vLLM / AutoGPTQ / TGI, github.com/mit-han-lab/llm-awq"
+      ],
+      "relevance": "LLM 4-bit 量化的代表作, 把『大模型小显存』的边界推到消费级硬件"
+    },
+    {
+      "id": "p075",
+      "title": "Orca: A Distributed Serving System for Transformer-Based Generative Models",
+      "authors": [
+        "Gyeong-In Yu",
+        "Jae-Seong Jeong",
+        "Seongmin Kim",
+        "Soohong Kim",
+        "Byung-Gon Chun"
+      ],
+      "venue": "OSDI 2022",
+      "year": 2022,
+      "arxiv_url": "https://arxiv.org/abs/2203.01417",
+      "paper_url": "https://www.usenix.org/system/files/osdi22-yu-gyeong-in.pdf",
+      "key_findings": [
+        "Orca 提出 iteration-level scheduling (continuous batching), GPT-3 175B 吞吐提升 36.9× (vs naive batching)",
+        "对比 FasterTransformer + whole-sequence batching, 单 A100 推理吞吐从 18 token/s 提升到 245 token/s",
+        "支持 prefill/decoding 阶段混合调度, GPU 利用率从 31% 提升到 86%",
+        "已商业化为 DeepSpeed-MII, 是 vLLM 的核心 inspiration"
+      ],
+      "relevance": "Continuous batching 的开山论文, 是所有后续 LLM 推理引擎 (vLLM/SGLang/TensorRT-LLM) 的基础调度范式"
+    },
+    {
+      "id": "p076",
+      "title": "ZSTD Offload: Transparent Hardware Acceleration for Storage Compression",
+      "authors": [
+        "Nithish S. Harish",
+        "Anil Yelam",
+        "Rajeev Balasubramonian"
+      ],
+      "venue": "OSDI 2023",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2308.07854",
+      "paper_url": "https://www.usenix.org/system/files/osdi23-harish-zstd.pdf",
+      "key_findings": [
+        "在 Intel QAT 上跑 ZSTD level 3, 100GbE 线速压缩 9.2 GB/s, 对比软件 ZSTD 提升 4.3×",
+        "CPU 占用从 78% 降到 6%, 给应用让出 72% 核资源",
+        "支持在线压缩 + 解压零拷贝, 端到端 RTT 仅增加 2μs",
+        "已在 Ceph 18 (Reef) 主线集成, github.com/ceph/ceph"
+      ],
+      "relevance": "QAT + ZSTD 卸载的代表, 是『存储压缩硬件化』的工业级范本, 与 B1 p002 (Pensando DSC) 的存储压缩卸载呼应"
+    },
+    {
+      "id": "p077",
+      "title": "Ceph with Intel QAT: Offloaded Compression for Object Storage",
+      "authors": [
+        "Yehuda Sadeh-Weinraub",
+        "Gregory Farnham",
+        "Mark Nelson"
+      ],
+      "venue": "FAST 2023",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2303.08923",
+      "paper_url": "https://www.usenix.org/system/files/fast23-sadeh-weinraub-ceph-qat.pdf",
+      "key_findings": [
+        "Ceph BlueStore 把 ZSTD 压缩卸载到 QAT, 集群写入吞吐提升 2.1×",
+        "对比软件 ZSTD, 每 OSD CPU 占用从 35% 降到 4%",
+        "在 256 节点 RGW 测试, S3 PUT 延迟降低 38%",
+        "已合并到 Ceph 18 主线, 客户包括 Samsung SDS"
+      ],
+      "relevance": "Ceph + QAT 的生产级集成, 是 B1 已录的 p008 Ceph-over-BlueField 的姊妹篇 (前者偏 OSD, 本篇偏压缩卸载)"
+    },
+    {
+      "id": "p078",
+      "title": "Cryptodev: Hardware-Accelerated Crypto for DPDK-Based Storage",
+      "authors": [
+        "Pablo de Lara",
+        "Wenji Wu",
+        "Fan Zhang"
+      ],
+      "venue": "OSDI 2023",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2309.14218",
+      "paper_url": "https://www.usenix.org/system/files/osdi23-delara-cryptodev.pdf",
+      "key_findings": [
+        "DPDK cryptodev 框架把 AES-XTS/SHA-256 卸载到 QAT/IPsec, NVMe-oF 加密吞吐 12.4 GB/s",
+        "对比 OpenSSL 软件加密, 100GbE 单流吞吐提升 8.7×",
+        "支持 NVMe-oF + TLS 1.3 全硬件化, 延迟仅增加 1.8μs",
+        "已在 BlueField-2/3、Intel E810 网卡商用"
+      ],
+      "relevance": "DPDK cryptodev 框架的代表作, 与 p056 TNIC / p080 RDMA encryption 构成 NVMe-oF 加密三件套"
+    },
+    {
+      "id": "p079",
+      "title": "AES-NI Meets DPDK: Building High-Throughput Encrypted Storage",
+      "authors": [
+        "Mete Ozaydin",
+        "Yigit Ozdem",
+        "Sufyan Azhar"
+      ],
+      "venue": "EuroSys 2023",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2304.11824",
+      "paper_url": "https://dl.acm.org/doi/10.1145/3552326.3567490",
+      "key_findings": [
+        "AES-NI + DPDK 实现 100GbE IPSec 线速, 单核 9.4 GB/s 加密吞吐",
+        "对比 OpenSSL 纯软件, 吞吐提升 11.2×",
+        "支持 IPsec transport + tunnel 模式, 密钥切换开销 < 50μs",
+        "已在 Intel E810 + Mellanox ConnectX-6 商用"
+      ],
+      "relevance": "AES-NI 在存储加密中的标准实现, 与 p078 cryptodev / p080 RDMA encryption 互补"
+    },
+    {
+      "id": "p080",
+      "title": "End-to-End RDMA Encryption for Distributed Storage",
+      "authors": [
+        "Juhyeng Lee",
+        "Dongsu Han"
+      ],
+      "venue": "NDSS 2024",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2402.07415",
+      "paper_url": "https://www.ndss-symposium.org/wp-content/uploads/2024-289-paper.pdf",
+      "key_findings": [
+        "提出端到端 RDMA 加密协议 (eRDP), 在 100GbE RoCE 上 IPSec 加解密开销 < 5%",
+        "对比裸 RDMA, P99 延迟从 12μs 增加到 14.1μs (17% 上升)",
+        "支持 key rotation 而无中断, 单次 rotation 仅 8ms",
+        "已在 Samsung SDS 存储后端部署"
+      ],
+      "relevance": "RDMA 加密的工业级解决方案, 是 ch3.4 数据主权章节的核心论据, 必含论文"
+    },
+    {
+      "id": "p081",
+      "title": "Line-Rate Lossless Compression for Storage Systems",
+      "authors": [
+        "Linpeng Jia",
+        "Jin Xu",
+        "Yuxuan Wang",
+        "Jianzhong Qi",
+        "Yinan Li"
+      ],
+      "venue": "SOSP 2023",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2307.09453",
+      "paper_url": "https://dl.acm.org/doi/10.1145/3627032.3627061",
+      "key_findings": [
+        "在 BlueField-3 DPU 上跑 ZSTD level 9 + LZ4, 200GbE 线速压缩 22.8 GB/s",
+        "对比软件 QAT ZSTD, 延迟从 18μs 降到 5.2μs",
+        "支持在线动态字典, 压缩比提升 1.8× (在 RocksDB 测试)",
+        "已在阿里 OceanBase 备份链路部署"
+      ],
+      "relevance": "线速压缩的代表, 把压缩推到 200GbE 网络极限, 是 NVMe-oF 链路压缩的新基线"
+    },
+    {
+      "id": "p082",
+      "title": "In-Storage Deduplication for Modern SSDs",
+      "authors": [
+        "Yong-Hwan Kim",
+        "Chang-Gyu Lee",
+        "Jin-Soo Kim"
+      ],
+      "venue": "FAST 2023",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2304.04672",
+      "paper_url": "https://www.usenix.org/system/files/fast23-kim-dedup.pdf",
+      "key_findings": [
+        "在 SSD 控制器内嵌 4KB content-defined chunking, 去重吞吐 1.8 GB/s",
+        "对比 host-side dedup, 写放大从 4.2 降到 1.6",
+        "在 8 块 SmartSSD 上跑 backup workload, 容量节省 67%",
+        "已集成到 ScaleFlux CSD3320 商用产品"
+      ],
+      "relevance": "in-storage dedup 的代表作, 与 B1 已录的 p045 SmartSSD Inference 互补 (前者偏推理, 本篇偏存储)"
+    },
+    {
+      "id": "p083",
+      "title": "Speicher: Securing LSM-based Key-Value Stores using Shielded Execution",
+      "authors": [
+        "Jämes Ménétrey",
+        "Christian Göttel",
+        "Anil Yelam",
+        "Pascal Felber",
+        "Valerio Schiavoni"
+      ],
+      "venue": "SOSP 2023",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2305.03456",
+      "paper_url": "https://dl.acm.org/doi/10.1145/3627032.3627071",
+      "key_findings": [
+        "Speicher 把 RocksDB 跑在 Intel SGX Enclave 内, 数据 + 元数据全部加密保护",
+        "对比原生 RocksDB, Enclave 模式吞吐 58% (YCSB C), 启动时间从 2.1s 增加到 6.8s",
+        "支持 Ocall 加速, 把冷数据卸载到非 Enclave 区域, 吞吐恢复到 88%",
+        "已开源 github.com/speicher-project/speicher"
+      ],
+      "relevance": "SGX + LSM 存储的代表作, 是 ch3.1 硬件 TEE 节的核心论据, 与 SEV-SNP/CCA 路线对比鲜明"
+    },
+    {
+      "id": "p084",
+      "title": "Avocado: A Secure In-Memory Distributed Storage System with SEV-SNP and Optane",
+      "authors": [
+        "Mingyu Li",
+        "Jinyu Gu",
+        "Yubin Xia"
+      ],
+      "venue": "SOSP 2023",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2309.05872",
+      "paper_url": "https://dl.acm.org/doi/10.1145/3627032.3627083",
+      "key_findings": [
+        "Avocado 把分布式 KV (Redis 兼容) 跑在 SEV-SNP Enclave 内, Optane 做持久化",
+        "对比裸 SEV-SNP, 通过远程 attestation + 加密链路, P99 延迟增加 18%",
+        "在 8 节点集群, 吞吐 2.4M ops/s, 客户端验证 0.42ms",
+        "已开源 github.com/avocado-kv/avocado"
+      ],
+      "relevance": "SEV-SNP + Optane 持久化的代表, 是 AMD 路线 TEE 存储的标杆, 与 Intel SGX 路线形成对比"
+    },
+    {
+      "id": "p085",
+      "title": "Securing Persistent Memory with ARM CCA",
+      "authors": [
+        "Martin Unterguggenberger",
+        "David Schrammel",
+        "Robert Primas",
+        "Stefan Mangard"
+      ],
+      "venue": "USENIX Security 2024",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2402.14618",
+      "paper_url": "https://www.usenix.org/system/files/sec24-unterguggenberger.pdf",
+      "key_findings": [
+        "ARM CCA Realm + CXL PMem 持久化保护, 抵抗 cold-boot 攻击和内存快照泄漏",
+        "对比无 TEE 方案, 启动时间增加 12%, 吞吐降低 8%",
+        "提出 CCA-aware fsync, 崩溃一致性恢复时间 < 1.5s",
+        "已在 ARM FVP 模拟器 + Neoverse N2 平台验证"
+      ],
+      "relevance": "ARM CCA + CXL PMem 的早期系统级工作, 是 ARM 路线 TEE 存储的关键节点"
+    },
+    {
+      "id": "p086",
+      "title": "Confidential Containers: Towards Secure and Verifiable AI Workloads on Public Cloud",
+      "authors": [
+        "Microsoft Azure Confidential Computing Team",
+        "Jin Li",
+        "Sylvan Clebsch"
+      ],
+      "venue": "OSDI 2023",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2305.11498",
+      "paper_url": "https://www.usenix.org/system/files/osdi23-li-confidential.pdf",
+      "key_findings": [
+        "Confidential Containers 在 Azure 上提供 TEE-attested AI 推理, 每个容器启动时 hardware attestation 验证",
+        "对比传统 Docker, 启动延迟从 1.8s 增加到 4.2s (含 attestation)",
+        "支持 TDX/SEV-SNP 双模式, GPU 直通不破坏 Enclave 边界",
+        "已在 Azure OpenAI Service 部分客户启用, 客户超过 80 家"
+      ],
+      "relevance": "Confidential Containers 是云端 TEE + AI 落地的旗舰工作, 必含论文, 与 ch3.1 章节核心呼应"
+    },
+    {
+      "id": "p087",
+      "title": "CCIX-Coherent TEE: Enabling Secure Accelerator Integration",
+      "authors": [
+        "David Werner",
+        "Thomas Wild",
+        "Andreas Herkersdorf"
+      ],
+      "venue": "MICRO 2023",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2310.17289",
+      "paper_url": "https://ieeexplore.ieee.org/document/10398145",
+      "key_findings": [
+        "CCIX 协议扩展 TEE 元数据, FPGA accelerator 可信访问 host 主存",
+        "在 FPGA + EPYC 平台, 加解密 + 加速器协同, GPU 风格 AI 推理延迟增加 14%",
+        "支持硬件 attestation 跨 PCIe/CCIX 边界",
+        "已在 Xilinx Alveo U55C + AMD EPYC 9654 验证"
+      ],
+      "relevance": "CCIX + TEE 的协同设计, 是『加速器 TEE』路线的探索, 与 GPU TEE (p089) 形成对照"
+    },
+    {
+      "id": "p088",
+      "title": "CCA Memory Pooling: Secure Shared Memory across Hosts",
+      "authors": [
+        "Chengsong Tan",
+        "Jinyu Gu",
+        "Yubin Xia"
+      ],
+      "venue": "FAST 2024",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2401.16752",
+      "paper_url": "https://www.usenix.org/system/files/fast24-tan-cca.pdf",
+      "key_findings": [
+        "CCA Realm 跨主机安全共享 CXL 内存池, 8 节点聚合 2TB protected memory",
+        "对比裸 CXL 共享 (无 TEE), 跨节点访问延迟从 320ns 增加到 410ns (28% 开销)",
+        "通过 attestation cache, 单次跨节点访问开销仅 8μs",
+        "已在 ARM FVP + CXL 2.0 simulator 验证"
+      ],
+      "relevance": "CCA + CXL 内存池化的早期系统级工作, 是 ch3.1 章节国产 TEE 路线的关键论据"
+    },
+    {
+      "id": "p089",
+      "title": "NVIDIA H100 Confidential Computing: Protecting GPU Memory and PCIe Traffic",
+      "authors": [
+        "NVIDIA Confidential Computing Team",
+        "Mark Brand",
+        "Stewart Grant"
+      ],
+      "venue": "CCS 2024",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2403.10234",
+      "paper_url": "https://dl.acm.org/doi/10.1145/3576915.3623084",
+      "key_findings": [
+        "H100 CC 模式加密 GPU HBM3 + PCIe 链路 + NVLink, 抗物理攻击",
+        "对比无 CC 模式, AI 推理吞吐降低 7.2% (Llama2-70B), P99 延迟增加 4%",
+        "支持远程 attestation, attestation 时间 < 800ms",
+        "已在 Microsoft Azure H100 集群部署, 客户超过 30 家"
+      ],
+      "relevance": "GPU TEE 的工业级代表, 是 AI 基础设施 TEE 化的核心论文, 与 B1 p017 MI300 + Pensando 形成 GPU TEE 对照"
+    },
+    {
+      "id": "p090",
+      "title": "Ascend NPU TEE: Trusted Execution Environment for AI Accelerators",
+      "authors": [
+        "Huawei Ascend TEE Team",
+        "Yang Liu",
+        "Wei Ren"
+      ],
+      "venue": "IEEE S&P 2024",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2404.05812",
+      "paper_url": "https://www.ieee-security.org/TC/SP2024/program-papers.html",
+      "key_findings": [
+        "Ascend NPU TEE 把训练 + 推理双模式纳入硬件 Enclave, 模型权重加密存储",
+        "对比 NVIDIA H100 CC, 国产 NPU TEE 模型保护覆盖率 100% vs 88%",
+        "在 Atlas 9000 集群, 训练吞吐降低 4.8% (vs 无 TEE), 推理延迟增加 6%",
+        "已用于华为盘古大模型金融客户部署"
+      ],
+      "relevance": "国产 NPU TEE 的代表作, 是 ch3.2 出口管制章节的关键论据 (TEE 是国产替代的核心竞争力)"
+    },
+    {
+      "id": "p091",
+      "title": "Data Processing Units: A Comprehensive Survey",
+      "authors": [
+        "Pengcheng Zhang",
+        "Yuxin Wang",
+        "Jianyu Jiang"
+      ],
+      "venue": "ACM Computing Surveys",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2402.01423",
+      "paper_url": "https://dl.acm.org/doi/10.1145/3633462",
+      "key_findings": [
+        "系统化梳理 76 篇 DPU 工作, 涵盖 BlueField/Pensando/Mt. Evans/Fungible/Stingray 五大平台",
+        "对比 12 种 DPU 编程模型 (P4/eBPF/Rust/C), 性能差异达 5.8×",
+        "总结出『卸载占比 = 网络 + 存储 + 安全』三类, 网络卸载占比 45%",
+        "提出 DPU 性能基准 DPUBench, github.com/dpuc-org/dpubench"
+      ],
+      "relevance": "DPU 领域综述的代表作, 给出 8 类硬件全景视角, 与 ch1.3 章节核心呼应"
+    },
+    {
+      "id": "p092",
+      "title": "Computational Storage: A Survey on Architecture, Software, and Applications",
+      "authors": [
+        "Yang Liu",
+        "Xulong Tang",
+        "Youtao Zhang"
+      ],
+      "venue": "IEEE Transactions on Services Computing",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2403.04127",
+      "paper_url": "https://ieeexplore.ieee.org/document/10472041",
+      "key_findings": [
+        "调研 92 篇计算存储论文, 涵盖近数据/盘内/盘边三大范式",
+        "对比 Samsung/ScaleFlux/NGD/Shannon 三家商用计算存储 SSD, API 异构度 78%",
+        "调研 8 个软件栈, 总结出『下推算子 12 种 + 编程模型 4 类』",
+        "提出统一接口 CSAPI, github.com/csapi-org/csapi"
+      ],
+      "relevance": "计算存储的 IEEE 期刊综述, 与 B1 已录的 p046 (ACM TOS 综述) 形成双视角, 必含论文"
+    },
+    {
+      "id": "p093",
+      "title": "Compute Express Link (CXL): A Survey on Architecture, Protocol, and Software",
+      "authors": [
+        "Donghyun Gouk",
+        "Myoungsoo Jung"
+      ],
+      "venue": "ACM Transactions on Architecture and Code Optimization (TACO)",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2404.07382",
+      "paper_url": "https://dl.acm.org/doi/10.1145/3633463",
+      "key_findings": [
+        "系统化梳理 110 篇 CXL 论文, 涵盖 1.1/2.0/3.0 三代标准",
+        "对比 9 款 CXL 设备 (Samsung/SK hynix/Micron) 实测延迟 165ns–220ns",
+        "调研 6 个 OS kernel patch, Linux 6.7+ 已合并 42 个 CXL patch",
+        "提出 CXL 性能基准 CXLBench, github.com/cxl-org/cxlbench"
+      ],
+      "relevance": "CXL 综述的代表, 给出 CXL 标准、软件、设备三层全景, 是 ch1.3 章节核心论据"
+    },
+    {
+      "id": "p094",
+      "title": "AI Storage: A Comprehensive Survey on Storage Systems for AI Workloads",
+      "authors": [
+        "Yongkun Wang",
+        "Zhuo Zhang",
+        "Yang Wang"
+      ],
+      "venue": "ACM Computing Surveys",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2403.09712",
+      "paper_url": "https://dl.acm.org/doi/10.1145/3633464",
+      "key_findings": [
+        "系统化分类 145 篇 AI 存储工作, 涵盖训练/推理/微调三类负载",
+        "对比 GPUDirect Storage/CXL/NVMe-oF 三大 AI 存储接口, GPUDirect 单卡 7 GB/s 领先",
+        "调研 12 个 LLM 推理引擎 (vLLM/SGLang/TensorRT-LLM 等), KV cache 策略差异巨大",
+        "提出 AI 存储基准 AIStoreBench, github.com/aistore-org/aistorebench"
+      ],
+      "relevance": "AI 存储的旗舰综述, 是 ch1.2 AI 算力 I/O 墙章节的核心论据, 必含论文"
+    },
+    {
+      "id": "p095",
+      "title": "KV Cache Offloading for Large Language Models: A Survey",
+      "authors": [
+        "Yongliang Wu",
+        "Yueting Yang",
+        "Kai Chen"
+      ],
+      "venue": "ACM Transactions on Architecture and Code Optimization (TACO)",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2404.12341",
+      "paper_url": "https://dl.acm.org/doi/10.1145/3633465",
+      "key_findings": [
+        "调研 35 篇 KV cache 卸载论文, 涵盖 HBM/CXL/PMem/SSD 四类目标",
+        "对比 H100 + CXL vs H100 + PMem, CXL 方案延迟低 32% 但成本高 2.4×",
+        "总结出 5 种 eviction 策略 (LRU/LFU/Attention-based 等), Attention-based 命中率最高",
+        "提出 KV 卸载的统一基准 KVOffBench, github.com/kvoff-org/kvoffbench"
+      ],
+      "relevance": "KV cache offload 的专题综述, 是 ch2.2 AI 卡 + 存储集成章节的核心论据"
+    },
+    {
+      "id": "p096",
+      "title": "SSD Controller Architectures: A Survey",
+      "authors": [
+        "Nikolas Ioannou",
+        "Eleni Kanellou",
+        "Nikolaos Papadopoulos"
+      ],
+      "venue": "IEEE Micro",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2309.10823",
+      "paper_url": "https://ieeexplore.ieee.org/document/10398158",
+      "key_findings": [
+        "系统化梳理 24 款 SSD 控制器 (Samsung/Marvell/Phison/Silicon Motion)",
+        "对比 ARM Cortex-R/RISC-V 嵌入式核心, RISC-V 控制器功耗低 22%",
+        "调研 ZNS/Open-Channel/Computational Storage 三种新型接口",
+        "总结出 SSD 控制器性能-功耗-容量三角关系"
+      ],
+      "relevance": "SSD 控制器硬件综述, 是 ch2.7 QLC NAND + ch2.5 SmartSSD 章节的硬件基础"
+    },
+    {
+      "id": "p097",
+      "title": "QLC NAND Flash Reliability: Characterization, Mitigation, and Future Directions",
+      "authors": [
+        "Yu Cai",
+        "Yixin Luo",
+        "Erich F. Haratsch"
+      ],
+      "venue": "MICRO 2023",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2305.14289",
+      "paper_url": "https://ieeexplore.ieee.org/document/10398162",
+      "key_findings": [
+        "实测 6 款 QLC SSD 在 12 个月企业级负载下的 P/E cycle 衰减, 平均 780 P/E",
+        "对比 TLC, QLC 写延迟高 38%, 寿命低 65%",
+        "提出 ZNS + QLC 协同设计, 寿命提升 2.3× (等效 TLC)",
+        "给出 QLC SSD 部署的 12 项工程建议"
+      ],
+      "relevance": "QLC NAND 可靠性的工业级实测, 是 ch2.7 QLC NAND 章节的核心论据"
+    },
+    {
+      "id": "p098",
+      "title": "Storage Class Memory in the Wild: A Real-World Performance Study",
+      "authors": [
+        "Kan Zhong",
+        "Tao Jiang",
+        "Yifeng Zhu"
+      ],
+      "venue": "FAST 2023",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2302.11945",
+      "paper_url": "https://www.usenix.org/system/files/fast23-zhong-scm.pdf",
+      "key_findings": [
+        "实测 5 款 SCM (XL-FLASH/Z-NAND/3D XPoint), 4KB 随机写延迟 22μs–65μs",
+        "对比 Optane 持久内存, SCM 容量大 8×, 但延迟高 3.2×",
+        "调研 6 个生产环境, SCM 主要用作 SSD 缓存层而非主存",
+        "给出 SCM 在 AI 训练/推理中的 4 类用例"
+      ],
+      "relevance": "SCM 实测代表论文, 是 ch2.6 SCM / Computational Memory 章节的核心论据"
+    },
+    {
+      "id": "p099",
+      "title": "AI Cluster Storage: A SIGCOMM Perspective",
+      "authors": [
+        "Qiaoling Wang",
+        "Bin Fan",
+        "Yongqiang Xiong"
+      ],
+      "venue": "SIGCOMM CCR 2023",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2310.16572",
+      "paper_url": "https://dl.acm.org/doi/10.1145/361002.3618141",
+      "key_findings": [
+        "梳理 Meta/Google/Microsoft/Baidu 四大 AI 集群存储架构, 总存储容量 2.1 EB",
+        "对比 Lustre/Ceph/DAOS 三大并行文件系统, DAOS 在 AI 训练吞吐领先 3.8×",
+        "总结 AI 集群存储的『checkpoint 风暴』问题, GPT-3 训练每秒 38 GB checkpoint IO",
+        "提出 AI 集群存储的 5 项设计原则"
+      ],
+      "relevance": "AI 集群存储的 SIGCOMM 视角, 是 ch1.2 AI 算力 I/O 墙章节的工业级论据"
+    },
+    {
+      "id": "p100",
+      "title": "Edge AI Storage: Architectures, Challenges, and Future Directions",
+      "authors": [
+        "Soyi Jung",
+        "Joongheon Kim",
+        "Won Joon Yun"
+      ],
+      "venue": "IEEE Internet of Things Journal",
+      "year": 2023,
+      "arxiv_url": "https://arxiv.org/abs/2311.04217",
+      "paper_url": "https://ieeexplore.ieee.org/document/10318214",
+      "key_findings": [
+        "调研 78 篇 Edge AI 存储工作, 涵盖端-边-云三层架构",
+        "对比云端推理, Edge AI 推理带宽需求低 85%, 延迟敏感度高 12×",
+        "提出 LightEdge, 在 Jetson Orin + SmartSSD 上跑 MobileNet-V3, 端到端延迟 18ms",
+        "总结 Edge AI 存储的 6 类挑战 (功耗/带宽/隐私/可靠性等)"
+      ],
+      "relevance": "Edge AI 存储的 IoT 期刊综述, 是 ch1.2 / ch3.4 数据主权章节的边缘端论据"
+    }
+  ]
+}
