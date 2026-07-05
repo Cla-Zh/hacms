@@ -603,6 +603,232 @@ tr:nth-child(even) td{background:#fcfcfc}
 <p>v3.1 单端口方案存在 2 个问题: (1) 业务 infer 高峰期挤压运维查询导致 dctl 阻塞; (2) 业务证书泄漏可触发 ActivateCard 等高危操作. v3.2 拆分, 启动脚本替代 cann-init.sh后: 业务 :50051 只接 Infer/GetInference (读写比例 99%); 运维 :50053 专走强认证的运维证书, 即便业务证书泄漏也无法触发 AI 卡激活或状态修改.</p>
 </div>
 
+
+
+<h4>gRPC Service URL 完整设计 (v3.2 客户端调用)</h4>
+<p>v3.2 vNic 通信模块对外提供 gRPC service, 客户端 (dctl / 业务网关 / 健康服务) <strong>必须</strong> 通过 vNic URL 寻址, <strong>不</strong>使用物理 IP. URL 格式: <code>vnic://&lt;vnic_name&gt;:&lt;port&gt;/&lt;package&gt;.&lt;service&gt;/&lt;method&gt;</code>.</p>
+
+<table>
+<thead><tr><th>业务</th><th>vNic URL (业务面 :50051)</th><th>调用方</th><th>RPC 方法</th></tr></thead>
+<tbody>
+<tr>
+  <td rowspan="3"><strong>推理业务</strong></td>
+  <td><code>vnic://vnic0:50051/dcard.inference.v1.AIInferenceService/Infer</code></td>
+  <td>业务推理容器 / 网关</td>
+  <td>Unary RPC, 同步推理</td>
+</tr>
+<tr>
+  <td><code>vnic://vnic0:50051/dcard.inference.v1.AIInferenceService/GetInference</code></td>
+  <td>业务推理容器</td>
+  <td>Unary RPC, 查询推理结果 (异步回调用)</td>
+</tr>
+<tr>
+  <td><code>vnic://vnic0:50051/dcard.card.v1.DCardManager/AssignModels</code></td>
+  <td>业务网关 / 编排器</td>
+  <td>Unary RPC, 分配模型到 NPU 池</td>
+</tr>
+</tbody>
+</table>
+
+<table>
+<thead><tr><th>运维</th><th>vNic URL (管理面 :50053)</th><th>调用方</th><th>RPC 方法</th></tr></thead>
+<tbody>
+<tr>
+  <td rowspan="4"><strong>运维管理</strong></td>
+  <td><code>vnic://vnic0:50053/dcard.card.v1.DCardManager/ActivateCard</code></td>
+  <td>dctl / AI 卡部署</td>
+  <td>Unary RPC, 激活 AI 卡 (启动 7 阶段)</td>
+</tr>
+<tr>
+  <td><code>vnic://vnic0:50053/dcard.card.v1.DCardManager/UnregisterCard</code></td>
+  <td>dctl</td>
+  <td>Unary RPC, 去注册 AI 卡</td>
+</tr>
+<tr>
+  <td><code>vnic://vnic0:50053/dcard.card.v1.DCardManager/GetStatus</code></td>
+  <td>健康服务 / 监控</td>
+  <td>Unary RPC, 查询 AI 卡状态</td>
+</tr>
+<tr>
+  <td><code>vnic://vnic0:50053/dcard.card.v1.DCardManager/PersistentMem</code></td>
+  <td>dctl</td>
+  <td>Unary RPC, 持久化内存 (state.xml 写回)</td>
+</tr>
+</tbody>
+</table>
+
+<h4>gRPC Request Body 设计 (以 <code>Infer</code> RPC 为例)</h4>
+<p>protobuf 3 字段, 客户端序列化后通过 gRPC 发送, 跟 §15.2 多模型推理框架 / §15.7 日志收集 / §15.4 AI 卡使能 内部数据结构对齐.</p>
+
+<table>
+<thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+<tbody>
+<tr>
+  <td><code>model_id</code></td>
+  <td>string</td>
+  <td>✅</td>
+  <td>模型短名, e.g. "resnet50" / "llama-7b" / "bert-base" (跟 §15.2 model_id 路由对齐)</td>
+</tr>
+<tr>
+  <td><code>inputs</code></td>
+  <td><code>InferInput</code> (oneof)</td>
+  <td>✅</td>
+  <td>输入数据, 按模型类型: image_bytes / image_url / text / audio_bytes (CANN ACLTensor 序列化)</td>
+</tr>
+<tr>
+  <td><code>parameters</code></td>
+  <td><code>InferParams</code> message</td>
+  <td>❌</td>
+  <td>5 子字段: top_k / temperature / max_tokens / device_preference (默认 "auto") / precision (默认 "FP16")</td>
+</tr>
+</tbody>
+</table>
+
+<h4>gRPC Response Body 设计</h4>
+<table>
+<thead><tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr></thead>
+<tbody>
+<tr>
+  <td><code>request_id</code></td>
+  <td>string (UUID)</td>
+  <td>✅</td>
+  <td>服务端生成, 关联客户端 X-Request-ID (gRPC metadata)</td>
+</tr>
+<tr>
+  <td><code>model_id</code></td>
+  <td>string</td>
+  <td>✅</td>
+  <td>回显请求的 model_id</td>
+</tr>
+<tr>
+  <td><code>outputs</code></td>
+  <td><code>InferOutput</code> (oneof)</td>
+  <td>✅</td>
+  <td>推理输出, 按模型: predictions (CV 分类) / text (NLP 生成) / image_bytes (图像生成) / transcript (ASR)</td>
+</tr>
+<tr>
+  <td><code>metadata</code></td>
+  <td><code>InferMetadata</code> message</td>
+  <td>✅</td>
+  <td>6 子字段: device / latency_ms / queue_time_ms / compute_time_ms / tokens_generated / model_version</td>
+</tr>
+</tbody>
+</table>
+
+<h4>5 类业务模型 (model_id + business_type)</h4>
+<table>
+<thead><tr><th>业务类型 (business_type)</th><th>代表 model_id</th><th>inputs (oneof)</th><th>outputs (oneof)</th><th>典型场景</th></tr></thead>
+<tbody>
+<tr><td><strong>图像分类</strong></td><td>resnet50, vit-base, swin-base</td><td>image_bytes / image_url</td><td>predictions [{label, score}]</td><td>商品识别 / 质检 / 安防</td></tr>
+<tr><td><strong>图像生成</strong></td><td>sd-2-1, sdxl-1-0</td><td>text (prompt)</td><td>image_bytes</td><td>AIGC / 营销图 / 设计</td></tr>
+<tr><td><strong>文本生成</strong></td><td>llama-7b, qwen-7b, chatglm-6b</td><td>text</td><td>text</td><td>对话 / 翻译 / 摘要</td></tr>
+<tr><td><strong>语音识别 (ASR)</strong></td><td>whisper-large, paraformer-large</td><td>audio_bytes</td><td>transcript</td><td>会议纪要 / 客服 / 字幕</td></tr>
+<tr><td><strong>文本分类 (预留)</strong></td><td>bert-base, roberta-base</td><td>text</td><td>predictions [{label, score}]</td><td>情感分析 / 垃圾识别</td></tr>
+</tbody>
+</table>
+
+<h4>gRPC Client 调用示例 (grpcurl + Python)</h4>
+<p>客户端通过 gRPC + mTLS 调用, 需提供业务证书 (ProductCA).</p>
+
+<pre><code class="language-bash"># grpcurl 调用 Infer (业务面 :50051, mTLS)
+grpcurl \
+  -cacert /etc/d1/ca/ProductCA.crt \
+  -cert /etc/d1/cert/client.crt \
+  -key /etc/d1/cert/client.key \
+  -import-path /usr/share/d1/proto \
+  -proto dcard/inference/v1/inference.proto \
+  -d '{
+    "model_id": "resnet50",
+    "inputs": {"image_url": "https://example.com/cat.jpg"},
+    "parameters": {"top_k": 5}
+  }' \
+  vnic://vnic0:50051 dcard.inference.v1.AIInferenceService/Infer
+
+# grpcurl 调用 GetStatus (管理面 :50053, 运维证书)
+grpcurl \
+  -cacert /etc/d1/ca/OpsCA.crt \
+  -cert /etc/d1/cert/ops.crt \
+  -key /etc/d1/cert/ops.key \
+  -import-path /usr/share/d1/proto \
+  -proto dcard/card/v1/card.proto \
+  -d '{"device_id": 0}' \
+  vnic://vnic0:50053 dcard.card.v1.DCardManager/GetStatus</code></pre>
+
+<pre><code class="language-python">import grpc
+from dcard.inference.v1 import inference_pb2, inference_pb2_grpc
+
+# 创建 mTLS 安全通道 (业务面)
+with open('/etc/d1/ca/ProductCA.crt', 'rb') as f:
+    ca_cert = f.read()
+with open('/etc/d1/cert/client.crt', 'rb') as f:
+    client_cert = f.read()
+with open('/etc/d1/cert/client.key', 'rb') as f:
+    client_key = f.read()
+
+credentials = grpc.ssl_channel_credentials(
+    root_certificates=ca_cert,
+    private_key=client_key,
+    certificate_chain=client_cert
+)
+channel = grpc.secure_channel('vnic0:50051', credentials)
+stub = inference_pb2_grpc.AIInferenceServiceStub(channel)
+
+# 构造 InferRequest
+request = inference_pb2.InferRequest(
+    model_id='resnet50',
+    inputs=inference_pb2.InferInput(image_url='https://example.com/cat.jpg'),
+    parameters=inference_pb2.InferParams(top_k=5)
+)
+
+# 同步调用 (Unary RPC)
+response = stub.Infer(request, timeout=30)
+print(f"Top-1: {response.outputs.predictions[0].label} ({response.outputs.predictions[0].score:.4f})")
+print(f"Latency: {response.metadata.latency_ms}ms")
+print(f"Device: {response.metadata.device}")
+
+# 流式调用 (Server Streaming, 暂未启用, v3.3 规划)
+# for response in stub.StreamInfer(request):
+#     print(response.token, end='', flush=True)</code></pre>
+
+<h4>gRPC Status Code 映射 (16 类 → 业务错误码)</h4>
+<p>跟 v3.2 §10 错误码 16 类对齐, 客户端通过 gRPC status code + metadata "error-code" 字段获取详细错误.</p>
+
+<table>
+<thead><tr><th>gRPC Status</th><th>错误码 (metadata "error-code")</th><th>触发场景</th><th>可重试</th></tr></thead>
+<tbody>
+<tr><td>INVALID_ARGUMENT</td><td><code>INVALID_REQUEST</code></td><td>Request 字段缺失/不合法</td><td>❌</td></tr>
+<tr><td>UNAUTHENTICATED</td><td><code>UNAUTHORIZED</code></td><td>mTLS 证书无效/过期</td><td>❌</td></tr>
+<tr><td>PERMISSION_DENIED</td><td><code>FORBIDDEN</code></td><td>业务证书无权访问运维 RPC</td><td>❌</td></tr>
+<tr><td>NOT_FOUND</td><td><code>NOT_FOUND</code></td><td>model_id 未加载</td><td>❌</td></tr>
+<tr><td>FAILED_PRECONDITION</td><td><code>MODEL_VERSION_MISMATCH</code></td><td>model_version 不匹配</td><td>❌</td></tr>
+<tr><td>RESOURCE_EXHAUSTED</td><td><code>RATE_LIMITED</code></td><td>QPS 超限</td><td>✅ (retry_after_ms)</td></tr>
+<tr><td>INTERNAL</td><td><code>INTERNAL_ERROR</code></td><td>内部未捕获错误</td><td>❌</td></tr>
+<tr><td>INTERNAL</td><td><code>CANN_INIT_FAILED</code></td><td>CANN 框架初始化失败</td><td>✅</td></tr>
+<tr><td>INTERNAL</td><td><code>XML_STATE_CORRUPTED</code></td><td>state.xml 损坏</td><td>❌</td></tr>
+<tr><td>INTERNAL</td><td><code>ACTIVATION_SCRIPT_FAILED</code></td><td>activate.sh 启动失败</td><td>❌</td></tr>
+<tr><td>RESOURCE_EXHAUSTED</td><td><code>ACL_OOM</code></td><td>ACL 内存不足</td><td>✅ (降低 batch_size)</td></tr>
+<tr><td>UNAVAILABLE</td><td><code>MODEL_LOAD_FAILED</code></td><td>模型加载失败</td><td>✅</td></tr>
+<tr><td>UNAVAILABLE</td><td><code>NO_AVAILABLE_NPU</code></td><td>3 张 NPU 全忙</td><td>✅ (retry_after_ms)</td></tr>
+<tr><td>UNAVAILABLE</td><td><code>VNIC_UNAVAILABLE</code></td><td>vNic 不可用</td><td>❌</td></tr>
+<tr><td>DEADLINE_EXCEEDED</td><td><code>QEMU_MONITOR_TIMEOUT</code></td><td>qemu-monitor 命令超时</td><td>✅</td></tr>
+<tr><td>DEADLINE_EXCEEDED</td><td><code>INFERENCE_TIMEOUT</code></td><td>推理超时 (>30s)</td><td>✅ (降低 max_tokens)</td></tr>
+</tbody>
+</table>
+
+<h4>vNic 寻址优势 vs 物理 IP</h4>
+<table>
+<thead><tr><th>对比项</th><th>vNic (v3.2)</th><th>物理 IP (v3.1 及之前)</th></tr></thead>
+<tbody>
+<tr><td><strong>多租户隔离</strong></td><td>每个业务容器独立 vNic, 流量物理隔离</td><td>所有容器共享物理网卡, 通过 iptables 隔离</td></tr>
+<tr><td><strong>热拔插</strong></td><td>vNic 可动态创建/销毁, 业务容器无感</td><td>IP 绑定物理网卡, 拔卡后 IP 失效</td></tr>
+<tr><td><strong>证书认证</strong></td><td>mTLS 双向 + vNic 证书绑定</td><td>只证书认证, 无网卡层隔离</td></tr>
+<tr><td><strong>可观测性</strong></td><td>每个 vNic 独立 metrics (QPS / 延迟 / 错误率)</td><td>物理网卡共享 metrics, 难定位具体容器</td></tr>
+<tr><td><strong>性能</strong></td><td>virtio-net 半虚拟化, ~线速 100Gbps</td><td>物理网卡的 60-80% (TCP 协议栈开销)</td></tr>
+</tbody>
+</table>
+
+<p><strong>完整 protobuf 定义</strong> 见 <code>data/d1-grpc-proto-v3.2.md</code> (8 个 .proto 文件, 包含 AIInferenceService / DCardManager / HealthService / AIDeploymentService / LogCollector / VNicServer 6 service 完整定义, 跟 §5-§10 对齐).</p>
+
 <h3>15.2 多模型推理框架 (Multi-Model Inference Framework)</h3>
 <p>多模型推理框架是 AI 推理服务的<strong>核心调度层</strong>, v3.2 升级为 <strong>3 卡 3 池</strong>, 由 3 个子组件构成:</p>
 
