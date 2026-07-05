@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 580" font-family="sans-serif">
+  <style>
+    .box { fill: #fff; stroke: #333; stroke-width: 1.5; }
+    .box-fill { fill: #eef0f6; stroke: #3a4a6b; stroke-width: 1.5; }
+    .label { fill: #333; font-size: 13px; font-weight: 600; text-anchor: middle; }
+    .sub { fill: #666; font-size: 10px; text-anchor: middle; }
+    .arrow { stroke: #333; stroke-width: 1.5; fill: none; marker-end: url(#arr); }
+    .arrow-dash { stroke: #666; stroke-width: 1.2; fill: none; marker-end: url(#arr2); stroke-dasharray: 3,2; }
+    .bar { fill: #fafafa; stroke: #ccc; }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+    <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#666"/>
+    </marker>
+  </defs>
+  <text x="450" y="22" text-anchor="middle" fill="#333" font-size="16" font-weight="600">§16.2 清理防勒索信息 (RESTful 关闭 NAS/SAN/SLA)</text>
+  <text x="450" y="40" text-anchor="middle" fill="#666" font-size="11">AI 卡激活前 · 独立防勒索服务 · POST 关闭 + GET 状态 + DELETE SLA</text>
+
+  <line x1="80" y1="65" x2="80" y2="520" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="220" y1="65" x2="220" y2="520" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="360" y1="65" x2="360" y2="520" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="500" y1="65" x2="500" y2="520" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="640" y1="65" x2="640" y2="520" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="800" y1="65" x2="800" y2="520" stroke="#333" stroke-width="1" stroke-dasharray="4,2"/>
+
+  <rect class="box" x="20" y="50" width="120" height="40" rx="3"/><text class="label" x="80" y="73">Omtask</text><text class="sub" x="80" y="86" font-size="9">调度方</text>
+  <rect class="box" x="170" y="50" width="100" height="40" rx="3"/><text class="label" x="220" y="73">Cleanup ctr</text><text class="sub" x="220" y="86" font-size="9">临时容器</text>
+  <rect class="box" x="310" y="50" width="100" height="40" rx="3"/><text class="label" x="360" y="73">防勒索 svc</text><text class="sub" x="360" y="86" font-size="9">RESTful :8443</text>
+  <rect class="box" x="450" y="50" width="100" height="40" rx="3"/><text class="label" x="500" y="73">NAS 防勒索</text><text class="sub" x="500" y="86" font-size="9">快照锁</text>
+  <rect class="box" x="590" y="50" width="100" height="40" rx="3"/><text class="label" x="640" y="73">SAN 防勒索</text><text class="sub" x="640" y="86" font-size="9">LUN 锁</text>
+  <rect class="box" x="740" y="50" width="120" height="40" rx="3"/><text class="label" x="800" y="73">SLA Config DB</text><text class="sub" x="800" y="86" font-size="9">MySQL/etcd</text>
+
+  <text x="450" y="115" text-anchor="middle" fill="#3a4a6b" font-size="12" font-weight="600">— Step 1 GET 状态 (查询) —</text>
+  <line class="arrow" x1="80" y1="140" x2="215" y2="140"/><text class="sub" x="147" y="133">1. start cleanup</text>
+  <line class="arrow" x1="220" y1="160" x2="355" y2="160"/><text class="sub" x="287" y="153">2. GET /v1/nas/status</text>
+  <line class="arrow" x1="360" y1="180" x2="495" y2="180"/><text class="sub" x="427" y="173">3. list all NAS shares</text>
+  <line class="arrow-dash" x1="500" y1="200" x2="365" y2="200"/><text class="sub" x="427" y="193" fill="#1a5432">4. shares=3, lock=on</text>
+
+  <line class="arrow" x1="360" y1="225" x2="635" y2="225"/><text class="sub" x="497" y="218">5. GET /v1/san/status</text>
+  <line class="arrow-dash" x1="640" y1="245" x2="365" y2="245"/><text class="sub" x="497" y="238" fill="#1a5432">6. luns=5, lock=on</text>
+
+  <text x="450" y="275" text-anchor="middle" fill="#3a4a6b" font-size="12" font-weight="600">— Step 2 POST 关闭 (解除锁) —</text>
+  <line class="arrow" x1="360" y1="300" x2="495" y2="300"/><text class="sub" x="427" y="293">7. POST /v1/nas/disable (3 shares)</text>
+  <line class="arrow-dash" x1="500" y1="320" x2="365" y2="320"/><text class="sub" x="427" y="313" fill="#1a5432">8. NAS lock=off (3 OK)</text>
+
+  <line class="arrow" x1="360" y1="345" x2="635" y2="345"/><text class="sub" x="497" y="338">9. POST /v1/san/disable (5 luns)</text>
+  <line class="arrow-dash" x1="640" y1="365" x2="365" y2="365"/><text class="sub" x="497" y="358" fill="#1a5432">10. SAN lock=off (5 OK)</text>
+
+  <text x="450" y="395" text-anchor="middle" fill="#3a4a6b" font-size="12" font-weight="600">— Step 3 DELETE SLA 配置 —</text>
+  <line class="arrow" x1="360" y1="420" x2="795" y2="420"/><text class="sub" x="577" y="413">11. DELETE /v1/sla/configs (all 12)</text>
+  <line class="arrow-dash" x1="800" y1="440" x2="365" y2="440"/><text class="sub" x="577" y="433" fill="#1a5432">12. SLA configs=0, 200 OK</text>
+
+  <line class="arrow-dash" x1="220" y1="465" x2="85" y2="465"/><text class="sub" x="147" y="458" fill="#1a5432">13. cleanup done, return success</text>
+
+  <rect class="bar" x="20" y="530" width="860" height="40" rx="3"/>
+  <text x="30" y="547" fill="#333" font-size="11" font-weight="600">§16.2 关键设计:</text>
+  <text x="30" y="563" fill="#666" font-size="10">3 步原子操作 (查询→关闭→删除), 任一失败 → ReportAlert ANTI_RANSOMWARE_CLEANUP_FAIL. RESTful 是因为防勒索服务已存在, 不重复造 gRPC 客户端. 关闭后必须 DEL 所有 SLA, 否则下次激活会被旧策略拦截.</text>
+</svg>
