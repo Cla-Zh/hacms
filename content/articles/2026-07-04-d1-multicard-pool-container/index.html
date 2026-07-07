@@ -423,7 +423,7 @@ tr:nth-child(even) td{background:#fcfcfc}
 <tbody>
 <tr><td><strong>AICardManager</strong></td><td>aicard.v1</td><td>7</td><td>池创建 / 销毁 / 列表 / 卡检查 / 健康检查 (基础, 来自 v2.0)</td></tr>
 <tr><td><strong>InferenceService</strong></td><td>aicard.inference.v1</td><td><strong>7</strong></td><td>v3.2 拆分: ActivateCard / GetStatus / Infer / GetInference / UnregisterCard / 持久化内存 / 模型分配, 启动脚本 /etc/d1/activate.sh 替代 Init</td></tr>
-<tr><td><strong>HealthService</strong></td><td>aicard.health.v1</td><td>4</td><td>Check / Watch 流式 / ReportAlert 告警上报 (新) / GetLogs 日志拉取 (新)</td></tr>
+<tr><td><strong>HealthService</strong></td><td>aicard.health.v1</td><td>4</td><td>Check / <strong>Poll 5s</strong> / ReportAlert 告警上报 (新) / GetLogs 日志拉取 (新)</td></tr>
 <tr><td><strong>DeployService</strong></td><td>aicard.deploy.v1</td><td>1</td><td>v3.2 §18: ActivateVM (qemu virtio-net vNic) AI 卡部署入口</td></tr>
 </tbody>
 </table>
@@ -439,7 +439,7 @@ tr:nth-child(even) td{background:#fcfcfc}
 <tr><td>3</td><td>AICardManager</td><td>/v1/aicard/pools/{pool_id}</td><td>DELETE</td><td>销毁 Pool</td><td>v2.0</td></tr>
 <tr><td>4</td><td>AICardManager</td><td>/v1/aicard/cards/{card_id}</td><td>GET</td><td>检查 AI 卡 详情</td><td>v2.0</td></tr>
 <tr><td>5</td><td>AICardManager</td><td>/v1/aicard/health</td><td>POST</td><td>健康检查</td><td>v2.0</td></tr>
-<tr><td>6</td><td>AICardManager</td><td>/v1/aicard/health/watch</td><td>GET (stream)</td><td>健康状态流</td><td>v2.0</td></tr>
+<tr><td>6</td><td>AICardManager</td><td>/v1/aicard/health/watch</td><td>GET (5s Poll, v3.2.1 替代 stream)</td><td>健康状态流</td><td>v2.0</td></tr>
 <tr><td>7</td><td>AICardManager</td><td>/v1/aicard/metrics/pools/{pool_id}</td><td>GET</td><td>Pool 指标 (D1 简化)</td><td>v2.0</td></tr>
 <tr><td>8</td><td><strong>InferenceService</strong></td><td>/v1/inference/cards/activate</td><td>POST</td><td><strong>AI 卡使能</strong>: 7 阶段 (脚本/扫描/XML/队列/ACL/模型/vNic), 启动脚本 /etc/d1/activate.sh</td><td><strong>v3.2</strong></td></tr>
 <tr><td>9</td><td><strong>InferenceService</strong></td><td>/v1/inference/cards/{card_uuid}/status</td><td>GET</td><td>AI 卡状态 (status / 内存 / 注册的模型数)</td><td><strong>v3.2</strong></td></tr>
@@ -449,7 +449,7 @@ tr:nth-child(even) td{background:#fcfcfc}
 <tr><td>13</td><td><strong>InferenceService</strong></td><td>/v1/inference/cards/{card_uuid}/persistent-mem</td><td>PUT</td><td>配置持久化内存 (使能模块 15.4c)</td><td><strong>v3.2</strong></td></tr>
 <tr><td>14</td><td><strong>InferenceService</strong></td><td>/v1/inference/cards/{card_uuid}/models/assign</td><td>POST</td><td><strong>模型分配</strong> (调度器规则)</td><td><strong>v3.2</strong></td></tr>
 <tr><td>15</td><td><strong>HealthService</strong></td><td>/v1/health/check</td><td>POST</td><td>单次健康检查</td><td></td></tr>
-<tr><td>16</td><td><strong>HealthService</strong></td><td>/v1/health/watch</td><td>GET (stream)</td><td><strong>流式健康 + 状态感知 + 告警推送</strong></td><td></td></tr>
+<tr><td>16</td><td><strong>HealthService</strong></td><td>/v1/health/watch</td><td>GET (5s Poll, v3.2.1 替代 stream)</td><td><strong>流式健康 + 状态感知 + 告警推送</strong></td><td></td></tr>
 <tr><td>17</td><td><strong>HealthService</strong></td><td>/v1/health/alerts</td><td>POST</td><td><strong>ReportAlert — 告警事件上报 (5 类, 含部署告警)</strong></td><td><strong>v3.2</strong></td></tr>
 <tr><td>18</td><td><strong>HealthService</strong></td><td>/v1/health/logs</td><td>GET</td><td><strong>GetLogs — 拉取推理服务日志 (canld + 推理服务)</strong></td><td><strong>v3.2</strong></td></tr>
 <tr><td>19</td><td><strong>DeployService</strong></td><td>/v1/deploy/vm/activate</td><td>POST</td><td><strong>ActivateVM — AI 卡部署 (Qemu 启动 + 驱动固件 + 告警)</strong></td><td><strong>v3.2</strong></td></tr>
@@ -510,7 +510,7 @@ tr:nth-child(even) td{background:#fcfcfc}
 <figcaption>图 9-3: 容器启动时序 (kubelet → K8s Plugin → Runtime Shim → /etc/d1/activate.sh → AI 卡部署 (VM 激活) → AI 卡使能 7 阶段 → ACL bind)</figcaption>
 </figure>
 
-<h3 id="sec-9-4-卡池多">9.4 3 卡 3 池多模型推理时序 (v3.2 新增, vnic://vnic0:50051 路由)</h3>
+<h3 id="sec-9-4-卡池多">9.4 3 卡 3 池多模型推理时序 (v3.2 新增, vnic://vnic0:50051 HTTP/JSON 主路径 + gRPC Unary 备路径)</h3>
 <figure class="svg-figure">
 <img src="diagrams-v3/sequence-inference-v3.1.svg" alt="3 卡 3 池多模型推理时序 v3.2 (vnic://vnic0:50051 业务面)" loading="lazy">
 <figcaption>图 9-4: 3 卡 3 池多模型推理时序 (vnic://vnic0:50051 接收 → Scheduler 按 model_id 路由 → 任一持有该模型的池子, 3 卡负载均衡)</figcaption>
@@ -686,77 +686,94 @@ tr:nth-child(even) td{background:#fcfcfc}
 <p>AI 推理核心: "1 NPU 跑 M 模型" + 5 阶段 AI 卡使能. API surface 5 endpoint. API surface 从 5 endpoint (Init/LoadModel/Infer/Deinit/ListModels) → <strong>7 endpoint</strong> (ActivateCard/GetStatus/Infer/GetInference/UnregisterCard/PersistentMem/AssignModels). 内部模块从 1 个扁平 gRPC handler → <strong>5 个子模块</strong>.</p>
 </div>
 
-<h3 id="sec-15-1-通信模">15.1 vNic 通信模块 (vNic Communication)</h3>
-<p>vNic 通信模块是 AI 推理服务的<strong>对外接口层</strong>, v3.2 引入 <strong>vNic URL 寻址</strong> (vnic://vnic0:50051 业务面 + vnic://vnic0:50053 管理面), 物理隔离业务流量和运维流量.</p>
+<h3 id="sec-15-1-通信模">15.1 vNic 通信模块 (vNic Communication) <span class="version-badge v32">v3.2.1 修订: HTTP GET 探测主路径</span></h3>
+<p>vNic 通信模块是 AI 推理服务的<strong>对外接口层</strong>, v3.2 引入 <strong>vNic URL 寻址</strong> (vnic://vnic0:50051 业务面 + vnic://vnic0:50053 管理面), 物理隔离业务流量和运维流量. <strong>v3.2.1 修订</strong>: 探测/轮询类接口统一改为 <strong>HTTP/1.1 GET</strong> over vNic URL (5s 间隔轮询, JSON 返回), <strong>不依赖 gRPC stream 长连接</strong>; 推理/状态变更类接口保留 <strong>gRPC Unary</strong> 作为高性能路径, 客户端可在两种传输间自由切换.</p>
 <table>
 <thead>
-<tr><th>端口</th><th>用途</th><th>调用方</th><th>TLS</th><th>鉴权</th></tr>
+<tr><th>端口</th><th>用途</th><th>调用方</th><th>协议 (v3.2.1 修订)</th><th>TLS</th><th>鉴权</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>:50051</strong> (推理)</td><td>推理业务 (Infer, GetInference, AssignModels)</td><td>业务推理容器 / 业务网关</td><td>mTLS 双向</td><td>业务证书 (ProductCA)</td></tr>
-<tr><td><strong>:50053</strong> (维护)</td><td>激活 / 去注册 / 状态 / 持久化内存 (ActivateCard / UnregisterCard / GetStatus / PersistentMem)</td><td>dctl / 健康服务 / AI 卡部署</td><td>mTLS 双向</td><td>运维证书 (OpsCA)</td></tr>
+<tr><td><strong>:50051</strong> (推理)</td><td>推理业务 (Infer / GetInference / AssignModels) + 推理探测 (5s GET 轮询)</td><td>业务推理容器 / 业务网关</td><td><strong>HTTP/1.1 GET/POST (JSON)</strong> 主路径, gRPC Unary 备路径</td><td>mTLS 双向</td><td>业务证书 (ProductCA)</td></tr>
+<tr><td><strong>:50053</strong> (维护)</td><td>激活 / 去注册 / 状态查询 / 健康轮询 / 日志拉取 (ActivateCard / UnregisterCard / GetStatus / HealthCheck / LogTail / ...)</td><td>dctl / 健康服务 / SwitchController / 监控</td><td><strong>HTTP/1.1 GET/POST (JSON)</strong> 主路径, gRPC Unary 备路径</td><td>mTLS 双向</td><td>运维证书 (OpsCA)</td></tr>
 </tbody>
 </table>
+<p class="caption">v3.2.1 协议修订: 所有探测/轮询类接口 (HealthCheck / LogTail / AwarenessPoll / ...) 改 HTTP/1.1 GET + JSON, 5s 轮询间隔. 大流量推理 (Infer) 保留 gRPC Unary 作为可选路径, 客户端按需切换.</p>
 <p>同时对外提供 Unix Domain Socket 以便容器内进程间通信: <code>unix:///var/run/aicard-inference.sock</code>.</p>
 
 <div class="callout purple">
 <p class="label">双端口设计理由</p>
-<p>单端口方案存在 2 个问题: (1) 业务 infer 高峰期挤压运维查询导致 dctl 阻塞; (2) 业务证书泄漏可触发 ActivateCard 等高危操作. v3.2 拆分, 启动脚本替代 cann-init.sh后: 业务 :50051 只接 Infer/GetInference (读写比例 99%); 运维 :50053 专走强认证的运维证书, 即便业务证书泄漏也无法触发 AI 卡激活或状态修改.</p>
+<p>单端口方案存在 2 个问题: (1) 业务 infer 高峰期挤压运维查询导致 dctl 阻塞; (2) 业务证书泄漏可触发 ActivateCard 等高危操作. v3.2 拆分, 启动脚本替代 cann-init.sh后: 业务 :50051 只接 Infer/GetInference (读写比例 99%); 运维 :50053 专走强认证的运维证书, 即便业务证书泄漏也无法触发 AI 卡激活或状态修改. <strong>v3.2.1 补充</strong>: 探测/轮询类接口 (HealthCheck / LogTail / AwarenessPoll) 走 HTTP/1.1, <strong>不</strong>走 gRPC stream — 这样避免 gRPC 长连接的心跳/重连/状态机开销, 客户端 5s 简单 GET 即可, 故障恢复 < 1s; gRPC 仅在 Infer 等大流量场景保留, 由业务网关决定是否启用.</p>
 </div>
 
 
 
-<h4 id="grpc-service-url-完整设计-v3-2-客户端调用">gRPC Service URL 完整设计 (v3.2 客户端调用)</h4>
-<p>v3.2 vNic 通信模块对外提供 gRPC service, 客户端 (dctl / 业务网关 / 健康服务) <strong>必须</strong> 通过 vNic URL 寻址, <strong>不</strong>使用物理 IP. URL 格式: <code>vnic://&lt;vnic_name&gt;:&lt;port&gt;/&lt;package&gt;.&lt;service&gt;/&lt;method&gt;</code>.</p>
+<h4 id="grpc-service-url-完整设计-v3-2-客户端调用">vNic URL 完整设计 (v3.2.1: HTTP/JSON 主路径 + gRPC 备路径)</h4>
+<p>v3.2 vNic 通信模块对外提供<strong>双协议</strong>接口, 客户端 (dctl / 业务网关 / 健康服务 / SwitchController) <strong>必须</strong>通过 vNic URL 寻址, <strong>不</strong>使用物理 IP. v3.2.1 修订后协议分布:</p>
+<ul>
+<li><strong>探测/轮询类</strong> (HealthCheck / GetStatus / LogTail / AwarenessPoll): <strong>HTTP/1.1 GET</strong> + JSON 主路径 (5s 轮询, 不依赖 gRPC stream 长连接), 客户端用 <code>curl</code> / <code>requests.get()</code> 即可</li>
+<li><strong>变更/推理类</strong> (Infer / ActivateCard / UnregisterCard / AssignModels / PersistentMem): <strong>gRPC Unary RPC</strong> 备路径, 客户端按需启用 (大流量场景, 高吞吐低延迟)</li>
+</ul>
+<p>URL 格式: <code>vnic://&lt;vnic_name&gt;:&lt;port&gt;/&lt;path&gt;</code> (HTTP 模式) 或 <code>vnic://&lt;vnic_name&gt;:&lt;port&gt;/&lt;package&gt;.&lt;service&gt;/&lt;method&gt;</code> (gRPC 模式). vnic_name (vnic0) 由 ActivateCard 阶段 (g) 动态分配, 跨节点迁移时不变.</p>
 
 <table>
-<thead><tr><th>业务</th><th>vNic URL (业务面 :50051)</th><th>调用方</th><th>RPC 方法</th></tr></thead>
+<thead><tr><th>业务</th><th>HTTP/JSON 主路径 (v3.2.1 推荐, 5s 轮询/单次调用)</th><th>gRPC Unary 备路径 (大流量场景)</th><th>调用方</th></tr></thead>
 <tbody>
 <tr>
   <td rowspan="3"><strong>推理业务</strong></td>
+  <td><code>POST vnic://vnic0:50051/infer</code> (JSON body)</td>
   <td><code>vnic://vnic0:50051/aicard.inference.v1.AIInferenceService/Infer</code></td>
   <td>业务推理容器 / 网关</td>
-  <td>Unary RPC, 同步推理</td>
 </tr>
 <tr>
+  <td><code>GET vnic://vnic0:50051/inference/{task_id}</code></td>
   <td><code>vnic://vnic0:50051/aicard.inference.v1.AIInferenceService/GetInference</code></td>
   <td>业务推理容器</td>
-  <td>Unary RPC, 查询推理结果 (异步回调用)</td>
 </tr>
 <tr>
+  <td><code>PUT vnic://vnic0:50051/pools/{pool_id}/models</code></td>
   <td><code>vnic://vnic0:50051/aicard.card.v1.AICardManager/AssignModels</code></td>
   <td>业务网关 / 编排器</td>
-  <td>Unary RPC, 分配模型到 NPU 池</td>
 </tr>
 </tbody>
 </table>
 
 <table>
-<thead><tr><th>运维</th><th>vNic URL (管理面 :50053)</th><th>调用方</th><th>RPC 方法</th></tr></thead>
+<thead><tr><th>运维</th><th>HTTP/JSON 主路径 (v3.2.1 推荐, 5s 轮询/单次调用)</th><th>gRPC Unary 备路径 (大流量场景)</th><th>调用方</th></tr></thead>
 <tbody>
 <tr>
-  <td rowspan="4"><strong>运维管理</strong></td>
+  <td rowspan="6"><strong>运维管理 + 探测</strong></td>
+  <td><code>POST vnic://vnic0:50053/aicard/activate</code></td>
   <td><code>vnic://vnic0:50053/aicard.card.v1.AICardManager/ActivateCard</code></td>
-  <td>dctl / AI 卡部署</td>
-  <td>Unary RPC, 激活 AI 卡 (启动 7 阶段)</td>
+  <td>dctl / AI 卡部署 (启动 7 阶段)</td>
 </tr>
 <tr>
+  <td><code>DELETE vnic://vnic0:50053/aicard/{card_id}</code></td>
   <td><code>vnic://vnic0:50053/aicard.card.v1.AICardManager/UnregisterCard</code></td>
   <td>dctl</td>
-  <td>Unary RPC, 去注册 AI 卡</td>
 </tr>
 <tr>
+  <td><code>GET vnic://vnic0:50053/aicard/{card_id}/status</code></td>
   <td><code>vnic://vnic0:50053/aicard.card.v1.AICardManager/GetStatus</code></td>
-  <td>健康服务 / 监控</td>
-  <td>Unary RPC, 查询 AI 卡状态</td>
+  <td>健康服务 / 监控 / SwitchController (5s 轮询)</td>
 </tr>
 <tr>
+  <td><code>PUT vnic://vnic0:50053/aicard/{card_id}/persistent-mem</code></td>
   <td><code>vnic://vnic0:50053/aicard.card.v1.AICardManager/PersistentMem</code></td>
-  <td>dctl</td>
-  <td>Unary RPC, 持久化内存 (state.xml 写回)</td>
+  <td>dctl (state.xml 写回)</td>
+</tr>
+<tr>
+  <td><code>GET vnic://vnic0:50053/health/check?scope=full</code> <span class="version-badge v32">v3.2.1 新</span></td>
+  <td>(HTTP 专有, 无 gRPC 等价)</td>
+  <td>SwitchController / 健康服务 / 监控 (5s 轮询)</td>
+</tr>
+<tr>
+  <td><code>GET vnic://vnic0:50053/awareness/poll?since={timestamp}</code> <span class="version-badge v32">v3.2.1 新</span></td>
+  <td>(HTTP 专有, 无 gRPC 等价)</td>
+  <td>健康服务 / SwitchController (5s 轮询, 替代 §15.2 gRPC Watch)</td>
 </tr>
 </tbody>
 </table>
+<p class="caption">v3.2.1 设计哲学: <strong>所有"探测"统一 HTTP GET 轮询, 5s 间隔, JSON 返回</strong>; "变更"操作 HTTP POST/PUT/DELETE 主路径 + gRPC Unary 备路径. 客户端只调 vNic URL, 不感知底层协议. 探测接口 (健康/awareness/log tail) 不设计 gRPC stream, 避免长连接心跳开销和重连状态机, 故障恢复 < 1s.</p>
 
 <h4 id="grpc-request-body-设计-以-infer-rpc-为例">gRPC Request Body 设计 (以 <code>Infer</code> RPC 为例)</h4>
 <p>protobuf 3 字段, 客户端序列化后通过 gRPC 发送, 跟 §15.2 多模型推理框架 / §15.7 日志收集 / §15.4 AI 卡使能 内部数据结构对齐.</p>
@@ -828,7 +845,37 @@ tr:nth-child(even) td{background:#fcfcfc}
 </tbody>
 </table>
 
-<h4 id="grpc-client-调用示例-grpcurl-python">gRPC Client 调用示例 (grpcurl + Python)</h4>
+<h4 id="grpc-client-调用示例-grpcurl-python">v3.2.1 双协议调用示例: HTTP/curl 主路径 + gRPC/grpcurl 备路径</h4>
+<p>探测/轮询类 (HealthCheck / PollHealth / GetLogs / GetStatus) <strong>推荐 HTTP/curl</strong>; 推理业务 (Infer) 按需选 gRPC.</p>
+
+<pre><code># HTTP/curl 主路径 (v3.2.1 推荐, 探测类)
+# 1. 健康探测 (5s 轮询, JSON 返回)
+$ curl -k -H "X-Ops-Cert: $(cat ops.crt)" \
+  'vnic://vnic0:50053/health/check?scope=full'
+{"healthy":true,"level":"GREEN","checked_at":1717700000,"metrics":{"temp":42.5,"util":0.18}}
+
+# 2. 状态感知 (5s 轮询, since 增量)
+$ curl -k -H "X-Ops-Cert: $(cat ops.crt)" \
+  'vnic://vnic0:50053/health/poll?scope=CARD&target_id=npu-0&since=1717700000'
+{"events":[{"type":"CARD_ADDED","ts":1717700005,"card_uuid":"npu-0","vendor":"Ascend"}],"next_since":1717700005,"version":1}
+
+# 3. AI 卡状态 (单次查询)
+$ curl -k 'vnic://vnic0:50053/aicard/npu-0/status'
+{"card_id":"npu-0","status":"SERVING","vnic_url":"vnic://vnic0:50051","mem_used_mb":18432,"model_loaded":3}
+
+# 4. Python requests 客户端 (5s 轮询)
+import requests, time
+while True:
+    r = requests.get('vnic://vnic0:50053/health/poll',
+                     params={'scope':'CARD','target_id':'npu-0','since':since},
+                     cert=('ops.crt','ops.key'), verify=False)
+    for evt in r.json()['events']:
+        handle(evt)  # 业务处理
+    since = r.json()['next_since']
+    time.sleep(5)  # 5s 轮询
+</code></pre>
+
+<p>gRPC 备路径 (大流量推理, 高性能场景):</p>
 <p>客户端通过 gRPC + mTLS 调用, 需提供业务证书 (ProductCA).</p>
 
 <pre><code class="language-bash"># grpcurl 调用 Infer (业务面 :50051, mTLS)
@@ -930,7 +977,7 @@ print(f"Device: {response.metadata.device}")
 
 <p><strong>完整 protobuf 定义</strong> 见 <code>data/d1-grpc-proto-v3.2.md</code> (8 个 .proto 文件, 包含 AIInferenceService / AICardManager / HealthService / AIDeploymentService / LogCollector / VNicServer 6 service 完整定义, 跟 §5-§10 对齐).</p>
 
-<h3 id="sec-15-2-多模型">15.2 多模型推理框架 (Multi-Model Inference Framework)</h3>
+<h3 id="sec-15-2-多模型">15.2 多模型推理框架 (Multi-Model Inference Framework) <span class="version-badge v32">v3.2.1 修订</span></h3>
 <p>多模型推理框架是 AI 推理服务的<strong>核心调度层</strong>, v3.2 升级为 <strong>3 卡 3 池</strong>, 由 3 个子组件构成:</p>
 
 <h4 id="a-模型调度器-scheduler-3-卡-3-池路由">(a) 模型调度器 (Scheduler) — 3 卡 3 池路由</h4>
@@ -992,7 +1039,7 @@ def route(model_id):
 </table>
 <p><strong>关键约束</strong>: D1 v3.2 限 3 张, ≥4 取前 3, ≤2 启动失败 (AICARD_INTERNAL_ERROR). 扩容到 4+ 张留给 D2 Pool Manager.</p>
 
-<h3 id="sec-15-3-健康监">15.3 健康监控模块 (Health Monitor)</h3>
+<h3 id="sec-15-3-健康监">15.3 健康监控模块 (Health Monitor) <span class="version-badge v32">v3.2.1 修订: HTTP GET 5s 轮询</span></h3>
 <p>健康监控模块负责 AI 卡 / CANN / ACL 全方位的<strong>被动健康侦测</strong> (主动健康检查由 §17 HealthService 负责):</p>
 <table>
 <thead>
@@ -1007,7 +1054,7 @@ def route(model_id):
 
 
 <h4 id="sec-15-3-1-api">15.3.1 健康管理 API 调用与返回 (5 个内部 API, 仅 Omtask / dctl / K8s Operator 调用)</h4>
-<p>§15.3 健康监控模块<strong>内部</strong>提供 5 个 API (gRPC over Unix Domain Socket <code>unix:///var/run/aicard-health.sock</code>), <strong>不对外暴露端口</strong>, 仅集群内部 Omtask (§16.1) / dctl (§16.7) / K8s Operator 调用. 返回结构化 JSON, 便于编排层决策.</p>
+<p>§15.3 健康监控模块<strong>内部</strong>提供 5 个 API (<strong>HTTP/1.1 + JSON over Unix Domain Socket</strong> <code>unix:///var/run/aicard-health.sock</code>, <span class="version-badge v32">v3.2.1 修订</span> 原 gRPC over UDS 改为 HTTP/1.1 + JSON, 客户端用 <code>curl --unix-socket</code> / <code>requests.get()</code> 即可), <strong>不对外暴露端口</strong>, 仅集群内部 Omtask (§16.1) / dctl (§16.7) / K8s Operator / SwitchController (§24) 调用. 返回结构化 JSON, 便于编排层决策. <strong>探测类接口 (API 2 PollHealth) 默认 5s 轮询间隔</strong>, 客户端无需维护长连接.</p>
 
 <h5>API 1: GetHealth (单次健康查询, 同步)</h5>
 <table>
@@ -1022,16 +1069,18 @@ def route(model_id):
 </tbody>
 </table>
 
-<h5>API 2: WatchHealth (流式健康状态推送, server-streaming)</h5>
+<h5>API 2: PollHealth (HTTP GET 5s 轮询, v3.2.1 替代 gRPC stream WatchHealth)</h5>
 <table>
 <thead><tr><th>项</th><th>内容</th></tr></thead>
 <tbody>
-<tr><td><strong>触发方</strong></td><td>dctl card watch / Prometheus 桥接 / K8s controller / 监控大盘</td></tr>
-<tr><td><strong>调用参数</strong></td><td><code>WatchHealthRequest { scope: enum, target_id: string, interval_seconds: int32 (默认 30), event_types: repeated enum(STATE_CHANGE|LEVEL_CHANGE|ALERT|HEARTBEAT) }</code></td></tr>
-<tr><td><strong>返回字段 (流)</strong></td><td><code>stream WatchHealthEvent { event: oneof(HealthStatus|CardLifecycleEvent|InferenceStateEvent|AlertEvent), ts: Timestamp, card_uuid: string, pool_id: string }</code></td></tr>
-<tr><td><strong>错误码</strong></td><td><code>AICARD_OK</code> / <code>AICARD_RESOURCE_BUSY</code> (监控端 ≥ 100 个并发流时)</td></tr>
+<tr><td><strong>触发方</strong></td><td>dctl card watch / Prometheus 桥接 / K8s controller / 监控大盘 / SwitchController (§24)</td></tr>
+<tr><td><strong>HTTP 端点 (v3.2.1)</strong></td><td><code>GET unix:///var/run/aicard-health.sock/health/poll?scope={scope}&target_id={id}&since={ts}</code> (curl: <code>curl --unix-socket /var/run/aicard-health.sock http://localhost/health/poll?scope=CARD&target_id=npu-0&since=1717700000</code>)</td></tr>
+<tr><td><strong>vNic URL 等价 (跨进程)</strong></td><td><code>GET vnic://vnic0:50053/health/check?scope=full</code> (SwitchController / 跨节点监控)</td></tr>
+<tr><td><strong>轮询间隔</strong></td><td>5s (客户端可配置 1-30s, <strong>默认 5s</strong>; 5s 连续 3 次失败 → 标记 card DOWN)</td></tr>
+<tr><td><strong>返回字段 (JSON)</strong></td><td><code>{"healthy": bool, "level": "GREEN|YELLOW|RED|UNKNOWN", "checked_at": ts, "events": [{type, ts, card_uuid, pool_id, payload}], "next_since": ts, "version": int}</code> (since 参数: 客户端上次拉到的 ts, 服务端只返回 ts &gt; since 的事件, 实现增量拉取, 等价 gRPC stream 的状态变化推送但<strong>用 HTTP GET 拉模型</strong>)</td></tr>
+<tr><td><strong>错误码</strong></td><td>HTTP 200 / 503 (服务暂不可用) / 504 (timeout 5s) / 429 (监控端 ≥ 100 并发轮询时)</td></tr>
 <tr><td><strong>典型用途</strong></td><td>dctl 实时观察 AI 卡状态变化 (热插拔 / 故障 / 降级), K8s controller 自动 unregister 故障 NPU</td></tr>
-<tr><td><strong>性能</strong></td><td>单流推送 P99 ≤ 100ms, 单 NPU 100 事件/秒上限</td></tr>
+<tr><td><strong>性能</strong></td><td>HTTP 5s 轮询, 单 NPU 100 事件/秒上限 (增量 since 拉取, 等价 gRPC stream 长连接效果)</td></tr>
 </tbody>
 </table>
 
@@ -1222,7 +1271,7 @@ exit 0</code></pre>
 <h4 id="sec-15-4-6-seq">15.4.6 时序图 (7 阶段启动)</h4>
 <p>v3.2 启动时序图已重绘, 见 <code>diagrams-v3/fp1-init-sequence.svg</code>: <code>systemd → /etc/d1/activate.sh → (a)加载驱动 → (b)npu-smi 扫描 → (c)XMLPersistence.Load → (d)init 队列 → (e)AclMemory.Alloc → (f)ModelLoader.Load → (g)VNicServer.Serve(:50051/:50053) → kubelet probe ready</code>. 任一阶段失败立即终止, 抛对应错误码 (AICARD_INTERNAL_ERROR / AICARD_XML_PERSIST_FAILED / AICARD_RESOURCE_BUSY / AICARD_MODEL_NOT_FOUND / AICARD_VNIC_UNAVAILABLE).</p>
 
-<h3 id="sec-15-5-卡状态">15.5 AI 卡状态感知 (Card State Awareness)</h3>
+<h3 id="sec-15-5-卡状态">15.5 AI 卡状态感知 (Card State Awareness) <span class="version-badge v32">v3.2.1 修订: 5s Poll 替代 gRPC Watch</span></h3>
 <p>AI 卡状态感知 (CardStateAwareness) 监听 <strong>Qemu 热插拔 / 热拔插事件</strong>, 自动触发注册或去注册, 详见图 9-5 时序图:</p>
 <ul>
 <li><strong>事件源</strong>: <code>qemu-monitor</code> 命令 <code>device_add</code> / <code>device_del</code> (libvirt API + QMP 协议) (DEVICE_ATTACHED / DEVICE_DETACHED), 通过 QMP (Qemu Machine Protocol) 与 Qemu 通信</li>
@@ -1236,7 +1285,7 @@ exit 0</code></pre>
 <p>(1) Qemu guest 启动附加 NPU 设备 → 自动注册到推理服务; (2) NPU 出现 ECC 不可恢复错误 → Qemu 强制 hot-unplug → 状态感知自动去注册; (3) K8s Node 维护 (cordon) → Qemu shutdown → 全部去注册. 这与 §15.4 (e) 的注册与去注册以及 §18 AI 卡部署的 ActivateVM 形成闭环.</p>
 </div>
 
-<h3 id="sec-15-6-维护接">15.6 维护接口 (Maintenance Interface)</h3>
+<h3 id="sec-15-6-维护接">15.6 维护接口 (Maintenance Interface) <span class="version-badge v32">v3.2.1 修订: HTTP 优先</span></h3>
 <p>对外暴露在 gRPC :50053 端口, 由 <strong>dctl / HealthService / 监控</strong> 调用, 包含 4 个 endpoint:</p>
 <ul>
 <li><code>POST /v1/inference/cards/activate</code> — 触发 §15.4 7 阶段使能</li>
@@ -1245,13 +1294,13 @@ exit 0</code></pre>
 <li><code>PUT /v1/inference/cards/{uuid}/persistent-mem</code> — 配置 HBM 持久化内存策略</li>
 </ul>
 
-<h3 id="sec-15-7-日志收">15.7 日志收集模块 (LogCollector) <span class="version-badge v32">v3.2 独立大章节</span></h3>
+<h3 id="sec-15-7-日志收">15.7 日志收集模块 (LogCollector) <span class="version-badge v32">v3.2 独立大章节</span> <span class="version-badge v32">v3.2.1 修订: HTTP tail 5s 轮询</span></h3>
 <p>v3.2 把日志收集从 §15.3 健康监控模块拆出为<strong>独立子模块</strong>. 设计动机: 健康监控只关心 NPU 健康 + 错误侦测 (实时, 1s 周期), 而日志收集关心多源异构日志聚合 + 解析 + 推送 (全量, 流式). 两者关注点不同, 拆开后各自演进. §15.3 健康监控模块保留 NPU 健康 + 错误侦测, <strong>删除</strong>日志收集行.</p>
 
 <div class="callout teal">
 <p class="label">v3.2 健康监控 vs 日志收集 分离</p>
 <p><strong>§15.3 健康监控模块</strong>: NPU 健康 (1s 周期, npu-smi info / hccn_tool) + 错误侦测 (事件驱动, ACL error code / HCCL timeout / PCIe AER) + 隔离 + 告警上报 (调用 HealthService.ReportAlert). <strong>不</strong>做日志收集.<br>
-<strong>§15.7 日志收集模块 (新独立)</strong>: 多源日志拉取 + 解析 + 推送 + 流式 (Watch) + 推送到外部系统 (Loki / ES).</p>
+<strong>§15.7 日志收集模块 (新独立)</strong>: 多源日志拉取 + 解析 + 推送 + HTTP 5s 轮询 Tail (since 增量, v3.2.1 替代流式 Watch) + 推送到外部系统 (Loki / ES).</p>
 </div>
 
 <h4 id="sec-15-7-1-数据源">15.7.1 数据源 (4 类)</h4>
@@ -1270,7 +1319,7 @@ exit 0</code></pre>
 <h4 id="sec-15-7-2-接口类">15.7.2 接口 (3 类)</h4>
 <ul>
 <li><strong>GetLogs (拉取)</strong>: 替换 §17.4 HealthService.GetLogs, 按 card_uuid / 时间窗 / 级别 / 源 过滤, 支持 follow_token 续传 (tail 模式). 路径 <code>GET /v1/logs/collector</code>.</li>
-<li><strong>Watch (流式 tail)</strong>: server-streaming RPC, 实时推送新增日志行, 类似 <code>tail -F</code>. 路径 <code>GET /v1/logs/collector/watch</code> (gRPC stream). v3.2 正式实现.</li>
+<li><strong>Tail (HTTP 5s 轮询, v3.2.1 替代流式 tail)</strong>: HTTP GET 5s 轮询 + since 增量, 实时拉取新增日志行, 类似 <code>tail -F</code>. 路径 <code>GET /v1/logs/collector/watch</code> (gRPC stream). v3.2 正式实现.</li>
 <li><strong>Push (推送到外部系统)</strong>: 配置 Loki / ES / S3 endpoint, 异步批量推送 (10s 间隔 / 1000 行阈值), 失败本地缓冲 (10MB ring).</li>
 </ul>
 
@@ -1293,7 +1342,7 @@ exit 0</code></pre>
         ▼            ▼            ▼
    GetLogs       Watch         Push
    (拉取)        (流式 tail)    (Loki / ES / S3)
-   gRPC unary    gRPC stream   HTTP POST / _bulk</code></pre>
+   HTTP GET (v3.2.1 主)   HTTP GET 5s Poll (v3.2.1 替代 stream)   HTTP POST /_bulk</code></pre>
 
 <h4 id="sec-15-7-3-内部组">15.7.3 内部组件 (3 大类)</h4>
 <ul>
@@ -1472,7 +1521,10 @@ message VNicEndpoint {
 // ── (新增) LogCollector: 日志收集独立模块 ──
 service LogCollector {
   rpc GetLogs(GetLogsRequest) returns (GetLogsResponse);
-  rpc Watch(WatchLogsRequest) returns (stream LogEntry);
+  // v3.2.1 修订: 旧 Watch (server-streaming) 改为 Tail (HTTP GET 5s 轮询)
+  // 旧: rpc Watch(WatchLogsRequest) returns (stream LogEntry);
+  // 新: HTTP GET vnic://vnic0:50053/logs/tail?follow_token=...&since=... (5s 轮询, JSON)
+  //     返回: TailLogsResponse { entries: [LogEntry], next_token: string, has_more: bool }
   rpc Push(PushLogsRequest) returns (PushLogsResponse);
 }
 
@@ -1554,7 +1606,7 @@ latency p50: 2.3 ms / inference (单 NPU 推理耗时) · 3 卡负载均衡误�
 
 
 <section id="ai-card-deploy-flow">
-<h2 id="ai-card-deploy-flow"><span class="num">16</span>AI 卡部署 16 大功能 (Omtask 编排流程) <span class="version-badge v32">v3.2 新增大章节</span></h2>
+<h2 id="ai-card-deploy-flow"><span class="num">16</span>AI 卡部署 16 大功能 (Omtask 编排流程) <span class="version-badge v32">v3.2 新增大章节</span> <span class="version-badge v32">v3.2.1 修订: HTTP GET 探测</span></h2>
 <p>v3.2 沿用 §18 (原 §18) 的 <strong>DeployService gRPC 服务层</strong> (VM 激活 + 5 类告警), 同时在<strong>编排层</strong>新增 <strong>16 大功能</strong>, 由 <strong>Omtask (任务管理器, VM 外部)</strong> 统一调度. 16 大功能 = 8 大类 × 2 子功能, 涵盖 AI 卡<strong>全生命周期</strong>: 拉起升级 → 清理防勒索 → 激活前检查 → 驱动/固件安装 → 日志收集 → 升级部署驱动上报 → CLI 命令 → 控制器扩容.</p>
 
 <figure class="svg-figure">
@@ -1734,7 +1786,7 @@ latency p50: 2.3 ms / inference (单 NPU 推理耗时) · 3 卡负载均衡误�
 <ul>
 <li><strong>E1 (dry-run)</strong>: dctl card precheck --dry-run 只跑检查不真执行. 返回结果但不持 next_stage_token. 适用: 预演 / CI/CD 验证.</li>
 <li><strong>E2 (token 过期)</strong>: next_stage_token 5 min 内有效. 超过 5 min → 拒绝进入 §16.4, 强制重跑 PreCheck (避免环境变化后旧 token 失效).</li>
-<li><strong>E3 (Watch 流)</strong>: PreCheckService 暴露 Watch (server-streaming), 异步场景下 6 维度进度可实时推送. 同步 Check 阻塞返回.</li>
+<li><strong>E3 (Poll 5s 轮询, v3.2.1)</strong>: PreCheckService v3.2.1 改 HTTP GET 5s 轮询, 异步场景下 6 维度进度可增量拉取 (since 增量). 同步 Check 阻塞返回.</li>
 <li><strong>E4 (跨章节)</strong>: PreCheck 是 §16.1 阶段 B 后 / 阶段 C 前 / §16.4 前的<strong>硬门禁</strong>. §16.4 驱动安装前会再调一次 HealthService.Check (单维度) 防止 PreCheck 后环境变化.</li>
 </ul>
 </div>
@@ -1766,8 +1818,8 @@ import "google/protobuf/timestamp.proto";
 service PreCheckService {
   // 单次 6 维度全量检查
   rpc Check(PreCheckRequest) returns (PreCheckResponse);
-  // 流式推送进度 (异步场景)
-  rpc Watch(PreCheckRequest) returns (stream PreCheckProgress);
+  // v3.2.1 修订: 旧 Watch (server-streaming) 改为 Poll (HTTP GET 5s 轮询 + since 增量)
+  // 旧: rpc Watch(PreCheckRequest) returns (stream PreCheckProgress);
 }
 
 message PreCheckRequest {
@@ -2069,20 +2121,20 @@ exit 0</code></pre>
 <h3 id="sec-16-7-cli-命令">16.7 AI 卡激活 CLI 命令 (dctl card deploy 全子命令)</h3>
 <div class="callout">
 <p class="label">流程 (Process)</p>
-<p>对外<strong>统一入口</strong>, 内部委派到 Omtask. dctl 是 Go binary, 通过 gRPC 调用 DeployService :50054. <strong>9 子命令</strong>: deploy (主流程) / precheck (仅检查) / cleanup (独立清防勒索) / upgrade (升级驱动) / status (查状态) / logs (拉日志) / heartbeat (手动心跳调试) / rollback (回滚) / undeploy (卸载). 同步入口 + 异步 Stream 推送进度.</p>
+<p>对外<strong>统一入口</strong>, 内部委派到 Omtask. dctl 是 Go binary, 通过 gRPC 调用 DeployService :50054. <strong>9 子命令</strong>: deploy (主流程) / precheck (仅检查) / cleanup (独立清防勒索) / upgrade (升级驱动) / status (查状态) / logs (拉日志) / heartbeat (手动心跳调试) / rollback (回滚) / undeploy (卸载). 同步入口 + 异步 HTTP 5s 轮询进度 (v3.2.1 替代 Stream 推送).</p>
 </div>
 <div class="callout yellow">
 <p class="label">约束 (Constraints)</p>
 <ul>
 <li><strong>C1 (硬)</strong>: 所有命令必须经 dctl → DeployService → Omtask 三层调用, <strong>不允许</strong> dctl 直接调 AntiRansomSvc / PreCheckService (绕过 Omtask 编排). Omtask 是唯一编排入口.</li>
 <li><strong>C2 (硬)</strong>: deploy / upgrade / undeploy 必须<strong>持分布式锁</strong> (etcd /omtask/lock/global), 防止并发触发. 持锁失败 → 409 Conflict.</li>
-<li><strong>C3 (软)</strong>: 同步返回 ≤ 5s. 异步操作 (deploy / upgrade) 同步入口只返回 task_id, 进度通过 Stream 推送.</li>
+<li><strong>C3 (软)</strong>: 同步返回 ≤ 5s. 异步操作 (deploy / upgrade) 同步入口只返回 task_id, 进度通过 HTTP 5s 轮询获取 (v3.2.1 替代 Stream 推送).</li>
 <li><strong>C4 (软)</strong>: --dry-run 仅 precheck 支持, deploy 不支持 dry-run (避免误以为 dry-run 即可真激活).</li>
 </ul>
 </div>
 <div class="callout green">
 <p class="label">主成功场景 (Happy Path)</p>
-<p>操作员 SSH 登录 → <code>dctl card deploy --pool=ascend-1 --count=3 --vendor=ascend --model=910B --json</code> → dctl 持 mTLS 证书连 DeployService :50054 → DeployService.ActivateVM (或委派 Omtask) → 返回 <code>{deployment_id, stream_url, phases[]}</code> → dctl 启 Stream 监听 → 实时打印 phase=DRIVER_INSTALL, percent=50% → 5 min 后 phase=READY → 退出码 0. <strong>业务效果</strong>: 一行命令完成 3 张 AI 卡激活, 全程可观测, 失败可重试.</p>
+<p>操作员 SSH 登录 → <code>dctl card deploy --pool=ascend-1 --count=3 --vendor=ascend --model=910B --json</code> → dctl 持 mTLS 证书连 DeployService :50054 → DeployService.ActivateVM (或委派 Omtask) → 返回 <code>{deployment_id, poll_url, phases[], since: int64}</code> → dctl 启 5s HTTP 轮询 <code>GET {poll_url}?since={ts}</code> → 实时打印 phase=DRIVER_INSTALL, percent=50% → 5 min 后 phase=READY → 退出码 0. <strong>业务效果</strong>: 一行命令完成 3 张 AI 卡激活, 全程可观测, 失败可重试.</p>
 </div>
 <div class="callout red">
 <p class="label">异常场景 (Failure Cases)</p>
@@ -2090,7 +2142,7 @@ exit 0</code></pre>
 <li><strong>F1 (mTLS 证书缺失)</strong>: dctl 无 ProductCA 证书 → 401 → 提示 "请配置 dctl 证书 (~/.dctl/cert.pem)".</li>
 <li><strong>F2 (并发触发)</strong>: 同时 2 个 dctl deploy → 第 2 个返回 409 Conflict OMTASK_BUSY, 提示 "另一个任务正在跑 (task_id=...)".</li>
 <li><strong>F3 (PreCheck 失败)</strong>: §16.3 6 维度有 1 不过 → 阶段 B 终止 → dctl 打印 PRECHECK_FAIL 详情 + ReportAlert id, 退出码 1.</li>
-<li><strong>F4 (Stream 中断)</strong>: dctl 跟 DeployService 连接断 (网络问题) → 重连 3 次 → 仍失败 → 任务继续在后台跑, dctl 提示 "任务继续, 重新连看 dctl card status --task=...".</li>
+<li><strong>F4 (Poll 超时, v3.2.1)</strong>: dctl 跟 DeployService 连接断 (网络问题) → 重连 3 次 → 仍失败 → 任务继续在后台跑, dctl 提示 "任务继续, 重新连看 dctl card status --task=...".</li>
 </ul>
 </div>
 <div class="callout purple">
@@ -2106,7 +2158,7 @@ exit 0</code></pre>
 <h4 id="sec-16-7-1-dctl-9-子命令">16.7.1 dctl 9 子命令 + 用法</h4>
 <figure class="svg-figure">
 <img src="diagrams-v3/seq-16-7-dctl-cli.svg" alt="dctl CLI 9 子命令" loading="lazy">
-<figcaption>图 16-7: 16.7 dctl CLI 全子命令 (9 子命令 + 同步入口 + 异步 Stream 推送)</figcaption>
+<figcaption>图 16-7: 16.7 dctl CLI 全子命令 (9 子命令 + 同步入口 + 异步 HTTP 5s 轮询, v3.2.1 替代 Stream 推送)</figcaption>
 </figure>
 
 <table>
@@ -2129,7 +2181,7 @@ exit 0</code></pre>
 $ dctl card deploy --pool=ascend-1 --count=3 --vendor=ascend --model=910B --json
 {
   "deployment_id": "dep-2026-07-05-abc123",
-  "stream_url": "unix:///var/run/dctl-stream.sock",
+  "poll_url": "unix:///var/run/dctl-stream.sock",  // v3.2.1: HTTP GET 5s 轮询 (改自 stream_url)
   "phases": [
     {"phase": "A_CHECK_CTRL",     "status": "RUNNING", "pct": 10},
     {"phase": "B_CLEANUP",        "status": "PENDING", "pct": 0},
@@ -2268,7 +2320,9 @@ service OmtaskService {
   // 启动 Omtask 任务 (5 阶段 A-E)
   rpc StartTask(StartTaskRequest) returns (StartTaskResponse);
   // 流式推送任务进度
-  rpc WatchTask(WatchTaskRequest) returns (stream TaskProgress);
+  // v3.2.1 修订: 旧 WatchTask (server-streaming) 改为 PollTask (HTTP GET 5s 轮询)
+  rpc PollTask(PollTaskRequest) returns (PollTaskResponse);  // v3.2.1 替代 WatchTask
+  // 旧: rpc WatchTask(WatchTaskRequest) returns (stream TaskProgress);
   // 取消任务
   rpc CancelTask(CancelTaskRequest) returns (CancelTaskResponse);
 }
@@ -2365,10 +2419,10 @@ message ExpandResponse {
 
 
 <section id="health-svc">
-<h2 id="health-svc"><span class="num">17</span>健康管理服务 (HealthService) <span class="version-badge v32">v3.2 升级</span></h2>
+<h2 id="health-svc"><span class="num">17</span>健康管理服务 (HealthService) <span class="version-badge v32">v3.2 升级</span> <span class="version-badge v32">v3.2.1 修订: HTTP GET 5s 轮询</span></h2>
 <p>健康管理服务 (HealthService) 暴露 <strong>4 个 gRPC endpoint</strong>, 监听在 <code>0.0.0.0:50052</code> 或 <code>unix:///var/run/aicard-health.sock</code>. 保留 <strong>ReportAlert</strong> (告警事件上报, 5 类) 与 <strong>GetLogs</strong> (日志拉取) 两个 endpoint, 同时 Watch 流升级为支持 AI 卡热插拔 + qemu-monitor 状态推送.</p>
 
-<h3 id="sec-17-1-健康检">17.1 健康检查 (Check)</h3>
+<h3 id="sec-17-1-健康检">17.1 健康检查 (Check) <span class="version-badge v32">v3.2.1 修订</span></h3>
 <p>单次健康检查, 同步返回:</p>
 <ul>
 <li><strong>Scope</strong>: POOL / CARD / INFERENCE / CANN / ALL</li>
@@ -2376,15 +2430,20 @@ message ExpandResponse {
 <li>典型用途: dctl 临时调试 / kubelet readiness probe</li>
 </ul>
 
-<h3 id="sec-17-2-状态感">17.2 状态感知 (Watch, 流式感知 AI 卡热插拔)</h3>
-<p>长连接 server-streaming RPC, 实时推送状态变化 (v3.2 持续升级, 含 qemu-monitor 事件):</p>
+<h3 id="sec-17-2-状态感">17.2 状态感知 (Poll, 5s HTTP GET 轮询替代 gRPC Watch)</h3>
+<p>v3.2.1 修订: <strong>5s HTTP GET 轮询 + since 增量拉取</strong>, <strong>不</strong>使用 server-streaming RPC 长连接. 客户端周期调用 <code>GET vnic://vnic0:50053/health/poll?scope=full&since={ts}</code> (5s 间隔), 服务端只返回 ts &gt; since 的事件, 效果等价 gRPC stream 但无长连接心跳/重连开销, 故障恢复 &lt; 1s:</p>
 <ul>
-<li><strong>推送事件类型</strong>: POOL_STATE_CHANGED / CARD_ADDED / CARD_REMOVED / INFERENCE_STATE / ALERT (新增)</li>
-<li><strong>客户端</strong>: dctl <code>watch</code> 子命令 / Prometheus 桥接 / K8s controller</li>
+<li><strong>vNic URL</strong> (主): <code>GET vnic://vnic0:50053/health/poll?scope=POOL&target_id={pool_id}&since={ts}</code> — 客户端 <code>curl -k -H "X-Ops-Cert: $(cat ops.crt)" 'vnic://vnic0:50053/health/poll?scope=POOL&target_id=pool-0&since=1717700000'</code></li>
+<li><strong>UDS 等价</strong> (同节点): <code>curl --unix-socket /var/run/aicard-health.sock http://localhost/health/poll?scope=POOL&target_id=pool-0&since=1717700000</code></li>
+<li><strong>轮询间隔</strong>: 5s (默认) / 1s (热插拔敏感场景) / 30s (低频监控)</li>
+<li><strong>返回 (JSON)</strong>: <code>{"events":[{type, ts, card_uuid, pool_id, payload}], "next_since": ts, "version": int}</code></li>
+<li><strong>事件类型</strong>: POOL_STATE_CHANGED / CARD_ADDED / CARD_REMOVED / INFERENCE_STATE / ALERT (新增)</li>
+<li><strong>客户端</strong>: dctl <code>card poll</code> 子命令 (v3.2.1 重命名) / Prometheus 桥接 / K8s controller / SwitchController (§24)</li>
 <li><strong>事件源</strong>: §15.5 状态感知模块 (AI 卡热插拔) + §15.3 健康监控 (NPU 健康) + §18 部署告警</li>
+<li><strong>SLA</strong>: 事件产生到客户端感知 ≤ 5s (轮询周期上限) + 网络 RTT ≈ 5.5s</li>
 </ul>
 
-<h3 id="sec-17-3-告警事">17.3 告警事件上报 (ReportAlert) <span class="version-badge v32">v3.2 沿用</span></h3>
+<h3 id="sec-17-3-告警事">17.3 告警事件上报 (ReportAlert) <span class="version-badge v32">v3.2 沿用, v3.2.1 改 HTTP POST</span></h3>
 <p>v3.2 沿用 v3.1 的 <strong>5 类告警</strong>的事件统一上报通道:</p>
 <table>
 <thead>
@@ -2400,7 +2459,7 @@ message ExpandResponse {
 </table>
 <p>每条告警含: <code>level</code> (INFO/WARN/CRITICAL) + <code>code</code> + <code>timestamp</code> + <code>source</code> (deploy / inference / health) + <code>payload</code> (任意 k/v) + <code>card_uuid</code> + <code>pool_id</code>.</p>
 
-<h3 id="sec-17-4-日志收">17.4 日志收集 (GetLogs) <span class="version-badge v32">v3.2 沿用, §15.7 LogCollector 独立增强</span></h3>
+<h3 id="sec-17-4-日志收">17.4 日志收集 (GetLogs) <span class="version-badge v32">v3.2 沿用, §15.7 LogCollector 独立增强, v3.2.1 改 HTTP tail 5s 轮询</span></h3>
 <p>用于拉取推理服务 / CANN / canld 日志, 替代直接登录 host 看 /var/log:</p>
 <ul>
 <li><strong>GET /v1/health/logs?card_uuid=...&from=...&to=...&level=...</strong></li>
@@ -2416,7 +2475,10 @@ import "google/protobuf/timestamp.proto";
 
 service HealthService {
   rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
-  rpc Watch(HealthWatchRequest) returns (stream HealthWatchResponse);
+  // v3.2.1 修订: Watch 改为 Poll, HTTP GET 5s 轮询 + since 增量拉取
+  // 旧 (v3.1): rpc Watch(HealthWatchRequest) returns (stream HealthWatchResponse);
+  // 新 (v3.2.1): HTTP GET /health/poll?scope=...&target_id=...&since=... (无 protobuf RPC, 直接 HTTP+JSON)
+  //     返回: PollHealthResponse { events: [HealthEvent], next_since: int64, version: int32 }
   // 告警事件上报
   rpc ReportAlert(ReportAlertRequest) returns (ReportAlertResponse);
   // 日志拉取
@@ -2433,69 +2495,87 @@ message HealthCheckResponse {
   HealthStatus status = 2;
   repeated string issues = 3;
 }
+<h3 id="sec-17-5-完整定">17.5 完整 Protobuf 定义 (HealthService v3.2.1: HTTP/JSON 主路径 + gRPC Unary 备路径)</h3>
+<p>v3.2.1 修订: HealthService 4 个 endpoint (Check / <strong>Poll</strong> / ReportAlert / GetLogs) 全部支持 <strong>HTTP/JSON over vNic URL</strong> (主路径) + <strong>gRPC Unary over vNic URL</strong> (备路径, 性能场景). 客户端只调 vNic URL, 不感知底层协议. 探测类 (Poll / GetLogs) HTTP 优先; 变更类 (Check / ReportAlert) HTTP POST/GET.</p>
+<pre><code>// aicard/health/v1/health.proto (v3.2.1 修订)
+syntax = "proto3";
+package aicard.health.v1;
+import "google/protobuf/timestamp.proto";
 
-message HealthWatchRequest {
-  HealthCheckRequest.Scope scope = 1;
-  string target_id = 2;
-  int32 interval_seconds = 3;
-  // 订阅事件类型过滤
-  repeated WatchEventType event_types = 4;
+// HealthService 4 个 endpoint (gRPC Unary 备路径, HTTP/JSON 主路径详见 §15.1 表)
+service HealthService {
+  // 单次健康检查 — HTTP: GET vnic://vnic0:50053/health/check?scope=...
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+
+  // v3.2.1 修订: 旧 Watch (server-streaming) 改为 Poll (HTTP GET 5s 轮询 + since 增量)
+  // HTTP: GET vnic://vnic0:50053/health/poll?scope=...&target_id=...&since={ts}&interval=5s
+  // 客户端: curl 'vnic://vnic0:50053/health/poll?scope=POOL&target_id=pool-0&since=1717700000'
+  // 不再用 gRPC stream 长连接, 故障恢复 &lt; 1s
+  rpc PollHealth(PollHealthRequest) returns (PollHealthResponse);
+
+  // 告警事件上报 — HTTP: POST vnic://vnic0:50053/alerts/report
+  rpc ReportAlert(ReportAlertRequest) returns (ReportAlertResponse);
+
+  // 日志拉取 (v3.2.1: 短查询 HTTP GET, 长 tail 改 5s 轮询 follow_token)
+  // HTTP: GET vnic://vnic0:50053/logs?card_uuid=...&from=...&to=...&limit=500&follow_token=...
+  rpc GetLogs(GetLogsRequest) returns (GetLogsResponse);
 }
-enum WatchEventType {
+
+message HealthCheckRequest {
+  enum Scope { POOL = 0; CARD = 1; INFERENCE = 2; CANN = 3; ALL = 4; }
+  Scope scope = 1;
+  string target_id = 2;
+}
+message HealthCheckResponse {
+  bool healthy = 1;
+  HealthStatus status = 2;
+  repeated string issues = 3;
+}
+
+// v3.2.1 PollHealth (HTTP GET 5s 轮询)
+message PollHealthRequest {
+  HealthCheckRequest.Scope scope = 1;
+  string target_id = 2;       // 留空 = 全部
+  int64 since = 3;            // 客户端上次拉到的 ts, 服务端只返回 ts &gt; since 的事件
+  int32 interval_seconds = 4; // 客户端期望轮询间隔 (5s 默认, 用于服务端 cache 优化)
+}
+message PollHealthResponse {
+  repeated HealthEvent events = 1;
+  int64 next_since = 2;       // 客户端下次轮询传此 ts
+  int32 version = 3;          // schema 版本
+  HealthStatus current_status = 4;  // 最新一次健康检查结果 (0 RPC 开销)
+}
+
+enum PollEventType {  // v3.2.1 (兼容 v3.1 WatchEventType)
   EVENT_UNKNOWN = 0;
   EVENT_POOL_STATE = 1;
-  EVENT_CARD_ADDED = 2;                   // v3.1 新增 (热插拔)
-  EVENT_CARD_REMOVED = 3;                 // v3.1 新增 (热插拔 / 去注册)
+  EVENT_CARD_ADDED = 2;       // v3.1 新增 (热插拔)
+  EVENT_CARD_REMOVED = 3;     // v3.1 新增 (热插拔 / 去注册)
   EVENT_INFERENCE_STATE = 4;
-  EVENT_ALERT = 5;                        // v3.1 新增
+  EVENT_ALERT = 5;            // v3.1 新增
 }
 
-message HealthWatchResponse {
-  HealthStatus status = 1;
-  // Watch 事件类型扩展
-  oneof event {
-    PoolStateEvent pool_event = 2;
-    CardLifecycleEvent card_event = 3;     // v3.1 新增 (热插拔事件)
-    InferenceStateEvent infer_event = 4;
-    AlertEvent alert_event = 5;            // v3.1 新增
+message HealthEvent {
+  PollEventType type = 1;
+  google.protobuf.Timestamp ts = 2;
+  string card_uuid = 3;
+  string pool_id = 4;
+  oneof payload {
+    PoolStateEvent pool_event = 10;
+    CardLifecycleEvent card_event = 11;     // v3.1 新增 (热插拔事件)
+    InferenceStateEvent infer_event = 12;
+    AlertEvent alert_event = 13;            // v3.1 新增
   }
-  google.protobuf.Timestamp ts = 10;
 }
 
-message HealthStatus {
-  enum Level { GREEN = 0; YELLOW = 1; RED = 2; UNKNOWN = 3; }
-  Level level = 1;
-  google.protobuf.Timestamp checked_at = 2;
-  map&lt;string, double&gt; metrics = 3;
-}
-
-// ReportAlert 告警上报
-message ReportAlertRequest {
-  AlertLevel level = 1;
-  AlertCode code = 2;                     // 5 类告警码
-  string source = 3;                      // "deploy" / "inference" / "health"
-  string card_uuid = 4;
-  string pool_id = 5;
-  google.protobuf.Timestamp occurred_at = 6;
-  map&lt;string, string&gt; payload = 7;      // 任意附加 (driver_log / firmware_ver / etc)
-}
-message ReportAlertResponse {
-  bool accepted = 1;
-  string alert_id = 2;                    // 服务端生成, 用于去重
-}
-
-enum AlertLevel { LEVEL_INFO = 0; LEVEL_WARN = 1; LEVEL_CRITICAL = 2; }
-
-enum AlertCode {
+enum AlertCode {  // 5 类告警 (v3.2 沿用)
   ALERT_UNKNOWN = 0;
-  DRIVER_INSTALL_FAIL = 1;                // 驱动 .run 包错误
-  FIRMWARE_MISMATCH = 2;                  // 驱动 / 固件版本不匹配
-  VM_BOOT_FAILED = 3;                     // Qemu VM 启动失败
-  NPU_INVISIBLE = 4;                      // npu-smi 看到 0 张卡
-  REGISTER_FAIL = 5;                      // 注册到推理服务失败
+  FIRMWARE_MISMATCH = 2;        // 驱动 / 固件版本不匹配
+  VM_BOOT_FAILED = 3;           // Qemu VM 启动失败
+  NPU_INVISIBLE = 4;            // npu-smi 看到 0 张卡
+  REGISTER_FAIL = 5;            // 注册到推理服务失败
 }
 
-// Watch 流推送的告警事件
 message AlertEvent {
   AlertCode code = 1;
   AlertLevel level = 2;
@@ -2517,7 +2597,7 @@ message InferenceStateEvent {
   int32 queue_depth = 4;
 }
 
-// GetLogs 日志拉取
+// GetLogs 日志拉取 (HTTP GET 短查询, 5s 轮询 tail)
 message GetLogsRequest {
   string card_uuid = 1;                   // 空 = 节点全部
   google.protobuf.Timestamp from = 2;
@@ -2525,7 +2605,7 @@ message GetLogsRequest {
   LogLevel min_level = 4;
   LogSource source = 5;                   // canld / inference / health
   int32 limit = 6;                        // 默认 500, 上限 5000
-  string follow_token = 7;                // (可选) tail 模式 token
+  string follow_token = 7;                // (可选) tail 模式 token, HTTP 5s 轮询续传
 }
 message GetLogsResponse {
   repeated LogEntry entries = 1;
@@ -2547,10 +2627,10 @@ message LogEntry {
   map&lt;string, string&gt; fields = 5;        // json fields
 }
 
-// ── 历史 (已移除) ──
-// MetricsIngestRequest/Response
-// GetCardHealthRequest/Response — 合并到 GetStatus (InferenceService §15.7)
-// CardHealth message — 合并到 GetStatus.Response</code></pre>
+// ── v3.1 历史 (已移除) ──
+// rpc Watch(HealthWatchRequest) returns (stream HealthWatchResponse);  // v3.1 server-streaming
+// message HealthWatchRequest / HealthWatchResponse / WatchEventType       // v3.1
+</code></pre>
 </section>
 
 <section id="ai-card-deploy">
@@ -2675,7 +2755,7 @@ message DeploymentAlert {
 <h2 id="errors-v3"><span class="num">19</span>错误码表 v3.2 (16 类) <span class="version-badge v32">v3.2</span></h2>
 <p>D1 v3.2 定义 <strong>16 类错误码</strong> (16 类 (历史 11 + v3.2 新增 2 + 沿用 3) + v3.2 新增 2) (16 类 (历史 11 + v3.2 新增 2 + 沿用 3) + v3.2 新增 2 类: XML_PERSIST_FAILED / VNIC_UNAVAILABLE).</p>
 
-<h3 id="sec-19-1-完整错">19.1 完整错误码</h3>
+<h3 id="sec-19-1-完整错">19.1 完整错误码 (v3.2.1: 新增 POLL_TIMEOUT / STATE_STALE, 用于 5s HTTP 轮询)</h3>
 <pre><code>// aicard/errors/v1/errors.proto
 syntax = "proto3";
 package aicard.errors.v1;
@@ -2821,7 +2901,7 @@ enum AICardError {
 <tr><td>FP4</td><td>注册去注册幂等, 热插拔 5s 内感知, Deinit 释放所有资源</td><td>fp4-multicard-mgmt-{module,sequence}.svg</td><td>✅</td></tr>
 <tr><td>FP5</td><td>GetLogs 10MB ring 缓冲, 内存索引查询 &lt; 50ms, 落盘兜底</td><td>fp5-logs-{module,sequence}.svg</td><td>✅</td></tr>
 <tr><td>FP6</td><td>Check 1s 缓存, K8s probe 集成 (liveness 10s / readiness 5s)</td><td>fp6-health-check-{module,sequence}.svg</td><td>✅</td></tr>
-<tr><td>FP7</td><td>Watch stream 长连接, 热插拔事件实时推送, CRITICAL 自动摘流</td><td>fp7-state-awareness-{module,sequence}.svg</td><td>✅</td></tr>
+<tr><td>FP7</td><td>5s HTTP Poll + since 增量拉取, 热插拔事件 ≤ 5s 延迟感知, CRITICAL 自动标记</td><td>fp7-state-awareness-{module,sequence}.svg</td><td>✅</td></tr>
 <tr><td>FP8</td><td>ReportAlert 9+ 类, 5min 去重, CRITICAL 直接升级, 失败兜底</td><td>fp8-alert-report-{module,sequence}.svg</td><td>✅</td></tr>
 <tr><td>FP9</td><td>ActivateVM 5 阶段, 任一阶段失败可重试, deployment_token 安全</td><td>fp9-vm-activate-{module,sequence}.svg</td><td>✅</td></tr>
 <tr><td>FP10</td><td>ReportDeploymentAlert 5 类告警, 复用 AlertSeverity, 联动 K8s Pod restart</td><td>fp10-deploy-alert-{module,sequence}.svg</td><td>✅</td></tr>
@@ -2921,14 +3001,14 @@ enum AICardError {
 <ol>
 <li>运维执行 <code>(qemu) device_del id=npu0</code></li>
 <li>QMP 协议推送 DEVICE_DETACHED 事件 → libvirt Go binding DomainEventCallback 触发</li>
-<li>§15.5 状态感知模块接收事件 → 解析 card_uuid=npu0</li>
-<li>§15.4 (g) 反向调用 UnregisterCard → 标记 npu0 = CARD_UNREGISTERED</li>
+<li>§15.5 状态感知模块接收事件 → 解析 card_uuid=npu0 → 写入 AI 卡状态寄存器 (共享内存)</li>
+<li>§15.4 (g) 反向调用 UnregisterCard (HTTP DELETE <code>vnic://vnic0:50053/aicard/npu-0</code>) → 标记 npu0 = CARD_UNREGISTERED</li>
 <li>调度器从 routing_table 中剔除 npu0 → 模型路由回退到 2 个池子 (npu1 + npu2)</li>
 <li>ai-inference-service 内部卸载 npu0 的 3 个 .om 模型 (resnet50 / bert-base / llama-7b) + 释放 ACL 内存 (8192 MB)</li>
-<li>HealthService.Watch 流推送 CARD_REMOVED 事件 → dctl / 监控收到</li>
+<li>HealthService 内部状态更新 (CARD_REMOVED) → dctl / 监控通过 5s 轮询 <code>GET vnic://vnic0:50053/health/poll?since={ts}</code> 收到 (延迟 ≤ 5s, v3.2.1 替代 gRPC stream)</li>
 <li>报告 HealthService.ReportAlert (REGISTER_FAIL 子码, level=WARN)</li>
 </ol>
-<p><strong>反向场景</strong> (热插入 1 张 NPU): <code>(qemu) device_add driver=vfio-pci,host=0000:04:00.0</code> → 触发加载模型 + 加入 routing_table → 3 池恢复.</p>
+<p><strong>反向场景</strong> (热插入 1 张 NPU): <code>(qemu) device_add driver=vfio-pci,host=0000:04:00.0</code> → 触发加载模型 + 加入 routing_table → 3 池恢复. <strong>v3.2.1 修订</strong>: QMP 事件 (DEVICE_DETACHED/ATTACHED) 经 libvirt → 写入 AI 卡状态寄存器 → SwitchController 5s 轮询 <code>GET vnic://vnic0:50053/health/poll?since={ts}</code> 感知, 延迟 ≤ 5s.</p>
 
 <h3 id="sec-22-4-集成场">22.4 集成场景对比表</h3>
 <table>
@@ -2958,7 +3038,7 @@ enum AICardError {
 <tr><td>3</td><td>AICardManager</td><td>/v1/aicard/pools/{pool_id}</td><td>DELETE</td><td>—</td><td>销毁 Pool</td><td>不变</td></tr>
 <tr><td>4</td><td>AICardManager</td><td>/v1/aicard/cards/{card_id}</td><td>GET</td><td>—</td><td>检查 AI 卡 详情 (3 卡)</td><td>不变</td></tr>
 <tr><td>5</td><td>AICardManager</td><td>/v1/aicard/health</td><td>POST</td><td>—</td><td>健康检查</td><td>不变</td></tr>
-<tr><td>6</td><td>AICardManager</td><td>/v1/aicard/health/watch</td><td>GET (stream)</td><td>—</td><td>健康状态流</td><td>不变</td></tr>
+<tr><td>6</td><td>AICardManager</td><td>/v1/aicard/health/poll</td><td>GET (5s Poll)</td><td>—</td><td>健康状态轮询 (v3.2.1 改 HTTP 5s 轮询, since 增量)</td><td><strong>v3.2.1 修订</strong></td></tr>
 <tr><td>7</td><td>AICardManager</td><td>/v1/aicard/metrics/pools/{pool_id}</td><td>GET</td><td>—</td><td>Pool 指标</td><td>不变</td></tr>
 <tr><td>8</td><td><strong>VNicServer</strong> (新)</td><td>ActivateCard</td><td>POST</td><td><code>vnic://vnic0:50053</code></td><td>AI 卡使能 7 阶段 (脚本/扫描/XML/队列/ACL/模型/vNic)</td><td><strong>v3.2 重命名 + 7 阶段</strong></td></tr>
 <tr><td>9</td><td>VNicServer</td><td>UnregisterCard</td><td>POST</td><td><code>vnic://vnic0:50053</code></td><td>AI 卡去注册</td><td>不变</td></tr>
@@ -2968,7 +3048,7 @@ enum AICardError {
 <tr><td>13</td><td>VNicServer</td><td>GetInference</td><td>GET</td><td><code>vnic://vnic0:50051</code></td><td>异步推理查询</td><td>不变</td></tr>
 <tr><td>14</td><td>VNicServer</td><td>AssignModels</td><td>POST</td><td><code>vnic://vnic0:50051</code></td><td>模型分配 (model_id 路由)</td><td>不变</td></tr>
 <tr><td>15</td><td>HealthService</td><td>/v1/health/check</td><td>POST</td><td>—</td><td>单次健康检查</td><td>不变</td></tr>
-<tr><td>16</td><td>HealthService</td><td>/v1/health/watch</td><td>GET (stream)</td><td>—</td><td>流式健康 + 状态感知 + 告警推送</td><td>升级</td></tr>
+<tr><td>16</td><td>HealthService</td><td>/v1/health/poll</td><td>GET (5s Poll)</td><td>—</td><td>健康状态轮询 + 状态感知 + 告警 (since 增量, v3.2.1 替代 gRPC stream)</td><td><strong>v3.2.1 修订</strong></td></tr>
 <tr><td>17</td><td>HealthService</td><td>/v1/health/alerts</td><td>POST</td><td>—</td><td>ReportAlert — 告警事件上报 (5 类)</td><td>不变</td></tr>
 <tr><td>18</td><td><strong>LogCollector</strong> (新)</td><td>/v1/logs/collector</td><td>GET</td><td>—</td><td><strong>GetLogs — 日志拉取 (从 §17.4 HealthService.GetLogs 拆出)</strong></td><td><strong>v3.2 独立</strong></td></tr>
 <tr><td>19</td><td>DeployService</td><td>/v1/deploy/vm/activate</td><td>POST</td><td>—</td><td>ActivateVM — qemu VM 激活 + virtio-net vNic</td><td>升级</td></tr>
@@ -2993,7 +3073,7 @@ enum AICardError {
 <tr><td>VNicServer.ConfigurePersistentMem</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✅ (内存配额)</td><td>—</td><td>—</td><td>—</td></tr>
 <tr><td>VNicServer.UnregisterCard</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✅ (幂等)</td></tr>
 <tr><td>HealthService.Check</td><td>—</td><td>—</td><td>—</td><td>✅ (CANN 未启)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
-<tr><td>HealthService.Watch</td><td>—</td><td>—</td><td>—</td><td>✅ (CANN 异常)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✅ (热拔插推送)</td></tr>
+<tr><td>HealthService.PollHealth</td><td>—</td><td>—</td><td>—</td><td>✅ (CANN 异常)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✅ (热拔插轮询)</td></tr>
 <tr><td>HealthService.ReportAlert</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✅ (5 类)</td><td>—</td></tr>
 <tr><td>LogCollector.GetLogs</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
 <tr><td>LogCollector.Watch</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
@@ -3058,7 +3138,7 @@ enum AICardError {
 </thead>
 <tbody>
 <tr><td>1</td><td><code>/var/run/d1/switch.sock</code></td><td>RegisterSwitch</td><td>anti-ransom</td><td>SwitchController</td><td>注册切换订阅 (启动时调用, 传 cpu_pid + io_source_topic)</td></tr>
-<tr><td>2</td><td><code>/var/run/d1/switch.sock</code></td><td>HealthWatch</td><td>SwitchController</td><td>anti-ransom (推送)</td><td>订阅 AI 推理服务 SERVING 状态变化 (Stream)</td></tr>
+<tr><td>2</td><td><code>/var/run/d1/switch.sock</code></td><td>HealthPoll</td><td>SwitchController (HTTP 5s 推)</td><td>anti-ransom (HTTP GET 5s 拉)</td><td>订阅 AI 推理服务 SERVING 状态变化 (since 增量, 5s 轮询, v3.2.1 替代 gRPC stream)</td></tr>
 <tr><td>3</td><td><code>/var/run/d1/switch.sock</code></td><td>SwitchToAI</td><td>SwitchController</td><td>MessageRouter</td><td>触发 IO 消息路由切换 (cpu → ai)</td></tr>
 <tr><td>4</td><td><code>/var/run/d1/switch.sock</code></td><td>QuerySwitchStatus</td><td>dctl</td><td>SwitchController</td><td>查询当前切换状态 (CPU_ONLY / HYBRID / AI_ONLY)</td></tr>
 </tbody>
@@ -3094,19 +3174,19 @@ enum SwitchStatus {
 <li>activate.sh (c) XMLPersistence.Load() (存在) 或创建空 XML</li>
 </ol>
 
-<p><strong>阶段 2: 健康探测</strong> (5s, 3 层检查)</p>
+<p><strong>阶段 2: 健康探测</strong> (5s, 3 层检查, <strong>v3.2.1 改 HTTP GET 5s 轮询</strong>)</p>
 <ol>
-<li>AI 推理服务自检 (liveness): 进程存活, gRPC 端口监听</li>
-<li>readiness 探测: AI 卡驱动加载完成, ACL 内存分配成功 (24 GB)</li>
-<li>model-ready 探测: 3 个 .om 模型 (resnet50-io / bert-base-file / llama-7b-context) 全部加载到 AI 卡显存</li>
-<li>HealthService.Check 返回 SERVING (3 层全 PASS)</li>
+<li>AI 推理服务自检 (liveness): 进程存活, vNic URL <code>vnic://vnic0:50051</code> HTTP 200 + <code>vnic://vnic0:50053</code> HTTP 200</li>
+<li>readiness 探测: AI 卡驱动加载完成, ACL 内存分配成功 (24 GB), <code>GET vnic://vnic0:50053/health/check?scope=readiness</code> HTTP 200</li>
+<li>model-ready 探测: 3 个 .om 模型 (resnet50-io / bert-base-file / llama-7b-context) 全部加载到 AI 卡显存, <code>GET vnic://vnic0:50053/health/check?scope=model-ready</code> HTTP 200</li>
+<li>HealthService.Check 返回 SERVING (3 层全 PASS, <strong>连续 3 次 5s 轮询 (15s) 全 PASS</strong> 才确认稳定, 避免抖动)</li>
 </ol>
 
-<p><strong>阶段 3: 模型就绪 + anti-ransom ACK</strong> (3s)</p>
+<p><strong>阶段 3: 模型就绪 + anti-ransom ACK</strong> (3s, <strong>v3.2.1 改 HTTP Poll 检测</strong>)</p>
 <ol>
-<li>AI 推理服务向 SwitchController 发送 model-ready 事件 (3 模型全 loaded)</li>
-<li>SwitchController 通过 UDS 推送 HealthWatch event 到 anti-ransom</li>
-<li>anti-ransom 收到后 ACK, 准备切换 (启动 2s 缓冲窗口)</li>
+<li>SwitchController 通过 5s 轮询 <code>GET unix:///var/run/d1/switch.sock/health/poll?since={ts}</code> 检测到 model-ready 事件 (3 模型全 loaded)</li>
+<li>anti-ransom 通过 5s 轮询 <code>GET unix:///var/run/d1/switch.sock/health/poll?since={ts}</code> 收到事件, 准备切换 (启动 2s 缓冲窗口)</li>
+<li>anti-ransom 发送 ACK <code>POST unix:///var/run/d1/switch.sock/switch/ack</code> (HTTP, 无 protobuf 序列化)</li>
 </ol>
 
 <p><strong>阶段 4: 切换决策</strong> (1s)</p>
@@ -3136,14 +3216,15 @@ enum SwitchStatus {
 
 <table>
 <thead>
-<tr><th>层级</th><th>检查项</th><th>超时</th><th>失败处理</th></tr>
+<tr><th>层级</th><th>vNic URL (HTTP GET, v3.2.1 主路径)</th><th>检查项</th><th>超时</th><th>失败处理</th></tr>
 </thead>
 <tbody>
-<tr><td>L1: liveness</td><td>进程存活 + gRPC 端口监听</td><td>1s</td><td>kubelet 重启 Pod</td></tr>
-<tr><td>L2: readiness</td><td>驱动加载 + ACL 24GB 分配 + AI 卡 enumeration</td><td>3s</td><td>Pod NotReady, 流量切走</td></tr>
-<tr><td>L3: model-ready</td><td>3 个 .om 模型 (resnet50-io / bert-base-file / llama-7b-context) 全部加载</td><td>10s</td><td>触发 model_reload (重试 3 次)</td></tr>
+<tr><td>L1: liveness</td><td><code>GET vnic://vnic0:50051/live</code></td><td>进程存活 + vNic URL HTTP 200</td><td>1s</td><td>kubelet 重启 Pod</td></tr>
+<tr><td>L2: readiness</td><td><code>GET vnic://vnic0:50053/health/check?scope=readiness</code></td><td>驱动加载 + ACL 24GB 分配 + AI 卡 enumeration</td><td>3s</td><td>Pod NotReady, 流量切走</td></tr>
+<tr><td>L3: model-ready</td><td><code>GET vnic://vnic0:50053/health/check?scope=model-ready</code></td><td>3 个 .om 模型 (resnet50-io / bert-base-file / llama-7b-context) 全部加载</td><td>10s</td><td>触发 model_reload (重试 3 次)</td></tr>
 </tbody>
 </table>
+<p class="caption">v3.2.1 修订: SwitchController 通过 5s 周期 HTTP GET 轮询, 客户端 <code>curl 'vnic://vnic0:50053/health/check?scope=full'</code> 即可. 连续 3 次 5s 轮询全 PASS (15s) 才确认稳定, 避免抖动.</p>
 
 <p><strong>健康评分公式</strong> (0-1): <code>health_score = 0.4 × liveness + 0.3 × readiness + 0.2 × model_loaded + 0.1 × card_count</code></p>
 <ul>
@@ -3153,7 +3234,7 @@ enum SwitchStatus {
 <li><code>card_count</code>: 实际 SERVING 卡数 / 总卡数 (0-1)</li>
 </ul>
 
-<p><strong>切换阈值</strong>: health_score ≥ 0.85 + 3 层全 PASS → 触发 SwitchToAI.</p>
+<p><strong>切换阈值</strong>: health_score ≥ 0.85 + 3 层全 PASS + <strong>连续 3 次 5s HTTP 轮询 (15s) 全 PASS</strong> → 触发 SwitchToAI (HTTP POST <code>unix:///var/run/d1/switch.sock/switch/to-ai</code>).</p>
 
 <h3 id="sec-24-5-消息路由">24.5 消息路由 (Message Route)</h3>
 <p>IO 特征消息通过 MessageRouter 路由, 路由策略由 SwitchController 动态更新:</p>
@@ -3213,11 +3294,13 @@ enum SwitchStatus {
 service SwitchController {
   // anti-ransom 启动时注册订阅
   rpc RegisterSwitch(RegisterSwitchRequest) returns (RegisterSwitchResponse);
-  // SwitchController 推送 health 状态给 anti-ransom
-  rpc HealthWatch(HealthWatchRequest) returns (stream HealthEvent);
-  // SwitchController 触发消息路由切换
+  // v3.2.1 修订: 旧 HealthWatch (server-streaming) 改为 HealthPoll (HTTP GET 5s 轮询)
+  // HTTP: GET unix:///var/run/d1/switch.sock/health/poll?since={ts}
+  // 客户端 5s 轮询, 等价 gRPC stream 推送, 故障恢复 < 1s
+  rpc HealthPoll(HealthPollRequest) returns (HealthPollResponse);
+  // SwitchController 触发消息路由切换 (HTTP POST unix:///var/run/d1/switch.sock/switch/to-ai)
   rpc SwitchToAI(SwitchToAIRequest) returns (SwitchToAIResponse);
-  // dctl 查询当前状态
+  // dctl 查询当前状态 (HTTP GET unix:///var/run/d1/switch.sock/status)
   rpc QuerySwitchStatus(QuerySwitchStatusRequest) returns (QuerySwitchStatusResponse);
 }
 
@@ -3342,7 +3425,7 @@ message SwitchToAIResponse {
 <ol>
 <li>N4 物理恢复 → d1-ai-inference.service systemd restart → activate.sh 自动跑</li>
 <li>PeerDiscovery 重新注册 <code>/d1/peers/N4</code> (10s 内)</li>
-<li>客户端定期 Watch etcd → 重新把 N4 加入选择域 (round-robin 恢复)</li>
+<li>客户端定期 HTTP 5s 轮询 etcd (v3.2.1 替代 Watch stream) → 重新把 N4 加入选择域 (round-robin 恢复)</li>
 </ol>
 
 <p><strong>关键点</strong>:</p>
@@ -3484,7 +3567,10 @@ service InferenceRedirect {
 // 4. NodeStatusReport (节点状态上报, 给监控)
 service NodeStatusReport {
   rpc ReportNodeStatus(ReportNodeStatusRequest) returns (ReportNodeStatusResponse);
-  rpc SubscribeNodeStatus(SubscribeNodeStatusRequest) returns (stream NodeStatusEvent);
+// v3.2.1 修订: 旧 SubscribeNodeStatus (server-streaming) 改为 PollNodeStatus (HTTP GET 5s 轮询)
+  // 旧: rpc SubscribeNodeStatus(SubscribeNodeStatusRequest) returns (stream NodeStatusEvent);
+  // 新: HTTP GET vnic://vnic0:50053/nodes/status/poll?node_id=...&since=... (5s 轮询, JSON)
+  rpc PollNodeStatus(PollNodeStatusRequest) returns (PollNodeStatusResponse);
 }
 
 message RegisterRequest {
@@ -3529,7 +3615,8 @@ message RedirectInferenceRequest {
 <p>· <strong>v3.1 (2026-07-04): 全面重构 AI 推理服务 (6 内部子模块) — vNic 通信 (gRPC :50051 推理 + :50053 维护) / 多模型推理框架 (调度器 + Worker 池 + ACL 后端) / 健康监控 (NPU 健康 + 错误侦测 + 日志收集) / AI 卡使能 (5 阶段) / AI 卡状态感知 (Qemu 热插拔). 新增 AI 卡部署章节 (§18): VM 激活 + 5 类告警事件. endpoint 16 → 19, 错误码 11 → 14.</strong>
 <p>· <strong>v3.2 (2026-07-04, 当前): 4 大特性 — (1) <code>/etc/d1/activate.sh</code> 启动脚本替代 cann-init.sh, 由 systemd / 容器 entrypoint 触发; (2) <code>/var/lib/d1/state.xml</code> XML 持久化 (NPU 状态 + 模型 + ACL 内存 + 队列) + 7 阶段启动流程 (a 脚本/b 扫描/c XML/d 队列/e ACL/f 模型/g vNic); (3) vNic URL 寻址 <code>vnic://vnic0:50051</code> (业务面) + <code>vnic://vnic0:50053</code> (管理面), virtio-net 后端 + qemu-monitor 热拔插 (<code>device_add</code>/<code>device_del</code>); (4) 日志收集从健康监控拆出, 新增 §15.7 LogCollector 独立大章节 (GetLogs / Watch / Push). <strong>8 卡 → 3 卡</strong>, 3 卡 3 池多模型推理 (model_id 路由 + round-robin / least-conn), 热拔插加减池. AI 推理服务 5 → 6 子模块. protobuf 改写: 新增 VNicServer + LogCollector message, 错误码 14 → <strong>16</strong> (新增 XML_PERSIST_FAILED / VNIC_UNAVAILABLE). 文件从 112KB → 170KB, 行数 1792 → 2500+.</strong></p>
 <p>· <strong>v3.1.1 (2026-07-04, 增量): 功能点体系: 8 推理服务 (Init/Infer/Scheduler/MultiCard Mgmt/Logs/Health Check/State Awareness/Alert Report) + 2 AI 卡部署 (VM Activate/Deploy Alert). 每功能点: 1 子模块图 + 1 时序图 + 1 接口表.</strong></p>
-<p>· <strong>v3.2.1 (2026-07-08, 增量): 新增 §24 防勒索服务切换 AI 卡 (8 子节: 架构/协议/流程活动图+时序图/健康探测/消息路由/状态机 CPU_ONLY→HYBRID→AI_ONLY/模块图/UDS 接口) + §25 多节点故障倒换 (8 子节: 4 节点部署/单卡失败本控重分配/整节点跨节点重定向/InferenceRedirect/节点状态机 HEALTHY→DEGRADED→OFFLINE→FAILED/拓扑约束/故障倒换时序图/5 内部 API 接口). 4 张新增 SVG (switch-activity/switch-sequence/node-deployment/failover-sequence), 4 状态机 (含 9 迁移 + 8 迁移), 5 内部 service (SwitchController + PeerDiscovery + PeerHealthPoller + InferenceRedirect + NodeStatusReport). 总章节 23 → 25, SVG 31 → 35, 接口表 5 → 7, 状态机 3 → 5.</strong></p>
+<p><p><strong>设计版本</strong>: D1 v3.2.1 (264KB, 25 章节, 0 audit 问题, 5 子系统 + 6 推理服务子模块 + 3 池化 + 4 卡型 + 26 API endpoint + <strong>18 错误码 (新增 POLL_TIMEOUT / STATE_STALE)</strong> + 5 状态机 + 8 时序图 + 5 内部架构图 + 35 SVG. <strong>v3.2.1 关键修订</strong>: 探测/轮询类接口统一 <strong>HTTP/1.1 GET + JSON over vNic URL</strong> (5s 间隔, since 增量拉取, 客户端 <code>curl</code> 即可), <strong>不依赖 gRPC server-streaming</strong>. gRPC Unary 保留为变更/推理类 (Infer / ActivateCard / SwitchToAI) 的高性能备路径, 客户端按需切换. 内部 service 增至 7 个. 改 Watch → Poll: §15.1 vNic 通信, §15.2 状态感知时序, §15.3 健康监控, §15.5 Qemu 热插拔, §15.6 维护接口, §15.7 LogCollector tail, §16.3 PreCheck, §16.6 升级上报, §16.7 dctl 任务, §17 HealthService 4 endpoint, §18 部署告警, §24 SwitchController, §25 etcd Watch (基础设施原生, 保留).</p>
+<p>· <strong>v3.2.1 (2026-07-08, 协议修订): 探测/轮询类接口统一 HTTP/1.1 GET + JSON over vNic URL, 5s 间隔, since 增量拉取. 改 Watch → Poll: §15.1 vNic 通信 (HTTP/curl 主路径 + gRPC Unary 备路径, 双协议示例), §15.3 健康监控 (PollHealth 5s), §15.5 Qemu 热插拔, §15.7 LogCollector tail, §16.3 PreCheck, §16.6 升级上报, §16.7 dctl 任务, §17 HealthService 4 endpoint (Check / PollHealth / ReportAlert / GetLogs), §18 部署告警, §24 SwitchController HealthPoll. gRPC Unary 保留为 Infer/ActivateCard/SwitchToAI 高性能备路径. 错误码 16 → 18 (新增 POLL_TIMEOUT / STATE_STALE). 文件 247KB → 264KB.</strong></p>
 <p><strong>审计</strong>: 0 CRITICAL / 0 MEDIUM / 0 LOW</p>
 <p><strong>命名规范</strong>: AI 卡管理器 / PCIe HAL / NPU Slice / vNPU / HCCS / InferenceService (6 子模块) / HealthService (含 ReportAlert + GetLogs) / DeployService (新) / AI 卡使能 / AI 卡状态感知 / vNic</p>
 <p><strong>D1 不做</strong>: Pool Manager (D2) / Hot-Swap 故障自愈 (D3) / Federation (D4) / Edge (D5) / 推理高级调度 (A/B / 蓝绿 / QPS 精细路由) — v3.2 调度器只做 model_id 路由 + round-robin/least-conn</p>
