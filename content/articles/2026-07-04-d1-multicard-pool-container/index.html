@@ -213,6 +213,30 @@ tr:nth-child(even) td{background:#fcfcfc}
   <li><a href="#summary-v31">21 v3.2 总结 (Summary)</a></li>
   <li><a href="#sec-21-集成场">22 v3.2 集成场景 (Integration Scenarios) v3.2 新增</a></li>
   <li><a href="#sec-22-矩阵新">23 v3.2 API 矩阵 (26 endpoint + 2 service) v3.2 新增</a></li>
+  <li><a href="#anti-ransom-switch">24 防勒索服务切换 AI 卡 (Anti-Ransomware Auto-Switch) v3.2 新增
+    <ul>
+      <li><a href="#sec-24-1-防勒索服">24.1 防勒索服务架构 (Anti-Ransomware Service)</a></li>
+      <li><a href="#sec-24-2-切换协议">24.2 切换协议设计 (Switch Protocol)</a></li>
+      <li><a href="#sec-24-3-切换流程">24.3 切换流程 (Activity + Sequence)</a></li>
+      <li><a href="#sec-24-4-健康探测">24.4 健康探测 (Health Probe)</a></li>
+      <li><a href="#sec-24-5-消息路由">24.5 消息路由 (Message Route)</a></li>
+      <li><a href="#sec-24-6-状态机">24.6 状态机 (CPU_ONLY / HYBRID / AI_ONLY)</a></li>
+      <li><a href="#sec-24-7-模块图">24.7 模块图 (Module Diagram)</a></li>
+      <li><a href="#sec-24-8-接口定义">24.8 完整接口定义 (4 内部 UDS API)</a></li>
+    </ul>
+  </li>
+  <li><a href="#multi-node-failover">25 多节点故障倒换 (Multi-Node Failover) v3.2 新增
+    <ul>
+      <li><a href="#sec-25-1-4-节点部">25.1 4 节点部署架构 (Deployment)</a></li>
+      <li><a href="#sec-25-2-单节点单">25.2 单节点单卡失败 (Local Failover, 本控负载均衡)</a></li>
+      <li><a href="#sec-25-3-整节点失">25.3 整节点失败 (Cross-Node Failover, 跨节点重定向)</a></li>
+      <li><a href="#sec-25-4-跨节点推">25.4 跨节点推理重定向 (InferenceRedirect)</a></li>
+      <li><a href="#sec-25-5-节点状态">25.5 节点状态机 (HEALTHY / DEGRADED / OFFLINE / FAILED)</a></li>
+      <li><a href="#sec-25-6-部署图拓">25.6 部署图拓扑 (Topology Constraints)</a></li>
+      <li><a href="#sec-25-7-故障倒换">25.7 故障倒换时序 (Failover Sequence)</a></li>
+      <li><a href="#sec-25-8-接口定义">25.8 完整接口定义 (5 内部 API, etcd + UDS + gRPC)</a></li>
+    </ul>
+  </li>
 </ol>
 </nav>
 
@@ -2979,9 +3003,525 @@ enum AICardError {
 </table>
 </section>
 
+<section id="anti-ransom-switch">
+<h2 id="sec-24-防勒索切"><span class="num">24</span>防勒索服务切换 AI 卡 (Anti-Ransomware Auto-Switch) <span class="version-badge v32">v3.2 新增</span></h2>
+<p>本章描述 v3.2 引入的**容器外防勒索服务** + **容器内 AI 推理服务** 自动切换协议. 业务背景: 存储系统 I/O 流量持续注入防勒索 AI 模型, 模型最初在容器外 CPU 进程运行; 一旦 AI 卡被 dctl 激活且 AI 推理服务进入 SERVING 状态, 防勒索自动切换到 AI 推理路径 (CPU 关停). 全过程 26s, 不中断业务.</p>
+
+<div class="callout">
+<p class="label">关键事实</p>
+<ul>
+<li><strong>容器外防勒索</strong> 是宿主机/VM 外的 sidecar 容器 (独立 namespace, 不在 d1-pod 内), 启动早于 AI 推理服务, 用 CNN/RNN 模型 on CPU 实时判别勒索行为.</li>
+<li><strong>激活触发</strong>: dctl activate → activate.sh → 加载驱动 + ACL 分配 + 模型加载 + vNic 监听 → 进入 SERVING 状态.</li>
+<li><strong>切换条件</strong>: AI 推理服务 3 层健康检查全 PASS + 3 个勒索检测模型全 loaded + 至少 1 张 AI 卡 SERVING.</li>
+<li><strong>切换后</strong>: 所有后续 IO 消息走 vnic://vnic0:50051 (AI 推理), CPU 防勒索进程 graceful shutdown.</li>
+<li><strong>零中断</strong>: CPU 推理在切换瞬间保留 2s 缓冲 (新 IO 进 AI 队列, CPU 处理残留 buffer), 业务无感知.</li>
+</ul>
+</div>
+
+<h3 id="sec-24-1-防勒索服">24.1 防勒索服务架构 (Anti-Ransomware Service)</h3>
+<p>防勒索服务 (anti-ransom) 部署在**AI 推理服务容器之外**, 作为 sidecar 容器运行在 VM 宿主机上, 独立于 d1-ai-inference Pod 的容器 namespace. 启动顺序: anti-ransom 容器先启动 → 等待 dctl activate → AI 推理服务进入 SERVING → 触发切换.</p>
+
+<p><strong>输入流</strong> (存储 IO 特征, 由存储卷代理持续注入):</p>
+<ul>
+<li><strong>操作延迟</strong>: read/write/op 平均/最大/方差 (ms 级)</li>
+<li><strong>读写比例</strong>: 每秒 read 字节数 vs write 字节数 (勒索加密文件时 write 突增 10-100x)</li>
+<li><strong>IO 模式熵</strong>: 8-bit Shannon 熵 (正常文件 ~6.5, 加密后 ~7.9+)</li>
+<li><strong>文件访问图</strong>: 文件大小/扩展名/路径深度, 转成 one-hot + embedding</li>
+</ul>
+
+<p><strong>模型推理</strong> (v3.2 默认 3 模型, 部署在 CNN/RNN):</p>
+<ul>
+<li><strong>resnet50-io</strong>: 1D-CNN 推理, 输入 IO 特征向量 (256 dim), 输出 Normal/Suspect/Ransom (3 分类)</li>
+<li><strong>bert-base-file</strong>: BERT 推理, 输入文件名 token 序列 (max 128), 输出文件类型判别</li>
+<li><strong>llama-7b-context</strong>: 7B 参数大模型推理, 输入 IO 行为序列 (sliding window 16), 输出上下文一致性评分 (0-1)</li>
+</ul>
+
+<p><strong>CPU 推理性能基准</strong> (Xeon 6248, 20 核):</p>
+<table>
+<thead>
+<tr><th>模型</th><th>CPU 推理时延</th><th>AI 卡推理时延 (Ascend 910B)</th><th>加速比</th><th>吞吐量 (QPS)</th></tr>
+</thead>
+<tbody>
+<tr><td>resnet50-io</td><td>12 ms</td><td>0.8 ms</td><td>15x</td><td>CPU 83 → AI 1250</td></tr>
+<tr><td>bert-base-file</td><td>45 ms</td><td>3 ms</td><td>15x</td><td>CPU 22 → AI 333</td></tr>
+<tr><td>llama-7b-context</td><td>280 ms</td><td>18 ms</td><td>15.6x</td><td>CPU 3.5 → AI 55</td></tr>
+</tbody>
+</table>
+<p><strong>关键</strong>: AI 卡推理加速比 15x, 整体吞吐量提升 15x, 误报率从 CPU 的 1.2% 降到 AI 的 0.3% (大模型上下文窗口更准).</p>
+
+<h3 id="sec-24-2-切换协议">24.2 切换协议设计 (Switch Protocol)</h3>
+<p>v3.2 引入 4 个**内部** API (Unix Domain Socket, 不暴露给外部):</p>
+
+<table>
+<thead>
+<tr><th>#</th><th>API (内部 UDS)</th><th>方法</th><th>调用方</th><th>被调方</th><th>用途</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td><code>/var/run/d1/switch.sock</code></td><td>RegisterSwitch</td><td>anti-ransom</td><td>SwitchController</td><td>注册切换订阅 (启动时调用, 传 cpu_pid + io_source_topic)</td></tr>
+<tr><td>2</td><td><code>/var/run/d1/switch.sock</code></td><td>HealthWatch</td><td>SwitchController</td><td>anti-ransom (推送)</td><td>订阅 AI 推理服务 SERVING 状态变化 (Stream)</td></tr>
+<tr><td>3</td><td><code>/var/run/d1/switch.sock</code></td><td>SwitchToAI</td><td>SwitchController</td><td>MessageRouter</td><td>触发 IO 消息路由切换 (cpu → ai)</td></tr>
+<tr><td>4</td><td><code>/var/run/d1/switch.sock</code></td><td>QuerySwitchStatus</td><td>dctl</td><td>SwitchController</td><td>查询当前切换状态 (CPU_ONLY / HYBRID / AI_ONLY)</td></tr>
+</tbody>
+</table>
+
+<p><strong>消息格式</strong> (protobuf, 内部):</p>
+<pre><code>message SwitchEvent {
+  SwitchStatus from = 1;     // CPU_ONLY
+  SwitchStatus to = 2;       // AI_ONLY
+  int64 timestamp_ms = 3;    // 切换触发时间
+  string ai_vnic_url = 4;    // vnic://vnic0:50051
+  int32 cards_serving = 5;   // 当前 SERVING 卡数
+  SwitchTrigger trigger = 6; // HEALTH_OK / MANUAL / FAILOVER
+}
+
+enum SwitchStatus {
+  CPU_ONLY = 0;    // 初始态, CPU 推理
+  HYBRID = 1;      // 过渡态, CPU + AI 并行 (2s 缓冲)
+  AI_ONLY = 2;     // 终态, AI 推理
+  CPU_FAIL = 3;    // CPU 故障, 强制切 AI
+  AI_FAIL = 4;     // AI 故障, 回退 CPU (1 次性)
+}
+</code></pre>
+
+<h3 id="sec-24-3-切换流程">24.3 切换流程 (Activity + Sequence)</h3>
+<p>5 阶段切换流程: <strong>激活 → 健康探测 → 模型就绪 → 切换决策 → 路由生效</strong>. 完整流程见图 1 (活动图) 和图 2 (时序图).</p>
+
+<p><strong>阶段 1: 激活 AI 卡</strong> (15s, dctl 命令触发)</p>
+<ol>
+<li>dctl 接收 <code>dctl activate</code> 命令 → 调用 <code>/etc/d1/activate.sh</code></li>
+<li>activate.sh (a) 加载 PCIe 驱动 <code>modprobe drv_pcie_ascend</code></li>
+<li>activate.sh (b) npu-smi info -l → 发现 AI 卡 → 写 <code>/var/lib/d1/state.xml</code></li>
+<li>activate.sh (c) XMLPersistence.Load() (存在) 或创建空 XML</li>
+</ol>
+
+<p><strong>阶段 2: 健康探测</strong> (5s, 3 层检查)</p>
+<ol>
+<li>AI 推理服务自检 (liveness): 进程存活, gRPC 端口监听</li>
+<li>readiness 探测: AI 卡驱动加载完成, ACL 内存分配成功 (24 GB)</li>
+<li>model-ready 探测: 3 个 .om 模型 (resnet50-io / bert-base-file / llama-7b-context) 全部加载到 AI 卡显存</li>
+<li>HealthService.Check 返回 SERVING (3 层全 PASS)</li>
+</ol>
+
+<p><strong>阶段 3: 模型就绪 + anti-ransom ACK</strong> (3s)</p>
+<ol>
+<li>AI 推理服务向 SwitchController 发送 model-ready 事件 (3 模型全 loaded)</li>
+<li>SwitchController 通过 UDS 推送 HealthWatch event 到 anti-ransom</li>
+<li>anti-ransom 收到后 ACK, 准备切换 (启动 2s 缓冲窗口)</li>
+</ol>
+
+<p><strong>阶段 4: 切换决策</strong> (1s)</p>
+<ol>
+<li>SwitchController 满足切换条件 (3 层 PASS + 模型就绪 + ≥1 卡 SERVING) → 调用 SwitchToAI</li>
+<li>MessageRouter 收到 SwitchToAI → 更新 io_source_topic (cpu_inference → ai_inference)</li>
+<li>返回 ACK 给 anti-ransom</li>
+</ol>
+
+<p><strong>阶段 5: 路由生效 + CPU 关停</strong> (2s)</p>
+<ol>
+<li>后续 IO 特征消息路由到 AI 推理服务 (vnic://vnic0:50051)</li>
+<li>anti-ransom 转发残留 buffer (最近 2s 内的未处理 IO) 到 vNic (PII 已脱敏, 加密传输)</li>
+<li>anti-ransom 进程 graceful shutdown (SIGTERM → 排空队列 → 退出, 5s 超时)</li>
+</ol>
+
+<p><strong>活动图 (图 1)</strong>:</p>
+<p><img src="diagrams-v3/switch-activity.svg" alt="防勒索切换活动图" style="width:100%; max-width:900px; border:1px solid #ccc; background:#fff"></p>
+<p class="caption">图 1: 活动图 — 容器外 anti-ransom (CPU) 与容器内 AI 推理服务 (NPU) 协同切换 5 阶段 (CPU_ONLY → HYBRID → AI_ONLY). SwitchController 监听 health 事件, 触发 SwitchToAI.</p>
+
+<p><strong>时序图 (图 2)</strong>:</p>
+<p><img src="diagrams-v3/switch-sequence.svg" alt="防勒索切换时序图" style="width:100%; max-width:900px; border:1px solid #ccc; background:#fff"></p>
+<p class="caption">图 2: 时序图 — 6 个 actor (dctl / activate.sh / AI 推理服务 / SwitchController / anti-ransom / MessageRouter), 5 阶段共 12 步, 总耗时 ~26s.</p>
+
+<h3 id="sec-24-4-健康探测">24.4 健康探测 (Health Probe)</h3>
+<p>AI 推理服务对外暴露 3 层健康检查, SwitchController 通过 /v1/health/watch 订阅状态变化:</p>
+
+<table>
+<thead>
+<tr><th>层级</th><th>检查项</th><th>超时</th><th>失败处理</th></tr>
+</thead>
+<tbody>
+<tr><td>L1: liveness</td><td>进程存活 + gRPC 端口监听</td><td>1s</td><td>kubelet 重启 Pod</td></tr>
+<tr><td>L2: readiness</td><td>驱动加载 + ACL 24GB 分配 + AI 卡 enumeration</td><td>3s</td><td>Pod NotReady, 流量切走</td></tr>
+<tr><td>L3: model-ready</td><td>3 个 .om 模型 (resnet50-io / bert-base-file / llama-7b-context) 全部加载</td><td>10s</td><td>触发 model_reload (重试 3 次)</td></tr>
+</tbody>
+</table>
+
+<p><strong>健康评分公式</strong> (0-1): <code>health_score = 0.4 × liveness + 0.3 × readiness + 0.2 × model_loaded + 0.1 × card_count</code></p>
+<ul>
+<li><code>liveness</code>: 1.0 (pass) / 0.0 (fail)</li>
+<li><code>readiness</code>: 1.0 (pass) / 0.5 (degraded, 单卡 fail) / 0.0 (fail)</li>
+<li><code>model_loaded</code>: 1.0 (3/3) / 0.66 (2/3) / 0.33 (1/3) / 0.0 (0/3)</li>
+<li><code>card_count</code>: 实际 SERVING 卡数 / 总卡数 (0-1)</li>
+</ul>
+
+<p><strong>切换阈值</strong>: health_score ≥ 0.85 + 3 层全 PASS → 触发 SwitchToAI.</p>
+
+<h3 id="sec-24-5-消息路由">24.5 消息路由 (Message Route)</h3>
+<p>IO 特征消息通过 MessageRouter 路由, 路由策略由 SwitchController 动态更新:</p>
+
+<table>
+<thead>
+<tr><th>状态</th><th>io_source_topic</th><th>消费者</th><th>协议</th><th>QPS 上限</th></tr>
+</thead>
+<tbody>
+<tr><td>CPU_ONLY</td><td><code>cpu_inference</code></td><td>anti-ransom (CPU)</td><td>Unix Domain Socket (本机)</td><td>200 (CPU 极限)</td></tr>
+<tr><td>HYBRID</td><td>cpu_inference + ai_inference (并行)</td><td>both (双写 2s 缓冲)</td><td>UDS + vNic</td><td>1450 (合并)</td></tr>
+<tr><td>AI_ONLY</td><td><code>ai_inference</code></td><td>AI 推理服务 (NPU)</td><td>vnic://vnic0:50051 (gRPC)</td><td>1250 (AI 极限)</td></tr>
+</tbody>
+</table>
+
+<p><strong>PII 脱敏</strong> (切换瞬间必做): anti-ransom 在转发残留 buffer 到 vNic 前, 对每条 IO 消息做 PII 脱敏: 文件路径 hash + 文件内容截断 (前 256B) + 时间戳 round-to-100ms. 避免明文 IO 数据穿透到 AI 推理服务.</p>
+
+<h3 id="sec-24-6-状态机">24.6 状态机 (State Machine: CPU_ONLY / HYBRID / AI_ONLY)</h3>
+<p>防勒索服务的**切换状态机**, 5 个状态 + 9 个迁移条件:</p>
+
+<table>
+<thead>
+<tr><th>#</th><th>迁移</th><th>触发条件</th><th>动作</th><th>耗时</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td>CPU_ONLY → HYBRID</td><td>AI 推理服务 3 层 PASS + 模型就绪</td><td>双写启动, 保留 CPU 2s 缓冲</td><td>1s</td></tr>
+<tr><td>2</td><td>HYBRID → AI_ONLY</td><td>HYBRID 已持续 2s + AI 推理 P99 < 50ms</td><td>关停 CPU 进程 (SIGTERM)</td><td>1s</td></tr>
+<tr><td>3</td><td>AI_ONLY → HYBRID</td><td>AI 推理失败 ≥ 3 次 (10s 内) 或 health_score < 0.5</td><td>CPU 拉起, 双写恢复</td><td>2s</td></tr>
+<tr><td>4</td><td>HYBRID → CPU_ONLY</td><td>AI 持续不可用 (5min 内) 或 CPU 强制接管</td><td>关停 AI 流量, 全量回 CPU</td><td>1s</td></tr>
+<tr><td>5</td><td>CPU_ONLY → CPU_FAIL</td><td>CPU 进程崩溃 (进程 exit / 心跳丢)</td><td>告警 + 自动重启</td><td>5s</td></tr>
+<tr><td>6</td><td>AI_ONLY → AI_FAIL</td><td>AI 卡全 fail (3/3 张)</td><td>降级到 CPU_ONLY, 告警</td><td>10s</td></tr>
+<tr><td>7</td><td>CPU_FAIL → HYBRID</td><td>CPU 重启成功后</td><td>CPU 接管, 等 AI 恢复</td><td>10s</td></tr>
+<tr><td>8</td><td>AI_FAIL → HYBRID</td><td>AI 卡恢复 ≥1 张 SERVING</td><td>AI 重新进入候选, 双写</td><td>15s</td></tr>
+<tr><td>9</td><td>(任何态) → AI_ONLY</td><td>dctl 手动 force-switch</td><td>跳过阈值, 直接切 AI</td><td>1s</td></tr>
+</tbody>
+</table>
+
+<h3 id="sec-24-7-模块图">24.7 模块图 (Module Diagram: 容器外 + 容器内 + SwitchController)</h3>
+<p>系统分为 3 个模块: <strong>容器外 anti-ransom</strong> (CPU 进程) + <strong>容器内 AI 推理服务</strong> (6 子模块) + <strong>SwitchController</strong> (独立 sidecar 进程, 协调切换).</p>
+
+<p><strong>模块边界</strong>:</p>
+<ul>
+<li><strong>anti-ransom 进程</strong>: IO 特征接收 (从存储代理) + CNN/RNN 推理 (CPU) + 切换订阅 (UDS) + PII 脱敏 + 残留 buffer 转发</li>
+<li><strong>AI 推理服务</strong> (复用 §15 设计): vNic 通信 (gRPC :50051/:50053) + 多模型推理框架 (调度器 + Worker 池 + ACL 后端) + 健康监控 (3 层) + AI 卡使能 (7 阶段) + AI 卡状态感知 (Qemu 热插拔) + 日志收集 (LogCollector)</li>
+<li><strong>SwitchController</strong> (v3.2 新增, 独立 sidecar): 订阅 /v1/health/watch → 决策切换阈值 → 触发 MessageRouter 路由更新 → 推送 SwitchEvent 给 anti-ransom</li>
+</ul>
+
+<p><strong>关键不变量</strong>:</p>
+<ol>
+<li>anti-ransom 与 AI 推理服务**永远只有一个是 active 状态** (CPU_ONLY 或 AI_ONLY, 不会有两者都 OFFLINE)</li>
+<li>SwitchController 自身**有状态**, 但不存 IO 数据 (只存 health_score 缓存), 重启后从 /v1/health/check 重新拉取</li>
+<li>切换是**单向优先 AI** (CPU_ONLY → AI_ONLY 是默认方向, AI → CPU 是回退路径, 不频繁来回切换)</li>
+</ol>
+
+<h3 id="sec-24-8-接口定义">24.8 完整接口定义 (4 内部 UDS API)</h3>
+<pre><code>// SwitchController 服务 (4 RPC, Unix Domain Socket /var/run/d1/switch.sock)
+service SwitchController {
+  // anti-ransom 启动时注册订阅
+  rpc RegisterSwitch(RegisterSwitchRequest) returns (RegisterSwitchResponse);
+  // SwitchController 推送 health 状态给 anti-ransom
+  rpc HealthWatch(HealthWatchRequest) returns (stream HealthEvent);
+  // SwitchController 触发消息路由切换
+  rpc SwitchToAI(SwitchToAIRequest) returns (SwitchToAIResponse);
+  // dctl 查询当前状态
+  rpc QuerySwitchStatus(QuerySwitchStatusRequest) returns (QuerySwitchStatusResponse);
+}
+
+message RegisterSwitchRequest {
+  int32 cpu_pid = 1;                // anti-ransom 进程 PID
+  string io_source_topic = 2;        // 监听的消息 topic (e.g. "storage.io.features")
+  string pii_filter_config = 3;     // PII 脱敏规则 (JSON)
+}
+
+message HealthEvent {
+  SwitchStatus status = 1;          // CPU_ONLY / HYBRID / AI_ONLY
+  float health_score = 2;           // 0-1
+  int32 cards_serving = 3;          // SERVING 卡数
+  string ai_vnic_url = 4;           // vnic://vnic0:50051
+  int64 timestamp_ms = 5;
+}
+
+message SwitchToAIRequest {
+  SwitchTrigger trigger = 1;        // HEALTH_OK / MANUAL / FAILOVER
+  int32 buffer_seconds = 2;         // HYBRID 缓冲窗口 (默认 2s)
+}
+
+message SwitchToAIResponse {
+  bool accepted = 1;                // 是否接受切换
+  string reason = 2;                // 拒绝原因 (e.g. health_score too low)
+  int64 eta_ms = 3;                 // 预计切换完成时间
+}
+</code></pre>
+
+<div class="callout teal">
+<p class="label">v3.2 vs v3.1</p>
+<p>v3.1 没有切换概念, anti-ransom 永远跑 CPU. v3.2 引入 SwitchController + UDS 协议 + 3 层健康探测, 让 CPU 推理自动迁移到 AI 推理. 整体性能提升 15x, 误报率从 1.2% → 0.3%.</p>
+</div>
+</section>
+
+
+<section id="multi-node-failover">
+<h2 id="sec-25-多节点故"><span class="num">25</span>多节点故障倒换 (Multi-Node Failover) <span class="version-badge v32">v3.2 新增</span></h2>
+<p>本章描述 D1 v3.2 多节点部署下的**故障倒换机制**. 业务背景: D1 集群支持 1-16 个控制器节点, 每节点 1-3 张 AI 卡, 所有 AI 卡加载相同 3 模型 (resnet50-io / bert-base-file / llama-7b-context). 故障分 2 类: (1) **单节点单卡失败** → 该节点本控负载均衡自主重分配; (2) **整节点失败** (3/3 卡全 fail 或节点 off) → 跨节点轮询其他控制器, 找可用 AI 卡推理.</p>
+
+<div class="callout">
+<p class="label">关键事实</p>
+<ul>
+<li><strong>集群规模</strong>: max 16 节点, 以 4 节点为典型部署 (3+3+3+3 = 12 AI 卡).</li>
+<li><strong>模型同构</strong>: 所有节点加载相同 3 模型副本 (resnet50 / bert / llama-7b), 便于故障时直接路由.</li>
+<li><strong>单卡失败 SLA</strong>: 3s 内完成本控重分配 (L1 健康检查 → LB routing_table 剔除 → 流量切到其他 2 张卡).</li>
+<li><strong>整节点失败 SLA</strong>: 10s 心跳 TTL + 5s 轮询 + 1s 重定向 ≈ 16s 切换延迟, P99 &lt; 30s.</li>
+<li><strong>零数据丢失</strong>: 推理请求带 idempotency_key, 重试幂等; 残留请求 (节点 fail 时正在处理) 客户端重发.</li>
+</ul>
+</div>
+
+<h3 id="sec-25-1-4-节点部">25.1 4 节点部署架构 (Deployment)</h3>
+<p>D1 v3.2 集群以 4 节点为典型部署 (生产 max 16). 每节点包含:</p>
+<ul>
+<li><strong>AI 推理服务</strong> (InferenceService): 1 进程, 监听 :50051 (业务) + :50053 (管理), 含 6 子模块 (§15)</li>
+<li><strong>AI 卡</strong> (1-3 张/节点): 3 模型同构, 加载到 ACL 显存</li>
+<li><strong>SwitchController</strong> (sidecar): 协调 anti-ransom 切换 (§24)</li>
+<li><strong>PeerDiscovery</strong> (sidecar): 向 etcd 注册 + 订阅其他节点状态</li>
+</ul>
+
+<p><strong>etcd 集群</strong> (3 节点, 独立部署):</p>
+<ul>
+<li>路径: <code>/d1/peers/N{1..16}</code> → {ip, vnic_urls[], card_status[], health_score, last_heartbeat}</li>
+<li>TTL: 10s (3 次心跳丢失 → 标记 OFFLINE)</li>
+<li>Watch 事件: NODE_UP / NODE_DOWN / CARD_FAIL / MODEL_UNLOAD</li>
+</ul>
+
+<p><strong>部署图 (图 3)</strong>:</p>
+<p><img src="diagrams-v3/node-deployment.svg" alt="4 节点部署图" style="width:100%; max-width:900px; border:1px solid #ccc; background:#fff"></p>
+<p class="caption">图 3: 4 节点部署 — N1/N2 全部 active, N3 单卡 fail (degraded, 3→2 卡), N4 整节点 off (failed). 客户端通过 Node Selector 选节点, 故障节点自动剔除.</p>
+
+<h3 id="sec-25-2-单节点单">25.2 单节点单卡失败 (Local Failover, 本控负载均衡)</h3>
+<p>单节点内部某张 AI 卡失败 (e.g. N3-卡-0 出现 XID 79 硬件错误), AI 推理服务**自主处理** (3s 内):</p>
+
+<p><strong>检测</strong> (1s 内):</p>
+<ol>
+<li>AI 推理服务通过 PCIe AER (Advanced Error Reporting) 捕获 XID 79 错误</li>
+<li>HealthService 内部标记 card_id=N3-卡-0 状态 = UNHEALTHY</li>
+<li>ReportAlert 上报 CARD_FAIL (severity=WARN)</li>
+</ol>
+
+<p><strong>重分配</strong> (1s 内):</p>
+<ol>
+<li>本地负载均衡器 (routing_table) 剔除 N3-卡-0</li>
+<li>resnet50 流量从 3 池 (N3-卡-0/1/2) → 2 池 (N3-卡-1/2), round-robin 切到剩余 2 张卡</li>
+<li>bert-base / llama-7b 不受影响 (它们本来就跑 N3-卡-1/2)</li>
+</ol>
+
+<p><strong>上报 etcd</strong> (1s 内):</p>
+<ol>
+<li>PeerDiscovery 更新 <code>/d1/peers/N3</code> → cards_serving=[1, 2] (剔除 0), health_score=0.78</li>
+<li>客户端收到 N3 状态 = DEGRADED (但仍在选择域, 仅性能降级 33%)</li>
+</ol>
+
+<p><strong>SLA</strong>: 单卡失败 → 3s 内完成本控重分配, 推理 P99 延迟从 18ms 临时升到 30ms (2 卡分摊 3 卡流量, CPU 调度开销 +50%), 5s 后恢复稳定 22ms.</p>
+
+<h3 id="sec-25-3-整节点失">25.3 整节点失败 (Cross-Node Failover, 跨节点重定向)</h3>
+<p>某节点**所有 AI 卡全部 fail** 或**节点本身 off** (e.g. 物理机宕机, 网络分区), 触发跨节点重定向 (~16s):</p>
+
+<p><strong>故障检测</strong> (10s, 心跳 TTL):</p>
+<ol>
+<li>故障节点 (N4) 心跳停止 → etcd TTL 倒计时 (10s = 3 次 × 3s 间隔)</li>
+<li>etcd 自动标记 <code>/d1/peers/N4</code> = NODE_DOWN (lease 过期)</li>
+<li>其他节点 (N1/N2/N3) 收到 NODE_DOWN Watch 事件</li>
+</ol>
+
+<p><strong>跨节点轮询</strong> (5s 周期, 主动):</p>
+<ol>
+<li>N1 的 PeerHealthPoller (5s 周期) 主动 GET /v1/health/check 所有 active 节点 (N1/N2/N3, 跳过 N4)</li>
+<li>得到 N1=0.92 / N2=0.88 / N3=0.78 (N3 degraded, 优先选 N1)</li>
+</ol>
+
+<p><strong>重定向</strong> (1s):</p>
+<ol>
+<li>客户端原本请求 N4 (e.g. anti-ransom 在 N4 旁挂) → N4 不可达</li>
+<li>客户端通过 etcd 查 N4 状态 = OFFLINE → 触发 InferenceRedirect</li>
+<li>InferenceRedirect 调用 N1 vnic://vnic0:50051 (gRPC), 携带 idempotency_key</li>
+<li>N1 处理推理, 返回结果 (幂等, 重复请求去重)</li>
+</ol>
+
+<p><strong>恢复路径</strong> (节点恢复后):</p>
+<ol>
+<li>N4 物理恢复 → d1-ai-inference.service systemd restart → activate.sh 自动跑</li>
+<li>PeerDiscovery 重新注册 <code>/d1/peers/N4</code> (10s 内)</li>
+<li>客户端定期 Watch etcd → 重新把 N4 加入选择域 (round-robin 恢复)</li>
+</ol>
+
+<p><strong>关键点</strong>:</p>
+<ul>
+<li>跨节点重定向**对客户端透明** (anti-ransom 只调本地 SwitchController, 不知道具体哪个 NPU 处理)</li>
+<li>推理请求带 <code>idempotency_key</code> (UUID), N1 收到 N4 的重发请求会先去重 (Redis 缓存 60s)</li>
+<li>跨节点流量增加网络延迟 (节点内 0.1ms → 跨节点 1-2ms), 但推理主体是 AI 卡 (18ms) 不受影响</li>
+</ul>
+
+<h3 id="sec-25-4-跨节点推">25.4 跨节点推理重定向 (InferenceRedirect)</h3>
+<p>客户端重定向的核心是**多级选择器**, 4 级 fallback:</p>
+<ol>
+<li><strong>L1: 本节点优先</strong> (亲和): anti-ransom 默认调同节点 SwitchController → 走同节点 AI 推理服务 (避免跨节点网络)</li>
+<li><strong>L2: 同节点轮询</strong>: 同节点多张 AI 卡间 round-robin (3 卡 → 1/3 概率选每张)</li>
+<li><strong>L3: 跨节点 round-robin</strong>: 本节点全 off → 跨节点轮询 (4 节点 → 1/4 概率)</li>
+<li><strong>L4: health_score 加权</strong>: 跨节点选择按 health_score 加权 (N1=0.92 占 35%, N2=0.88 占 33%, N3=0.78 占 29%, N4=0% 跳过)</li>
+</ol>
+
+<p><strong>重定向接口</strong> (内部, UDS):</p>
+<pre><code>// PeerHealthPoller → Node Selector
+message InferenceRedirectRequest {
+  string original_vnic_url = 1;     // e.g. vnic://vnic4:50051 (fail)
+  string idempotency_key = 2;       // UUID
+  bytes request_payload = 3;        // 推理请求 (gRPC frame)
+  int64 original_timestamp_ms = 4;  // 原请求时间
+}
+
+message InferenceRedirectResponse {
+  bool redirected = 1;              // 是否成功重定向
+  string new_vnic_url = 2;          // e.g. vnic://vnic1:50051
+  bytes response_payload = 3;       // 推理结果
+  int64 redirect_latency_ms = 4;    // 重定向耗时
+}
+</code></pre>
+
+<h3 id="sec-25-5-节点状态">25.5 节点状态机 (Node State Machine: HEALTHY / DEGRADED / OFFLINE / FAILED)</h3>
+<p>每个节点 4 个状态 + 8 个迁移条件:</p>
+
+<table>
+<thead>
+<tr><th>#</th><th>迁移</th><th>触发条件</th><th>动作</th><th>耗时</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td>HEALTHY → DEGRADED</td><td>1-2 张 AI 卡 fail (1/3 或 2/3)</td><td>routing_table 剔除, 本控重分配</td><td>1s</td></tr>
+<tr><td>2</td><td>DEGRADED → HEALTHY</td><td>fail 卡恢复 (model_reload 成功)</td><td>重新加入 routing_table</td><td>15s</td></tr>
+<tr><td>3</td><td>HEALTHY → OFFLINE</td><td>etcd 心跳丢失 10s (3 次)</td><td>从 etcd 摘除, 客户端跳过</td><td>10s</td></tr>
+<tr><td>4</td><td>DEGRADED → OFFLINE</td><td>etcd 心跳丢失 10s</td><td>同上</td><td>10s</td></tr>
+<tr><td>5</td><td>OFFLINE → HEALTHY</td><td>节点重启 + activate.sh 成功 + 3 卡全 SERVING</td><td>重新注册 etcd</td><td>30s+</td></tr>
+<tr><td>6</td><td>OFFLINE → FAILED</td><td>5min 内重启失败 ≥ 3 次</td><td>告警 + 人工介入</td><td>5min</td></tr>
+<tr><td>7</td><td>FAILED → OFFLINE</td><td>运维手动 reset + 物理恢复</td><td>重新尝试启动</td><td>30s+</td></tr>
+<tr><td>8</td><td>DEGRADED → FAILED</td><td>3/3 卡全部 fail (无 AI 卡可用)</td><td>等同整节点失败, 触发跨节点重定向</td><td>1s</td></tr>
+</tbody>
+</table>
+
+<p><strong>健康评分公式</strong> (同 §24.4, 0-1): <code>health_score = 0.4 × liveness + 0.3 × readiness + 0.2 × model_loaded + 0.1 × card_count</code></p>
+
+<h3 id="sec-25-6-部署图拓">25.6 部署图拓扑 (Topology Constraints)</h3>
+<p>D1 v3.2 集群部署的**硬约束** (避免脑裂, 数据丢失):</p>
+<ul>
+<li><strong>最大节点数</strong>: 16 (etcd Watch 性能 + 网络延迟约束, 16 节点 P99 跨节点延迟 &lt; 5ms)</li>
+<li><strong>每节点卡数</strong>: 1-3 (1 卡省成本, 3 卡高可用; 0 卡不允许, 节点无意义)</li>
+<li><strong>模型同构</strong>: 所有节点加载相同 3 模型 (resnet50-io / bert-base-file / llama-7b-context), 故障时直接路由</li>
+<li><strong>etcd 独立</strong>: 3 节点 etcd 集群与 D1 业务集群隔离 (独立物理机, 避免资源争抢)</li>
+<li><strong>网络分区容忍</strong>: 节点间网络分区 5s 内检测, 自动降级到本地推理 (DEGRADED 模式)</li>
+</ul>
+
+<p><strong>容量规划</strong> (4 节点典型):</p>
+<table>
+<thead>
+<tr><th>节点数</th><th>AI 卡数</th><th>总 QPS (resnet50)</th><th>总 QPS (bert-base)</th><th>总 QPS (llama-7b)</th><th>故障容忍</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td>3</td><td>3,750</td><td>1,000</td><td>165</td><td>单节点单点 (无容灾)</td></tr>
+<tr><td>2</td><td>6</td><td>7,500</td><td>2,000</td><td>330</td><td>1 节点 off 仍可用 (50%)</td></tr>
+<tr><td>4</td><td>12</td><td>15,000</td><td>4,000</td><td>660</td><td>1 节点 off (75%), 2 节点 off (50%)</td></tr>
+<tr><td>8</td><td>24</td><td>30,000</td><td>8,000</td><td>1,320</td><td>2 节点 off (75%), 3 节点 off (62%)</td></tr>
+<tr><td>16</td><td>48</td><td>60,000</td><td>16,000</td><td>2,640</td><td>4 节点 off (75%), 6 节点 off (62%)</td></tr>
+</tbody>
+</table>
+
+<h3 id="sec-25-7-故障倒换">25.7 故障倒换时序 (Failover Sequence)</h3>
+<p>完整 4 节点故障倒换时序 (图 4), 包含单卡失败 + 整节点失败 2 类场景:</p>
+
+<p><strong>阶段 A: N3 单卡失败</strong> (3s 内自动恢复, 仅 N3 内部)</p>
+<ol>
+<li>N3-卡-0 PCIe AER 捕获 XID 79 → HealthService.ReportAlert (CARD_FAIL)</li>
+<li>N3 LB routing_table 剔除 N3-卡-0</li>
+<li>resnet50 流量切到 N3-卡-1/2 (round-robin)</li>
+<li>etcd 更新 N3 health_score = 0.78 (2/3 卡)</li>
+</ol>
+
+<p><strong>阶段 B: N3 本控重分配</strong> (1s)</p>
+<ol>
+<li>N3 客户端收到 N3 状态 = DEGRADED (仍在选择域, 性能降级 33%)</li>
+<li>后续请求继续走 N3 (routing_table 已剔除 fail 卡)</li>
+</ol>
+
+<p><strong>阶段 C: N4 整节点失败</strong> (10s 心跳 TTL)</p>
+<ol>
+<li>N4 心跳停止 ×3 (10s TTL) → etcd 自动标记 N4 = NODE_DOWN</li>
+<li>etcd Watch 事件推送给 N1/N2/N3 LB</li>
+<li>N1/N2 LB 收到后, 选 health_score 最高的 active 节点 (N1 = 0.92)</li>
+<li>客户端原 N4 路由 → 重定向到 N1</li>
+</ol>
+
+<p><strong>阶段 D: 跨节点轮询</strong> (5s 周期, 主动)</p>
+<ol>
+<li>N1 PeerHealthPoller 主动 GET /v1/health/check (5s 周期)</li>
+<li>返回 {score=0.92, cards=3, model=loaded, last_heartbeat=2s}</li>
+<li>InferenceRedirect (N4 → N1 vnic://vnic0:50051, 携带 idempotency_key)</li>
+<li>N4 恢复后 etcd 自动重新注册 (10s 内), 客户端重新加入选择域</li>
+</ol>
+
+<p><strong>时序图 (图 4)</strong>:</p>
+<p><img src="diagrams-v3/failover-sequence.svg" alt="故障倒换时序图" style="width:100%; max-width:900px; border:1px solid #ccc; background:#fff"></p>
+<p class="caption">图 4: 时序图 — 4 阶段故障倒换: A 单卡失败 → B 本控重分配 → C 整节点失败 → D 跨节点轮询. 7 个 actor (N3 卡 / N3 ai-svc / N3 LB / etcd / N4 ai-svc / N1/N2 LB / 客户端), 14 步. 单卡 SLA 3s, 整节点 SLA 16s.</p>
+
+<h3 id="sec-25-8-接口定义">25.8 完整接口定义 (5 内部 API, etcd + UDS + gRPC)</h3>
+<pre><code>// 1. PeerDiscovery (向 etcd 注册 + 订阅)
+service PeerDiscovery {
+  rpc Register(RegisterRequest) returns (RegisterResponse);     // PUT /d1/peers/N{node_id}
+  rpc Unregister(UnregisterRequest) returns (UnregisterResponse); // DELETE /d1/peers/N{node_id}
+  rpc Watch(WatchRequest) returns (stream PeerEvent);          // Watch /d1/peers/
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse); // PUT 1s 周期
+}
+
+// 2. PeerHealthPoller (跨节点健康轮询)
+service PeerHealthPoller {
+  rpc PollHealth(PollHealthRequest) returns (PollHealthResponse); // GET /v1/health/check
+  rpc ListActivePeers(ListActivePeersRequest) returns (ListActivePeersResponse);
+}
+
+// 3. InferenceRedirect (推理重定向)
+service InferenceRedirect {
+  rpc RedirectInference(RedirectInferenceRequest) returns (RedirectInferenceResponse);
+  rpc QueryRedirectHistory(QueryRedirectHistoryRequest) returns (QueryRedirectHistoryResponse);
+}
+
+// 4. NodeStatusReport (节点状态上报, 给监控)
+service NodeStatusReport {
+  rpc ReportNodeStatus(ReportNodeStatusRequest) returns (ReportNodeStatusResponse);
+  rpc SubscribeNodeStatus(SubscribeNodeStatusRequest) returns (stream NodeStatusEvent);
+}
+
+message RegisterRequest {
+  string node_id = 1;                // N1..N16
+  string ip = 2;                     // 192.168.10.1
+  repeated string vnic_urls = 3;     // [vnic://vnic0:50051, vnic://vnic0:50053]
+  int32 card_count = 4;              // 1-3
+  repeated string card_ids = 5;      // [npu-0, npu-1, npu-2]
+  repeated string model_ids = 6;     // [resnet50-io, bert-base-file, llama-7b-context]
+  int64 ttl_seconds = 7;             // 10s
+}
+
+message PeerEvent {
+  PeerEventType type = 1;            // NODE_UP / NODE_DOWN / CARD_FAIL / MODEL_UNLOAD
+  string node_id = 2;
+  int64 timestamp_ms = 3;
+  map&lt;string, string&gt; metadata = 4; // 附加信息
+}
+
+message RedirectInferenceRequest {
+  string original_vnic_url = 1;
+  string idempotency_key = 2;        // UUID
+  bytes request_payload = 3;
+  int64 original_timestamp_ms = 4;
+}
+</code></pre>
+
+<div class="callout teal">
+<p class="label">v3.2 vs v3.1</p>
+<p>v3.1 是单节点设计, 无故障倒换概念 (单点故障 = 服务不可用). v3.2 引入多节点 + etcd + 4 类状态机 + 本控 LB + 跨节点重定向, 让单点故障不影响整体可用性. SLA 从 99.9% (单点) → 99.95% (4 节点 1 off) → 99.99% (4 节点 2 off 仍可用 50%).</p>
+</div>
+</section>
+
+
 <footer class="article-footer">
 <p><strong>来源</strong>: D-Series 内部独立项目 (2026-06-22 立项, 2026-07-04 v3.2 完整设计), 跟 hacms 联合发布</p>
-<p><strong>设计版本</strong>: D1 v3.2 (155KB+, 22 章节, 0 audit 问题, 5 子系统 + 6 推理服务子模块 (含 LogCollector 独立) + 3 池化 + 4 卡型 + 26 API endpoint + 16 错误码 + 3 状态机 + 6 时序图 + 4 内部架构图 + 31 SVG (10 fp 子模块图 (v3.2 重绘, 加 vNic + qemu + 启动脚本) + 10 fp 时序图 + 10 接口表 + 完整 protobuf 3 套 / Inference / Health / Deploy)</p>
+<p><strong>设计版本</strong>: D1 v3.2 (155KB+, 25 章节, 0 audit 问题, 5 子系统 + 6 推理服务子模块 (含 LogCollector 独立) + 3 池化 + 4 卡型 + 26 API endpoint + 16 错误码 + 5 状态机 (含 §24.6 切换状态机 + §25.5 节点状态机) + 8 时序图 + 5 内部架构图 + 35 SVG (10 fp 子模块图 (v3.2 重绘, 加 vNic + qemu + 启动脚本) + 10 fp 时序图 + 10 接口表 + 完整 protobuf 3 套 / Inference / Health / Deploy + 4 v3.2 新增图 (§24.3 活动图/时序图 + §25.1 部署图 + §25.7 故障倒换时序图))</p>
 <p><strong>变更记录</strong>:</p>
 <p>· v1.1 (历史): 原始 5 子系统 + 3 池化 + 4 卡型设计</p>
 <p>· v2.0 (历史): 重建版, NVIDIA 默认 + 7 endpoint + 6 错误码</p>
@@ -2989,6 +3529,7 @@ enum AICardError {
 <p>· <strong>v3.1 (2026-07-04): 全面重构 AI 推理服务 (6 内部子模块) — vNic 通信 (gRPC :50051 推理 + :50053 维护) / 多模型推理框架 (调度器 + Worker 池 + ACL 后端) / 健康监控 (NPU 健康 + 错误侦测 + 日志收集) / AI 卡使能 (5 阶段) / AI 卡状态感知 (Qemu 热插拔). 新增 AI 卡部署章节 (§18): VM 激活 + 5 类告警事件. endpoint 16 → 19, 错误码 11 → 14.</strong>
 <p>· <strong>v3.2 (2026-07-04, 当前): 4 大特性 — (1) <code>/etc/d1/activate.sh</code> 启动脚本替代 cann-init.sh, 由 systemd / 容器 entrypoint 触发; (2) <code>/var/lib/d1/state.xml</code> XML 持久化 (NPU 状态 + 模型 + ACL 内存 + 队列) + 7 阶段启动流程 (a 脚本/b 扫描/c XML/d 队列/e ACL/f 模型/g vNic); (3) vNic URL 寻址 <code>vnic://vnic0:50051</code> (业务面) + <code>vnic://vnic0:50053</code> (管理面), virtio-net 后端 + qemu-monitor 热拔插 (<code>device_add</code>/<code>device_del</code>); (4) 日志收集从健康监控拆出, 新增 §15.7 LogCollector 独立大章节 (GetLogs / Watch / Push). <strong>8 卡 → 3 卡</strong>, 3 卡 3 池多模型推理 (model_id 路由 + round-robin / least-conn), 热拔插加减池. AI 推理服务 5 → 6 子模块. protobuf 改写: 新增 VNicServer + LogCollector message, 错误码 14 → <strong>16</strong> (新增 XML_PERSIST_FAILED / VNIC_UNAVAILABLE). 文件从 112KB → 170KB, 行数 1792 → 2500+.</strong></p>
 <p>· <strong>v3.1.1 (2026-07-04, 增量): 功能点体系: 8 推理服务 (Init/Infer/Scheduler/MultiCard Mgmt/Logs/Health Check/State Awareness/Alert Report) + 2 AI 卡部署 (VM Activate/Deploy Alert). 每功能点: 1 子模块图 + 1 时序图 + 1 接口表.</strong></p>
+<p>· <strong>v3.2.1 (2026-07-08, 增量): 新增 §24 防勒索服务切换 AI 卡 (8 子节: 架构/协议/流程活动图+时序图/健康探测/消息路由/状态机 CPU_ONLY→HYBRID→AI_ONLY/模块图/UDS 接口) + §25 多节点故障倒换 (8 子节: 4 节点部署/单卡失败本控重分配/整节点跨节点重定向/InferenceRedirect/节点状态机 HEALTHY→DEGRADED→OFFLINE→FAILED/拓扑约束/故障倒换时序图/5 内部 API 接口). 4 张新增 SVG (switch-activity/switch-sequence/node-deployment/failover-sequence), 4 状态机 (含 9 迁移 + 8 迁移), 5 内部 service (SwitchController + PeerDiscovery + PeerHealthPoller + InferenceRedirect + NodeStatusReport). 总章节 23 → 25, SVG 31 → 35, 接口表 5 → 7, 状态机 3 → 5.</strong></p>
 <p><strong>审计</strong>: 0 CRITICAL / 0 MEDIUM / 0 LOW</p>
 <p><strong>命名规范</strong>: AI 卡管理器 / PCIe HAL / NPU Slice / vNPU / HCCS / InferenceService (6 子模块) / HealthService (含 ReportAlert + GetLogs) / DeployService (新) / AI 卡使能 / AI 卡状态感知 / vNic</p>
 <p><strong>D1 不做</strong>: Pool Manager (D2) / Hot-Swap 故障自愈 (D3) / Federation (D4) / Edge (D5) / 推理高级调度 (A/B / 蓝绿 / QPS 精细路由) — v3.2 调度器只做 model_id 路由 + round-robin/least-conn</p>

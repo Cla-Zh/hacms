@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 540" font-family="sans-serif" font-size="13" fill="#222">
+  <defs>
+    <marker id="arrow-4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#333"/>
+    </marker>
+    <marker id="arrow-4-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#b03030"/>
+    </marker>
+    <marker id="arrow-4-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2d7a2d"/>
+    </marker>
+  </defs>
+  <rect width="900" height="540" fill="#fff"/>
+  <text x="20" y="22" font-size="15" font-weight="700">时序图: 4 节点故障倒换 (单卡失败 → 本控重分配; 整节点失败 → 跨节点重定向)</text>
+  <text x="20" y="40" font-size="11" fill="#666">v3.2 新增 — §25.7 — 4 节点: N1 (active) / N2 (active) / N3 (degraded: 1 卡 fail) / N4 (failed: 整节点 off)</text>
+
+  <rect x="50" y="60" width="80" height="30" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="90" y="80" text-anchor="middle" font-size="11" font-weight="700">N3 卡-0</text>
+  <line x1="90" y1="90" x2="90" y2="500" stroke="#b03030" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <rect x="160" y="60" width="80" height="30" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="200" y="80" text-anchor="middle" font-size="11" font-weight="700">N3 ai-svc</text>
+  <line x1="200" y1="90" x2="200" y2="500" stroke="#333" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <rect x="270" y="60" width="80" height="30" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="310" y="80" text-anchor="middle" font-size="11" font-weight="700">N3 LB</text>
+  <line x1="310" y1="90" x2="310" y2="500" stroke="#333" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <rect x="380" y="60" width="80" height="30" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="420" y="80" text-anchor="middle" font-size="11" font-weight="700">etcd</text>
+  <line x1="420" y1="90" x2="420" y2="500" stroke="#333" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <rect x="490" y="60" width="100" height="30" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="540" y="80" text-anchor="middle" font-size="11" font-weight="700">N4 ai-svc</text>
+  <line x1="540" y1="90" x2="540" y2="500" stroke="#b03030" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <rect x="620" y="60" width="100" height="30" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="670" y="80" text-anchor="middle" font-size="11" font-weight="700">N1/N2 LB</text>
+  <line x1="670" y1="90" x2="670" y2="500" stroke="#2d7a2d" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <rect x="750" y="60" width="120" height="30" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="810" y="80" text-anchor="middle" font-size="11" font-weight="700">客户端</text>
+  <line x1="810" y1="90" x2="810" y2="500" stroke="#333" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <!-- 阶段 A: N3 单卡故障 -->
+  <rect x="40" y="105" width="830" height="80" fill="#fff3b0" stroke="#d0b040" stroke-width="0.8"/>
+  <text x="50" y="120" font-size="11" font-weight="700" fill="#a07020">阶段 A: N3 单卡故障 (3s 内自动恢复)</text>
+
+  <line x1="92" y1="135" x2="198" y2="135" stroke="#b03030" stroke-width="1.2" marker-end="url(#arrow-4-red)"/>
+  <text x="145" y="129" text-anchor="middle" font-size="10" fill="#b03030">① CARD_FAIL (resnet50 NPU-0 XID 79)</text>
+
+  <line x1="202" y1="153" x2="308" y2="153" stroke="#b03030" stroke-width="1.2" marker-end="url(#arrow-4-red)"/>
+  <text x="255" y="147" text-anchor="middle" font-size="10" fill="#b03030">② ReportAlert (CardStatus = DOWN)</text>
+
+  <line x1="312" y1="171" x2="198" y2="171" stroke="#b03030" stroke-width="1.2" marker-end="url(#arrow-4-red)"/>
+  <text x="255" y="165" text-anchor="middle" font-size="10" fill="#b03030">③ LB: routing_table 剔除 N3-卡-0</text>
+
+  <!-- 阶段 B: N3 本控重分配 -->
+  <rect x="40" y="195" width="830" height="80" fill="#e7f4e7" stroke="#80b080" stroke-width="0.8"/>
+  <text x="50" y="210" font-size="11" font-weight="700" fill="#2d7a2d">阶段 B: N3 本控负载均衡重分配 (1s)</text>
+
+  <line x1="202" y1="225" x2="308" y2="225" stroke="#2d7a2d" stroke-width="1.2" marker-end="url(#arrow-4-green)"/>
+  <text x="255" y="219" text-anchor="middle" font-size="10" fill="#2d7a2d">④ resnet50 流量 → N3-卡-1 + N3-卡-2 (round-robin)</text>
+
+  <line x1="312" y1="243" x2="418" y2="243" stroke="#2d7a2d" stroke-width="1.2" marker-end="url(#arrow-4-green)"/>
+  <text x="365" y="237" text-anchor="middle" font-size="10" fill="#2d7a2d">⑤ etcd: N3 health_score = 0.78 (2/3 卡)</text>
+
+  <line x1="420" y1="261" x2="808" y2="261" stroke="#2d7a2d" stroke-width="1.2" marker-end="url(#arrow-4-green)"/>
+  <text x="610" y="255" text-anchor="middle" font-size="10" fill="#2d7a2d">⑥ 客户端收到 N3 状态 (DEGRADED, 但仍在选择域)</text>
+
+  <!-- 阶段 C: N4 整节点故障 -->
+  <rect x="40" y="285" width="830" height="100" fill="#fae0e0" stroke="#b03030" stroke-width="0.8"/>
+  <text x="50" y="300" font-size="11" font-weight="700" fill="#b03030">阶段 C: N4 整节点故障 (心跳丢失 10s)</text>
+
+  <line x1="542" y1="315" x2="418" y2="315" stroke="#b03030" stroke-width="1.2" marker-end="url(#arrow-4-red)"/>
+  <text x="480" y="309" text-anchor="middle" font-size="10" fill="#b03030">⑦ 心跳丢失 ×3 (10s TTL)</text>
+
+  <line x1="420" y1="333" x2="670" y2="333" stroke="#b03030" stroke-width="1.2" marker-end="url(#arrow-4-red)"/>
+  <text x="545" y="327" text-anchor="middle" font-size="10" fill="#b03030">⑧ etcd Watch: NODE_DOWN event → N1/N2 LB 收到</text>
+
+  <line x1="672" y1="351" x2="418" y2="351" stroke="#2d7a2d" stroke-width="1.2" marker-end="url(#arrow-4-green)"/>
+  <text x="545" y="345" text-anchor="middle" font-size="10" fill="#2d7a2d">⑨ N1/N2 LB: 选 health_score 最高 (N1 = 0.92, 优于 N2 = 0.88)</text>
+
+  <line x1="672" y1="369" x2="808" y2="369" stroke="#2d7a2d" stroke-width="1.2" marker-end="url(#arrow-4-green)"/>
+  <text x="745" y="363" text-anchor="middle" font-size="10" fill="#2d7a2d">⑩ 客户端: 原 N4 路由 → 重定向到 N1</text>
+
+  <!-- 阶段 D: 跨节点轮询发现 -->
+  <rect x="40" y="395" width="830" height="100" fill="#f0f4ff" stroke="#a0b0d0" stroke-width="0.8"/>
+  <text x="50" y="410" font-size="11" font-weight="700" fill="#3a4a6b">阶段 D: 跨节点轮询 (PeerHealthPoller 5s 周期)</text>
+
+  <line x1="672" y1="425" x2="420" y2="425" stroke="#3a4a6b" stroke-width="1.2" marker-end="url(#arrow-4)"/>
+  <text x="545" y="419" text-anchor="middle" font-size="10">⑪ PeerHealthPoller: 主动 GET /v1/health/check (5s)</text>
+
+  <line x1="420" y1="443" x2="672" y2="443" stroke="#3a4a6b" stroke-width="1.2" marker-end="url(#arrow-4)"/>
+  <text x="545" y="437" text-anchor="middle" font-size="10">⑫ 返回: {score=0.92, cards=3, model=loaded, last_heartbeat=2s}</text>
+
+  <line x1="672" y1="461" x2="808" y2="461" stroke="#3a4a6b" stroke-width="1.2" marker-end="url(#arrow-4)"/>
+  <text x="745" y="455" text-anchor="middle" font-size="10">⑬ InferenceRedirect (N4 → N1 vnic://vnic0:50051)</text>
+
+  <line x1="672" y1="479" x2="420" y2="479" stroke="#666" stroke-width="1" stroke-dasharray="2,2" marker-end="url(#arrow-4)"/>
+  <text x="545" y="473" text-anchor="middle" font-size="9" fill="#666">⑭ N4 恢复后 etcd 自动重新注册 (10s 内)</text>
+
+  <rect x="40" y="500" width="830" height="20" fill="#fafafa" stroke="#666" stroke-width="0.6"/>
+  <text x="50" y="514" font-size="10" fill="#666">单卡故障: ~3s 内完成 (本控 LB 自主); 整节点故障: 10s 心跳 TTL + 5s 轮询 + 1s 重定向 ≈ 16s 切换延迟. SLA: P99 &lt; 30s.</text>
+</svg>
