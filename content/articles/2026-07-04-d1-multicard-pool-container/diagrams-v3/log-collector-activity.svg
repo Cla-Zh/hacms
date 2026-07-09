@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 540" font-family="sans-serif" font-size="13" fill="#222">
+  <defs>
+    <marker id="arrow-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#333"/>
+    </marker>
+    <marker id="arrow-a-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2d7a2d"/>
+    </marker>
+  </defs>
+  <rect width="900" height="540" fill="#fff"/>
+  <text x="20" y="22" font-size="15" font-weight="700">活动图: 日志异步打包 (Trigger → Load XML → Traverse Nodes → tar.gz → Upload Stager)</text>
+  <text x="20" y="40" font-size="11" fill="#666">v3.2.2 新增 — §15.7.3 — 4 泳道: Client / LogCollector / Registry / Stager</text>
+
+  <!-- 客户端泳道 -->
+  <rect x="40" y="80" width="180" height="420" fill="#fafafa" stroke="#333" stroke-width="1"/>
+  <text x="130" y="100" text-anchor="middle" font-size="12" font-weight="700" fill="#444">客户端 (dctl / 监控)</text>
+
+  <rect x="60" y="120" width="140" height="34" rx="4" fill="#fff3b0" stroke="#333" stroke-width="1.5"/>
+  <text x="130" y="142" text-anchor="middle" font-size="11" font-weight="700">① POST trigger</text>
+
+  <line x1="130" y1="154" x2="130" y2="172" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-a)"/>
+  <rect x="60" y="180" width="140" height="34" rx="4" fill="#e7f4e7" stroke="#2d7a2d" stroke-width="1.2"/>
+  <text x="130" y="202" text-anchor="middle" font-size="11" fill="#2d7a2d">② 收到 task_id</text>
+
+  <line x1="130" y1="214" x2="130" y2="232" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-a)"/>
+  <rect x="60" y="240" width="140" height="34" rx="4" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="130" y="262" text-anchor="middle" font-size="11">③ 5s 轮询 status</text>
+
+  <line x1="130" y1="274" x2="130" y2="292" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-a)"/>
+  <rect x="60" y="300" width="140" height="34" rx="4" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="130" y="322" text-anchor="middle" font-size="11">④ READY 后下载</text>
+
+  <line x1="130" y1="334" x2="130" y2="352" stroke="#2d7a2d" stroke-width="1.2" marker-end="url(#arrow-a-green)"/>
+  <rect x="60" y="360" width="140" height="34" rx="4" fill="#e7f4e7" stroke="#2d7a2d" stroke-width="1.2"/>
+  <text x="130" y="382" text-anchor="middle" font-size="11" fill="#2d7a2d">⑤ 解压 + SHA-256 校验</text>
+
+  <line x1="130" y1="394" x2="130" y2="412" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-a)"/>
+  <rect x="60" y="420" width="140" height="34" rx="4" fill="#fff3b0" stroke="#333" stroke-width="1.5"/>
+  <text x="130" y="442" text-anchor="middle" font-size="11" font-weight="700">⑥ 7 天后过期清理</text>
+
+  <!-- LogCollector 泳道 -->
+  <rect x="240" y="80" width="200" height="420" fill="#fafafa" stroke="#333" stroke-width="1"/>
+  <text x="340" y="100" text-anchor="middle" font-size="12" font-weight="700" fill="#444">LogCollector (Packager)</text>
+
+  <line x1="340" y1="110" x2="340" y2="128" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-a)"/>
+  <rect x="260" y="136" width="160" height="34" rx="4" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="340" y="158" text-anchor="middle" font-size="11">PENDING → LOADING_XML</text>
+
+  <line x1="340" y1="170" x2="340" y2="188" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-a)"/>
+  <rect x="260" y="196" width="160" height="34" rx="4" fill="#fff3b0" stroke="#333" stroke-width="1.5"/>
+  <text x="340" y="218" text-anchor="middle" font-size="11" font-weight="700">遍历 XML &lt;node&gt; (并行 4 workers)</text>
+
+  <line x1="340" y1="230" x2="340" y2="248" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-a)"/>
+  <rect x="260" y="256" width="160" height="34" rx="4" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="340" y="278" text-anchor="middle" font-size="11">filename != * → 单文件</text>
+
+  <line x1="340" y1="290" x2="340" y2="308" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-a)"/>
+  <rect x="260" y="316" width="160" height="34" rx="4" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="340" y="338" text-anchor="middle" font-size="11">filename = * → 递归目录</text>
+
+  <line x1="340" y1="350" x2="340" y2="368" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-a)"/>
+  <rect x="260" y="376" width="160" height="34" rx="4" fill="#fff3b0" stroke="#333" stroke-width="1.5"/>
+  <text x="340" y="398" text-anchor="middle" font-size="11" font-weight="700">tar.gz (max 2GB / split)</text>
+
+  <line x1="340" y1="410" x2="340" y2="428" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-a)"/>
+  <rect x="260" y="436" width="160" height="34" rx="4" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="340" y="458" text-anchor="middle" font-size="11">SHA-256 校验 + 设置 expires_at</text>
+
+  <!-- Registry 泳道 -->
+  <rect x="460" y="80" width="160" height="420" fill="#fafafa" stroke="#333" stroke-width="1"/>
+  <text x="540" y="100" text-anchor="middle" font-size="12" font-weight="700" fill="#444">Registry (XML)</text>
+
+  <rect x="475" y="136" width="130" height="34" rx="4" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="540" y="158" text-anchor="middle" font-size="10">load XML snapshot</text>
+
+  <line x1="540" y1="170" x2="540" y2="188" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-a)"/>
+  <rect x="475" y="196" width="130" height="120" rx="4" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="540" y="218" text-anchor="middle" font-size="10" font-weight="700">12 个 &lt;node&gt;:</text>
+  <text x="485" y="234" font-size="9">ai-inference.log</text>
+  <text x="485" y="248" font-size="9">health-monitor.log</text>
+  <text x="485" y="262" font-size="9">switch-controller.log</text>
+  <text x="485" y="276" font-size="9">cann.log</text>
+  <text x="485" y="290" font-size="9">acl.log</text>
+  <text x="485" y="304" font-size="9">omtask-deploy.log</text>
+
+  <line x1="540" y1="316" x2="540" y2="334" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-a)"/>
+  <rect x="475" y="342" width="130" height="34" rx="4" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="540" y="364" text-anchor="middle" font-size="10">XSD 校验通过</text>
+
+  <line x1="540" y1="376" x2="540" y2="394" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-a)"/>
+  <rect x="475" y="402" width="130" height="34" rx="4" fill="#fff3b0" stroke="#333" stroke-width="1.5"/>
+  <text x="540" y="424" text-anchor="middle" font-size="10" font-weight="700">filename = * 通配</text>
+
+  <!-- Stager 泳道 -->
+  <rect x="640" y="80" width="240" height="420" fill="#fafafa" stroke="#333" stroke-width="1"/>
+  <text x="760" y="100" text-anchor="middle" font-size="12" font-weight="700" fill="#444">Stager (临时存储)</text>
+
+  <line x1="760" y1="110" x2="760" y2="128" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-a)"/>
+  <rect x="660" y="136" width="200" height="34" rx="4" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="760" y="158" text-anchor="middle" font-size="11">本地 /var/lib/d1/packages/</text>
+
+  <line x1="760" y1="170" x2="760" y2="188" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-a)"/>
+  <rect x="660" y="196" width="200" height="34" rx="4" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="760" y="218" text-anchor="middle" font-size="11">或 MinIO bucket: d1-logs-archive</text>
+
+  <line x1="760" y1="230" x2="760" y2="248" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-a)"/>
+  <rect x="660" y="256" width="200" height="34" rx="4" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="760" y="278" text-anchor="middle" font-size="11">保存 .tar.gz (parts-1, parts-2)</text>
+
+  <line x1="760" y1="290" x2="760" y2="308" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-a)"/>
+  <rect x="660" y="316" width="200" height="34" rx="4" fill="#fff3b0" stroke="#333" stroke-width="1.5"/>
+  <text x="760" y="338" text-anchor="middle" font-size="11" font-weight="700">TTL 7 天 (expires_at)</text>
+
+  <line x1="760" y1="350" x2="760" y2="368" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-a)"/>
+  <rect x="660" y="376" width="200" height="34" rx="4" fill="#e7f4e7" stroke="#2d7a2d" stroke-width="1.2"/>
+  <text x="760" y="398" text-anchor="middle" font-size="11" fill="#2d7a2d">HTTP GET Range 下载</text>
+
+  <!-- 水平箭头: Packager → Stager -->
+  <line x1="420" y1="278" x2="658" y2="278" stroke="#2d7a2d" stroke-width="1.5" marker-end="url(#arrow-a-green)"/>
+  <text x="540" y="270" text-anchor="middle" font-size="10" fill="#2d7a2d" font-weight="700">UPLOADING (1-60s)</text>
+
+  <line x1="660" y1="396" x2="202" y2="320" stroke="#2d7a2d" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow-a-green)"/>
+  <text x="430" y="385" text-anchor="middle" font-size="10" fill="#2d7a2d" font-weight="700">download .tar.gz (断点续传)</text>
+
+  <!-- 图例 -->
+  <rect x="40" y="510" width="840" height="22" fill="#fafafa" stroke="#666" stroke-width="0.8"/>
+  <text x="55" y="525" font-size="10" fill="#666">■ 黄色高亮 = 关键节点</text>
+  <text x="190" y="525" font-size="10" fill="#2d7a2d">■ 绿色 = 完成/成功路径</text>
+  <text x="370" y="525" font-size="10" fill="#666">■ 4 泳道: 客户端 / Packager / Registry / Stager</text>
+  <text x="640" y="525" font-size="10" fill="#666">■ viewBox 900x540</text>
+</svg>

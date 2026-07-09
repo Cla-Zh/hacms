@@ -173,7 +173,17 @@ tr:nth-child(even) td{background:#fcfcfc}
       <li><a href="#sec-15-4-阶段启">15.4 AI 推理服务初始化 (7 阶段启动)</a></li>
       <li><a href="#sec-15-5-卡状态">15.5 AI 卡状态感知 (Card State Awareness)</a></li>
       <li><a href="#sec-15-6-维护接">15.6 维护接口 (Maintenance Interface)</a></li>
-      <li><a href="#sec-15-7-日志收">15.7 日志收集模块 (LogCollector) v3.2 独立</a></li>
+      <li><a href="#sec-15-7-日志收">15.7 日志收集模块 (LogCollector) v3.2.2 重构 (XML 路径注册 + 异步打包)
+        <ul>
+          <li><a href="#sec-15-7-1-xml">15.7.1 XML 配置定义 (XSD + 实例, filename + src 2 字段)</a></li>
+          <li><a href="#sec-15-7-2-动态注">15.7.2 动态注册 API (4 个, 周边模块自治)</a></li>
+          <li><a href="#sec-15-7-3-异步打">15.7.3 异步打包 (Trigger → Query → Download 三步)</a></li>
+          <li><a href="#sec-15-7-4-节点注">15.7.4 节点注册时序 (4 模块并行)</a></li>
+          <li><a href="#sec-15-7-5-模块图">15.7.5 模块图 (Registry / Packager / Stager)</a></li>
+          <li><a href="#sec-15-7-6-状态机">15.7.6 打包状态机 (7 态 9 迁移)</a></li>
+          <li><a href="#sec-15-7-7-接口表">15.7.7 接口表 + 完整 Protobuf (9 endpoint)</a></li>
+        </ul>
+      </li>
       <li><a href="#sec-15-8-完整定">15.8 完整 Protobuf 定义</a></li>
       <li><a href="#sec-15-9-推理时">15.9 推理时序 (v3.2, 3 卡 3 池)</a></li>
     </ul>
@@ -1048,7 +1058,7 @@ def route(model_id):
 <tbody>
 <tr><td><strong>NPU 健康</strong></td><td>1 s 周期</td><td>npu-smi info / hccn_tool</td><td>温度 > 85°C 主动告警, 调用 HealthService.ReportAlert</td></tr>
 <tr><td><strong>错误侦测</strong></td><td>事件驱动</td><td>ACL error code / HCCL timeout / PCIe AER</td><td>隔离 NPU + 触发 §15.5 状态感知去注册</td></tr>
-<tr><td><strong>日志收集</strong> (v3.2 已拆出到 §15.7 LogCollector 独立模块)</td><td>缓冲 + 滚动</td><td>canld 日志 + 推理服务 stdout (经 §15.7 LogCollector 转发)</td><td>暴露给 §17.4 HealthService.GetLogs 拉取 + §15.7 LogCollector 独立推送</td></tr>
+<tr><td><strong>日志收集</strong> <span class="version-badge v32">v3.2.2 已迁移</span></td><td>— (不在健康监控)</td><td>—</td><td>v3.2.2 完全迁移到 §15.7 LogCollector (XML 配置 + 异步打包), §17.4 HealthService.GetLogs 同步下线</td></tr>
 </tbody>
 </table>
 
@@ -1293,65 +1303,458 @@ exit 0</code></pre>
 <li><code>POST /v1/inference/cards/{uuid}/unregister</code> — 主动去注册 (与 §15.5 自动去注册并列)</li>
 <li><code>PUT /v1/inference/cards/{uuid}/persistent-mem</code> — 配置 HBM 持久化内存策略</li>
 </ul>
+<h3 id="sec-15-7-日志收">15.7 日志收集模块 (LogCollector) <span class="version-badge v32">v3.2.2 重构: XML 路径注册 + 异步打包</span></h3>
 
-<h3 id="sec-15-7-日志收">15.7 日志收集模块 (LogCollector) <span class="version-badge v32">v3.2 独立大章节</span> <span class="version-badge v32">v3.2.1 修订: HTTP tail 5s 轮询</span></h3>
-<p>v3.2 把日志收集从 §15.3 健康监控模块拆出为<strong>独立子模块</strong>. 设计动机: 健康监控只关心 NPU 健康 + 错误侦测 (实时, 1s 周期), 而日志收集关心多源异构日志聚合 + 解析 + 推送 (全量, 流式). 两者关注点不同, 拆开后各自演进. §15.3 健康监控模块保留 NPU 健康 + 错误侦测, <strong>删除</strong>日志收集行.</p>
+<p>v3.2.2 把日志收集重构成<strong>XML 配置中心</strong> + <strong>异步打包服务</strong>. 设计动机: 健康监控只关心 NPU 健康 + 错误侦测 (实时, 1s 周期), 日志收集关心<strong>多源异构日志按需打包下载</strong> (一次性, 异步). v3.2 旧版 (GetLogs/Watch/Push) 已<strong>废弃</strong>, 新版统一为: (1) XML 配置 (`/etc/d1/log-collector.xml`) 定义要收集的日志路径, 每个 `<node>` 含 `filename` + `src` 2 个属性; (2) 周边模块 (Omtask §16 / dctl §16.7 / SwitchController §24 / AICardManager) 可动态注册/删除 path (作为新 `<node>` 录入); (3) 对外提供 1 个 URL 触发打包命令, 异步执行 (打包时间长, 不能阻塞), 三步流程: <strong>触发 → 查询进度 → 下载</strong>.</p>
 
 <div class="callout teal">
-<p class="label">v3.2 健康监控 vs 日志收集 分离</p>
-<p><strong>§15.3 健康监控模块</strong>: NPU 健康 (1s 周期, npu-smi info / hccn_tool) + 错误侦测 (事件驱动, ACL error code / HCCL timeout / PCIe AER) + 隔离 + 告警上报 (调用 HealthService.ReportAlert). <strong>不</strong>做日志收集.<br>
-<strong>§15.7 日志收集模块 (新独立)</strong>: 多源日志拉取 + 解析 + 推送 + HTTP 5s 轮询 Tail (since 增量, v3.2.1 替代流式 Watch) + 推送到外部系统 (Loki / ES).</p>
+<p class="label">v3.2.2 设计哲学</p>
+<p><strong>配置即代码</strong>: XML 文件是日志收集的"真理之源", 所有 path 变更通过 API 写入 XML (不是临时任务列表). 重启后 XML 保留, LogCollector 启动时自动加载. <br>
+<strong>按需打包</strong>: 不是实时推送 (旧 Push), 不是流式 tail (旧 Watch), 而是触发一次, 打包成 .tar.gz, 用户主动下载. 适合运维 dump / 故障取证 / 升级前快照 / 监管审计场景. <br>
+<strong>周边模块自治</strong>: Omtask (部署驱动日志) / SwitchController (切换状态日志) / dctl (用户操作日志) 各自注册自己的 log 路径, LogCollector 只负责"打包 + 下载", 不关心谁注册了什么.</p>
 </div>
 
-<h4 id="sec-15-7-1-数据源">15.7.1 数据源 (4 类)</h4>
+<h4 id="sec-15-7-1-xml">15.7.1 XML 配置定义 (XSD + 实例)</h4>
+
+<p><strong>XSD Schema</strong> (<code>/etc/d1/log-collector.xsd</code>):</p>
+
+<pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"&gt;
+  &lt;xs:element name="log-collector"&gt;
+    &lt;xs:complexType&gt;
+      &lt;xs:sequence&gt;
+        &lt;xs:element name="node" minOccurs="0" maxOccurs="unbounded"&gt;
+          &lt;xs:complexType&gt;
+            &lt;xs:attribute name="filename" type="xs:string" use="required"/&gt;
+            &lt;xs:attribute name="src"      type="xs:string" use="required"/&gt;
+          &lt;/xs:complexType&gt;
+        &lt;/xs:element&gt;
+      &lt;/xs:sequence&gt;
+      &lt;xs:attribute name="version" type="xs:string" default="1.0"/&gt;
+      &lt;xs:attribute name="updated" type="xs:dateTime"/&gt;
+    &lt;/xs:complexType&gt;
+  &lt;/xs:element&gt;
+&lt;/xs:schema&gt;
+</code></pre>
+
+<p><strong>XML 实例</strong> (<code>/etc/d1/log-collector.xml</code>):</p>
+
+<pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;log-collector version="1.0" updated="2026-07-08T03:00:00Z"&gt;
+  &lt;!-- 核心服务日志 --&gt;
+  &lt;node filename="ai-inference.log"    src="/var/log/d1/ai-inference.log"/&gt;
+  &lt;node filename="health-monitor.log"  src="/var/log/d1/health-monitor.log"/&gt;
+  &lt;node filename="switch-controller.log" src="/var/log/d1/switch-controller.log"/&gt;
+
+  &lt;!-- 昇腾 CANN 守护 --&gt;
+  &lt;node filename="cann.log"            src="/var/log/ascend/cann.log"/&gt;
+  &lt;node filename="acl.log"             src="/var/log/ascend/acl.log"/&gt;
+
+  &lt;!-- Omtask 自动注册 (§16) --&gt;
+  &lt;node filename="omtask-deploy.log"   src="/var/log/d1/omtask/deploy-2026-07-08.log"/&gt;
+
+  &lt;!-- dctl CLI 操作日志 (§16.7) --&gt;
+  &lt;node filename="dctl-audit.log"      src="/var/log/d1/audit/dctl.log"/&gt;
+
+  &lt;!-- 通配符: 打包整个目录所有文件 (filename = * ) --&gt;
+  &lt;node filename="*"                   src="/var/log/d1/runtime/"/&gt;
+  &lt;node filename="*"                   src="/var/log/ascend/dump/"/&gt;
+&lt;/log-collector&gt;
+</code></pre>
+
+<p><strong>属性语义</strong>:</p>
+<ul>
+<li><strong>filename</strong>: 要收集的日志文件名. 例: <code>ai-inference.log</code>, <code>acl.log</code>. <strong>特殊值 <code>*</code></strong>: 表示打包该 <code>src</code> 目录下所有文件 (按修改时间倒序, 最多 1000 个文件, 单文件 > 100MB 截断).</li>
+<li><strong>src</strong>: 源路径. 两种格式: (a) 单文件: <code>/var/log/d1/ai-inference.log</code> (filename 必填, 通常等于 basename); (b) 目录: <code>/var/log/d1/runtime/</code> (filename 必须 = <code>*</code>, 递归打包目录内所有文件).</li>
+</ul>
+
+<h4 id="sec-15-7-2-动态注">15.7.2 动态注册 (周边模块 API)</h4>
+
+<p>周边模块通过 4 个内部 API (<strong>HTTP over Unix Domain Socket</strong> <code>unix:///var/run/d1/log-collector.sock</code>, v3.2.1 协议风格, 客户端 <code>curl --unix-socket</code> 即可) 动态注册/删除/查询 XML 中的 `<node>`:</p>
+
 <table>
 <thead>
-<tr><th>日志源</th><th>路径</th><th>格式</th><th>采集频率</th></tr>
+<tr><th>#</th><th>vNic URL / UDS 路径</th><th>方法</th><th>调用方</th><th>用途</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>ai-inference.log</strong></td><td><code>/var/log/d1/ai-inference.log</code></td><td>JSON (gRPC log middleware)</td><td>实时 (tail -F)</td></tr>
-<tr><td><strong>health-monitor.log</strong></td><td><code>/var/log/d1/health-monitor.log</code></td><td>JSON (健康监控)</td><td>实时 (tail -F)</td></tr>
-<tr><td><strong>cann.log</strong></td><td><code>/var/log/ascend/cann.log</code></td><td>纯文本 (CANN 守护)</td><td>实时 (tail -F)</td></tr>
-<tr><td><strong>acl.log</strong></td><td><code>/var/log/ascend/acl.log</code></td><td>纯文本 (ACL 框架)</td><td>实时 (tail -F)</td></tr>
+<tr><td>1</td><td><code>POST vnic://vnic0:50053/logs/registry/node</code></td><td>POST (JSON)</td><td>Omtask §16 / dctl §16.7 / SwitchController §24 / AICardManager</td><td>注册/更新 1 个 `<node>` (filename + src). 重复注册同 (filename, src) 幂等覆盖.</td></tr>
+<tr><td>2</td><td><code>DELETE vnic://vnic0:50053/logs/registry/node?filename={fn}&src={src}</code></td><td>DELETE</td><td>同上</td><td>删除 1 个 `<node>`. 不存在返回 404.</td></tr>
+<tr><td>3</td><td><code>GET vnic://vnic0:50053/logs/registry</code></td><td>GET (返回 XML)</td><td>所有</td><td>查询当前完整 XML (含 XSD 校验状态 + updated 时间戳).</td></tr>
+<tr><td>4</td><td><code>GET vnic://vnic0:50053/logs/registry/watcher</code> <span class="version-badge v32">v3.2.2 新</span></td><td>GET (5s 轮询, since 增量)</td><td>周边模块</td><td>监听 XML 变化 (since=timestamp 返回 ts &gt; since 的变更事件, v3.2.1 协议风格 HTTP 5s 轮询).</td></tr>
 </tbody>
 </table>
 
-<h4 id="sec-15-7-2-接口类">15.7.2 接口 (3 类)</h4>
+<p><strong>注册请求 Body (JSON)</strong>:</p>
+
+<pre><code>POST vnic://vnic0:50053/logs/registry/node
+Content-Type: application/json
+{
+  "filename": "omtask-deploy.log",
+  "src":      "/var/log/d1/omtask/deploy-2026-07-08.log",
+  "registered_by": "omtask-§16.1"   // 可选, 审计追溯
+}
+
+→ 200 OK
+{
+  "accepted": true,
+  "node_id":  "node-007",
+  "xml_updated_at": "2026-07-08T03:05:12Z",
+  "total_nodes": 12
+}
+</code></pre>
+
+<p><strong>删除请求</strong>:</p>
+
+<pre><code>DELETE vnic://vnic0:50053/logs/registry/node?filename=omtask-deploy.log&src=/var/log/d1/omtask/deploy-2026-07-08.log
+→ 200 OK
+{"deleted": true, "remaining_nodes": 11}
+→ 404 Not Found
+{"error": "NODE_NOT_FOUND", "filename": "...", "src": "..."}
+</code></pre>
+
+<h4 id="sec-15-7-3-异步打">15.7.3 异步打包 (Trigger → Query → Download 三步流程)</h4>
+
+<p>对外提供 <strong>1 个 URL</strong> (<code>vnic://vnic0:50053/logs/package</code>), 触发打包命令. 打包是异步任务 (典型耗时 5s-30min, 取决于日志总量), 不能阻塞 HTTP 请求. 三步流程:</p>
+
+<p><strong>活动图 (图 §15.7-3-活动): 客户端 → LogCollector → 文件系统 → 打包器</strong></p>
+
+<p><img src="diagrams-v3/log-collector-activity.svg" alt="日志打包活动图" style="width:100%; max-width:900px; border:1px solid #ccc; background:#fff"></p>
+<p class="caption">图 §15.7-3-活动: 异步打包 5 阶段 — ① 触发 (POST) → ② 加载 XML → ③ 遍历 node (filename + src) → ④ tar.gz 打包 → ⑤ 上传临时存储 (7 天 TTL). 客户端通过 task_id 异步查询和下载.</p>
+
+<p><strong>时序图 (图 §15.7-3-时序): 5 actor × 8 步</strong></p>
+
+<p><img src="diagrams-v3/log-collector-sequence.svg" alt="日志打包时序图" style="width:100%; max-width:900px; border:1px solid #ccc; background:#fff"></p>
+<p class="caption">图 §15.7-3-时序: 客户端 → LogCollector → XML Registry → 文件系统 → Tar 打包器 → 临时存储 (S3/MinIO). 13 步: 触发 → task_id 返回 → 加载 XML → 遍历 nodes → 并行打包 → 上传临时存储 → 查询进度 → 下载 .tar.gz.</p>
+
+<p><strong>阶段 1: 触发 (Trigger)</strong> (~ 100ms, 同步)</p>
+
+<p>客户端 POST 启动打包任务:</p>
+
+<pre><code>POST vnic://vnic0:50053/logs/package/trigger
+Content-Type: application/json
+{
+  "include_nodes": ["*"],                   // 默认全部, 也可指定 filename 或 src 过滤
+  "compress":     "tar.gz",                  // tar.gz | tar.zst | zip (默认 tar.gz)
+  "max_size_mb":  2048,                      // 单包上限 (默认 2GB, 超过自动 split part-1.tar.gz, part-2.tar.gz)
+  "exclude":      ["*.tmp", "*.swp"],        // 排除文件 glob
+  "label":        "pre-upgrade-2026-07-08"  // 可选, 用于审计追溯
+}
+
+→ 202 Accepted
+{
+  "task_id":     "pkg-2026-07-08-001",
+  "total_nodes": 12,
+  "estimated_size_mb": 850,
+  "estimated_duration_s": 180,
+  "status_url":   "vnic://vnic0:50053/logs/package/pkg-2026-07-08-001/status",
+  "download_url": "vnic://vnic0:50053/logs/package/pkg-2026-07-08-001/download"
+}
+</code></pre>
+
+<p><strong>阶段 2: 查询进度 (Query)</strong> (5s 轮询, HTTP GET)</p>
+
+<pre><code>GET vnic://vnic0:50053/logs/package/pkg-2026-07-08-001/status
+→ 200 OK
+{
+  "task_id":      "pkg-2026-07-08-001",
+  "state":        "PACKAGING",          // PENDING | LOADING_XML | PACKAGING | UPLOADING | READY | FAILED | EXPIRED
+  "percent":      67,                   // 0-100
+  "current_node": "node-008 (acl.log)",
+  "processed_files": 8,
+  "total_files": 12,
+  "processed_size_mb": 568,
+  "estimated_size_mb": 850,
+  "elapsed_s":   122,
+  "eta_s":        60,                   // 剩余秒数估算
+  "errors":       []                    // 已处理的错误列表 (文件读取失败等, 不中断打包)
+}
+
+// 完成后:
+{
+  "state":        "READY",
+  "percent":      100,
+  "size_mb":      847,
+  "parts":        ["pkg-2026-07-08-001-part-1.tar.gz"],
+  "expires_at":   "2026-07-15T03:00:00Z",   // 7 天后过期, 之后自动清理
+  "checksum_sha256": "abc123..."
+}
+</code></pre>
+
+<p><strong>阶段 3: 下载 (Download)</strong> (~ 取决于网络, 大文件 HTTP Range)</p>
+
+<pre><code>GET vnic://vnic0:50053/logs/package/pkg-2026-07-08-001/download
+Accept-Encoding: gzip
+Range: bytes=0-104857599    # 可选, 断点续传
+
+→ 200 OK
+Content-Type: application/gzip
+Content-Disposition: attachment; filename="pkg-2026-07-08-001.tar.gz"
+Content-Length: 888439296
+[二进制流 .tar.gz]
+
+# 目录结构 (解压后):
+pkg-2026-07-08-001/
+├── manifest.json              # 打包元数据 (task_id, label, 时间, 文件清单)
+├── ai-inference.log
+├── health-monitor.log
+├── switch-controller.log
+├── cann.log
+├── acl.log
+├── omtask/
+│   └── deploy-2026-07-08.log
+├── audit/
+│   └── dctl.log
+├── runtime/                   # filename = * 通配的目录
+│   ├── runtime-001.log
+│   ├── runtime-002.log
+│   └── ...
+└── ascend-dump/               # filename = * 通配的目录
+    ├── npu-0-dump.bin
+    └── npu-1-dump.bin
+</code></pre>
+
+<h4 id="sec-15-7-4-节点注">15.7.4 节点注册时序 (周边模块动态加入)</h4>
+
+<p>周边模块 (Omtask / dctl / SwitchController) 启动时 / 运行时, 通过注册 API 把自己产生的日志路径加入 XML. 时序图:</p>
+
+<p><strong>时序图 (图 §15.7-4-时序): 4 模块 × 6 步</strong></p>
+
+<p><img src="diagrams-v3/log-collector-register-sequence.svg" alt="节点注册时序图" style="width:100%; max-width:900px; border:1px solid #ccc; background:#fff"></p>
+<p class="caption">图 §15.7-4-时序: 周边模块启动 → 调用 POST <code>/logs/registry/node</code> → XML 校验写入 → 注册成功 + 返回 node_id. 4 模块 (Omtask / dctl / SwitchController / AICardManager) 并行注册, 各自管理自己的 log path.</p>
+
+<h4 id="sec-15-7-5-模块图">15.7.5 模块图 (3 模块 + 关键不变量)</h4>
+
+<p><strong>模块边界</strong>:</p>
 <ul>
-<li><strong>GetLogs (拉取)</strong>: 替换 §17.4 HealthService.GetLogs, 按 card_uuid / 时间窗 / 级别 / 源 过滤, 支持 follow_token 续传 (tail 模式). 路径 <code>GET /v1/logs/collector</code>.</li>
-<li><strong>Tail (HTTP 5s 轮询, v3.2.1 替代流式 tail)</strong>: HTTP GET 5s 轮询 + since 增量, 实时拉取新增日志行, 类似 <code>tail -F</code>. 路径 <code>GET /v1/logs/collector/watch</code> (gRPC stream). v3.2 正式实现.</li>
-<li><strong>Push (推送到外部系统)</strong>: 配置 Loki / ES / S3 endpoint, 异步批量推送 (10s 间隔 / 1000 行阈值), 失败本地缓冲 (10MB ring).</li>
+<li><strong>Registry (注册中心)</strong>: 维护 <code>/etc/d1/log-collector.xml</code> 文件, 提供 4 个 API (POST/DELETE/GET/watcher). XSD schema 校验, 写入原子 (rename 临时文件). updated_at 时间戳.</li>
+<li><strong>Packager (打包器)</strong>: 异步任务调度, 遍历 XML 节点 → 按 (filename/src) 打包 → 生成 .tar.gz → 上传临时存储 (本地 /var/lib/d1/packages/ 或 MinIO/S3). TTL 7 天.</li>
+<li><strong>Stager (临时存储)</strong>: 本地磁盘 (默认 <code>/var/lib/d1/packages/</code>) 或 MinIO/S3 bucket (<code>d1-logs-archive</code>). 7 天后自动清理. SHA-256 校验.</li>
 </ul>
 
-<h4 id="sec-15-7-3-5-数据流">15.7.3.5 数据流 (4 源 → 3 类输出)</h4>
-<pre><code>┌─────────────────────────────────────────────────────────────┐
-│  4 类数据源 (tail -F)                                         │
-│  ├─ /var/log/d1/ai-inference.log   (JSON, 实时)             │
-│  ├─ /var/log/d1/health-monitor.log (JSON, 实时)             │
-│  ├─ /var/log/ascend/cann.log       (纯文本, 实时)           │
-│  └─ /var/log/ascend/acl.log        (纯文本, 实时)           │
-└────────────────────┬────────────────────────────────────────┘
-                     │ tail + parse
-                     ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Collector (收集器) + Parser (解析器)                        │
-│  → 10MB ring buffer + 内存索引                              │
-└────────────────────┬────────────────────────────────────────┘
-                     │ 3 类输出
-        ┌────────────┼────────────┐
-        ▼            ▼            ▼
-   GetLogs       Watch         Push
-   (拉取)        (流式 tail)    (Loki / ES / S3)
-   HTTP GET (v3.2.1 主)   HTTP GET 5s Poll (v3.2.1 替代 stream)   HTTP POST /_bulk</code></pre>
+<p><strong>关键不变量</strong>:</p>
+<ol>
+<li><strong>XML 原子写入</strong>: 每次注册/删除, 先写 <code>/etc/d1/log-collector.xml.tmp</code> → fsync → rename 覆盖原文件. 绝无半写状态.</li>
+<li><strong>打包不阻塞</strong>: trigger 接口立即返回 task_id (&lt; 100ms), 实际打包在后台 goroutine 跑, 不影响其他 API.</li>
+<li><strong>通配符 <code>*</code> 限制</strong>: 单次打包最多 1000 个文件, 单文件 &gt; 100MB 截断. 防 OOM + 防恶意路径 (/proc, /sys).</li>
+<li><strong>7 天 TTL</strong>: READY 状态的包 7 天后自动过期清理, 释放存储. 客户端必须在过期前下载.</li>
+<li><strong>SHA-256 校验</strong>: 打包完成后计算 SHA-256, 客户端下载后必须校验, 防传输损坏.</li>
+</ol>
 
-<h4 id="sec-15-7-3-内部组">15.7.3 内部组件 (3 大类)</h4>
-<ul>
-<li><strong>Collector (收集器)</strong>: 4 类数据源 tail + 内存索引 (10MB ring buffer).</li>
-<li><strong>Parser (解析器)</strong>: JSON 解析 (ai-inference / health-monitor) + 纯文本正则解析 (cann / acl), 输出统一 LogEntry 结构 (ts / level / source / message / fields).</li>
-<li><strong>Pusher (推送器)</strong>: 异步批量推送 (Loki HTTP push API / ES _bulk / S3 PutObject), 失败本地缓冲 (10MB ring).</li>
-</ul>
+<h4 id="sec-15-7-6-状态机">15.7.6 状态机 (PENDING / LOADING_XML / PACKAGING / UPLOADING / READY / FAILED / EXPIRED)</h4>
 
-<h3 id="sec-15-8-完整定">15.8 完整 Protobuf 定义 (InferenceService v3.2) <span class="version-badge v32">v3.2 加 vNicServer + LogCollector</span></h3>
+<p>打包任务的<strong>状态机</strong>, 7 个状态 + 9 个迁移条件:</p>
+
+<table>
+<thead>
+<tr><th>#</th><th>迁移</th><th>触发条件</th><th>动作</th><th>耗时</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td>(start) → PENDING</td><td>trigger 接口接收请求</td><td>分配 task_id, 初始化任务队列</td><td>&lt; 100ms</td></tr>
+<tr><td>2</td><td>PENDING → LOADING_XML</td><td>Packager goroutine 启动</td><td>从 Registry 加载 XML 当前快照</td><td>&lt; 50ms</td></tr>
+<tr><td>3</td><td>LOADING_XML → PACKAGING</td><td>XML 加载 + 校验完成</td><td>遍历 nodes, 并行打包 (max 4 workers)</td><td>5s-30min</td></tr>
+<tr><td>4</td><td>PACKAGING → UPLOADING</td><td>所有 nodes 已打包成 .tar.gz 临时文件</td><td>上传到 Stager (本地 or MinIO)</td><td>1-60s</td></tr>
+<tr><td>5</td><td>UPLOADING → READY</td><td>上传完成 + SHA-256 计算</td><td>发布 download URL, 设 expires_at</td><td>&lt; 5s</td></tr>
+<tr><td>6</td><td>PACKAGING/UPLOADING → FAILED</td><td>XML 文件丢失 / 单个文件读失败累计 &gt; 50% / 磁盘满</td><td>清理临时文件, 标记 FAILED, errors 列表记录</td><td>—</td></tr>
+<tr><td>7</td><td>READY → EXPIRED</td><td>当前时间 &gt; expires_at (7 天后)</td><td>清理 .tar.gz, 标记 EXPIRED, 下载返回 410 Gone</td><td>—</td></tr>
+<tr><td>8</td><td>READY → DELETED</td><td>客户端主动调用 DELETE task_id (立即清理)</td><td>清理 .tar.gz, 删除任务</td><td>&lt; 1s</td></tr>
+<tr><td>9</td><td>(任何态) → CANCELLED</td><td>客户端调用 POST /cancel (异步任务未完成时)</td><td>停止 Packager goroutine, 清理临时</td><td>&lt; 1s</td></tr>
+</tbody>
+</table>
+
+<h4 id="sec-15-7-7-接口表">15.7.7 接口表 + 完整 Protobuf (5 内部 API + 1 触发)</h4>
+
+<table>
+<thead>
+<tr><th>#</th><th>端点</th><th>方法</th><th>vNic URL / UDS</th><th>用途</th><th>v3.2.2 状态</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td>RegisterNode</td><td>POST</td><td><code>vnic://vnic0:50053/logs/registry/node</code></td><td>注册/更新 1 个 `<node>`</td><td><strong>v3.2.2 新</strong></td></tr>
+<tr><td>2</td><td>UnregisterNode</td><td>DELETE</td><td><code>vnic://vnic0:50053/logs/registry/node?filename=&src=</code></td><td>删除 1 个 `<node>`</td><td><strong>v3.2.2 新</strong></td></tr>
+<tr><td>3</td><td>ListNodes</td><td>GET</td><td><code>vnic://vnic0:50053/logs/registry</code></td><td>查询完整 XML</td><td><strong>v3.2.2 新</strong></td></tr>
+<tr><td>4</td><td>WatchRegistry</td><td>GET (5s 轮询)</td><td><code>vnic://vnic0:50053/logs/registry/watcher?since={ts}</code></td><td>监听 XML 变更 (since 增量)</td><td><strong>v3.2.2 新</strong></td></tr>
+<tr><td>5</td><td>TriggerPackage</td><td>POST</td><td><code>vnic://vnic0:50053/logs/package/trigger</code></td><td>触发打包, 返回 task_id</td><td><strong>v3.2.2 新</strong></td></tr>
+<tr><td>6</td><td>QueryPackageStatus</td><td>GET (5s 轮询)</td><td><code>vnic://vnic0:50053/logs/package/{task_id}/status</code></td><td>查询进度 (state / percent / eta)</td><td><strong>v3.2.2 新</strong></td></tr>
+<tr><td>7</td><td>DownloadPackage</td><td>GET (HTTP Range)</td><td><code>vnic://vnic0:50053/logs/package/{task_id}/download</code></td><td>下载 .tar.gz (断点续传)</td><td><strong>v3.2.2 新</strong></td></tr>
+<tr><td>8</td><td>CancelPackage</td><td>POST</td><td><code>vnic://vnic0:50053/logs/package/{task_id}/cancel</code></td><td>取消未完成任务</td><td><strong>v3.2.2 新</strong></td></tr>
+<tr><td>9</td><td>DeletePackage</td><td>DELETE</td><td><code>vnic://vnic0:50053/logs/package/{task_id}</code></td><td>删除 READY 状态的包</td><td><strong>v3.2.2 新</strong></td></tr>
+</tbody>
+</table>
+
+<p><strong>完整 Protobuf</strong> (v3.2.2 重写):</p>
+
+<pre><code>// aicard/logcollector/v1/logcollector.proto (v3.2.2 重写)
+syntax = "proto3";
+package aicard.logcollector.v1;
+import "google/protobuf/timestamp.proto";
+
+// 9 个内部 API (HTTP/JSON 主路径, gRPC Unary 备路径详见 §15.1 表)
+service LogCollectorService {
+  // 注册/更新 1 个 XML &lt;node&gt;
+  rpc RegisterNode(RegisterNodeRequest) returns (RegisterNodeResponse);
+  // 删除 1 个 &lt;node&gt;
+  rpc UnregisterNode(UnregisterNodeRequest) returns (UnregisterNodeResponse);
+  // 查询完整 XML
+  rpc ListNodes(ListNodesRequest) returns (ListNodesResponse);
+  // 监听 XML 变更 (HTTP 5s 轮询 + since 增量)
+  // HTTP: GET vnic://vnic0:50053/logs/registry/watcher?since={ts}
+  rpc WatchRegistry(WatchRegistryRequest) returns (WatchRegistryResponse);
+
+  // 异步打包三步流程
+  // 1. 触发 (HTTP POST, 同步返回 task_id)
+  // HTTP: POST vnic://vnic0:50053/logs/package/trigger
+  rpc TriggerPackage(TriggerPackageRequest) returns (TriggerPackageResponse);
+  // 2. 查询进度 (HTTP 5s 轮询)
+  // HTTP: GET vnic://vnic0:50053/logs/package/{task_id}/status
+  rpc QueryPackageStatus(QueryPackageStatusRequest) returns (QueryPackageStatusResponse);
+  // 3. 下载 (HTTP GET, 支持 Range 断点续传)
+  // HTTP: GET vnic://vnic0:50053/logs/package/{task_id}/download
+  rpc DownloadPackage(DownloadPackageRequest) returns (stream DownloadChunk);
+  // 取消 (HTTP POST)
+  rpc CancelPackage(CancelPackageRequest) returns (CancelPackageResponse);
+  // 删除 READY 状态的包 (HTTP DELETE)
+  rpc DeletePackage(DeletePackageRequest) returns (DeletePackageResponse);
+}
+
+message LogNode {
+  string filename = 1;     // 日志文件名, * 表示通配该 src 目录下所有文件
+  string src = 2;          // 源路径 (单文件 or 目录)
+  string registered_by = 3; // 调用方标识 (审计追溯)
+  google.protobuf.Timestamp registered_at = 4;
+}
+
+message RegisterNodeRequest {
+  LogNode node = 1;
+}
+message RegisterNodeResponse {
+  bool accepted = 1;
+  string node_id = 2;
+  google.protobuf.Timestamp xml_updated_at = 3;
+  int32 total_nodes = 4;
+}
+
+message UnregisterNodeRequest {
+  string filename = 1;
+  string src = 2;
+}
+message UnregisterNodeResponse {
+  bool deleted = 1;
+  int32 remaining_nodes = 2;
+}
+
+message ListNodesRequest {}
+message ListNodesResponse {
+  string xml_content = 1;                  // 完整 XML 字符串
+  bool xsd_valid = 2;                       // XSD 校验状态
+  google.protobuf.Timestamp updated_at = 3;
+  repeated LogNode nodes = 4;
+  int32 total_nodes = 5;
+}
+
+message WatchRegistryRequest {
+  int64 since = 1;                          // 客户端上次拉到的 ts
+  int32 interval_seconds = 2;               // 轮询间隔 (5s 默认)
+}
+message WatchRegistryResponse {
+  repeated RegistryEvent events = 1;
+  int64 next_since = 2;
+  int32 version = 3;
+}
+
+message RegistryEvent {
+  enum Type { NODE_ADDED = 0; NODE_UPDATED = 1; NODE_DELETED = 2; }
+  Type type = 1;
+  LogNode node = 2;
+  google.protobuf.Timestamp ts = 3;
+}
+
+// 打包三步流程
+
+enum PackageState {
+  STATE_UNKNOWN = 0;
+  PENDING = 1;          // trigger 接收, 排队
+  LOADING_XML = 2;      // 加载 XML 快照
+  PACKAGING = 3;        // 打包中
+  UPLOADING = 4;        // 上传临时存储
+  READY = 5;            // 完成, 可下载
+  FAILED = 6;           // 失败 (XML 丢失 / 磁盘满 / 文件读失败累计 > 50%)
+  EXPIRED = 7;          // 7 天 TTL 到期
+  CANCELLED = 8;        // 客户端取消
+}
+
+message TriggerPackageRequest {
+  repeated string include_nodes = 1;     // 默认 [*] 全部; 也可指定 filename / src 过滤
+  enum Compress { TAR_GZ = 0; TAR_ZST = 1; ZIP = 2; }
+  Compress compress = 2;                  // 默认 TAR_GZ
+  int64 max_size_mb = 3;                  // 单包上限, 超过自动 split (默认 2048)
+  repeated string exclude = 4;            // 排除文件 glob
+  string label = 5;                       // 可选, 审计追溯
+}
+message TriggerPackageResponse {
+  string task_id = 1;
+  int32 total_nodes = 2;
+  int64 estimated_size_mb = 3;
+  int64 estimated_duration_s = 4;
+  string status_url = 5;
+  string download_url = 6;
+}
+
+message QueryPackageStatusRequest {
+  string task_id = 1;
+}
+message QueryPackageStatusResponse {
+  string task_id = 1;
+  PackageState state = 2;
+  int32 percent = 3;                     // 0-100
+  string current_node = 4;                // 当前正在打包的 node
+  int32 processed_files = 5;
+  int32 total_files = 6;
+  int64 processed_size_mb = 7;
+  int64 estimated_size_mb = 8;
+  int64 elapsed_s = 9;
+  int64 eta_s = 10;
+  repeated PackageError errors = 11;     // 已处理的错误 (不中断)
+  repeated string parts = 12;             // 分包列表 (READY 状态)
+  int64 size_mb = 13;                    // 最终大小 (READY 状态)
+  google.protobuf.Timestamp expires_at = 14;
+  string checksum_sha256 = 15;
+}
+
+message PackageError {
+  enum Severity { WARN = 0; ERROR = 1; }
+  Severity severity = 1;
+  string node_filename = 2;
+  string node_src = 3;
+  string message = 4;                     // 例: "file not found", "permission denied"
+}
+
+message DownloadPackageRequest {
+  string task_id = 1;
+  string range_bytes = 2;                 // HTTP Range 头, 可选
+}
+message DownloadChunk {
+  bytes data = 1;                         // 分块流式传输
+  int64 offset = 2;
+  int64 total_size = 3;
+}
+
+message CancelPackageRequest { string task_id = 1; }
+message CancelPackageResponse { bool cancelled = 1; }
+
+message DeletePackageRequest { string task_id = 1; }
+message DeletePackageResponse { bool deleted = 1; }
+
+// ── v3.2 旧 (已废弃) ──
+// rpc GetLogs(GetLogsRequest) returns (GetLogsResponse);     // v3.1/v3.2 日志拉取
+// rpc TailLogs(TailLogsRequest) returns (stream LogEntry);  // v3.1/v3.2 流式 tail
+// rpc PushLogs(PushLogsRequest) returns (PushLogsResponse); // v3.1/v3.2 推送 Loki/ES/S3
+</code></pre>
+
+<div class="callout">
+<p class="label">v3.2 → v3.2.2 重构总结</p>
+<p><strong>删除</strong>: GetLogs / TailLogs / PushLogs 3 个旧接口 (实时流式推送模型, 复杂且依赖 Loki/ES/S3). <strong>新增</strong>: RegisterNode / UnregisterNode / ListNodes / WatchRegistry + TriggerPackage / QueryPackageStatus / DownloadPackage / CancelPackage / DeletePackage 9 个接口, 围绕<strong>XML 配置中心 + 异步打包</strong>. 设计哲学从"实时推送"转向"<strong>按需打包下载</strong>", 适合运维 dump / 故障取证 / 升级前快照 / 监管审计场景. 周边模块 (Omtask / dctl / SwitchController) 自治管理自己的 log path, LogCollector 只负责"打包 + 下载".</p>
+</div>
+
+<h3 id="sec-15-8-完整定">15.8 完整 Protobuf 定义 (InferenceService v3.2 + LogCollectorService v3.2.2) <span class="version-badge v32">v3.2 + v3.2.2</span></h3>
 <pre><code>// aicard/inference/v1/inference.proto
 syntax = "proto3";
 package aicard.inference.v1;
@@ -2459,7 +2862,7 @@ message ExpandResponse {
 </table>
 <p>每条告警含: <code>level</code> (INFO/WARN/CRITICAL) + <code>code</code> + <code>timestamp</code> + <code>source</code> (deploy / inference / health) + <code>payload</code> (任意 k/v) + <code>card_uuid</code> + <code>pool_id</code>.</p>
 
-<h3 id="sec-17-4-日志收">17.4 日志收集 (GetLogs) <span class="version-badge v32">v3.2 沿用, §15.7 LogCollector 独立增强, v3.2.1 改 HTTP tail 5s 轮询</span></h3>
+<h3 id="sec-17-4-日志收">17.4 日志收集 (GetLogs) <span class="version-badge v32">v3.2.2 已迁移到 §15.7 LogCollector</span></h3>
 <p>用于拉取推理服务 / CANN / canld 日志, 替代直接登录 host 看 /var/log:</p>
 <ul>
 <li><strong>GET /v1/health/logs?card_uuid=...&from=...&to=...&level=...</strong></li>
@@ -3615,8 +4018,9 @@ message RedirectInferenceRequest {
 <p>· <strong>v3.1 (2026-07-04): 全面重构 AI 推理服务 (6 内部子模块) — vNic 通信 (gRPC :50051 推理 + :50053 维护) / 多模型推理框架 (调度器 + Worker 池 + ACL 后端) / 健康监控 (NPU 健康 + 错误侦测 + 日志收集) / AI 卡使能 (5 阶段) / AI 卡状态感知 (Qemu 热插拔). 新增 AI 卡部署章节 (§18): VM 激活 + 5 类告警事件. endpoint 16 → 19, 错误码 11 → 14.</strong>
 <p>· <strong>v3.2 (2026-07-04, 当前): 4 大特性 — (1) <code>/etc/d1/activate.sh</code> 启动脚本替代 cann-init.sh, 由 systemd / 容器 entrypoint 触发; (2) <code>/var/lib/d1/state.xml</code> XML 持久化 (NPU 状态 + 模型 + ACL 内存 + 队列) + 7 阶段启动流程 (a 脚本/b 扫描/c XML/d 队列/e ACL/f 模型/g vNic); (3) vNic URL 寻址 <code>vnic://vnic0:50051</code> (业务面) + <code>vnic://vnic0:50053</code> (管理面), virtio-net 后端 + qemu-monitor 热拔插 (<code>device_add</code>/<code>device_del</code>); (4) 日志收集从健康监控拆出, 新增 §15.7 LogCollector 独立大章节 (GetLogs / Watch / Push). <strong>8 卡 → 3 卡</strong>, 3 卡 3 池多模型推理 (model_id 路由 + round-robin / least-conn), 热拔插加减池. AI 推理服务 5 → 6 子模块. protobuf 改写: 新增 VNicServer + LogCollector message, 错误码 14 → <strong>16</strong> (新增 XML_PERSIST_FAILED / VNIC_UNAVAILABLE). 文件从 112KB → 170KB, 行数 1792 → 2500+.</strong></p>
 <p>· <strong>v3.1.1 (2026-07-04, 增量): 功能点体系: 8 推理服务 (Init/Infer/Scheduler/MultiCard Mgmt/Logs/Health Check/State Awareness/Alert Report) + 2 AI 卡部署 (VM Activate/Deploy Alert). 每功能点: 1 子模块图 + 1 时序图 + 1 接口表.</strong></p>
-<p><p><strong>设计版本</strong>: D1 v3.2.1 (264KB, 25 章节, 0 audit 问题, 5 子系统 + 6 推理服务子模块 + 3 池化 + 4 卡型 + 26 API endpoint + <strong>18 错误码 (新增 POLL_TIMEOUT / STATE_STALE)</strong> + 5 状态机 + 8 时序图 + 5 内部架构图 + 35 SVG. <strong>v3.2.1 关键修订</strong>: 探测/轮询类接口统一 <strong>HTTP/1.1 GET + JSON over vNic URL</strong> (5s 间隔, since 增量拉取, 客户端 <code>curl</code> 即可), <strong>不依赖 gRPC server-streaming</strong>. gRPC Unary 保留为变更/推理类 (Infer / ActivateCard / SwitchToAI) 的高性能备路径, 客户端按需切换. 内部 service 增至 7 个. 改 Watch → Poll: §15.1 vNic 通信, §15.2 状态感知时序, §15.3 健康监控, §15.5 Qemu 热插拔, §15.6 维护接口, §15.7 LogCollector tail, §16.3 PreCheck, §16.6 升级上报, §16.7 dctl 任务, §17 HealthService 4 endpoint, §18 部署告警, §24 SwitchController, §25 etcd Watch (基础设施原生, 保留).</p>
+<p><strong>设计版本</strong>: D1 v3.2.2 (~330KB, 25 章节, 0 audit 问题, 5 子系统 + 6 推理服务子模块 + 3 池化 + 4 卡型 + 32 API endpoint <strong>(新增 LogCollector 9 endpoint)</strong> + <strong>18 错误码 (v3.2.1 + LOG_NODE_NOT_FOUND / LOG_PACKAGE_TIMEOUT / LOG_TASK_NOT_FOUND / LOG_TASK_EXPIRED)</strong> + 6 状态机 <strong>(+ §15.7.6 打包状态机)</strong> + 9 时序图 <strong>(+ §15.7.3 打包时序 + §15.7.4 节点注册时序)</strong> + 6 内部架构图 <strong>(+ §15.7.5 LogCollector 模块图)</strong> + 38 SVG <strong>(+ 3 张: log-collector-activity / log-collector-sequence / log-collector-register-sequence)</strong>. <strong>v3.2.1 + v3.2.2 关键修订</strong>: 探测/轮询类接口统一 <strong>HTTP/1.1 GET + JSON over vNic URL</strong> (5s 间隔, since 增量拉取, 客户端 <code>curl</code> 即可), <strong>不依赖 gRPC server-streaming</strong>; §15.7 日志收集重构成 XML 路径注册 + 异步打包 9 接口, 周边模块自治注册. gRPC Unary 保留为变更/推理类 (Infer / ActivateCard / SwitchToAI) 的高性能备路径, 客户端按需切换. 内部 service 增至 7 个. 改 Watch → Poll: §15.1 vNic 通信, §15.2 状态感知时序, §15.3 健康监控, §15.5 Qemu 热插拔, §15.6 维护接口, §15.7 LogCollector tail, §16.3 PreCheck, §16.6 升级上报, §16.7 dctl 任务, §17 HealthService 4 endpoint, §18 部署告警, §24 SwitchController, §25 etcd Watch (基础设施原生, 保留).</p>
 <p>· <strong>v3.2.1 (2026-07-08, 协议修订): 探测/轮询类接口统一 HTTP/1.1 GET + JSON over vNic URL, 5s 间隔, since 增量拉取. 改 Watch → Poll: §15.1 vNic 通信 (HTTP/curl 主路径 + gRPC Unary 备路径, 双协议示例), §15.3 健康监控 (PollHealth 5s), §15.5 Qemu 热插拔, §15.7 LogCollector tail, §16.3 PreCheck, §16.6 升级上报, §16.7 dctl 任务, §17 HealthService 4 endpoint (Check / PollHealth / ReportAlert / GetLogs), §18 部署告警, §24 SwitchController HealthPoll. gRPC Unary 保留为 Infer/ActivateCard/SwitchToAI 高性能备路径. 错误码 16 → 18 (新增 POLL_TIMEOUT / STATE_STALE). 文件 247KB → 264KB.</strong></p>
+<p>· <strong>v3.2.2 (2026-07-08, §15.7 重构): 日志收集从 §15.7 旧版 (4 数据源 tail + GetLogs/Watch/Push 3 接口 + Loki/ES/S3 推送) 重构为 <strong>XML 路径注册 + 异步打包</strong> 9 个新接口. 设计哲学从"实时推送"转向"按需打包下载". XML 配置中心 (/etc/d1/log-collector.xml) 每个 `<node>` 含 filename + src 2 字段, filename = * 表示打包整个目录. 周边模块 (Omtask §16 / dctl §16.7 / SwitchController §24 / AICardManager) 动态注册 path. 对外 1 个 URL 触发打包, 三步流程: Trigger (POST, &lt; 100ms 返回 task_id) → QueryStatus (5s 轮询, percent + eta) → Download (.tar.gz, HTTP Range 断点续传). 7 天 TTL 自动清理. 7 态 9 迁移状态机. 3 张 SVG (活动图 / 时序图 / 节点注册时序图). §17.4 HealthService.GetLogs/Tail 同步下线. 文件 264KB → ~287KB.</strong></p>
 <p><strong>审计</strong>: 0 CRITICAL / 0 MEDIUM / 0 LOW</p>
 <p><strong>命名规范</strong>: AI 卡管理器 / PCIe HAL / NPU Slice / vNPU / HCCS / InferenceService (6 子模块) / HealthService (含 ReportAlert + GetLogs) / DeployService (新) / AI 卡使能 / AI 卡状态感知 / vNic</p>
 <p><strong>D1 不做</strong>: Pool Manager (D2) / Hot-Swap 故障自愈 (D3) / Federation (D4) / Edge (D5) / 推理高级调度 (A/B / 蓝绿 / QPS 精细路由) — v3.2 调度器只做 model_id 路由 + round-robin/least-conn</p>

@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 540" font-family="sans-serif" font-size="13" fill="#222">
+  <defs>
+    <marker id="arrow-c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#333"/>
+    </marker>
+    <marker id="arrow-c-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2d7a2d"/>
+    </marker>
+  </defs>
+  <rect width="900" height="540" fill="#fff"/>
+  <text x="20" y="22" font-size="15" font-weight="700">时序图: 周边模块动态注册日志路径 (4 模块并行 → Registry → XML)</text>
+  <text x="20" y="40" font-size="11" fill="#666">v3.2.2 新增 — §15.7.4 — 5 actor, 6 步, 启动时一次注册, 运行时动态增删</text>
+
+  <!-- 5 actor 头部 -->
+  <rect x="30" y="60" width="80" height="30" fill="#fff" stroke="#3a4a6b" stroke-width="1.2"/>
+  <text x="70" y="80" text-anchor="middle" font-size="11" font-weight="700">Omtask §16</text>
+  <line x1="70" y1="90" x2="70" y2="500" stroke="#3a4a6b" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <rect x="130" y="60" width="80" height="30" fill="#fff" stroke="#a07020" stroke-width="1.2"/>
+  <text x="170" y="80" text-anchor="middle" font-size="11" font-weight="700">dctl §16.7</text>
+  <line x1="170" y1="90" x2="170" y2="500" stroke="#a07020" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <rect x="230" y="60" width="80" height="30" fill="#fff" stroke="#2d7a2d" stroke-width="1.2"/>
+  <text x="270" y="80" text-anchor="middle" font-size="11" font-weight="700">SwitchCtrl §24</text>
+  <line x1="270" y1="90" x2="270" y2="500" stroke="#2d7a2d" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <rect x="330" y="60" width="80" height="30" fill="#fff" stroke="#b03030" stroke-width="1.2"/>
+  <text x="370" y="80" text-anchor="middle" font-size="11" font-weight="700">AICardMgr</text>
+  <line x1="370" y1="90" x2="370" y2="500" stroke="#b03030" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <rect x="430" y="60" width="100" height="30" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="480" y="80" text-anchor="middle" font-size="11" font-weight="700">Registry</text>
+  <line x1="480" y1="90" x2="480" y2="500" stroke="#333" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <rect x="550" y="60" width="80" height="30" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="590" y="80" text-anchor="middle" font-size="11" font-weight="700">XML 文件</text>
+  <line x1="590" y1="90" x2="590" y2="500" stroke="#333" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <!-- 阶段 1: 启动 -->
+  <rect x="20" y="105" width="850" height="50" fill="#fff8e1" stroke="#e0c97f" stroke-width="0.8"/>
+  <text x="30" y="120" font-size="11" font-weight="700" fill="#a07020">阶段 1: 周边模块启动 (并行 4 模块, 各 register 自己的 log 路径)</text>
+
+  <line x1="72" y1="135" x2="478" y2="135" stroke="#3a4a6b" stroke-width="1.2" marker-end="url(#arrow-c)"/>
+  <text x="275" y="129" text-anchor="middle" font-size="10">① Omtask: POST /logs/registry/node (omtask-deploy.log)</text>
+
+  <line x1="172" y1="148" x2="478" y2="148" stroke="#a07020" stroke-width="1.2" marker-end="url(#arrow-c)"/>
+  <text x="325" y="142" text-anchor="middle" font-size="10">② dctl: POST (dctl-audit.log)</text>
+
+  <!-- 阶段 2: Registry 接收 -->
+  <rect x="20" y="165" width="850" height="50" fill="#f0f4ff" stroke="#a0b0d0" stroke-width="0.8"/>
+  <text x="30" y="180" font-size="11" font-weight="700" fill="#3a4a6b">阶段 2: Registry 接收 + XSD 校验 + 原子写入 XML (50ms)</text>
+
+  <line x1="272" y1="195" x2="478" y2="195" stroke="#2d7a2d" stroke-width="1.2" marker-end="url(#arrow-c)"/>
+  <text x="375" y="189" text-anchor="middle" font-size="10">③ SwitchCtrl: POST (switch-controller.log)</text>
+
+  <line x1="372" y1="208" x2="478" y2="208" stroke="#b03030" stroke-width="1.2" marker-end="url(#arrow-c)"/>
+  <text x="425" y="202" text-anchor="middle" font-size="10">④ AICardMgr: POST (aicard.log)</text>
+
+  <line x1="482" y1="220" x2="588" y2="220" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-c)"/>
+  <text x="535" y="214" text-anchor="middle" font-size="10">⑤ 写 .tmp → fsync → rename</text>
+
+  <!-- 阶段 3: 返回成功 -->
+  <rect x="20" y="230" width="850" height="50" fill="#e7f4e7" stroke="#2d7a2d" stroke-width="0.8"/>
+  <text x="30" y="245" font-size="11" font-weight="700" fill="#2d7a2d">阶段 3: 4 模块并发返回 node_id + updated_at</text>
+
+  <line x1="482" y1="260" x2="72" y2="260" stroke="#2d7a2d" stroke-width="1.2" marker-end="url(#arrow-c-green)"/>
+  <text x="275" y="254" text-anchor="middle" font-size="10" fill="#2d7a2d">⑥ 200 OK (node-007, total_nodes=12)</text>
+
+  <line x1="482" y1="275" x2="372" y2="275" stroke="#2d7a2d" stroke-width="1.2" marker-end="url(#arrow-c-green)"/>
+  <text x="425" y="269" text-anchor="middle" font-size="10" fill="#2d7a2d">⑥ 200 OK</text>
+
+  <!-- 阶段 4: 运行时动态增删 -->
+  <rect x="20" y="290" width="850" height="80" fill="#fff3b0" stroke="#d0b040" stroke-width="0.8"/>
+  <text x="30" y="305" font-size="11" font-weight="700" fill="#a07020">阶段 4: 运行时动态增删 (e.g. 升级任务结束后, Omtask 注销临时路径)</text>
+
+  <line x1="72" y1="325" x2="478" y2="325" stroke="#3a4a6b" stroke-width="1.2" marker-end="url(#arrow-c)"/>
+  <text x="275" y="319" text-anchor="middle" font-size="10">⑦ DELETE (omtask-deploy.log, 升级结束)</text>
+
+  <line x1="482" y1="345" x2="588" y2="345" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-c)"/>
+  <text x="535" y="339" text-anchor="middle" font-size="10">⑧ XML 原子更新 (remaining_nodes=11)</text>
+
+  <line x1="482" y1="365" x2="72" y2="365" stroke="#2d7a2d" stroke-width="1.2" marker-end="url(#arrow-c-green)"/>
+  <text x="275" y="359" text-anchor="middle" font-size="10" fill="#2d7a2d">⑨ 200 OK (deleted=true)</text>
+
+  <!-- 阶段 5: watcher 监听 (可选) -->
+  <rect x="20" y="380" width="850" height="50" fill="#f0f4ff" stroke="#a0b0d0" stroke-width="0.8"/>
+  <text x="30" y="395" font-size="11" font-weight="700" fill="#3a4a6b">阶段 5: 监听 XML 变化 (5s 轮询, since 增量, 可选)</text>
+
+  <line x1="172" y1="415" x2="478" y2="415" stroke="#a07020" stroke-width="1.2" marker-end="url(#arrow-c)"/>
+  <text x="325" y="409" text-anchor="middle" font-size="10">⑩ dctl 5s 轮询 GET /registry/watcher?since={ts}</text>
+
+  <line x1="482" y1="425" x2="172" y2="425" stroke="#2d7a2d" stroke-width="1.2" marker-end="url(#arrow-c-green)"/>
+  <text x="325" y="419" text-anchor="middle" font-size="10" fill="#2d7a2d">⑪ 返回 RegistryEvent (NODE_DELETED)</text>
+
+  <rect x="20" y="440" width="850" height="20" fill="#fafafa" stroke="#666" stroke-width="0.6"/>
+  <text x="30" y="454" font-size="10" fill="#666">说明: 启动时一次注册 4 个核心 &lt;node&gt;, 任务期间动态 register/delete 临时路径 (e.g. 升级日志 / dump 文件 / 调试 trace).</text>
+  <text x="30" y="468" font-size="10" fill="#666">watcher 接口供 dctl / 监控大屏监听 XML 变化, 不直接参与注册逻辑.</text>
+</svg>

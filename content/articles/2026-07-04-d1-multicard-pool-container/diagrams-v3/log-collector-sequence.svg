@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 540" font-family="sans-serif" font-size="13" fill="#222">
+  <defs>
+    <marker id="arrow-b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#333"/>
+    </marker>
+    <marker id="arrow-b-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2d7a2d"/>
+    </marker>
+  </defs>
+  <rect width="900" height="540" fill="#fff"/>
+  <text x="20" y="22" font-size="15" font-weight="700">时序图: 日志异步打包 5 阶段 (Trigger → Load → Traverse → tar.gz → Upload + 5s 轮询下载)</text>
+  <text x="20" y="40" font-size="11" fill="#666">v3.2.2 新增 — §15.7.3 — 6 个 actor, 12 步, 总耗时 5s-30min (取决于日志总量)</text>
+
+  <!-- 6 actor 头部 -->
+  <rect x="30" y="60" width="80" height="30" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="70" y="80" text-anchor="middle" font-size="12" font-weight="700">客户端</text>
+  <line x1="70" y1="90" x2="70" y2="500" stroke="#333" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <rect x="140" y="60" width="80" height="30" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="180" y="80" text-anchor="middle" font-size="12" font-weight="700">LogCollector</text>
+  <line x1="180" y1="90" x2="180" y2="500" stroke="#333" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <rect x="240" y="60" width="80" height="30" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="280" y="74" text-anchor="middle" font-size="11" font-weight="700">Packager</text>
+  <text x="280" y="86" text-anchor="middle" font-size="9" fill="#666">(goroutine)</text>
+  <line x1="280" y1="90" x2="280" y2="500" stroke="#333" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <rect x="350" y="60" width="80" height="30" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="390" y="80" text-anchor="middle" font-size="12" font-weight="700">Registry</text>
+  <line x1="390" y1="90" x2="390" y2="500" stroke="#333" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <rect x="460" y="60" width="100" height="30" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="510" y="80" text-anchor="middle" font-size="12" font-weight="700">Filesystem</text>
+  <line x1="510" y1="90" x2="510" y2="500" stroke="#333" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <rect x="590" y="60" width="100" height="30" fill="#fff" stroke="#333" stroke-width="1.2"/>
+  <text x="640" y="80" text-anchor="middle" font-size="12" font-weight="700">Stager</text>
+  <text x="640" y="86" font-size="9" fill="#666" text-anchor="middle">(本地 or MinIO)</text>
+  <line x1="640" y1="90" x2="640" y2="500" stroke="#333" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <!-- 阶段 1: 触发 -->
+  <rect x="20" y="105" width="850" height="50" fill="#fff8e1" stroke="#e0c97f" stroke-width="0.8"/>
+  <text x="30" y="120" font-size="11" font-weight="700" fill="#a07020">阶段 1: 触发 (Trigger, 同步, &lt; 100ms)</text>
+
+  <line x1="72" y1="135" x2="178" y2="135" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-b)"/>
+  <text x="125" y="129" text-anchor="middle" font-size="10">① POST /logs/package/trigger</text>
+
+  <line x1="182" y1="148" x2="72" y2="148" stroke="#2d7a2d" stroke-width="1.2" marker-end="url(#arrow-b-green)"/>
+  <text x="125" y="142" text-anchor="middle" font-size="10" fill="#2d7a2d">② 202 + task_id</text>
+
+  <!-- 阶段 2: Load XML + 启动 goroutine -->
+  <rect x="20" y="165" width="850" height="50" fill="#f0f4ff" stroke="#a0b0d0" stroke-width="0.8"/>
+  <text x="30" y="180" font-size="11" font-weight="700" fill="#3a4a6b">阶段 2: 加载 XML + 启动后台 goroutine (50ms)</text>
+
+  <line x1="182" y1="195" x2="278" y2="195" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-b)"/>
+  <text x="230" y="189" text-anchor="middle" font-size="10">③ 启动 Packager</text>
+
+  <line x1="282" y1="208" x2="388" y2="208" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-b)"/>
+  <text x="335" y="202" text-anchor="middle" font-size="10">④ Load XML snapshot</text>
+
+  <!-- 阶段 3: 遍历 + 并行打包 -->
+  <rect x="20" y="225" width="850" height="100" fill="#fff3b0" stroke="#d0b040" stroke-width="0.8"/>
+  <text x="30" y="240" font-size="11" font-weight="700" fill="#a07020">阶段 3: 遍历 12 个 &lt;node&gt; 并行打包 (5s-30min, max 4 workers)</text>
+
+  <line x1="282" y1="255" x2="508" y2="255" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-b)"/>
+  <text x="395" y="249" text-anchor="middle" font-size="10">⑤ 遍历 node (filename + src)</text>
+
+  <line x1="282" y1="270" x2="508" y2="270" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-b)"/>
+  <text x="395" y="264" text-anchor="middle" font-size="10">⑥ filename != * → 单文件 read</text>
+
+  <line x1="282" y1="285" x2="508" y2="285" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-b)"/>
+  <text x="395" y="279" text-anchor="middle" font-size="10">⑦ filename = * → 递归 readdir (max 1000 files)</text>
+
+  <line x1="282" y1="305" x2="640" y2="305" stroke="#2d7a2d" stroke-width="1.2" marker-end="url(#arrow-b-green)"/>
+  <text x="460" y="299" text-anchor="middle" font-size="10" fill="#2d7a2d">⑧ tar.gz 临时文件 (Parts 1, 2...)</text>
+
+  <!-- 阶段 4: 5s 轮询查询 -->
+  <rect x="20" y="335" width="850" height="60" fill="#f0f4ff" stroke="#a0b0d0" stroke-width="0.8"/>
+  <text x="30" y="350" font-size="11" font-weight="700" fill="#3a4a6b">阶段 4: 5s 轮询查询进度 (QueryStatus)</text>
+
+  <line x1="72" y1="370" x2="178" y2="370" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-b)"/>
+  <text x="125" y="364" text-anchor="middle" font-size="10">⑨ GET /status (5s 间隔)</text>
+
+  <line x1="182" y1="385" x2="72" y2="385" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-b)"/>
+  <text x="125" y="379" text-anchor="middle" font-size="10">⑩ state + percent + eta</text>
+
+  <!-- 阶段 5: 下载 -->
+  <rect x="20" y="405" width="850" height="80" fill="#e7f4e7" stroke="#2d7a2d" stroke-width="0.8"/>
+  <text x="30" y="420" font-size="11" font-weight="700" fill="#2d7a2d">阶段 5: READY 后下载 (HTTP Range 断点续传, 7 天 TTL)</text>
+
+  <line x1="72" y1="438" x2="178" y2="438" stroke="#2d7a2d" stroke-width="1.2" marker-end="url(#arrow-b-green)"/>
+  <text x="125" y="432" text-anchor="middle" font-size="10" fill="#2d7a2d">⑪ GET /download</text>
+
+  <line x1="182" y1="455" x2="640" y2="455" stroke="#333" stroke-width="1.2" marker-end="url(#arrow-b)"/>
+  <text x="410" y="449" text-anchor="middle" font-size="10">⑫ Stager 流式传输 .tar.gz (HTTP 200)</text>
+
+  <line x1="640" y1="475" x2="72" y2="475" stroke="#2d7a2d" stroke-width="1.2" marker-end="url(#arrow-b-green)"/>
+  <text x="355" y="469" text-anchor="middle" font-size="10" fill="#2d7a2d">⑬ bytes 流 (断点续传) + SHA-256 校验</text>
+
+  <rect x="20" y="495" width="850" height="20" fill="#fafafa" stroke="#666" stroke-width="0.6"/>
+  <text x="30" y="510" font-size="10" fill="#666">总耗时: trigger &lt; 100ms + 加载 XML 50ms + 打包 5s-30min + 上传 1-60s. 包保留 7 天, 之后 410 Gone.</text>
+</svg>
