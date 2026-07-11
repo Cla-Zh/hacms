@@ -387,7 +387,7 @@ tr:nth-child(even) td{background:#fcfcfc}
   <tr><td>6</td><td>AI 卡管理</td><td><code>DELETE vnic://vnic0:50053/aicard/{card_id}</code></td><td>DELETE</td><td>dctl / 监控</td><td>AI 卡去注册 (热拔插)</td></tr>
   <tr><td>7</td><td rowspan="2">健康 (§7)</td><td><code>GET vnic://vnic0:50053/health/check?scope=...</code></td><td>GET (5s 轮询)</td><td>监控 / SwitchController</td><td>3 层健康检查 (liveness / readiness / model-ready)</td></tr>
   <tr><td>8</td><td><code>GET vnic://vnic0:50053/health/poll?scope=...&since={ts}</code></td><td>GET (5s 轮询)</td><td>监控 / 状态感知</td><td>状态感知 (since 增量, 替代 gRPC Watch)</td></tr>
-  <tr><td>8a</td><td><code>GET vnic://vnic0:50053/health/status?node_id={id}&include={inference,cards,cluster}</code></td><td>GET</td><td>K8s readiness / Grafana / dctl card status --all</td><td><strong>健康总览 (3 维度聚合, v3.2.3 新增)</strong></td></tr>
+  <tr><td>8a</td><td><code>GET vnic://vnic0:50053/health/status?include={inference,cards}</code></td><td>GET</td><td>K8s readiness / Grafana / dctl card status --all</td><td><strong>健康总览 (inference + cards 聚合, v3.2.3 新增)</strong></td></tr>
   <tr><td>9</td><td rowspan="2">日志 (§5.7)</td><td><code>POST vnic://vnic0:50053/logs/registry/node</code></td><td>POST</td><td>Omtask / dctl / AICardManager</td><td>注册日志路径 (filename + src)</td></tr>
   <tr><td>10</td><td><code>DELETE vnic://vnic0:50053/logs/registry/node?filename=&src=</code></td><td>DELETE</td><td>同上</td><td>删除日志路径</td></tr>
   <tr><td>11</td><td rowspan="2">日志打包 (§5.7)</td><td><code>POST vnic://vnic0:50053/logs/package/trigger</code></td><td>POST (异步)</td><td>dctl / 监控</td><td>触发打包, 返回 task_id</td></tr>
@@ -516,11 +516,10 @@ message GetLogsRequest { string card_uuid = 1; google.protobuf.Timestamp from_ts
 message GetLogsResponse { repeated LogLine lines = 1; string next_token = 2; bool has_more = 3; bool truncated = 4; }
 message TriggerActionRequest { ActionType action = 1; string card_uuid = 2; bool dry_run = 3; string reason = 4; string requested_by = 5; }
 message TriggerActionResponse { bool ok = 1; string action_id = 2; google.protobuf.Timestamp executed_at = 3; repeated string affected_components = 4; string rollback_token = 5; string audit_url = 6; }
-message GetOverallStatusRequest { string node_id = 1; repeated string include = 2; int32 timeout_ms = 3; }
+message GetOverallStatusRequest { repeated string include = 1; int32 timeout_ms = 2; }
 message InferenceHealth { InferenceState state = 1; int32 queue_depth = 2; bool acl_init = 3; map<string, bool> vnic_listeners = 4; int32 pools_healthy = 5; int32 pools_total = 6; int32 models_loaded = 7; int32 models_total = 8; double throughput_qps = 9; repeated string issues = 10; }
 message CardHealth { string card_uuid = 1; string pool_id = 2; HealthLevel level = 3; double temp_c = 4; int32 ecc_count = 5; double utilization = 6; int32 hbm_used_mb = 7; int32 hbm_total_mb = 8; google.protobuf.Timestamp last_checked_at = 9; repeated string issues = 10; }
-message ClusterHealth { string node_id = 1; NodeRole self_role = 2; int32 peer_count = 3; int32 peers_healthy = 4; bool cluster_quorum = 5; google.protobuf.Timestamp last_etcd_sync_ts = 6; repeated string issues = 7; }
-message GetOverallStatusResponse { HealthLevel level = 1; google.protobuf.Timestamp checked_at = 2; int32 version = 3; InferenceHealth inference = 4; repeated CardHealth cards = 5; ClusterHealth cluster = 6; }
+message GetOverallStatusResponse { HealthLevel level = 1; google.protobuf.Timestamp checked_at = 2; int32 version = 3; InferenceHealth inference = 4; repeated CardHealth cards = 5; }
 
 // ════════ §5.7 日志收集 (v3.2.2 重构) ════════
 service LogCollector {
@@ -2919,22 +2918,79 @@ message ExpandResponse {
 </ul>
 
 <h4 id="sec-17-4-5-健康总">17.4.5 健康总览 (GetOverallStatus) <span class="version-badge v32">v3.2.3 新增 endpoint 5</span></h4>
-<p>v3.2.3 新增 endpoint 5 <strong>GetOverallStatus</strong>: 1 个 URL 一次性返回 <strong>AI 推理服务整体 + AI 卡 + 集群拓扑</strong> 3 维度聚合健康状态, 整体 <code>level = worst-of</code>. 解决"监控大盘 5 个轮询 / K8s readiness probe 单 endpoint / 跨节点健康评估"等场景, 减少客户端复杂度:</p>
+<p>v3.2.3 新增 endpoint 5 <strong>GetOverallStatus</strong>: 1 个 URL 一次性返回 <strong>本 Pod 的 AI 推理服务整体 + AI 卡</strong> 2 维度聚合健康状态, 整体 <code>level = worst-of</code>. Pod 隔离场景下, <strong>不需要 node_id 参数</strong> (URL 默认本 Pod), <strong>不需要 cluster 维度</strong> (集群拓扑由 §12 PeerHealthPoller 单独管, 详见 <a href="#multi-node-failover">§12</a>). 解决"监控大盘 5 个轮询 / K8s readiness probe 单 endpoint"等场景, 减少客户端复杂度:</p>
 <table>
 <thead><tr><th>项</th><th>内容</th></tr></thead>
 <tbody>
-<tr><td><strong>触发方</strong></td><td>(a) K8s readiness/liveness probe; (b) Grafana / Prometheus 大盘; (c) <code>dctl card status --all</code>; (d) §11 SwitchController 切换前自检 (<code>inference.level==GREEN &amp;&amp; cards[all].level!=RED</code>); (e) §12 PeerHealthPoller 5s 1 次拉所有 peer 节点总览</td></tr>
-<tr><td><strong>URL (v3.2.3 主路径)</strong></td><td><code>GET vnic://vnic0:50053/health/status?node_id={id}&amp;include={inference,cards,cluster}&amp;timeout_ms=2000</code><br>(<code>curl --unix-socket /var/run/aicard-health.sock 'http://localhost/health/status?include=inference,cards'</code>)</td></tr>
-<tr><td><strong>include 参数</strong></td><td>多选用 <code>,</code> 分隔, 默认全选: <code>inference</code> (推理服务整体) / <code>cards</code> (AI 卡逐卡) / <code>cluster</code> (集群拓扑)</td></tr>
-<tr><td><strong>返回 (JSON, 3 维度)</strong></td><td><code>{level: GREEN|YELLOW|RED|UNKNOWN (整体=worst-of), checked_at, version, inference: {state, queue_depth, acl_init, vnic_listeners, pools_healthy/total, models_loaded/total, throughput_qps, issues}, cards: [{card_uuid, pool_id, level, temp_c, ecc_count, utilization, hbm_used_mb, hbm_total_mb, last_checked_at, issues}], cluster: {node_id, self_role, peer_count, peers_healthy, cluster_quorum, last_etcd_sync_ts, issues}}</code></td></tr>
+<tr><td><strong>触发方</strong></td><td>(a) K8s readiness/liveness probe; (b) Grafana / Prometheus 大盘; (c) <code>dctl card status --all</code>; (d) §11 SwitchController 切换前自检 (<code>inference.level==GREEN &amp;&amp; cards[all].level!=RED</code>)</td></tr>
+<tr><td><strong>URL (v3.2.3 主路径)</strong></td><td><code>GET vnic://vnic0:50053/health/status?include={inference,cards}&amp;timeout_ms=2000</code><br>(<code>curl --unix-socket /var/run/aicard-health.sock 'http://localhost/health/status?include=inference,cards'</code>)</td></tr>
+<tr><td><strong>include 参数</strong></td><td>多选用 <code>,</code> 分隔, 默认全选: <code>inference</code> (推理服务整体) / <code>cards</code> (本 Pod 所有 AI 卡). <strong>不带 node_id</strong> (Pod 隔离, 默认本 Pod)</td></tr>
+<tr><td><strong>调用参数 (gRPC)</strong></td><td><code>GetOverallStatusRequest { include: repeated string (默认 ["inference", "cards"]), timeout_ms: int32 (默认 2000) }</code></td></tr>
 <tr><td><strong>错误码</strong></td><td>HTTP 200 (健康) / <strong>HTTP 503 (RED 状态仍返回完整 JSON, K8s probe 习惯)</strong> / 504 (timeout 2s) / 400 (include 非法) / 429 (并发 ≥ 200)</td></tr>
-<tr><td><strong>性能</strong></td><td>P99 ≤ 100ms (本地聚合, 内部并发调 API 1 + 读 state.xml + 查 etcd), 单次 ≤ 50KB (3 节点集群)</td></tr>
+<tr><td><strong>性能</strong></td><td>P99 ≤ 100ms (本地聚合, 内部并发调 §7.1 + 读 state.xml), 单次 ≤ 30KB (1 Pod ≤ 3 卡)</td></tr>
 <tr><td><strong>与 §7.1/§7.2 关系</strong></td><td>§7.1 Check = <strong>单卡单 scope 深度查询</strong> (P99 ≤ 50ms); §7.2 PollHealth = <strong>增量事件流</strong> (since 拉取, 替代 gRPC Watch); <strong>§7.4.5 GetOverallStatus = 聚合总览</strong>. 三档互补: 故障诊断用 §7.1 + §7.3, 实时事件用 §7.2, 监控大盘 / K8s probe 用 §7.4.5</td></tr>
 </tbody>
 </table>
-<p>完整 protobuf 定义见 <a href="#sec-4-3-proto">§4.3</a> (HealthService 6 RPC 整合版, 含 GetOverallStatusRequest / Response + InferenceHealth / CardHealth / ClusterHealth 嵌套 message + 10 个 enum).</p>
 
-<h3 id="sec-17-5-完整定">17.5 完整 Protobuf 定义 (HealthService v3.2) 完整 Protobuf 定义 (HealthService v3.2)</h3>
+<h5>返回字段详细说明表</h5>
+<p>完整 JSON 返回结构 (P99 ≤ 100ms, 单次 ≤ 30KB, 1 Pod 3 卡场景):</p>
+<table>
+<thead><tr><th>层级</th><th>字段名</th><th>类型</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td rowspan="3"><strong>顶层 (3 字段)</strong></td><td><code>level</code></td><td>enum: GREEN / YELLOW / RED / UNKNOWN</td><td>整体健康等级, = 2 维度 worst-of (inference.level ∪ cards[].level). K8s probe 据此返回 200/503</td></tr>
+<tr><td><code>checked_at</code></td><td>Timestamp (Unix ns)</td><td>本 Pod 采集完成时间戳, 用于客户端判断数据新鲜度 (超过 5s 应怀疑 stale)</td></tr>
+<tr><td><code>version</code></td><td>int32</td><td>配置版本号, 客户端缓存比对 (变更时强制刷新). 递增, 不复用</td></tr>
+<tr><td rowspan="10"><strong>inference (推理服务, 10 字段)</strong></td><td><code>inference.state</code></td><td>enum: STARTING / READY / BUSY / DEGRADED / DOWN / UNKNOWN</td><td>推理服务运行时状态: STARTING (启动 7 阶段) / READY (空闲) / BUSY (队列 ≥ 80%) / DEGRADED (有 issue 但还能服务) / DOWN (无法服务)</td></tr>
+<tr><td><code>inference.queue_depth</code></td><td>int32</td><td>当前所有模型推理队列总深度 (default + high + low 3 队列求和). ≥ 1000 触发背压</td></tr>
+<tr><td><code>inference.acl_init</code></td><td>bool</td><td>ACL (Ascend Compute Library) 是否已初始化成功. false 时 inference.state=DOWN</td></tr>
+<tr><td><code>inference.vnic_listeners</code></td><td>map&lt;port, bool&gt;</td><td>vNic 端口监听状态: 50051 (业务面) / 50053 (管理面). false 表示端口 down, 推理请求将失败</td></tr>
+<tr><td><code>inference.pools_healthy</code></td><td>int32</td><td>健康 NPU 池数 (level != RED 的 pool)</td></tr>
+<tr><td><code>inference.pools_total</code></td><td>int32</td><td>总 NPU 池数 (D1 v3.2 限 3 池)</td></tr>
+<tr><td><code>inference.models_loaded</code></td><td>int32</td><td>已加载到 device 内存的模型数 (LoadModel 成功数). 0 表示无模型可推理</td></tr>
+<tr><td><code>inference.models_total</code></td><td>int32</td><td>配置中应加载的模型数 (models_loaded &lt; models_total 表示有模型加载失败)</td></tr>
+<tr><td><code>inference.throughput_qps</code></td><td>double</td><td>最近 1 分钟平均推理 QPS. 0 表示无流量或推理未启动. 监控大盘用此画 QPS 曲线</td></tr>
+<tr><td><code>inference.issues</code></td><td>repeated string</td><td>本维度问题列表 (人类可读). 例: <code>"queue depth 1200 > threshold 1000"</code> / <code>"vnic :50051 listener down"</code></td></tr>
+<tr><td rowspan="10"><strong>cards[].{n} (单卡, 10 字段, 数组)</strong></td><td><code>cards[].card_uuid</code></td><td>string</td><td>AI 卡唯一标识 (PCIe BDF + 序列号). 跟 §5.5 状态感知模块对齐</td></tr>
+<tr><td><code>cards[].pool_id</code></td><td>string</td><td>所属 NPU 池 ID (D1 v3.2 限 3 池: pool-0 / pool-1 / pool-2)</td></tr>
+<tr><td><code>cards[].level</code></td><td>enum: GREEN / YELLOW / RED / UNKNOWN</td><td>单卡健康等级. 整体 level = 全部 cards[].level 的 worst-of</td></tr>
+<tr><td><code>cards[].temp_c</code></td><td>double (°C)</td><td>NPU 当前温度. ≥ 85°C 触发 ReportAlert(AC_TEMP_HIGH), level 自动 YELLOW. ≥ 95°C 触发隔离</td></tr>
+<tr><td><code>cards[].ecc_count</code></td><td>int32</td><td>累计 ECC 错误数. ≥ 阈值 (默认 100) 触发 ReportAlert(AC_ECC_OVER_THRESHOLD), level=RED</td></tr>
+<tr><td><code>cards[].utilization</code></td><td>double (0.0-1.0)</td><td>NPU 算力利用率. ≥ 0.95 持续 5s 表示饱和, 调度器应避免再分发推理任务</td></tr>
+<tr><td><code>cards[].hbm_used_mb</code></td><td>int32</td><td>HBM (高带宽内存) 已用 MB. 监控大盘展示, 接近 hbm_total_mb 时触发 OOM 风险告警</td></tr>
+<tr><td><code>cards[].hbm_total_mb</code></td><td>int32</td><td>HBM 总容量 MB (Ascend 910B = 65536 MB = 64 GB)</td></tr>
+<tr><td><code>cards[].last_checked_at</code></td><td>Timestamp</td><td>本卡最近一次健康检查时间戳. 跟 checked_at 配合判断单卡数据是否 stale</td></tr>
+<tr><td><code>cards[].issues</code></td><td>repeated string</td><td>本卡问题列表. 例: <code>"temp 87°C > 85°C threshold"</code> / <code>"ecc_count 152 > 100 threshold"</code></td></tr>
+</tbody>
+</table>
+
+<h5>返回示例 (1 Pod 3 卡全部健康)</h5>
+<pre><code>{
+  "level": "GREEN",
+  "checked_at": "2026-07-12T10:30:45.123456789Z",
+  "version": 42,
+  "inference": {
+    "state": "READY",
+    "queue_depth": 12,
+    "acl_init": true,
+    "vnic_listeners": {"50051": true, "50053": true},
+    "pools_healthy": 3,
+    "pools_total": 3,
+    "models_loaded": 5,
+    "models_total": 5,
+    "throughput_qps": 128.5,
+    "issues": []
+  },
+  "cards": [
+    {"card_uuid": "0000:01:00.0-SN001", "pool_id": "pool-0", "level": "GREEN", "temp_c": 62.3, "ecc_count": 0, "utilization": 0.45, "hbm_used_mb": 18432, "hbm_total_mb": 65536, "last_checked_at": "2026-07-12T10:30:45.123Z", "issues": []},
+    {"card_uuid": "0000:02:00.0-SN002", "pool_id": "pool-1", "level": "GREEN", "temp_c": 58.1, "ecc_count": 0, "utilization": 0.42, "hbm_used_mb": 17408, "hbm_total_mb": 65536, "last_checked_at": "2026-07-12T10:30:45.123Z", "issues": []},
+    {"card_uuid": "0000:03:00.0-SN003", "pool_id": "pool-2", "level": "GREEN", "temp_c": 60.7, "ecc_count": 0, "utilization": 0.48, "hbm_used_mb": 19456, "hbm_total_mb": 65536, "last_checked_at": "2026-07-12T10:30:45.123Z", "issues": []}
+  ]
+}
+</code></pre>
+
+<p>完整 protobuf 定义见 <a href="#sec-4-3-proto">§4.3</a> (HealthService 6 RPC 整合版, 含 GetOverallStatusRequest / Response + InferenceHealth / CardHealth 嵌套 message + 9 个 enum, 已去除 ClusterHealth 因为 Pod 隔离).</p>
+
+<h3 id="sec-17-5-完整定">17.5 完整 Protobuf 定义 (HealthService v3.2)</h3>
 <pre><code>// aicard/health/v1/health.proto
 syntax = "proto3";
 package aicard.health.v1;
@@ -3888,12 +3944,12 @@ message RedirectInferenceRequest {
 
 <h3>v3.2.3 (2026-07-12, 健康总览 URL endpoint 5)</h3>
 <ul>
-  <li><strong>§7.4.5 新增 endpoint 5: GetOverallStatus 健康总览</strong>: 1 个 URL <code>GET vnic://vnic0:50053/health/status?node_id={id}&include={inference,cards,cluster}</code> 返回 3 维度聚合 (inference / cards / cluster), 整体 <code>level = worst-of</code>. 用途: K8s readiness probe / Grafana 大盘 / dctl card status --all / §11 防勒索切换前自检 / §12 PeerHealthPoller 跨节点健康评估. P99 ≤ 100ms, 单次 ≤ 50KB.</li>
+  <li><strong>§7.4.5 新增 endpoint 5: GetOverallStatus 健康总览</strong>: 1 个 URL <code>GET vnic://vnic0:50053/health/status?include={inference,cards}</code> 返回本 Pod 的 2 维度聚合 (inference + cards, <strong>无 node_id 因为 Pod 隔离</strong>), 整体 <code>level = worst-of</code>. 用途: K8s readiness probe / Grafana 大盘 / dctl card status --all / §11 防勒索切换前自检. P99 ≤ 100ms, 单次 ≤ 30KB. 集群拓扑由 §12 PeerHealthPoller 单独管, 不混入本 endpoint.</li>
   <li><strong>§4 API 设计同步更新</strong>: 17 URL → 18 URL (+ URL 8a GetOverallStatus). §4.2 URL 列表新增 #8a 行. §4.3 Protobuf 整合包名升级 <code>aicard.v3_2</code> → <code>aicard.v3_2_3</code>.</li>
-  <li><strong>§4.3 HealthService 完整 protobuf (原 §7.5 迁移)</strong>: 补全 6 RPC + 10 enum + 16 message, 含 GetHealth / PollHealth / ReportAlert / GetLogs / TriggerAction + v3.2.3 新增 GetOverallStatus. 新增 message: HealthStatus / HealthEvent / LogLine / InferenceHealth / CardHealth / ClusterHealth. 新增 enum: HealthLevel / HealthScope / InferenceState / NodeRole / AlertLevel / AlertSource / LogLevel / LogSource / AlertCode / ActionType.</li>
-  <li><strong>§7.1/§7.2/§7.4.5 三档关系明确</strong>: §7.1 Check (单卡单 scope 深度, P99 ≤ 50ms); §7.2 PollHealth (增量事件流, since 拉取); <strong>§7.4.5 GetOverallStatus (聚合总览, 内部并发调 §7.1 + 读 state.xml + 查 etcd)</strong>. 三档互补: 故障诊断用 §7.1/§7.3, 实时事件用 §7.2, 监控大盘和 K8s probe 用 §7.4.5.</li>
-  <li><strong>HTTP 503 仍返回完整 JSON</strong>: K8s readiness probe 习惯, body 仍可解析 (含 level + 3 维度 issues), 不影响监控采集.</li>
-  <li><strong>include 参数灵活</strong>: <code>include=inference</code> / <code>include=cards</code> / <code>include=cluster</code> 多选用 <code>,</code> 分隔, 默认全选, 避免大 payload.</li>
+  <li><strong>§4.3 HealthService 完整 protobuf (原 §7.5 迁移)</strong>: 补全 6 RPC + 10 enum + 15 message, 含 GetHealth / PollHealth / ReportAlert / GetLogs / TriggerAction + v3.2.3 新增 GetOverallStatus. 新增 message: HealthStatus / HealthEvent / LogLine / InferenceHealth / CardHealth (Pod 隔离, 去除 ClusterHealth). 新增 enum: HealthLevel / HealthScope / InferenceState / NodeRole (备用) / AlertLevel / AlertSource / LogLevel / LogSource / AlertCode / ActionType.</li>
+  <li><strong>§7.1/§7.2/§7.4.5 三档关系明确</strong>: §7.1 Check (单卡单 scope 深度, P99 ≤ 50ms); §7.2 PollHealth (增量事件流, since 拉取); <strong>§7.4.5 GetOverallStatus (聚合总览, 内部并发调 §7.1 + 读 state.xml)</strong>. 三档互补: 故障诊断用 §7.1/§7.3, 实时事件用 §7.2, 监控大盘和 K8s probe 用 §7.4.5.</li>
+  <li><strong>HTTP 503 仍返回完整 JSON</strong>: K8s readiness probe 习惯, body 仍可解析 (含 level + 2 维度 issues), 不影响监控采集.</li>
+  <li><strong>include 参数灵活</strong>: <code>include=inference</code> / <code>include=cards</code> 多选用 <code>,</code> 分隔, 默认全选 (<code>inference,cards</code>), 避免大 payload. 不带 node_id (Pod 隔离默认本 Pod).</li>
   <li><strong>文件</strong>: ~256KB → ~222KB (-13%, §4.3 补全 + §7.4.5 增量, 但旧 §17 大段内容已在 r2 合并掉).</li>
 </ul>
 
@@ -3983,7 +4039,8 @@ message RedirectInferenceRequest {
 <p>· <strong>v3.1 (2026-07-04): 全面重构 AI 推理服务 (6 内部子模块) — vNic 通信 (gRPC :50051 推理 + :50053 维护) / 多模型推理框架 (调度器 + Worker 池 + ACL 后端) / 健康监控 (NPU 健康 + 错误侦测 + 日志收集) / AI 卡使能 (5 阶段) / AI 卡状态感知 (Qemu 热插拔). 新增 AI 卡部署章节 (§18): VM 激活 + 5 类告警事件. endpoint 16 → 19, 错误码 11 → 14.</strong>
 <p>· <strong>v3.2 (2026-07-04): 4 大特性 — (1) <code>/etc/d1/activate.sh</code> 启动脚本替代 cann-init.sh, 由 systemd / 容器 entrypoint 触发; (2) <code>/var/lib/d1/state.xml</code> XML 持久化 (NPU 状态 + 模型 + ACL 内存 + 队列) + 7 阶段启动流程 (a 脚本/b 扫描/c XML/d 队列/e ACL/f 模型/g vNic); (3) vNic URL 寻址 <code>vnic://vnic0:50051</code> (业务面) + <code>vnic://vnic0:50053</code> (管理面), virtio-net 后端 + qemu-monitor 热拔插 (<code>device_add</code>/<code>device_del</code>); (4) 日志收集从健康监控拆出, 新增 §15.7 LogCollector 独立大章节 (GetLogs / Watch / Push). <strong>8 卡 → 3 卡</strong>, 3 卡 3 池多模型推理 (model_id 路由 + round-robin / least-conn), 热拔插加减池. AI 推理服务 5 → 6 子模块. protobuf 改写: 新增 VNicServer + LogCollector message, 错误码 14 → <strong>16</strong> (新增 XML_PERSIST_FAILED / VNIC_UNAVAILABLE). 文件从 112KB → 170KB, 行数 1792 → 2500+.</strong></p>
 <p>· <strong>v3.1.1 (2026-07-04, 增量): 功能点体系: 8 推理服务 (Init/Infer/Scheduler/MultiCard Mgmt/Logs/Health Check/State Awareness/Alert Report) + 2 AI 卡部署 (VM Activate/Deploy Alert). 每功能点: 1 子模块图 + 1 时序图 + 1 接口表.</strong></p>
-<p><strong>设计版本</strong>: D1 v3.2.3 (~330KB, 25 章节, 0 audit 问题, 5 子系统 + 6 推理服务子模块 + 3 池化 + 4 卡型 + 32 API endpoint <strong>(新增 LogCollector 9 endpoint)</strong> + <strong>18 错误码 (v3.2.1 + LOG_NODE_NOT_FOUND / LOG_PACKAGE_TIMEOUT / LOG_TASK_NOT_FOUND / LOG_TASK_EXPIRED)</strong> + 6 状态机 <strong>(+ §15.7.6 打包状态机)</strong> + 9 时序图 <strong>(+ §15.7.3 打包时序 + §15.7.4 节点注册时序)</strong> + 6 内部架构图 <strong>(+ §15.7.5 LogCollector 模块图)</strong> + 38 SVG <strong>(+ 3 张: log-collector-activity / log-collector-sequence / log-collector-register-sequence)</strong>. <strong>v3.2.1 + v3.2.2 关键修订</strong>: 探测/轮询类接口统一 <strong>HTTP/1.1 GET + JSON over vNic URL</strong> (5s 间隔, since 增量拉取, 客户端 <code>curl</code> 即可), <strong>不依赖 gRPC server-streaming</strong>; §15.7 日志收集重构成 XML 路径注册 + 异步打包 9 接口, 周边模块自治注册. gRPC Unary 保留为变更/推理类 (Infer / ActivateCard / SwitchToAI) 的高性能备路径, 客户端按需切换. 内部 service 增至 7 个. 改 Watch → Poll: §15.1 vNic 通信, §15.2 状态感知时序, §15.3 健康监控, §15.5 Qemu 热插拔, §15.6 维护接口, §15.7 LogCollector tail, §16.3 PreCheck, §16.6 升级上报, §16.7 dctl 任务, §17 HealthService 4 endpoint, §18 部署告警, §24 SwitchController, §25 etcd Watch (基础设施原生, 保留).</p>
+<p><strong>设计版本</strong>: D1 v3.2.3 (~278KB, 12 章节 + 2 附录, 0 audit 问题, 5 子系统 + 6 推理服务子模块 + 3 池化 + 4 卡型 + <strong>18 URL (v3.2.3 +1 健康总览 GetOverallStatus, Pod 隔离无 node_id)</strong> + <strong>22 错误码</strong> + 6 状态机 + 9 时序图 + 6 内部架构图 + 38 SVG). <strong>v3.2.3 关键新增</strong>: §7.4.5 endpoint 5 GetOverallStatus (1 URL 返回本 Pod inference + cards 2 维度聚合, K8s readiness probe / Grafana / dctl card status --all / §11 切换前自检); §4.3 HealthService 完整 protobuf (6 RPC + 10 enum + 15 message, 整合原 §7.5, 去除 ClusterHealth 因为 Pod 隔离); API 1/2/5 三档分清楚 (单卡深度 / 增量事件 / 聚合总览).</p>
+<p>· <strong>v3.2.3 (2026-07-12, 健康总览 URL endpoint 5): §7.4.5 新增 GetOverallStatus (<code>GET vnic://vnic0:50053/health/status?include={inference,cards}</code>, <strong>无 node_id 因为 Pod 隔离</strong>), 1 URL 返回本 Pod 2 维度聚合 (inference + cards, level=worst-of), 内部并发调 §7.1 + 读 state.xml, P99 ≤ 100ms, 单次 ≤ 30KB. 集群拓扑由 §12 PeerHealthPoller 单独管. §4 17 → 18 URL, §4.3 HealthService 完整 protobuf (6 RPC + 10 enum + 15 message, 整合原 §7.5, 去除 ClusterHealth).</strong></p>
 <p>· <strong>v3.2.1 (2026-07-08, 协议修订): 探测/轮询类接口统一 HTTP/1.1 GET + JSON over vNic URL, 5s 间隔, since 增量拉取. 改 Watch → Poll: §15.1 vNic 通信 (HTTP/curl 主路径 + gRPC Unary 备路径, 双协议示例), §15.3 健康监控 (PollHealth 5s), §15.5 Qemu 热插拔, §15.7 LogCollector tail, §16.3 PreCheck, §16.6 升级上报, §16.7 dctl 任务, §17 HealthService 4 endpoint (Check / PollHealth / ReportAlert / GetLogs), §18 部署告警, §24 SwitchController HealthPoll. gRPC Unary 保留为 Infer/ActivateCard/SwitchToAI 高性能备路径. 错误码 16 → 18 (新增 POLL_TIMEOUT / STATE_STALE). 文件 247KB → 264KB.</strong></p>
 <p>· <strong>v3.2.2 (2026-07-08, §15.7 重构): 日志收集从 §15.7 旧版 (4 数据源 tail + GetLogs/Watch/Push 3 接口 + Loki/ES/S3 推送) 重构为 <strong>XML 路径注册 + 异步打包</strong> 9 个新接口. 设计哲学从"实时推送"转向"按需打包下载". XML 配置中心 (/etc/d1/log-collector.xml) 每个 `<node>` 含 filename + src 2 字段, filename = * 表示打包整个目录. 周边模块 (Omtask §16 / dctl §16.7 / SwitchController §24 / AICardManager) 动态注册 path. 对外 1 个 URL 触发打包, 三步流程: Trigger (POST, &lt; 100ms 返回 task_id) → QueryStatus (5s 轮询, percent + eta) → Download (.tar.gz, HTTP Range 断点续传). 7 天 TTL 自动清理. 7 态 9 迁移状态机. 3 张 SVG (活动图 / 时序图 / 节点注册时序图). §17.4 HealthService.GetLogs/Tail 同步下线. 文件 264KB → ~287KB.</strong></p>
 <p><strong>审计</strong>: 0 CRITICAL / 0 MEDIUM / 0 LOW</p>
