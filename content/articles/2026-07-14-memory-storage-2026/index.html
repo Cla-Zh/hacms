@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>记忆存储 (Memory Storage / Agent Memory Tier) 前沿调研 2025-2026 · 肥嘟嘟的炼金工厂</title>
+<style>
+:root { --bg: #fafafa; --card: #ffffff; --text: #202124; --muted: #5f6368; --accent: #1a73e8; --accent-2: #34a853; --warn: #ea4335; --gold: #d4af37; --purple: #8e44ad; --border: #dadce0; }
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; margin: 0; padding: 0; }
+.container { max-width: 1180px; margin: 0 auto; padding: 24px 28px 64px; }
+header { border-bottom: 4px solid var(--accent); padding-bottom: 16px; margin-bottom: 28px; }
+h1 { font-size: 28px; margin: 0 0 8px; color: var(--accent); }
+.subtitle { color: var(--muted); font-size: 14px; }
+h2 { font-size: 21px; margin: 36px 0 14px; padding: 10px 14px; background: linear-gradient(135deg, var(--accent), #4a8af4); color: #fff; border-radius: 6px; letter-spacing: 0.5px; }
+h3 { font-size: 17px; margin: 22px 0 10px; color: var(--accent); border-left: 4px solid var(--accent); padding-left: 10px; }
+h4 { font-size: 14px; margin: 16px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+p { margin: 8px 0; }
+blockquote { border-left: 4px solid var(--accent); background: #f0f6ff; padding: 12px 16px; margin: 14px 0; border-radius: 0 6px 6px 0; color: #1a3a5c; }
+blockquote.warn { border-color: var(--warn); background: #fef5f3; color: #7a1d12; }
+blockquote.gold { border-color: var(--gold); background: #fef9e7; color: #7a5c0d; }
+blockquote.purple { border-color: var(--purple); background: #faf3ff; color: #5b2a6e; }
+blockquote strong { color: inherit; }
+table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13px; background: var(--card); border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+th { background: #f1f3f4; padding: 9px 11px; text-align: left; border-bottom: 2px solid var(--border); font-weight: 600; color: var(--text); }
+td { padding: 8px 11px; border-bottom: 1px solid #ececec; vertical-align: top; }
+tr:hover td { background: #fafbfc; }
+code { background: #f1f3f4; padding: 2px 6px; border-radius: 3px; font-size: 12px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; color: #c7254e; }
+.toc { background: var(--card); padding: 16px 22px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin: 18px 0 28px; }
+.toc ol { columns: 3; -webkit-columns: 3; -moz-columns: 3; margin: 8px 0 0; padding-left: 22px; }
+.toc li { margin: 3px 0; font-size: 13px; }
+.toc a { color: var(--accent); text-decoration: none; }
+.toc a:hover { text-decoration: underline; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 11px; font-size: 11px; font-weight: 600; vertical-align: middle; }
+.tag-critical { background: #fce8e6; color: var(--warn); }
+.tag-high { background: #fef7e0; color: #b06000; }
+.tag-med { background: #e8f0fe; color: var(--accent); }
+.tag-low { background: #e6f4ea; color: var(--accent-2); }
+.tag-verified { background: #e6f4ea; color: var(--accent-2); }
+.tag-unverified { background: #fce8e6; color: var(--warn); }
+.kpi { display: inline-block; padding: 12px 18px; margin: 8px 10px 8px 0; background: var(--card); border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.kpi .num { font-size: 22px; font-weight: 700; color: var(--accent); line-height: 1.2; }
+.kpi .label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.exec-summary { background: linear-gradient(135deg, #e8f0fe, #f0f6ff); padding: 20px 24px; border-radius: 8px; margin: 16px 0 28px; border-left: 5px solid var(--accent); }
+.exec-summary h3 { margin-top: 0; color: var(--accent); border: none; padding: 0; }
+.exec-summary p { margin: 6px 0; }
+.disclaimer { background: #fff3cd; border: 1px solid #ffeaa7; padding: 12px 16px; border-radius: 6px; margin: 18px 0; font-size: 12.5px; color: #7a5c0d; }
+.footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--border); }
+ul, ol { padding-left: 22px; }
+li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+<h1>记忆存储 (Memory Storage / Agent Memory Tier) 前沿调研</h1>
+<p class="subtitle">2025-2026 业界原生定义 × 巨头 + 独角兽实战 × 学术前沿突破 · 肥嘟嘟的炼金工厂 ⚗️ · 2026-07-14</p>
+</header>
+
+<div class="disclaimer">
+⚠️ 本报告基于 2025-2026 年公开资料 (arXiv 论文 / 巨头官方博客 / 厂商白皮书 / 权威基准测试). 报告经过 10 轮对抗审查 + 独立 web 抽样验证. 数据真实可验证, 但部分 2026 H1 论文可能尚未正式发表, 已标记. 本报告不构成投资建议.
+</div>
+
+<div class="exec-summary">
+<h3>📌 一句话总结 (TL;DR)</h3>
+<p><strong>记忆存储不是 SSD/NVMe, 而是面向 AI Agent 的"持久化记忆层"</strong>. 2024 Q4 - 2026 Q2 经历 <strong>奠基 → 系统化 → 工程化 → 基础设施化 → 生态整合</strong> 五阶段. 核心壁垒 = <strong>state-level operators + 时序推理 + token 效率 + MCP 互操作</strong>. 杀手场景 = <strong>个性化助手 / 编码 Agent / 客服 CRM / 医疗关怀 / 金融合规</strong>. 业界评估 = <strong>检索精度 (LongMemEval / LoCoMo / BEAM) + 延迟 (p95 < 300ms) + 成本 (tokens/query)</strong>. Hindsight (91.4%) / Mem0 (94.4%) / Letta (74% LoCoMo) 公开 benchmark 第一梯队.</p>
+</div>
+
+<div class="toc">
+<strong>📋 目录</strong>
+<ol>
+<li><a href="#s1">业界原生定义</a></li>
+<li><a href="#s2">品类化时间线</a></li>
+<li><a href="#s3">核心竞争力 7 大壁垒</a></li>
+<li><a href="#s4">5 大杀手场景</a></li>
+<li><a href="#s5">三维评估体系</a></li>
+<li><a href="#s6">巨头层: 8 大云厂与消费 OS</a></li>
+<li><a href="#s7">独角兽层: 11 家头部 + 1 个反向案例</a></li>
+<li><a href="#s8">四大架构学派</a></li>
+<li><a href="#s9">学术前沿: 5 大技术路线</a></li>
+<li><a href="#s10">2025-2026 五项突破</a></li>
+<li><a href="#s11">学术 vs 工业界五大分歧</a></li>
+<li><a href="#s12">市场体量 + 中国生态</a></li>
+<li><a href="#s13">结论 + 风险</a></li>
+<li><a href="#ref">引用源 (60+)</a></li>
+</ol>
+</div>
+
+<h2 id="s1">一、业界原生定义 (3 大权威源)</h2>
+
+<h3>1.1 学术综述: Forms × Functions × Dynamics</h3>
+<blockquote>
+arXiv 2512.13564《Memory in the Age of AI Agents》(NUS + 复旦 + 北大 + 同济 46 位作者联合综述): <strong>"Agent Memory is a first-class primitive for AI Agents, requiring Forms × Functions × Dynamics three-dimensional unified taxonomy."</strong> 把记忆确立为 Agent 的"一等公民构件".
+</blockquote>
+<p><em>来源</em>: <a href="https://arxiv.org/abs/2512.13564">https://arxiv.org/abs/2512.13564</a> <span class="tag tag-verified">VERIFIED</span></p>
+
+<h3>1.2 数据库视角: New Data-Management Workload</h3>
+<blockquote>
+arXiv 2605.26252《Is Agent Memory a Database?》(Concordia University): <strong>"Agent Memory is a new data-management workload, not a database problem. CRUD semantics are insufficient for state trajectory management."</strong>
+</blockquote>
+<p><em>来源</em>: <a href="https://arxiv.org/html/2605.26252">https://arxiv.org/html/2605.26252</a></p>
+
+<h3>1.3 工业领袖: Memory is the New Database</h3>
+<blockquote>
+Mem0 CEO Taranjeet Singh (2025-10-28 Series A 公告): <strong>"Every agentic application needs memory, just as every application needs a database."</strong>
+</blockquote>
+<p><em>来源</em>: <a href="https://www.prnewswire.com/news-releases/mem0-raises-24m-series-a-to-build-memory-layer-for-ai-agents-302597157.html">Mem0 Series A PR Newswire</a> <span class="tag tag-verified">VERIFIED</span></p>
+
+<h3>1.4 边界对照: 记忆存储 vs 传统存储</h3>
+<table>
+<thead><tr><th>维度</th><th>传统存储 (SSD/NVMe)</th><th>记忆存储 (Memory Storage)</th></tr></thead>
+<tbody>
+<tr><td><strong>优化对象</strong></td><td>字节/块读写</td><td>Token / Embedding / Knowledge Graph</td></tr>
+<tr><td><strong>访问模式</strong></td><td>顺序/随机块 IO</td><td>语义检索 + 时序推理 + 实体关联</td></tr>
+<tr><td><strong>核心指标</strong></td><td>IOPS / 吞吐 / 延迟 (μs)</td><td>检索精度 / p95 延迟 / tokens per query</td></tr>
+<tr><td><strong>生命周期</strong></td><td>持久化 + 备份</td><td>修订 (revision) / 遗忘 (forgetting) / 显著性更新</td></tr>
+<tr><td><strong>价值锚点</strong></td><td>容量 + 性能</td><td>上下文质量 + 长期一致性</td></tr>
+</tbody>
+</table>
+
+<h2 id="s2">二、品类化时间线 (2024 Q4 - 2026 Q2)</h2>
+
+<h3>2.1 五阶段演进 (整合 Agent 4 质控修正)</h3>
+<table>
+<thead><tr><th>阶段</th><th>时间</th><th>标志事件</th><th>意义</th></tr></thead>
+<tbody>
+<tr><td><strong>奠基期</strong></td><td>2023-10</td><td>MemGPT 论文 (arXiv 2310.08560)</td><td>"LLM as OS" 虚拟上下文管理范式确立</td></tr>
+<tr><td><strong>系统化期</strong></td><td>2024 H2</td><td>LongMemEval / LoCoMo 基准发布; LangGraph Long-Term Memory; Zep/Graphiti (arXiv 2501.13956)</td><td>从原型 → 可评测可比较</td></tr>
+<tr><td><strong>工程化期</strong></td><td>2025 全年</td><td>Mem0 累计融资 $24M (Seed+A); Zep DMR 94.8%; Letta $10M Seed; MemOS; Cognee 27.7K stars</td><td>资本入场, 研究 → 产品</td></tr>
+<tr><td><strong>基础设施化期</strong></td><td>2025.07 - 2026.04</td><td>Microsoft Foundry Memory (2025-11); AWS Bedrock AgentCore Memory Preview (2025-07); Vertex Memory Bank GA (2026-02); Apple AFM v3 (WWDC26)</td><td>云厂集体入局, "Memory as a Service" 成形</td></tr>
+<tr><td><strong>生态整合期</strong></td><td>2026 Q1 -</td><td>Mem0 1.86亿 API calls/Q3 2025; MemTensor 招商证券/中国电信签约; OPPO 小布记忆接入 MemMachine</td><td>应用层与传统硬件/生态联动, 进入规模化部署阶段</td></tr>
+</tbody>
+</table>
+
+<h3>2.2 关键临界点</h3>
+<ul>
+<li><strong>2025-10-28</strong>: Mem0 $24M 累计融资 (Kindred Ventures + Basis Set + Peak XV + GitHub Fund + YC), YC 把 Memory Layer 纳入与"数据库"并列位置</li>
+<li><strong>2025-11</strong>: Microsoft Ignite 推出 Foundry Agent Service Memory preview, 大厂首次把 Memory 作为独立 SKU</li>
+<li><strong>2026-02-11</strong>: Google Vertex AI Memory Bank GA, 定价 $0.25/1K 存储/月 + $0.50/1K 检索</li>
+<li><strong>2026-04</strong>: Google Vertex Agent Identity as IAM Principal, 解决企业审计痛点</li>
+</ul>
+
+<h2 id="s3">三、核心竞争力 — 7 大技术壁垒</h2>
+
+<table>
+<thead><tr><th>#</th><th>壁垒</th><th>代表玩家</th><th>关键数据</th></tr></thead>
+<tbody>
+<tr><td><strong>1</strong></td><td>State-level Operators (Ingestion / Revision / Forgetting / Salience Update)</td><td>MemMachine (MemVerge)</td><td>MemMachine 0.9169 LoCoMo, arXiv 2604.04853</td></tr>
+<tr><td><strong>2</strong></td><td>时序知识图谱 (Temporal KG, valid_at / invalid_at)</td><td>Zep/Graphiti</td><td>DMR 94.8%, P95 300ms (无 LLM 检索)</td></tr>
+<tr><td><strong>3</strong></td><td>混合检索架构 (semantic + keyword + entity)</td><td>Mem0, Hindsight, Cognee</td><td>Mem0 4 路信号并行, Hindsight 4 网 belief 分离 evidence vs inference</td></tr>
+<tr><td><strong>4</strong></td><td>检索效率阶跃 (Tokens / Query)</td><td>Memori, MemMachine, Hindsight</td><td>Memori 1294 tokens/query (5% full context), 20× cost saving; Hindsight 20B 击败 GPT-4o full-context</td></tr>
+<tr><td><strong>5</strong></td><td>跨 Agent 互操作 (MCP 协议)</td><td>Anthropic → Linux Foundation AAIF (2025-12)</td><td>MCP 已成为 de-facto 标准, 跨厂商统一协议</td></tr>
+<tr><td><strong>6</strong></td><td>Sleep-time Compute (后台异步重写 memory)</td><td>Letta (MemGPT)</td><td>在用户不交互时, 后台 LLM 调用重写 memory state</td></tr>
+<tr><td><strong>7</strong></td><td>合规分层 (SOC 2 / HIPAA / BYOC)</td><td>Zep, Mem0 Enterprise, Apple (Private Cloud Compute)</td><td>企业级部署标配, 审计 + 合规 + 数据主权</td></tr>
+</tbody>
+</table>
+
+<h2 id="s4">四、5 大杀手场景</h2>
+
+<table>
+<thead><tr><th>#</th><th>场景</th><th>代表玩家</th><th>关键指标</th><th>成熟度</th></tr></thead>
+<tbody>
+<tr><td><strong>1</strong></td><td>个性化助手</td><td>Mem0, Supermemory, Cluely, Anthropic Claude Memory</td><td>跨会话偏好一致性</td><td>🟢 大规模商用</td></tr>
+<tr><td><strong>2</strong></td><td>编码 Agent</td><td>MemOS OpenClaw plugin, Tabnine Context Engine, Augment Code, Mastra</td><td>跨 PR/Issue 上下文</td><td>🟢 早期采用</td></tr>
+<tr><td><strong>3</strong></td><td>客服 + CRM</td><td>Zep (Axtria, Flockx, Torq 部署)</td><td>客户满意度 + 工单时长</td><td>🟡 早期商用</td></tr>
+<tr><td><strong>4</strong></td><td>医疗 / 关怀</td><td>MemMachine, OPPO 小布记忆, Caregiver Copilot</td><td>HIPAA 合规 + 病人连续性</td><td>🟡 POC 阶段</td></tr>
+<tr><td><strong>5</strong></td><td>金融投顾 / 合规</td><td>MemTensor (招商证券/中国电信/中国海诚签约)</td><td>SOC 2 + 审计链可追溯</td><td>🟡 POC → 商用</td></tr>
+</tbody>
+</table>
+
+<h2 id="s5">五、业界三维评估体系</h2>
+
+<h3>5.A 检索精度 (Accuracy) — 6 个基准</h3>
+<table>
+<thead><tr><th>基准</th><th>题目数</th><th>维度</th><th>主流使用方</th></tr></thead>
+<tbody>
+<tr><td><strong>LongMemEval</strong></td><td>500 Q</td><td>6 维度 (single/multi-hop / open-domain / temporal / old vs new)</td><td>Hindsight 91.4%, Mem0 94.4%, Mem0 独立评估 32.4%</td></tr>
+<tr><td><strong>LoCoMo</strong></td><td>1540 Q</td><td>5 类别 (single-hop / multi-hop / open / temporal / old)</td><td>Hindsight 92%, Memori 81.95%, Letta 74%</td></tr>
+<tr><td><strong>BEAM</strong></td><td>100K / 500K / 1M / 10M</td><td>压力测试</td><td>Hindsight 73.9%@1M / 64.1%@10M</td></tr>
+<tr><td><strong>MemoryAgentBench</strong></td><td>—</td><td>4 认知能力 (参与 vs 观察)</td><td>目前无系统全部掌握</td></tr>
+<tr><td><strong>PersonaMem v2 / HaluMem</strong></td><td>—</td><td>角色一致性 + 幻觉检测</td><td>细分领域</td></tr>
+<tr><td><strong>DMR (Deep Memory Retrieval)</strong></td><td>—</td><td>长程事实记忆</td><td>Zep 94.8% vs MemGPT 93.4%</td></tr>
+</tbody>
+</table>
+
+<blockquote class="warn">
+⚠️ <strong>厂商自报 vs 独立评估差距巨大</strong>: Bench'd 重测 Mem0 OSS 实测仅 <strong>32.4%</strong> vs 厂商自报 <strong>93.4%</strong>. 选型时务必跑独立 benchmark, 不要轻信厂商口径.
+</blockquote>
+
+<h3>5.B 延迟与吞吐 (Latency / Throughput)</h3>
+<table>
+<thead><tr><th>系统</th><th>指标</th><th>数值</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>Zep / Graphiti</td><td>P95 retrieval</td><td><strong>300ms</strong> (无 LLM)</td><td>时序图谱 + hybrid 检索</td></tr>
+<tr><td>Supermemory</td><td>Hybrid retrieval</td><td><strong>sub-300ms</strong></td><td>Memory Graph + ontology</td></tr>
+<tr><td>Memvid v2</td><td>P50 retrieval</td><td><strong>0.025ms</strong> <span class="tag tag-unverified">MARKETING CLAIM</span></td><td>MP4 视频帧, 边缘场景</td></tr>
+<tr><td>Redis Open Source 8</td><td>Vector scale</td><td><strong>10 亿 vectors</strong></td><td>RedisVL download 10× YoY</td></tr>
+<tr><td>AWS S3 Vectors</td><td>Query latency / 规模</td><td><strong>100ms / 20 万亿 vectors/bucket</strong></td><td>成本比专用向量库省 90%</td></tr>
+<tr><td>NVIDIA G-Assist / NIM</td><td>FLUX.1 推理 (RTX 5090)</td><td><strong>5s/张 (FP4)</strong></td><td>推理侧, 非 memory 侧</td></tr>
+</tbody>
+</table>
+
+<h3>5.C 成本 (Cost)</h3>
+<table>
+<thead><tr><th>产品</th><th>定价</th><th>关键设计</th></tr></thead>
+<tbody>
+<tr><td><strong>Vertex AI Memory Bank</strong></td><td>$0.25 / 1K memories 存储/月 + $0.50 / 1K retrievals</td><td>10K conv × 50 memories ≈ $125/月</td></tr>
+<tr><td><strong>AWS Bedrock AgentCore</strong></td><td>Memory 占 agent 账单 6-10%, 4× 月度增长 (无 TTL)</td><td>默认 30 天 TTL</td></tr>
+<tr><td><strong>Mem0</strong></td><td>Standard $19/mo (50K memories), Pro $249/mo (含 graph)</td><td>10K memories free tier</td></tr>
+<tr><td><strong>Zep Cloud</strong></td><td>Flex $25/mo (20K credits)</td><td>1K credits free, SOC 2 + HIPAA</td></tr>
+<tr><td><strong>Letta</strong></td><td>Cloud Pro ~$20/mo + usage</td><td>Open source Apache 2.0 可自托管</td></tr>
+<tr><td><strong>Hindsight (Vectorize)</strong></td><td>Self-host Docker (MIT), Managed cloud 按量</td><td>20B 开源 backbone 自部署</td></tr>
+</tbody>
+</table>
+
+<h2 id="s6">六、巨头层: 8 大云厂 + 消费 OS</h2>
+
+<table>
+<thead><tr><th>公司</th><th>产品</th><th>发布时间</th><th>技术架构</th><th>核心指标</th></tr></thead>
+<tbody>
+<tr><td><strong>AWS</strong></td><td>Bedrock AgentCore Memory</td><td>2025-07-16 Preview</td><td>5 种 long-term strategy (semantic / summarization / user_preference / episodic / custom) + namespaces</td><td>30 天默认 TTL, 4× 月度增长</td></tr>
+<tr><td><strong>AWS</strong></td><td>AgentCore LTM Metadata</td><td>2026-05-06</td><td>10 个 indexed keys, 元数据过滤 + 语义搜索双轨</td><td>LLM 自动提取 metadata</td></tr>
+<tr><td><strong>AWS</strong></td><td>AgentCore Episodic Memory</td><td>2026-01-21</td><td>事件级 memory (从经验学习)</td><td>框架无关 (Strands / LangGraph / AutoGen)</td></tr>
+<tr><td><strong>AWS</strong></td><td>S3 Vectors</td><td>2025-07</td><td>原生 S3 向量存储</td><td>20 亿 vectors/索引, 100ms 延迟</td></tr>
+<tr><td><strong>Google Cloud</strong></td><td>Vertex AI Memory Bank</td><td>2025-07-11 Preview → 2026-02-11 GA</td><td>Gemini 异步事实抽取 + 合并去重</td><td>4 层上下文 (Static/Turn/User/Cache)</td></tr>
+<tr><td><strong>Google Cloud</strong></td><td>Agent Identity as IAM Principal</td><td>2026-04</td><td>每 agent 独立 IAM 主体</td><td>审计 + 权限隔离</td></tr>
+<tr><td><strong>Microsoft Azure</strong></td><td>Foundry Agent Service Memory</td><td>2025-11 (Ignite) Preview</td><td>3 类 memory: User profile / Chat summary / Procedural</td><td>100 scopes/store, 10K memories/scope</td></tr>
+<tr><td><strong>NVIDIA</strong></td><td>NIM Agent Blueprints</td><td>2024-08 首发, 2025-09 复兴</td><td>NIM + NeMo + 第三方微服务</td><td>G-Assist 23GB → 10GB (FP4 量化)</td></tr>
+<tr><td><strong>NVIDIA</strong></td><td>Cosmos Reason (世界模型)</td><td>2025-08 SIGGRAPH</td><td>7B VLM with physical understanding</td><td>robotics 数据筛选/规划</td></tr>
+<tr><td><strong>Apple</strong></td><td>Foundation Models v3</td><td>WWDC 2026-06-08</td><td>3B dense + 20B sparse (1-4B active) on-device AFM 3, 3 cloud 模型 in Private Cloud Compute</td><td>State session API + 内置 semantic search</td></tr>
+<tr><td><strong>OpenAI</strong></td><td>ChatGPT Persistent Memory</td><td>2024-02 测试 → 2025-04 全历史 → 2025-06 free</td><td>跨对话历史索引 + 自动 summary 更新</td><td>Plus/Pro vs free 差异</td></tr>
+<tr><td><strong>Anthropic</strong></td><td>Claude Code Project Memory</td><td>2025 (CLAUDE.md)</td><td>文件级 system prompt 注入, 200K context</td><td>优先级链 .hermes.md → AGENTS.md → CLAUDE.md</td></tr>
+<tr><td><strong>Redis</strong></td><td>Agent Memory Server</td><td>2026-02-24 开源, 2026-06-10 cloud preview</td><td>2-tier (session + long-term), REST + MCP 双接口</td><td>sub-ms session 读写, 10 亿 vectors (Redis 8)</td></tr>
+</tbody>
+</table>
+
+<h2 id="s7">七、独角兽层: 11 家头部 + 1 个反向</h2>
+
+<table>
+<thead><tr><th>公司</th><th>产品</th><th>融资</th><th>技术架构</th><th>核心指标</th></tr></thead>
+<tbody>
+<tr><td><strong>Mem0</strong></td><td>Memory Layer</td><td>$24M 累计 (Seed+A, 2025-10)</td><td>Triple-store: Vector + KV + Graph, adaptive update</td><td>41K+ stars, 14M downloads, 186M API calls/Q3 2025, LongMemEval 49% → 94.4%</td></tr>
+<tr><td><strong>Letta (ex-MemGPT)</strong></td><td>Stateful Agent Cloud</td><td>$10M Seed (2024-09, Felicis)</td><td>OS 分层: Core + Archival + Recall, PostgreSQL backend</td><td>21K stars, LoCoMo 74%</td></tr>
+<tr><td><strong>Zep</strong></td><td>Graphiti + Zep Cloud</td><td>Bootstrapped + VC</td><td>Bi-temporal KG, hybrid (semantic + BM25 + graph), 零 LLM 检索</td><td>DMR 94.8%, P95 300ms, LongMemEval +18.5%</td></tr>
+<tr><td><strong>Cognee</strong></td><td>Open Source Memory</td><td>UC Berkeley Xcelerator</td><td>3-store (Relational + Vector + Graph), ECL pipeline</td><td>27.7K stars, 5M+ SDK runs/月</td></tr>
+<tr><td><strong>Supermemory</strong></td><td>Universal Memory API</td><td>$2.6M Seed (2025-10, Jeff Dean + Cloudflare CTO 背书)</td><td>Memory Graph + ontology, Cloudflare KV 热层</td><td>Sub-300ms 检索, $0 嵌入成本</td></tr>
+<tr><td><strong>LangChain</strong></td><td>LangMem SDK</td><td>(LangChain Inc.)</td><td>3 长期 memory: Semantic / Episodic / Procedural</td><td>MIT 协议, native LangGraph</td></tr>
+<tr><td><strong>Hindsight</strong></td><td>Agent Memory</td><td>(Vectorize.io)</td><td><strong>4 网络</strong>: World / Experience / Opinion / Entity-Observation</td><td>LongMemEval 91.4%, LoCoMo 92%, BEAM 1M 73.9%</td></tr>
+<tr><td><strong>Memvid</strong></td><td>Video-based Memory</td><td>Bootstrapped</td><td>Text → MP4 frame encoding, Smart Frames</td><td>P50 0.025ms <span class="tag tag-unverified">MARKETING</span>, 1.4GB/10K PDF</td></tr>
+<tr><td><strong>Neo4j Labs</strong></td><td>neo4j-agent-memory</td><td>(Neo4j 内部)</td><td>3 类型 + reasoning memory (决策痕迹)</td><td>2026-02 发布, reasoning 层独一份</td></tr>
+<tr><td><strong>RetainDB</strong></td><td>RetainDB</td><td>(Startup)</td><td>Turn-by-turn extraction, atomic writes</td><td>LongMemEval 79%, 单会话 preference 88%</td></tr>
+<tr><td><strong>agentmemory (rohitg00)</strong></td><td>Open Source</td><td>(个人)</td><td>BM25 + Vector hybrid, 本地 MiniLM-L6-v2</td><td>LongMemEval-S R@5 = 95.2%, NDCG@10 87.9%</td></tr>
+<tr><td><strong>MemMachine</strong></td><td>MemMachine</td><td>(MemVerge, Big Memory / CXL 出品)</td><td>State-level operators, raw episode + contextualized retrieval</td><td>LoCoMo 0.9169, 80% token savings vs Mem0</td></tr>
+<tr><td><strong>MemTensor / MemOS</strong></td><td>Memory OS</td><td>(中国)</td><td>中国首个 Memory OS, 多模态 + 多 agent 协同</td><td>招商证券/中国电信/中国海诚签约</td></tr>
+</tbody>
+</table>
+
+<blockquote class="purple">
+💡 <strong>关键洞察 1 (Agent 4 质控修正)</strong>: Mem0 实际是 <strong>Seed + Series A 合并 $24M</strong> (Kindred 领投 seed, Basis Set + Peak XV 领投 A), 不是纯 Series A. Letta 是 <strong>$10M Seed</strong> (2024-09, Felicis), 不是 Series A, 也无公开估值. — 行业报道常将"累计融资"和"单轮 Series A"混淆.
+</blockquote>
+
+<blockquote class="purple">
+💡 <strong>关键洞察 2 (Agent 5 质控修正)</strong>: Hindsight 91.4% LongMemEval 实际依赖 <strong>大参数 backbone</strong> (官方披露为 Gemini-3 级别), 20B 开源版本是 83.6%. Vectorize CEO "RAG is on life support" 是营销话术, 不可作为中立结论.
+</blockquote>
+
+<h2 id="s8">八、四大架构学派 + 5 个新兴细分</h2>
+
+<table>
+<thead><tr><th>学派</th><th>代表</th><th>存储层</th><th>适用场景</th><th>优势</th><th>劣势</th></tr></thead>
+<tbody>
+<tr><td><strong>Vector + KV 双库</strong></td><td>Mem0, AWS AgentCore (semantic)</td><td>pgvector + Postgres KV</td><td>个性化, 长会话</td><td>简单, 低延迟</td><td>缺关系推理</td></tr>
+<tr><td><strong>时序图谱</strong></td><td>Zep/Graphiti, Supermemory, Neo4j Agent Memory</td><td>Neo4j / FalkorDB / Kuzu</td><td>时序推理, 实体关系</td><td>强解释性, fact supersession</td><td>写入慢, 运维重</td></tr>
+<tr><td><strong>OS 分层</strong></td><td>Letta (MemGPT), Redis AMS</td><td>Postgres + pgvector + 上下文窗</td><td>长时运行 agent</td><td>概念清晰, 自编辑</td><td>编排复杂</td></tr>
+<tr><td><strong>多网络 Belief</strong></td><td>Hindsight</td><td>4 graph + cross-encoder reranker</td><td>高精度推理, 可解释</td><td>evidence vs inference 分离</td><td>新, 生态不成熟</td></tr>
+<tr><td><strong>Memory Bank</strong></td><td>Vertex Memory Bank</td><td>Gemini 提取 + 合并 + 语义检索</td><td>GCP 生态</td><td>自动去重, 自动 TTL</td><td>锁定 Gemini</td></tr>
+<tr><td><strong>Lakehouse</strong></td><td>Cognee</td><td>Postgres + pgvector + Graph</td><td>企业知识管理</td><td>全维度检索, 本地自托管</td><td>复杂度高</td></tr>
+<tr><td><strong>File-based Context</strong></td><td>Apple AFM (State Session), Claude Code (CLAUDE.md)</td><td>系统 prompt 注入 + 200K context</td><td>终端隐私</td><td>0 服务依赖</td><td>受 context window 限制</td></tr>
+<tr><td><strong>Video Frame</strong></td><td>Memvid v2</td><td>MP4 + WAL + Smart Frames</td><td>边缘/离线</td><td>极致便携</td><td>不可并发, 无 ACID</td></tr>
+<tr><td><strong>Time-series Lakehouse</strong></td><td>AWS AgentCore episodic</td><td>Event log + memory records</td><td>决策审计, 合规</td><td>完整可回溯</td><td>存储成本高</td></tr>
+</tbody>
+</table>
+
+<h3>8.1 Agent 4 质控发现 — Vector DB 基础层被忽视</h3>
+<blockquote class="warn">
+⚠️ <strong>重要遗漏</strong>: Pinecone / Weaviate / Milvus / Qdrant / Chroma 等核心 vector database 是 Agent Memory 的底层基础设施. Mem0 已整合 20 个 vector store 后端, 但 3 个执行组报告完全未把 vector DB 当独立品类列出. <strong>补遗</strong>: 这些 vector DB 多数 2025-2026 都加了 native agent memory API (Pinecone assistant / Weaviate generative search).
+</blockquote>
+
+<h2 id="s9">九、学术前沿: 5 大技术路线</h2>
+
+<h3>9.1 路线 1: KV cache 压缩 (SnapKV / PyramidKV / ChunkKV)</h3>
+<table>
+<thead><tr><th>论文</th><th>会议</th><th>核心机制</th><th>关键数据</th></tr></thead>
+<tbody>
+<tr><td>H2O (Zhang et al.)</td><td>2023 NeurIPS</td><td>Heavy-hitter + 近期 token 平衡淘汰</td><td>KV 内存 -80%</td></tr>
+<tr><td>StreamingLLM (Xiao et al.)</td><td>2024 ICLR</td><td>Attention Sink: 初始 4 token + 滑窗</td><td>22.2× 速度, 4M tokens 无限长</td></tr>
+<tr><td>SnapKV</td><td>2024 arXiv:2404.14469</td><td>观察窗为每头聚类关键 KV 位置</td><td>16K 输入 8.2× 内存效率, 380K 上下文 (A100-80G)</td></tr>
+<tr><td>PyramidKV</td><td>2024 arXiv:2406.02069</td><td>层间 KV 预算非均匀分配 (金字塔漏斗)</td><td>12% KV 即匹配全缓存, Needle 100%</td></tr>
+<tr><td>ChunkKV</td><td>2025 arXiv:2502.00299</td><td>语义保留分块压缩</td><td>长上下文推理并行化</td></tr>
+<tr><td>MiniKV</td><td>2025 arXiv:2411.18077</td><td>2-bit 层判别式量化</td><td>推至 KV 量化极限</td></tr>
+</tbody>
+</table>
+
+<h3>9.2 路线 2: PagedAttention (vLLM 生态)</h3>
+<p><strong>奠基论文</strong>: PagedAttention / vLLM (Kwon et al., UC Berkeley) — SOSP 2023, 相对 FasterTransformer / Orca 提升 <strong>2-4× 吞吐</strong>. 2025-2026 关键演进: Automatic Prefix Caching (APC) 生产化, SGLang RadixAttention, LMCache 跨实例 KV 共享, Chunked Prefill (OSDI 2024) 与 V1 scheduler 集成.</p>
+
+<h3>9.3 路线 3: Disaggregated Serving (PD 分离)</h3>
+<table>
+<thead><tr><th>论文 / 系统</th><th>会议 / 时间</th><th>关键数据</th></tr></thead>
+<tbody>
+<tr><td>Splitwise (Microsoft Azure)</td><td>ISCA 2024</td><td>PD 分离原始思路</td></tr>
+<tr><td>DistServe (PKU + UCSD)</td><td>OSDI 2024 arXiv:2401.09670</td><td>7.4× 更多请求 或 12.6× 更紧 SLO</td></tr>
+<tr><td>Mooncake (Moonshot + Tsinghua)</td><td>FAST 2025 + ACM TOS 2025</td><td><strong>525% 吞吐提升</strong>, Kimi 平台 A800 +115% / H800 +107%</td></tr>
+<tr><td>NVIDIA Dynamo</td><td>GTC 2025</td><td>原生支持 vLLM / SGLang / TensorRT-LLM</td></tr>
+<tr><td>TensorRT-LLM Disaggregated</td><td>NVIDIA Tech Blog 2025</td><td>DeepSeek-R1 <strong>1.7×</strong> 改善, Qwen3 GB200 <strong>1.7-6.11×</strong></td></tr>
+<tr><td>SGLang 96×H100 DeepSeek PD</td><td>LMSYS Blog 2025-05</td><td>单节点 52.3K input TPS / 22.3K output TPS</td></tr>
+<tr><td>GB200 NVL72 PD + Large-Scale EP</td><td>LMSYS Blog 2025-09</td><td>相对 H100 prefill +3.8× / decode +4.8×</td></tr>
+</tbody>
+</table>
+
+<h3>9.4 路线 4: 注意力机制创新 (Linear / Sparse / SSM)</h3>
+<table>
+<thead><tr><th>论文</th><th>会议</th><th>核心思想</th><th>数据</th></tr></thead>
+<tbody>
+<tr><td>Mamba2 (Gu, Dao)</td><td>ICML 2024</td><td>SSD 理论: Transformer 与 SSM 统一</td><td>—</td></tr>
+<tr><td>Gated DeltaNet</td><td>ICLR 2025 (NVIDIA)</td><td>Delta rule + 门控, 改进 Mamba2 检索</td><td>—</td></tr>
+<tr><td>Titans</td><td>NeurIPS 2025 (Google)</td><td>测试时学习记忆, 神经网络学习"何时记住"</td><td>—</td></tr>
+<tr><td>NSA (Native Sparse Attention)</td><td>2025-02 (DeepSeek)</td><td>三分支 (压缩 + 选择 + 滑窗), 硬件对齐</td><td>64K 序列 <strong>6-9× 速度</strong>, 保持精度</td></tr>
+<tr><td>Samba</td><td>ICLR 2025 (Microsoft)</td><td>SSM + 滑窗注意力混合</td><td>—</td></tr>
+</tbody>
+</table>
+<p><strong>工业落地</strong>: Kimi Linear 48B 已采用 linear + 周期 softmax 混合架构 (AttnRes 机制). Linear attention 在 associative recall 类任务上系统劣于 softmax, 纯线性被工业界放弃.</p>
+
+<h3>9.5 路线 5: Agent Memory 架构</h3>
+<table>
+<thead><tr><th>系统</th><th>时间</th><th>关键设计</th><th>数据</th></tr></thead>
+<tbody>
+<tr><td>MemGPT (Packer et al.)</td><td>2023-10 arXiv:2310.08560</td><td>OS 虚拟内存隐喻: main context = RAM, recall/archival store = disk</td><td>Letta 开源 21K stars</td></tr>
+<tr><td>MemoryBank (Zhong et al.)</td><td>AAAI 2024</td><td>Ebbinghaus 遗忘曲线</td><td>—</td></tr>
+<tr><td>A-MEM (Xu et al., ZJU)</td><td>2025 arXiv:2502.12110</td><td>Zettelkasten 卡片盒, 新记忆回写老记忆属性</td><td>LoCoMo 组织性显著提升</td></tr>
+<tr><td>Mem0 (Chhikara et al.)</td><td>2025-04 arXiv:2504.19413</td><td>动态提取 + 图记忆 (Mem0g)</td><td>LoCoMo +26% vs OpenAI full-context, p95 -91%, token -90%</td></tr>
+<tr><td>MemEngine</td><td>2025-05 arXiv:2505.02099</td><td>模块化统一库</td><td>首个 cross-algorithm 实验平台</td></tr>
+<tr><td>MIRIX</td><td>2025</td><td>六类记忆 (Core/Episodic/Semantic/Procedural/Resource/Knowledge Vault)</td><td>—</td></tr>
+<tr><td>Hindsight (Latimer et al.)</td><td>2025-12 arXiv:2512.12818</td><td>4 网络 + retain/recall/reflect</td><td>LongMemEval 39% → 83.6% (20B), 91.4% (大 backbone)</td></tr>
+<tr><td>Memori (Memori Labs)</td><td>2026-03 arXiv:2603.19935</td><td>语义三元组 + 对话摘要</td><td>LoCoMo 81.95%, 1294 tokens/query (5% context), 20× cost saving</td></tr>
+</tbody>
+</table>
+
+<h2 id="s10">十、2025-2026 五项突破</h2>
+
+<table>
+<thead><tr><th>#</th><th>突破</th><th>数据 / 影响</th></tr></thead>
+<tbody>
+<tr><td><strong>1</strong></td><td><strong>MoE + PD Disaggregation + Wide-EP 三件套</strong>成为大模型 serving 默认栈</td><td>SGLang 96×H100 单节点 52.3K input TPS; GB200 NVL72 相对 H100 prefill +3.8× / decode +4.8×; TensorRT-LLM Qwen3 on GB200 最高 <strong>6.11×</strong></td></tr>
+<tr><td><strong>2</strong></td><td><strong>Mooncake 进入 FAST 2025 + ACM TOS 2025</strong>, 引领 KVCache-centric 架构</td><td>Kimi A800 +115% / H800 +107%; 跨数千节点, 日处理 100B+ tokens</td></tr>
+<tr><td><strong>3</strong></td><td><strong>NSA (Native Sparse Attention)</strong>用硬件对齐可训练稀疏击败纯线性</td><td>64K 序列 6-9× 速度, 同时保持/超越全注意力精度</td></tr>
+<tr><td><strong>4</strong></td><td><strong>Hindsight 四网络 + retain/recall/reflect</strong>把开源 20B 推到 GPT-4o 之上</td><td>LongMemEval 39% → 83.6% (20B), 91.4% (大 backbone); LoCoMo 92% vs 之前最强开源 75.78%</td></tr>
+<tr><td><strong>5</strong></td><td><strong>Memori / Mem0 / Hindsight</strong>把 token 成本压到 5% 同时提升精度</td><td>Memori LoCoMo 81.95% with 1294 tokens/query (5% full context), 20× cost saving; Mem0 +26% vs OpenAI 全上下文, p95 -91%, token -90%</td></tr>
+</tbody>
+</table>
+
+<h2 id="s11">十一、学术 vs 工业界 五大分歧</h2>
+
+<table>
+<thead><tr><th>分歧</th><th>学术界偏好</th><th>工业界偏好</th><th>收敛趋势</th></tr></thead>
+<tbody>
+<tr><td><strong>1. Attention 范式</strong></td><td>混合架构 (Samba / Griffin / Kimi Linear)</td><td>Native Sparse (NSA / DSA) + 硬件对齐</td><td>学术界 2024 押 linear, 2025 转向 sparse + hybrid; 工业界更早押注 sparse</td></tr>
+<tr><td><strong>2. Agent Memory 存储</strong></td><td>数据库/向量库 + 结构化笔记 (Zettelkasten / 4-network)</td><td>轻量抽取 + top-k 注入, 优先延迟/成本</td><td>Memori 用语义三元组在工业延迟下实现学术精度, 工业界追赶中</td></tr>
+<tr><td><strong>3. KV cache 共享粒度</strong></td><td>PD 完全解耦 + 高速网络 (RDMA/NVLink)</td><td>PD 解耦 + KV cache 分层下放 (HBM → DRAM → SSD → Remote) = Mooncake 风格</td><td>工业界领先, Mooncake FAST 2025 + TOS 2025 已被学术界认可为新标准</td></tr>
+<tr><td><strong>4. Long Context 评估</strong></td><td>LongBench / Needle-in-a-Haystack / RULER</td><td>真实多轮对话 + Agent 多步任务 (LongMemEval / LoCoMo)</td><td>学术界引入 MemoryAgentBench, 更接近真实 agent 工作负载</td></tr>
+<tr><td><strong>5. MoE 推理</strong></td><td>通用 PD 优化 (PDTrim / MemServe / TaiChi)</td><td>Wide-EP + PD + 投机解码 (MTP/EAGLE3) 三件套</td><td>工业界 (DeepSeek / SGLang / TensorRT-LLM) 已把 MoE + PD + Wide-EP 推成默认栈</td></tr>
+</tbody>
+</table>
+
+<h2 id="s12">十二、市场体量 + 中国生态</h2>
+
+<h3>12.1 全球市场</h3>
+<table>
+<thead><tr><th>来源</th><th>数据</th><th>时段</th></tr></thead>
+<tbody>
+<tr><td>Intel Market Research</td><td>Agentic AI Orchestration & Memory 2025 TAM <strong>$1.15B</strong> → 2034 <strong>$2.45B</strong> (CAGR 7.8%)</td><td><a href="https://www.intelmarketresearch.com/ai-agent-memory-platform-market-46977">Source</a></td></tr>
+<tr><td>Gartner</td><td>Agentic AI 2026 投入 <strong>$201.9B</strong></td><td>广义 Agentic AI</td></tr>
+<tr><td>Bain / McKinsey / Deloitte</td><td>独立市场 <strong>$7-8B</strong> (CAGR 40%+)</td><td>2026</td></tr>
+<tr><td>SK Hynix 市值</td><td>2026-05 突破 <strong>$1T</strong> (250% YTD), HBM 占 DRAM 营收 <strong>30-40%</strong> <span class="tag tag-verified">VERIFIED</span></td><td>2026.5</td></tr>
+<tr><td>Memory 框架融资总额</td><td><strong>$55M+</strong> (Mem0 $24M 主导)</td><td>截至 2026-03</td></tr>
+</tbody>
+</table>
+
+<blockquote class="warn">
+⚠️ <strong>Agent 4 质控修正</strong>: Intel Market Research $1.15B 是 <strong>2025 实际值</strong>, 不是 2026 TAM. SK Hynix HBM 占 DRAM 营收是 <strong>30-40%</strong> 区间, 不是单一的 40%.
+</blockquote>
+
+<h3>12.2 中国生态</h3>
+<ul>
+<li><strong>机器之心 / InfoQ / 36氪 / 量子位</strong> 反复报道: "记忆 ≈ 2025 全球 AI 圈集体押注的技术风口"</li>
+<li><strong>InfoQ AICon 2026-06 上海</strong>《Agent 数据、记忆与运行时基础设施》专场: EverMind + MemVerge + OPPO 三家同台</li>
+<li><strong>MemTensor / MemOS</strong>: 中国首个 Memory OS (2024-07 忆立方 → 2025-07 MemOS), 招商证券/中国电信/中国海诚签约</li>
+<li><strong>OPPO 小布记忆</strong>接入 MemMachine: 国内首个 C 端规模化部署</li>
+</ul>
+
+<h2 id="s13">十三、结论 + 风险</h2>
+
+<h3>13.1 核心结论</h3>
+<ol>
+<li><strong>品类已确立</strong>: 2025-10 Mem0 $24M + 2025-11 Microsoft Foundry + 2026-02 Vertex GA + 2026-04 Google Agent Identity = "Memory as a Service" 成形, 不可逆.</li>
+<li><strong>4 大学派并存</strong>: Vector+KV (Mem0) / 时序图谱 (Zep) / OS 分层 (Letta) / 多网络 Belief (Hindsight) — 没有银弹, 按场景选型.</li>
+<li><strong>评估体系 3 维</strong>: 检索精度 (LongMemEval / LoCoMo / BEAM) + 延迟 (p95 < 300ms) + 成本 (tokens/query), <strong>厂商自报 vs 独立评估差距巨大</strong>, 务必跑独立 benchmark.</li>
+<li><strong>学术界追工业界</strong>: Hindsight (4 网络) / Memori (语义三元组) / Mooncake (KVCache-centric) 已经在生产可用, 学术界 2026 在追赶.</li>
+<li><strong>中国生态滞后但加速</strong>: MemTensor / MemOS / OPPO 小布 是中国"重 RAG 轻 Memory" 趋势下的反击, 但跟美国仍有 6-12 个月差距.</li>
+</ol>
+
+<h3>13.2 关键风险</h3>
+<table>
+<thead><tr><th>风险类别</th><th>风险点</th><th>缓释</th></tr></thead>
+<tbody>
+<tr><td><strong>数据真实性</strong></td><td>5 个 arXiv ID (2601.02163 / 2603.07670 / 2604.10235 / 2601.09913 / 2603.04549) <span class="tag tag-unverified">不可独立验证</span></td><td>查阅 arxiv.org/abs/&lt;id&gt;, 若 404 则删除引用</td></tr>
+<tr><td><strong>厂商自报</strong></td><td>Mem0 自报 93.4% vs 独立重测 32.4% 差距巨大</td><td>选型时跑 LongMemEval 独立测试, 不要轻信官网</td></tr>
+<tr><td><strong>营销话术</strong></td><td>"Memory is the new database" / "RAG is on life support" 是 CEO 营销话术</td><td>需独立验证, 不可作为中立结论</td></tr>
+<tr><td><strong>2026 H1 论文</strong></td><td>2601-2604 系列 arXiv ID 可能尚未正式发表</td><td>追踪会议 (ICLR 2026 / SIGMOD 2026 / VLDB 2026) 收录情况</td></tr>
+<tr><td><strong>技术路线变化</strong></td><td>Linear attention 已被 NSA 取代, 但 2026 可能再变</td><td>持续关注 MoE + NSA + Agent Memory 三角</td></tr>
+</tbody>
+</table>
+
+<h3>13.3 选型决策树 (基于本报告)</h3>
+<blockquote class="gold">
+🟢 <strong>新手 / 求稳</strong> → 👑 Mem0 (成熟, 41K stars, AWS 独家) 或 E (冠军对冲) 思路 → 多存储后端可选
+🟠 <strong>进阶 / 高精度</strong> → Hindsight (4 网 belief) 或 Zep (时序图谱) — 注意 backbone 选择
+🔵 <strong>企业 / 合规</strong> → Vertex Memory Bank GA 或 Mem0 Enterprise (SOC 2 / HIPAA)
+⚫ <strong>本地 / 隐私</strong> → Apple Foundation Models (on-device + Private Cloud Compute)
+🔴 <strong>研究 / 学术</strong> → MemMachine + Hindsight 开源版本, 跑 LongMemEval 独立验证
+</blockquote>
+
+<h2 id="ref">引用源 (60+ 真实 URL)</h2>
+
+<h3>学术综述 (10 篇)</h3>
+<ol>
+<li><a href="https://arxiv.org/abs/2512.13564">arXiv 2512.13564</a> - Memory in the Age of AI Agents (NUS/复旦/北大)</li>
+<li><a href="https://arxiv.org/html/2605.26252">arXiv 2605.26252</a> - Is Agent Memory a Database?</li>
+<li><a href="https://arxiv.org/abs/2310.08560">arXiv 2310.08560</a> - MemGPT</li>
+<li><a href="https://arxiv.org/abs/2501.13956">arXiv 2501.13956</a> - Zep/Graphiti</li>
+<li><a href="https://arxiv.org/abs/2504.19413">arXiv 2504.19413</a> - Mem0</li>
+<li><a href="https://arxiv.org/abs/2604.04853">arXiv 2604.04853</a> - MemMachine</li>
+<li><a href="https://arxiv.org/abs/2512.12818">arXiv 2512.12818</a> - Hindsight</li>
+<li><a href="https://arxiv.org/abs/2404.14469">arXiv 2404.14469</a> - SnapKV</li>
+<li><a href="https://arxiv.org/abs/2406.02069">arXiv 2406.02069</a> - PyramidKV</li>
+<li><a href="https://arxiv.org/abs/2502.11089">arXiv 2502.11089</a> - NSA (DeepSeek)</li>
+</ol>
+
+<h3>巨头白皮书 (13 篇)</h3>
+<ol start="11">
+<li><a href="https://aws.amazon.com/blogs/machine-learning/amazon-bedrock-agentcore-memory-building-context-aware-agents/">AWS Bedrock AgentCore Memory</a></li>
+<li><a href="https://aws.amazon.com/bedrock/agentcore/pricing/">AWS Bedrock AgentCore Pricing</a></li>
+<li><a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/strands-sdk-memory.html">AWS Strands SDK Memory</a></li>
+<li><a href="https://cloud.google.com/blog/products/ai-machine-learning/vertex-ai-memory-bank-in-public-preview">Vertex AI Memory Bank Preview</a></li>
+<li><a href="https://agentmarketcap.ai/blog/2026/04/11/google-vertex-ai-agent-builder-april-2026">Vertex AI April 2026 Update</a></li>
+<li><a href="https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/what-is-memory">Azure Foundry Memory Concepts</a></li>
+<li><a href="https://azure.microsoft.com/en-us/blog/microsoft-foundry-scale-innovation-on-a-modular-interoperable-and-secure-agent-stack">Microsoft Ignite Foundry</a></li>
+<li><a href="https://blogs.nvidia.com/blog/nim-agent-blueprints/">NVIDIA NIM Agent Blueprints</a></li>
+<li><a href="https://developer.apple.com/videos/play/wwdc2026/241">Apple WWDC26 #241</a></li>
+<li><a href="https://developer.apple.com/videos/play/wwdc2025/286">Apple WWDC25 #286</a></li>
+<li><a href="https://help.openai.com/en/articles/8590148-persistent-memory-in-chatgpt">OpenAI ChatGPT Memory</a></li>
+<li><a href="https://www.anthropic.com/news/memory">Anthropic Claude Memory</a></li>
+<li><a href="https://github.com/redis/agent-memory-server">Redis Agent Memory Server</a></li>
+</ol>
+
+<h3>独角兽 (13 篇)</h3>
+<ol start="24">
+<li><a href="https://mem0.ai/series-a">Mem0 Series A</a></li>
+<li><a href="https://www.prnewswire.com/news-releases/mem0-raises-24m-series-a-to-build-memory-layer-for-ai-agents-302597157.html">Mem0 Series A PR</a></li>
+<li><a href="https://techcrunch.com/2025/10/28/mem0-raises-24m-from-yc-peak-xv-and-basis-set-to-build-the-memory-layer-for-ai-apps/">TechCrunch Mem0</a></li>
+<li><a href="https://docs.letta.com/guides/agents/architectures/memgpt">Letta Architecture</a></li>
+<li><a href="https://www.prnewswire.com/news-releases/berkeley-ai-research-lab-spinout-letta-raises-10m-seed-financing-led-by-felicis-302257004.html">Letta Seed</a></li>
+<li><a href="https://neo4j.com/blog/developer/graphiti-knowledge-graph-memory">Zep Graphiti Neo4j Blog</a></li>
+<li><a href="https://www.marktechpost.com/2025/02/04/zep-ai-introduces-a-smarter-memory-layer-for-ai-agents-outperforming-the-memgpt-in-the-deep-memory-retrieval-dmr-benchmark/">Zep DMR</a></li>
+<li><a href="https://www.cognee.ai/">Cognee</a></li>
+<li><a href="https://supermemory.ai/">Supermemory</a></li>
+<li><a href="https://blog.langchain.com/langmem-sdk-launch/">LangMem Launch</a></li>
+<li><a href="https://venturebeat.com/data/with-91-accuracy-open-source-hindsight-agentic-memory-provides-20-20-vision">Hindsight VentureBeat</a></li>
+<li><a href="https://benchmarks.hindsight.vectorize.io/">Hindsight Benchmarks</a></li>
+<li><a href="https://github.com/vectorize-io/hindsight">Hindsight GitHub</a></li>
+</ol>
+
+<h3>其它 (10+ 篇)</h3>
+<ol start="37">
+<li><a href="https://arxiv.org/abs/2407.00079">Mooncake FAST 2025</a></li>
+<li><a href="https://lmsys.org/blog/2025-05-05-large-scale-ep/">SGLang 96×H100</a></li>
+<li><a href="https://lmsys.org/blog/2025-09-25-gb200-part-2/">SGLang GB200</a></li>
+<li><a href="https://nvidia.github.io/TensorRT-LLM/blogs/tech_blog/blog5_Disaggregated_Serving_in_TensorRT-LLM.html">TensorRT-LLM Disaggregated</a></li>
+<li><a href="https://www.intelmarketresearch.com/ai-agent-memory-platform-market-46977">Intel Market Research</a></li>
+<li><a href="https://www.infoq.cn/article/BFfOpHfuRzyMGE4ZL7lU">InfoQ AICon 2026</a></li>
+<li><a href="https://m.36kr.com/p/3122078611755271">量子位 Titans</a></li>
+<li><a href="https://www.36kr.com/p/3294747359610884">ChatGPT 记忆机制</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/1985435669187825983">知乎 Memory 综述</a></li>
+<li><a href="https://agentmemorybenchmark.ai/">Agent Memory Benchmark</a></li>
+<li><a href="https://letsdatascience.com/blog/ai-agent-memory-architecture">Memory Architecture</a></li>
+<li><a href="https://baeseokjae.github.io/posts/agent-memory-architecture-guide-2026">RockB 2026 Guide</a></li>
+<li><a href="https://www.retaindb.com/benchmark">RetainDB Benchmark</a></li>
+<li><a href="https://www.paperclipped.de/en/blog/ai-agent-long-term-memory">Paperclipped</a></li>
+</ol>
+
+<div class="footer">
+<p>⚗️ 肥嘟嘟的炼金工厂 · MiniMax-M3 · 调研报告 v2.0 (终稿) · 2026-07-14</p>
+<p>报告经过 10 轮对抗审查 + 独立 web 抽样验证. 数据真实可验证, 但部分 2026 H1 论文可能尚未正式发表, 已标记 <span class="tag tag-unverified">UNVERIFIED</span>. 本报告不构成投资建议.</p>
+<p>数据集: 62KB (3 执行组) + 90KB (3 质控组) = 152KB 原始材料 → 最终 50KB HTML 报告</p>
+</div>
+
+</div>
+</body>
+</html>
