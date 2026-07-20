@@ -215,34 +215,34 @@
   }
 
   function showLevelUpModal() {
-    const isLast = state.levelIdx >= LEVELS.length - 1;
+    // 用户要求 (2026-07-20): 不进入下一级, 永远再来十道
     const lv = LEVELS[state.levelIdx];
-    const nextLv = isLast ? null : LEVELS[state.levelIdx + 1];
-
     const modal = document.createElement('div');
     modal.className = 'arith-modal';
     modal.innerHTML = `
       <div class="arith-modal-card">
-        <div class="arith-modal-emoji">${isLast ? '🏆' : '🎉'}</div>
-        <div class="arith-modal-title">${isLast ? '太厉害了!' : '通关啦!'}</div>
+        <div class="arith-modal-emoji">🎉</div>
+        <div class="arith-modal-title">太棒啦!</div>
         <div class="arith-modal-sub">
-          ${isLast
-            ? `你完成了 100 以内加减法全部 ${TOTAL_PER_LEVEL} 题! 你是数学小达人!`
-            : `${lv.name}加减法 ${TOTAL_PER_LEVEL} 题全部答对! 准备好挑战 <b>${nextLv.name}</b> 了吗?`}
+          ${lv.name}加减法 ${TOTAL_PER_LEVEL} 题全部答对!<br>
+          再来十道继续挑战吧!
         </div>
-        <button class="arith-modal-btn" id="btnNext">${isLast ? '再来一次 🔁' : '下一关 🚀'}</button>
+        <button class="arith-modal-btn" id="btnAgain">再来十道 🔁</button>
+        <button class="arith-modal-btn alt" id="btnBackLevel">换个难度 🎯</button>
         <button class="arith-modal-btn alt" id="btnHome">回首页 🏠</button>
       </div>
     `;
     dom.modalRoot.appendChild(modal);
 
-    $('btnNext').addEventListener('click', () => {
+    $('btnAgain').addEventListener('click', () => {
       dom.modalRoot.innerHTML = '';
-      if (!isLast) state.levelIdx++;
       resetRound();
       renderLevelBadge();
       renderStars();
       renderQuestion();
+    });
+    $('btnBackLevel').addEventListener('click', () => {
+      window.location.href = 'index.html';
     });
     $('btnHome').addEventListener('click', () => {
       window.location.href = 'index.html';
@@ -250,6 +250,7 @@
   }
 
   function showLevelResult() {
+    // 用户要求 (2026-07-20): 本档结束永远再来十道, 不升档
     const lv = LEVELS[state.levelIdx];
     const modal = document.createElement('div');
     modal.className = 'arith-modal';
@@ -260,14 +261,11 @@
         <div class="arith-modal-title">${pass ? '真不错!' : '继续加油!'}</div>
         <div class="arith-modal-sub">
           ${lv.name}加减法<br>
-          答对 <b>${state.correct}</b> / ${TOTAL_PER_LEVEL} 题
-          ${pass && state.levelIdx < LEVELS.length - 1
-            ? '<br>想挑战更高难度吗?'
-            : pass && state.levelIdx >= LEVELS.length - 1
-              ? '<br>你已经是数学小达人啦!'
-              : '<br>再多练几次就能升级啦!'}
+          答对 <b>${state.correct}</b> / ${TOTAL_PER_LEVEL} 题<br>
+          ${pass ? '你真棒, 再来十道!' : '再多练几次就更棒啦!'}
         </div>
-        <button class="arith-modal-btn" id="btnAgain">再来一组 🔁</button>
+        <button class="arith-modal-btn" id="btnAgain">再来十道 🔁</button>
+        <button class="arith-modal-btn alt" id="btnBackLevel">换个难度 🎯</button>
         <button class="arith-modal-btn alt" id="btnHome2">回首页 🏠</button>
       </div>
     `;
@@ -275,11 +273,13 @@
 
     $('btnAgain').addEventListener('click', () => {
       dom.modalRoot.innerHTML = '';
-      if (pass && state.levelIdx < LEVELS.length - 1) state.levelIdx++;
       resetRound();
       renderLevelBadge();
       renderStars();
       renderQuestion();
+    });
+    $('btnBackLevel').addEventListener('click', () => {
+      window.location.href = 'index.html';
     });
     $('btnHome2').addEventListener('click', () => {
       window.location.href = 'index.html';
