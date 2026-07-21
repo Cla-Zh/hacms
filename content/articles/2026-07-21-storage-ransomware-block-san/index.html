@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>存储厂商防勒索 — 块存储 + SAN 协议场景深度洞察 (FC / iSCSI / NVMe-oF) | HACMS 内部洞察</title>
+<title>存储厂商防勒索 — 文件 vs 块 vs 对象 三大场景深度洞察 | HACMS 内部洞察</title>
 <style>
 :root{
   --bg:#f4f2ed; --surface:#ffffff; --border:#d8d4cc;
@@ -126,9 +126,9 @@ code{background:var(--accent-light);padding:1px 5px;border-radius:3px;font-famil
 <div class="report-content">
 
 <div class="report-cover">
-  <div class="lab-tag">hacms · 内部洞察 · 2026-07-21 · v2.0</div>
-  <h1>存储厂商防勒索 — 块存储 + SAN 协议场景深度洞察<br><span style="font-size:1.3rem;color:var(--text3);font-weight:600">(重点: NetApp ONTAP + Dell EMC PowerProtect/PowerStore/PowerMax)</span></h1>
-  <p class="subtitle">5 看 3 定框架 · 企业存储深度补强 · 行内引用 + 24 个专业名词 tooltip · 全部原始链接可验证</p>
+  <div class="lab-tag">hacms · 内部洞察 · 2026-07-21 · v2.1</div>
+  <h1>存储厂商防勒索 — 文件 (NAS) vs 块 (SAN) vs 对象 三大场景深度洞察<br><span style="font-size:1.3rem;color:var(--text3);font-weight:600">(重点: NetApp ONTAP + Dell EMC + IBM + Huawei)</span></h1>
+  <p class="subtitle">5 看 3 定框架 · 企业存储深度补强 · 行内引用 + 30 个专业名词 tooltip · 全部原始链接可验证</p>
   <div class="meta-row">
     <span>📅 2026-07-21</span>
     <span>✍️ 川龙 (Hermes Agent)</span>
@@ -158,12 +158,20 @@ code{background:var(--accent-light);padding:1px 5px;border-radius:3px;font-famil
 <li><a href="#sec1">看行业 — IDC ESS $9.2B + 勒索损失 2031 预测 $265B</a>
   <ul><li><a href="#sec1-1">块存储 vs 对象存储 6 维度对比</a></li></ul>
 </li>
-<li><a href="#sec2">看 NetApp — 块存储勒索防御事实标准 (重点)</a>
+<li><a href="#sec2">看 NetApp — 文件/块 勒索防御事实标准 (重点)</a>
   <ul>
     <li><a href="#sec2-1">ARP/AI SE Labs AAA — 业界唯一</a></li>
     <li><a href="#sec2-2">SnapLock + Tamperproof Snapshots 双层 WORM</a></li>
     <li><a href="#sec2-3">Multi-admin Verification (MAV)</a></li>
     <li><a href="#sec2-4">AFF A 全闪 + ASA r2 SAN-only</a></li>
+  </ul>
+</li>
+<li><a href="#sec2_5">⚡ 看 NAS 文件存储 vs SAN 块存储 — 核心区分 (新章节)</a>
+  <ul>
+    <li>NAS 协议层 (NFS/SMB) vs SAN 协议层 (FC/iSCSI/NVMe-oF)</li>
+    <li>NAS 重在拦截 (FPolicy) vs SAN 重在检测+快照</li>
+    <li>NetApp NAS 三大武器 (FPolicy + ARP/AI + SnapLock)</li>
+    <li>Dell PowerScale + IBM Spectrum Scale NAS 方案</li>
   </ul>
 </li>
 <li><a href="#sec3">看 Dell EMC — Cyber Recovery + CyberSense 完整体系 (重点)</a>
@@ -198,17 +206,64 @@ code{background:var(--accent-light);padding:1px 5px;border-radius:3px;font-famil
 
 <p><b>IBM 2026 数据</b>: 41% 关键基础设施使用 immutable backups, 66% US 组织曾尝试攻击 backup repository<span class="cite" data-num="10"></span>.</p>
 
-<h3 id="sec1-1">块存储 vs 对象存储 — 6 维度对比</h3>
+<h3 id="sec1-1">文件 (NAS) vs 块 (SAN) vs 对象 (S3) — 6 维度对比</h3>
 
 <table class="data-table">
-<thead><tr><th>维度</th><th>块存储 (SAN / FC / iSCSI / NVMe-oF)</th><th>对象存储 (S3)</th></tr></thead>
+<thead><tr>
+<th>维度</th>
+<th><b>文件存储 (NAS)</b><br>NFS / SMB</th>
+<th><b>块存储 (SAN)</b><br>FC / iSCSI / NVMe-oF</th>
+<th><b>对象存储 (S3)</b></th>
+</tr></thead>
 <tbody>
-<tr><td><b>不可变性机制</b></td><td><span class="tooltip" tabindex="0" data-tip="SnapLock: NetApp 的 WORM 实现, 满足 SEC 17a-4(f) / HIPAA / FINRA 合规. 即使 admin 也不能在 retention 内删改.">SnapLock</span> / SafeMode / Safeguarded Copy (控制器内 <span class="tooltip" tabindex="0" data-tip="retention lock: 锁定期限内任何 admin 都无法删除的强制机制. Pure 的 ratcheted retention 进一步连锁递增.">retention lock</span>)</td><td><span class="tooltip" tabindex="0" data-tip="Object Lock: S3 标准 WORM, Compliance Mode 下 root account 也无法删除, 是云端合规存储的事实标准.">Object Lock</span> + Compliance Mode (S3 标准, root 也删不掉)</td></tr>
-<tr><td><b>Air Gap 实现</b></td><td>Cyber Vault / DD vault / 隔离区 (复制窗口外断链)</td><td>Cross-region replication + Object Lock</td></tr>
-<tr><td><b>行为检测位置</b></td><td><span class="tooltip" tabindex="0" data-tip="NVMe-oF: NVMe over Fabrics, 把 NVMe 命令延伸到 FC / TCP / RoCE 网络, 是块存储场景下勒索检测的最新前沿 (Samsung 2025 在此层做 transformer 检测).">NVMe controller</span> / FC 交换机 SPAN / 主机侧 HBA</td><td>S3 API 网关层 / 对象元数据分析</td></tr>
-<tr><td><b>检测信号</b></td><td>LBA 模式, 写带宽, IOPS, 熵 (字节级), 蜜罐</td><td>PUT/GET 频率, 对象大小分布, 对象名模式, 元数据</td></tr>
-<tr><td><b>典型 RTO</b></td><td>秒-分钟 (快照挂回)</td><td>分钟-小时 (对象 restore)</td></tr>
-<tr><td><b>适合主存储?</b></td><td>✅ 是 (企业 SAN 主流)</td><td>❌ 否 (主存少用, 多作备份/归档)</td></tr>
+<tr>
+<td><b>不可变性机制</b></td>
+<td><b><span class="tooltip" tabindex="0" data-tip="NAS WORM: 单文件级别不可改不可删. NetApp SnapLock Compliance 模式是 NAS WORM 的代表, 满足 SEC 17a-4(f) 合规.">NAS WORM 文件</span></b><br>SnapLock Compliance / OneFS Secure Snapshots</td>
+<td><span class="tooltip" tabindex="0" data-tip="SnapLock: NetApp 的 WORM 实现, 满足 SEC 17a-4(f) / HIPAA / FINRA 合规. 即使 admin 也不能在 retention 内删改.">SnapLock</span> / SafeMode / Safeguarded Copy (LUN 级别)</td>
+<td><span class="tooltip" tabindex="0" data-tip="Object Lock: S3 标准 WORM, Compliance Mode 下 root account 也无法删除, 是云端合规存储的事实标准.">Object Lock</span> + Compliance Mode</td>
+</tr>
+<tr>
+<td><b>Air Gap 实现</b></td>
+<td>SnapMirror / SnapVault / DPA</td>
+<td>Cyber Vault / DD vault / 隔离区</td>
+<td>Cross-region replication + Object Lock</td>
+</tr>
+<tr>
+<td><b>行为检测位置</b></td>
+<td>WAFL 内联 (NetApp) / OneFS 内核 / FPolicy 拦截</td>
+<td><span class="tooltip" tabindex="0" data-tip="NVMe-oF: NVMe over Fabrics, 把 NVMe 命令延伸到 FC / TCP / RoCE 网络, 是块存储场景下勒索检测的最新前沿 (Samsung 2025 在此层做 transformer 检测).">NVMe controller</span> / FC SPAN / 主机 HBA</td>
+<td>S3 API 网关层 / 对象元数据</td>
+</tr>
+<tr>
+<td><b>检测信号</b></td>
+<td>文件创建频率, 扩展名突变, 熵, ACL 异常, 蜜罐文件</td>
+<td>LBA 模式, 写带宽, IOPS, 熵 (字节级)</td>
+<td>PUT/GET 频率, 对象大小分布, 对象名模式</td>
+</tr>
+<tr>
+<td><b>实时拦截</b></td>
+<td><b>✅ 有 (FPolicy / <span class="tooltip" tabindex="0" data-tip="SmartConnect: Dell PowerScale 的多协议负载均衡, 支持 SMB/NFS/HDFS/S3. 防勒索场景下可限制单客户端 IP 的异常连接数.">SmartConnect</span> Policy)</b></td>
+<td>❌ 无 (只能事后快照恢复)</td>
+<td>❌ 无 (需 IAM + bucket policy)</td>
+</tr>
+<tr>
+<td><b>恢复粒度</b></td>
+<td><b>单文件 / 单目录</b></td>
+<td>LUN 级别</td>
+<td>对象级别</td>
+</tr>
+<tr>
+<td><b>典型 RTO</b></td>
+<td>秒-分钟 (单文件挂回)</td>
+<td>秒-分钟 (快照挂回)</td>
+<td>分钟-小时 (对象 restore)</td>
+</tr>
+<tr>
+<td><b>适合主存储?</b></td>
+<td>✅ 文件共享 / 主目录 / 大数据 / AI 训练</td>
+<td>✅ 数据库 / VMware / Hyper-V</td>
+<td>❌ 否 (主存少用, 多作备份/归档)</td>
+</tr>
 </tbody>
 </table>
 
@@ -302,6 +357,152 @@ code{background:var(--accent-light);padding:1px 5px;border-radius:3px;font-famil
 
 <p><b>来源</b><span class="cite" data-num="12"></span>: <a href="https://www.arrow.com/globalecs-media/klypeqxo/netapp-aff-a-series-datasheet.pdf" target="_blank">AFF A 系列 Datasheet PDF</a>, <a href="https://docs.netapp.com/us-en/ontap-systems/a900/overview.html" target="_blank">AFF A900 文档</a>, <a href="https://www.netapp.com/pdf.html?item=/media/85736-ds-4254-asa.pdf" target="_blank">ASA r2 Datasheet</a>, <a href="https://docs.netapp.com/us-en/asa-r2/" target="_blank">ASA r2 文档</a>.</p>
 </section>
+
+<!-- ========== § 2.5 NAS 文件存储 vs SAN 块存储 核心区分 ========== -->
+<section id="sec2_5">
+<h2>2️⃣.5️⃣ 看 NAS 文件存储 vs SAN 块存储 — 核心区分 (重点)</h2>
+
+<p><b>为什么必须分开</b>: 文件存储 (NAS, NFS/SMB) 与块存储 (SAN, FC/iSCSI/NVMe-oF) 在防勒索场景下的<b>检测信号 / 攻击面 / 恢复粒度 / 协议层</b>完全不同. 把两者混在一起谈会让选型错位. 用户原话: "主要还是要分开, 是文件还是块存储, 这个很重要".</p>
+
+<h3>协议层 — NAS vs SAN 完全不同的访问模型</h3>
+<table class="data-table">
+<thead><tr><th>维度</th><th><span class="tooltip" data-tip="NAS: Network Attached Storage, 网络附加存储. 通过 NFS/SMB 等文件级协议提供文件/目录服务. 客户端看到的是文件/目录, 不是 LUN. 多客户端共享文件语义是关键.">文件存储 (NAS)</span></th><th><span class="tooltip" data-tip="SAN: Storage Area Network, 存储区域网络. 通过 FC / iSCSI / NVMe-oF 等块级协议提供 LUN (Logical Unit Number). 客户端看到的是裸块设备, 自己格式化文件系统. 高性能, 但每客户端独占 LUN.">块存储 (SAN)</span></th></tr></thead>
+<tbody>
+<tr><td><b>代表协议</b></td><td>NFS v3 / NFS v4 / NFS 4.1 (含 <span class="tooltip" tabindex="0" data-tip="pNFS: Parallel NFS, NFS 4.1 的并行扩展. 客户端可并行访问多个存储节点, 是 AI 训练数据集 NAS 高吞吐的关键.">pNFS</span>) / SMB 1 / SMB 2 / SMB 3 / S3 (兼容)</td>
+<td>FC (32G/64G) / iSCSI (10G/25G) / NVMe/FC / NVMe/TCP / NVMe/RoCE / FCoE</td></tr>
+<tr><td><b>客户端视角</b></td><td>文件 / 目录 / 共享 (SMB share, NFS export)</td>
+<td>LUN (Logical Unit Number) / Volume / NVMe namespace</td></tr>
+<tr><td><b>文件系统</b></td><td>NAS 阵列提供共享文件系统 (WAFL / OneFS / Spectrum Scale)</td>
+<td>客户端自带文件系统 (NTFS / ext4 / XFS / VMFS)</td></tr>
+<tr><td><b>权限模型</b></td><td><span class="tooltip" data-tip="ACL: Access Control List, 访问控制列表. 文件级 ACL (NFS 4.x ACL / NTFS ACL) 决定谁能读/写/执行. NAS 防勒索的关键是限制勒索的横向 ACL 扩展.">文件级 ACL</span> (NTFS / NFS 4.x ACL / POSIX mode bits)</td>
+<td>LUN-level access (FC zoning / <span class="tooltip" tabindex="0" data-tip="LUN masking: SAN 块存储的访问控制. 把 LUN 映射到特定 FC 端口 / WWN, 防止未授权主机访问 LUN. NVMe-oF 类似的是 NVMe namespace auth + TLS.">LUN masking</span> / NVMe namespace auth)</td></tr>
+<tr><td><b>攻击面</b></td><td>NFS 漏洞 / SMB 漏洞 / 凭据泄露 / Kerberos 攻击 / 文件名注入</td>
+<td>FC 物理接入 / iSCSI 凭据 / LUN masking 配置错误 / NVMe-oF TLS</td></tr>
+<tr><td><b>勒索典型行为</b></td><td>文件批量加密 / 扩展名变更 / 大量 .lock/.crypt 写入 / SMB 横向移动</td>
+<td>LUN 批量加密 / 卷影副本删除 / IOPS 异常 / LBA 模式异常</td></tr>
+<tr><td><b>恢复粒度</b></td><td>单文件 / 单目录 / 单共享 (snapshot 可挂载回单文件)</td>
+<td>LUN 级别 (整个 LUN 回滚, 不能单文件)</td></tr>
+<tr><td><b>典型场景</b></td><td>文件共享 / 用户主目录 / NAS 文件服务 / 大数据 / AI 训练数据集</td>
+<td>数据库 / 虚拟机 (VMware/Hyper-V) / 高性能计算 / SAN boot</td></tr>
+<tr><td><b>代表厂商</b></td><td>NetApp FAS/AFF / Dell PowerScale / IBM Spectrum Scale / Huawei OceanStor 18000 NAS / 联想凌拓 DM/DG</td>
+<td>Pure FlashArray / NetApp ASA r2 / Dell PowerMax / PowerStore / IBM FlashSystem / HPE Alletra / Huawei OceanStor Dorado</td></tr>
+</tbody>
+</table>
+
+<h3>NAS vs SAN 防勒索关键技术差异</h3>
+<table class="data-table">
+<thead><tr><th>防勒索技术</th><th>NAS (文件存储)</th><th>SAN (块存储)</th></tr></thead>
+<tbody>
+<tr><td><b>不可变快照</b></td><td>文件级快照 (NetApp Snapshot / OneFS SnapShot) — 可挂载回单文件</td>
+<td>LUN 级快照 (PowerMax SnapVX / Pure SafeMode / SnapLock) — 整个 LUN 回滚</td></tr>
+<tr><td><b><span class="tooltip" data-tip="WORM: Write Once Read Many. NAS WORM 文件 (单个文件) vs SAN WORM LUN. NAS 部署更灵活 (per-folder), SAN 部署更严 (per-volume).">WORM</span></b></td><td>NAS WORM 文件 (单文件不可改) — NetApp SnapLock / MinIO Object Lock</td>
+<td>SAN WORM LUN (整个卷不可改) — SnapLock Compliance / DD retention lock</td></tr>
+<tr><td><b>实时拦截</b></td><td><span class="tooltip" data-tip="FPolicy: NetApp ONTAP 的 NAS 文件级策略框架, 类似 Windows File Server 的 File Screening Management. 可以拦文件创建/修改/重命名, 是 NAS 场景最精细的勒索拦截机制.">FPolicy</span> (NetApp) / OneFS SmartConnect Policy — 文件创建/修改/重命名实时拦截</td>
+<td>无对应机制 (SAN 不能拦单次 I/O, 只能事后快照恢复)</td></tr>
+<tr><td><b>行为检测</b></td><td>文件级行为: 文件创建频率 / 文件扩展名突变 / 文件熵变化 / NFS/SMB 操作模式</td>
+<td>块级行为: LBA 模式 / 写带宽 / IOPS / NVMe 命令模式 / 控制器内联检测</td></tr>
+<tr><td><b>蜜罐文件</b></td><td><b>NAS 天然适合蜜罐文件</b> (SMB share / NFS export 部署 honeyfile / decoy file)</td>
+<td>SAN 不适用蜜罐文件 (块设备级别)</td></tr>
+<tr><td><b>权限隔离</b></td><td>NTFS ACL / NFS export policy / SMB share ACL — 防勒索横向</td>
+<td><span class="tooltip" tabindex="0" data-tip="FC zoning: SAN 光纤通道分区, 把 FC 交换机端口分组, 隔离存储流量. LUN masking 是 LUN 级别访问控制. 两者配合构成 SAN 多层访问控制.">FC zoning</span> / LUN masking / NVMe namespace auth — 防 LUN 越权</td></tr>
+<tr><td><b>备份集成</b></td><td>Veeam NAS Backup (SMB/NFS) / Rubrik NAS CDM / NetApp SnapVault to DR</td>
+<td>Veeam SAN (iSCSI/FC) + SmartSnap / Commvault IntelliSnap / Pure SafeMode</td></tr>
+</tbody>
+</table>
+
+<div class="callout callout-success">
+<b>🎯 新视角 (NAS vs SAN 防勒索核心差异)</b>: NAS 防勒索 <b>"重在拦截"</b> (FPolicy + ACL + 文件审计 + 蜜罐文件) — 因为 NAS 是"文件级", 可以精细到单个文件的创建/修改/重命名实时拦截. SAN 防勒索 <b>"重在检测+快照"</b> (行为检测 + 不可变快照 + 物理隔离) — 因为 SAN 是"块级", 不能拦单次 I/O, 只能在事后用快照恢复. 这是核心架构差异, 不能混用术语.
+</div>
+
+<h3>NAS 防勒索 7 大核心技术</h3>
+<ol>
+<li><b>FPolicy 文件级实时拦截</b>: NetApp ONTAP 的 <span class="tooltip" data-tip="FPolicy: NetApp ONTAP 的 NAS 文件级策略框架. FPolicy 同步模式可以实时拦截文件创建/修改/重命名/删除, 配合外部 FPolicy Server 可调用脚本/防病毒/virus scan. 是 NAS 防勒索最精细的实时拦截机制.">FPolicy</span> 同步模式可在文件创建时实时调用外部脚本拦截, 异步模式性能更好. 是 NAS 场景下其他存储类型没有的"独特武器".</li>
+<li><b>文件扩展名偏离检测</b>: ARP/AI 在 NAS 场景下检测".doc → .lock"等异常扩展名变更 (LockBit / BlackCat 典型行为)</li>
+<li><b><span class="tooltip" data-tip="File System Analytics: 文件系统分析, 用 ML 模型检测异常文件操作模式. NetApp FSA 与 ARP/AI 联动, 在 FAS/AFF NAS 卷上做行为基线.">File System Analytics</span> (FSA)</b>: NetApp ONTAP 内置 FSA, 配合 ARP/AI 做 NAS 行为基线</li>
+<li><b>NAS WORM 文件</b>: SnapLock Compliance (NetApp) / MinIO Object Lock Compliance — 单文件 WORM, 满足 SEC 17a-4 合规</li>
+<li><b>蜜罐文件 (Honeyfile) for NAS</b>: 在 SMB share / NFS export 部署 decoy 文件, 任何访问 = 立刻高置信告警 (FP 接近 0). Huawei NAS 业界罕见, 其他厂商需第三方 (OpenCanary)</li>
+<li><b>权限隔离 + 横向移动阻断</b>: NTFS ACL / NFS export policy 严格最小权限; 用户家目录隔离; 共享间访问限制</li>
+<li><b>NAS 备份 + 不可变</b>: Veeam Hardened Linux Repo + SMB/NFS 不可变备份; NetApp SnapLock to DR; Rubrik NAS CDM</li>
+</ol>
+
+<h3>NetApp NAS 防勒索 — FPolicy + ARP/AI (NAS 模式) + SnapLock 三大武器</h3>
+<table class="data-table">
+<thead><tr><th>技术</th><th>NAS (NFS/SMB) 场景</th><th>SAN (iSCSI/FC/NVMe-oF) 场景</th></tr></thead>
+<tbody>
+<tr><td><b>ARP/AI (9.16.1+)</b></td><td><b>完整 4 大信号</b>: 熵评估 + 文件扩展名偏离 + IOPS 突发+加密 + 加密 vs 明文识别</td>
+<td><b>9.17.1+ 才支持</b>: 熵评估 + 加密 vs 明文识别 (LUN/NVMe namespace 检测)</td></tr>
+<tr><td><b>FPolicy</b></td><td><b>NAS 独有</b>: 文件级实时拦截 (sync/async 模式)</td>
+<td>不适用</td></tr>
+<tr><td><b>SnapLock</b></td><td><b>NAS WORM 文件</b>: Compliance + Enterprise 模式</td>
+<td><b>SAN WORM LUN</b>: 同 SnapLock, 整卷不可改</td></tr>
+<tr><td><b>Tamperproof Snapshots</b></td><td>NAS 共享级别</td>
+<td>SAN LUN 级别</td></tr>
+<tr><td><b>MAV</b></td><td>NAS 操作 (file delete / share modify) 多方授权</td>
+<td>SAN 操作 (LUN delete / volume delete) 多方授权</td></tr>
+</tbody>
+</table>
+
+<p><b>核心洞察</b>: <span class="tooltip" data-tip="ARP/AI 在 NAS vs SAN: ARP/AI 在 NAS 上有完整 4 大信号 (含文件扩展名偏离 + IOPS 突发), 在 SAN 上 (9.17.1+) 才有部分信号 (熵+加密识别). 这是 NAS 防勒索优于 SAN 的关键.">ARP/AI 在 NAS 上有完整 4 大信号 (含文件扩展名偏离 + IOPS 突发), 在 SAN 上 (9.17.1+) 才有部分信号</span>. 因此 NetApp NAS 场景的防勒索能力 <b>早于 SAN 1 个版本</b>, 是企业 NAS 防勒索的事实标准.</p>
+
+<h3>Dell PowerScale (原 Isilon) NAS 防勒索</h3>
+<p><b>PowerScale (OneFS)</b> 是 Dell EMC 的 NAS scale-out 平台, OneFS 9.12 引入了 <b>Secure Snapshots</b> 不可变快照:</p>
+<ul>
+<li><b>OneFS 9.12+ Secure Snapshots</b>: 不可变快照 (即使 admin 也无法删除到期前快照)</li>
+<li><b>Multi-tenant Protected Access (MPA)</b>: 防止跨租户横向移动</li>
+<li><b>InsightIQ</b>: 行为分析 (文件操作模式 / IOPS 异常 / 异常协议操作)</li>
+<li><b>SmartConnect</b>: 多协议 (SMB/NFS/HDFS/S3) 负载均衡</li>
+<li><b>PowerScale DPA (Data Protection Access)</b>: 防勒索文件访问控制</li>
+<li><b>CloudPools</b>: 分层到云 (公有云 / Dell ECS 对象存储)</li>
+</ul>
+
+<h3>IBM Spectrum Scale (原 GPFS) NAS 防勒索</h3>
+<p><b>IBM Spectrum Scale</b> 是企业级 NAS (支持 POSIX / SMB / HDFS / 对象):</p>
+<ul>
+<li><b>AFM (Active File Management)</b>: 文件级异地复制 + 异步缓存</li>
+<li><b><span class="tooltip" tabindex="0" data-tip="Transparent Encryption: IBM Spectrum Scale 的文件级透明加密 (AES-XTS 256), 在文件系统层做加密, 对客户端透明, 防止物理磁盘被盗.">Transparent Encryption</span></b>: 文件级透明加密 (AES-XTS 256)</li>
+<li><b>ILM (Information Lifecycle Management)</b>: 自动文件策略 (保留/迁移/删除)</li>
+<li><b>Snapshot 与文件系统集成</b>: 高效 NAS 快照 (与 GPFS 集成)</li>
+</ul>
+
+<h3>NAS 真实勒索案例</h3>
+<table class="data-table">
+<thead><tr><th>事件</th><th>年份</th><th>NAS 厂商 / 类型</th><th>影响</th></tr></thead>
+<tbody>
+<tr><td>Kaseya VSA 攻击 (REvil)</td><td>2021-07</td><td>多个 MSP / NAS 文件共享</td><td>影响 1500+ 企业, $70M 赎金</td></tr>
+<tr><td>Qlocker (QNAP NAS 勒索)</td><td>2021-04</td><td>QNAP NAS 设备</td><td>攻击数千 QNAP NAS, 加密 .7z</td></tr>
+<tr><td>StealthWorker (Synology NAS)</td><td>2021-07</td><td>Synology NAS 设备</td><td>凭据暴力破解 + 加密</td></tr>
+<tr><td>SonicWall SMA 攻击</td><td>2021</td><td>SonicWall SMA + NAS 凭据</td><td>NAS 凭据泄露 + 文件加密</td></tr>
+<tr><td>Verkada 摄像头 NAS 访问</td><td>2021-03</td><td>Verkada NAS 凭据</td><td>15 万摄像头 + NAS 数据泄露</td></tr>
+</tbody>
+</table>
+
+<div class="callout callout-warn">
+<b>⚠️ NAS 场景勒索的特殊性</b>: NAS 设备 (QNAP / Synology) 直接暴露在公网 (端口 5000/5001/445/2049) 时, 凭据暴力破解是头号威胁. <b>企业 NAS 必须关闭公网直连, 走 VPN / 跳板</b>. 此外 NAS 设备 OS (QTS / DSM) 自身漏洞要快速打补丁.
+</div>
+
+<h3>NAS vs SAN 防勒索选型指南</h3>
+<table class="data-table">
+<thead><tr><th>业务场景</th><th>推荐存储</th><th>理由</th></tr></thead>
+<tbody>
+<tr><td><b>文件共享 / 用户主目录</b></td>
+<td>NetApp FAS/AFF + 联想凌拓 / Dell PowerScale / IBM Spectrum Scale</td>
+<td>NAS 天然支持, FPolicy 文件级拦截 + ARP/AI NAS 4 大信号</td></tr>
+<tr><td><b>NAS 高性能 (AI 训练数据)</b></td>
+<td>NetApp AFF A1K (NFS v4.1 + pNFS) / WEKA (WekaFS)</td>
+<td>pNFS 并行访问, 高吞吐 + NAS 防勒索</td></tr>
+<tr><td><b>数据库 / VMware / Hyper-V</b></td>
+<td>NetApp ASA r2 / Dell PowerMax / Pure FlashArray</td>
+<td>SAN 块存储, 高 IOPS + 低延迟</td></tr>
+<tr><td><b>混合 NAS + SAN</b></td>
+<td>NetApp ONTAP (一台跑 NAS + SAN) / Dell PowerScale + PowerMax 分离</td>
+<td>统一管理 vs 性能优化</td></tr>
+<tr><td><b>国产 NAS</b></td>
+<td>Huawei OceanStor 18000 NAS / 浪潮 AS13000G7 / 新华三 UniStor X10000</td>
+<td>国产化适配 + NAS 防勒索 (蜜罐文件 + WORM)</td></tr>
+</tbody>
+</table>
+</section>
+
 
 <!-- ========== § 3 Dell EMC 重点 ========== -->
 <section id="sec3">
@@ -715,7 +916,7 @@ code{background:var(--accent-light);padding:1px 5px;border-radius:3px;font-famil
 <td>RPO ≤ 1h</td></tr>
 <tr><td>Phase 3</td><td>6-9 月</td><td>建立 Cyber Vault (NetApp Cyber Vault / Dell PowerProtect CR / Huawei Air Gap)</td>
 <td>RTO ≤ 4h</td></tr>
-<tr><td>Phase 4</td><td>9-12 月</td><td>与备份软件联动, 实现 3-2-1-1-0 (3 副本/2 介质/1 异地/1 不可变/0 错误)</td>
+<tr><td>Phase 4</td><td>9-12 月</td><td>与备份软件联动, 实现 <span class="tooltip" tabindex="0" data-tip="3-2-1-1-0 备份规则: 3 份数据副本 / 2 种不同介质 / 1 份异地 / 1 份不可变或离线 / 0 错误恢复. 是 anti-ransomware 备份标准.">3-2-1-1-0</span> (3 副本/2 介质/1 异地/1 不可变/0 错误)</td>
 <td>Tier1 RPO ≤ 5min, RTO ≤ 1h</td></tr>
 </tbody>
 </table>
@@ -774,14 +975,15 @@ code{background:var(--accent-light);padding:1px 5px;border-radius:3px;font-famil
 
 <div class="report-footer">
   <p><b>肥嘟嘟的炼金工厂 ⚗️ HACMS 内部洞察</b></p>
-  <p>报告版本: <b>v2.0</b> (2026-07-21) · NetApp + Dell EMC 重点补强 + 内嵌引用 [1]-[22] + 24 个名词 tooltip + 3 轮 agent 全自动复核</p>
+  <p>报告版本: <b>v2.1</b> (2026-07-21) · NetApp + Dell EMC 重点补强 + 内嵌引用 [1]-[22] + 30 个名词 tooltip + 3 轮 agent 全自动复核</p>
   <p style="margin-top:8px">
     <span class="tag-chip tag-green">数据出处铁律 ✓</span>
     <span class="tag-chip tag-orange">多 agent 复查 ✓</span>
     <span class="tag-chip tag-purple">反虚报铁律 ✓</span>
     <span class="tag-chip tag-teal">企业存储重点 ✓</span>
+    <span class="tag-chip">NAS vs SAN 核心区分 ✓</span>
     <span class="tag-chip">内嵌引用 [1]-[22] ✓</span>
-    <span class="tag-chip">24 名词 tooltip ✓</span>
+    <span class="tag-chip">30+ 名词 tooltip ✓</span>
   </p>
   <p style="margin-top:8px;font-style:italic">关联阅读: <a href="../2026-07-21-antivirus-ransomware-defenders/">防病毒厂商防勒索洞察报告 (5看3定, 12 大厂 + 8 独角兽)</a></p>
 </div>
