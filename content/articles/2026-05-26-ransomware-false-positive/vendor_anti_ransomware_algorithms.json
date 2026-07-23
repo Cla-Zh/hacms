@@ -1,0 +1,300 @@
+{
+  "metadata": {
+    "topic": "4 存储/备份厂商防勒索误报算法 + 算力 + 权威白皮书链接深度调研",
+    "research_date": "2026-07-23",
+    "iron_rule": "每个算法描述 + 算力数字 + 性能指标均来自厂商官方技术 blog / 白皮书 / 第三方验证 (SE Labs, ESG, Forrester); 无编造内容",
+    "scope_note": "委托中 'Veeam 4 层堆叠 (stacked) 异常检测 — Signature + Heuristic + Behavioral + ML' 在官方 Ransomware Detection Service 白皮书中未找到对应 4 层术语. 本调研以 Veeam 官方白皮书所述 Random Cut Forest (RCF) + 双检测画像 (Fast/Extended Attack) + 多维行为基线 + SureBackup/SureReplica 为准, 并附 caveat. M-Trends dwell time 数据为 Mandiant 2024 报告, 由 Veeam 2025 Ransomware Trends 引用. Index Engines '53% ROI' 数字在公开可访问的 2023-08 Forrester TEI 主报告中未找到, 仅列出可验证的 75% downtime / 80% recovery time 数字."
+  },
+  "vendor_algorithms": {
+    "netapp_arp_ai": {
+      "vendor": "NetApp",
+      "product": "ONTAP Autonomous Ransomware Protection with AI (ARP/AI) + ARP (classic)",
+      "ga_version": "ONTAP 9.16.1 (NAS FlexVol), 9.17.1 (SAN LUN / NVMe namespace)",
+      "core_algos": [
+        {
+          "name": "ARP-AI 多信号 ML 模型 (4 大检测信号)",
+          "signals": [
+            "Entropy (熵) — 评估文件数据随机度, 用于 NAS + SAN",
+            "File extension deviation (文件扩展名偏离) — 用于 NAS",
+            "File IOPS burst + encryption (IOPS 突发 + 加密) — 用于 NAS (9.11.1+)",
+            "Encryption vs plaintext detection (加密 vs 明文识别) — ARP/AI 9.16.1 新增 header encryption 检测"
+          ],
+          "model": "多信号 + 持续云端训练的 ML 模型, on-box 内联推理 (inline, on-storage)",
+          "training_data": "训练数据规模 1M+ 文件样本, 涵盖多种已知勒索攻击",
+          "continuous_training": "云端持续训练 + 自动更新, 模型自动向存储控制器推送新参数",
+          "ref_url": "https://docs.netapp.com/us-en/ontap-technical-reports/ransomware-solutions/ransomware-protection.html"
+        },
+        {
+          "name": "ARP (classic) 启发式 + 统计模型",
+          "signals": ["entropy", "file extension types", "file IOPS"],
+          "learning_period": "约 7 天 (most environments)",
+          "ref_url": "https://docs.netapp.com/us-en/ontap/anti-ransomware/index.html"
+        }
+      ],
+      "fp_suppression_mech": [
+        "管理员可在 ONTAP System Manager 将告警标记为 false positive, 触发 alert profile 更新, 不再对相同特征触发告警",
+        "FP suppression 原文: 'Marking an alert as a false positive updates the alert profile. For example, if the alert is triggered by a new file extension and you mark the alert as a false positive, you will not receive an alert the next time that the file extension is observed.' (NetApp Docs)",
+        "Multi-admin verification (MAV, 9.13.1+) 防止 ARP 配置被单管理员误改",
+        "ARP/AI 无学习期 (no learning mode), 持续云端训练直接避免冷启动基线偏差引起的 FP"
+      ],
+      "compute_infra": "NetApp storage controller 内 WAFL 写路径内联 (inline) 推理, 配合云端模型持续训练 + 自动参数下发",
+      "detection_accuracy": {
+        "recall": "99% (检测率)",
+        "precision_legitimate_accuracy": "100% (即 0 假阳性)",
+        "rating": "SE Labs AAA (highest)",
+        "report_url": "https://selabs.uk/reports/netapp-ontap-autonomous-ransomware-protection-with-ai/"
+      },
+      "whitepapers": [
+        {
+          "title": "NetApp Autonomous Ransomware Protection Solution Brief (SB-4301)",
+          "url": "https://www.netapp.com/pdf.html?item=/media/113827-sb-4301-ai-powered-autonomous-ransomware-protection.pdf"
+        },
+        {
+          "title": "NetApp Ransomware Recovery Guarantee (SB-4279)",
+          "url": "https://www.netapp.com/pdf.html?item=/media/103031-SB-4279-Ransomware_Recovery_Guarantee.pdf"
+        },
+        {
+          "title": "NetApp ONTAP built-in on-box AI-based detection and response (Technical Report)",
+          "url": "https://docs.netapp.com/us-en/ontap-technical-reports/ransomware-solutions/ransomware-protection.html"
+        }
+      ],
+      "blog_urls": [
+        "https://community.netapp.com/t5/Tech-ONTAP-Blogs/NetApp-s-AI-based-real-time-ransomware-detection-solution-achieves-AAA-rating/ba-p/453379",
+        "https://www.netapp.com/blog/aaa-rated-ai-powered-ransomware-detection",
+        "https://www.netapp.com/newsroom/press-releases/news-rel-20240626-477898",
+        "https://www.netapp.com/cyber-resilience/autonomous-ransomware-protection/"
+      ],
+      "docs_urls": [
+        "https://docs.netapp.com/us-en/ontap/anti-ransomware/",
+        "https://kb.netapp.com/on-prem/ontap/Ontap_OS/OS-KBs/How_ARP_behaves_in_ONTAP_9.16.1",
+        "https://docs.netapp.com/us-en/ontap-technical-reports/ontap-security-hardening/autonomous-ransomware-protection.html"
+      ],
+      "release_notes_url": "https://github.com/NetAppDocs/ontap/blob/main/release-notes/whats-new-9161.adoc",
+      "research_papers": [
+        {
+          "title": "SE Labs Independent Test Report — NetApp ONTAP ARP/AI (AAA, 99% recall, 100% precision)",
+          "url": "https://selabs.uk/reports/netapp-ontap-autonomous-ransomware-protection-with-ai/"
+        }
+      ]
+    },
+    "veeam": {
+      "vendor": "Veeam Software",
+      "product": "Veeam Data Platform + Veeam Ransomware Detection Service (RDS)",
+      "core_algos": [
+        {
+          "name": "Random Cut Forest (RCF) 异常检测 (Amazon-developed)",
+          "type": "unsupervised streaming anomaly detection",
+          "characteristics": "无需 labeled 训练数据, 持续从 streaming backup data 学习正常行为, 适合实时数据流",
+          "deployment": "per-user / per-protected-object 个性化模型 (granular), 多个模型并行",
+          "ref_url": "https://www.veeam.com/whitepapers/ransomware-detection-service_wp.pdf"
+        },
+        {
+          "name": "Dual Detection Profiles (双检测画像)",
+          "profiles": [
+            "Fast Attack Profile — 检测突发高强度加密事件 (blitz-style attacks)",
+            "Extended Attack Profile — 检测渐进式、慢速加密 (stealth / slow-moving attacks)"
+          ],
+          "ref_url": "https://www.veeam.com/blog/veeam-ransomware-detection-service.html"
+        },
+        {
+          "name": "Multi-Dimensional Behavior Baselines (多维度行为基线)",
+          "monitored_signals": [
+            "Anomalous file modifications or deletion (异常文件修改/删除)",
+            "Suspect file extensions (可疑文件扩展名)",
+            "Unusual patterns in file data — entropy scores, file change rates (文件熵值异常、文件变动率异常)",
+            "Derived statistics only: 文件计数, 熵分数 — 隐私保留 (privacy-preserving), file content 永不入模"
+          ],
+          "ref_url": "https://www.veeam.com/whitepapers/ransomware-detection-service_wp.pdf"
+        },
+        {
+          "name": "SureBackup + SureReplica 自动恢复验证",
+          "function": "通过 Virtual Lab + Instant VM Recovery 启动隔离环境, 对备份做 Content Scan (AV + YARA) 与 live recoverability test",
+          "ref_url": "https://bp.veeam.com/vbr/2_Design_Structures/D_Veeam_Components/D_SureBackup/SureBackup.html"
+        }
+      ],
+      "fp_suppression_mech": [
+        "Privacy-preserving architecture: 仅 derived statistics 入模, file content 留在 backup 系统中, 减少因内容侧特征导致的 FP",
+        "Per-object 个性化模型 + 持续 unsupervised learning: 减少 global model 误判",
+        "Human-Verified Threat Assessment: 人工核验告警后才升级 (Veeam Data Cloud Threat Center UI)",
+        "Ignore Anomaly 选项 (XSOAR 集成): 误报可在 SOAR 平台直接 'Ignore' 抑制后续告警"
+      ],
+      "compute_infra": "Veeam Data Cloud 内 ML 推理, 多用户/对象个性化模型; SureBackup/SureReplica 在 Veeam Virtual Lab 内的 backup repository + proxy appliance 算力上运行 (Instant VM Recovery 依赖底层 repository IOPS)",
+      "market_threat_context": {
+        "source": "Veeam 2025 Ransomware Trends and Proactive Strategies (survey of 1,300 orgs)",
+        "stat": "69% of organizations experienced at least one ransomware incident in 2024/2025",
+        "mandiant_dwell_time_ref": "M-Trends 2024 — global median dwell time 10 days (down from 16 days). Mandiant red teams achieve objectives in 5–7 days. (Cited via Veeam 2025 Ransomware Trends report and Mandiant M-Trends 2024)",
+        "url": "https://github.com/jacobdjwilson/awesome-annual-security-reports/blob/main/Annual%20Security%20Reports/2025/Veeam-Ransomware-Trends-2025.pdf"
+      },
+      "whitepapers": [
+        {
+          "title": "Veeam Ransomware Detection Service White Paper (Payam Kavousi & Zack Rossman, 2026)",
+          "url": "https://www.veeam.com/whitepapers/ransomware-detection-service_wp.pdf"
+        },
+        {
+          "title": "Veeam Ransomware Resilience, Availability and Recovery (Data Protection Guide)",
+          "url": "https://go.veeam.com/rs/870-LBG-312/images/ransomware-data-protection-guide.pdf"
+        },
+        {
+          "title": "5 Ransomware Protection Best Practices (Veeam)",
+          "url": "https://resource.itbusinesstoday.com/whitepapers/31944-Veeam-Software-Group-GmbH-1.pdf"
+        }
+      ],
+      "blog_urls": [
+        "https://www.veeam.com/blog/veeam-ransomware-detection-service.html",
+        "https://www.veeam.com/blog/ransomware-prevention-best-practices.html",
+        "https://www.veeam.com/blog/ransomware-recovery-what-you-need-to-know.html"
+      ],
+      "best_practice_url": "https://bp.veeam.com/vbr/2_Design_Structures/D_Veeam_Components/D_SureBackup/SureBackup.html",
+      "research_papers": [
+        {
+          "title": "Mandiant M-Trends 2024 Special Report (global median dwell time 10 days)",
+          "url": "https://www.scribd.com/document/746232783/m-trends-2024"
+        }
+      ],
+      "caveat": "原始委托中提到的 '4 层堆叠 (stacked) 异常检测 — Signature + Heuristic + Behavioral + ML' 未在 Veeam 官方 RDS 白皮书中找到对应 4 层术语. Veeam 官方方案实际为: RCF unsupervised ML + 双检测画像 (Fast/Extended) + 多维行为基线 + SureBackup/SureReplica 恢复验证. 委托方描述与官方术语不一致, 以官方白皮书为准."
+    },
+    "cohesity": {
+      "vendor": "Cohesity",
+      "product": "Cohesity Data Cloud (DataHawk 已并入 Data Cloud Enterprise Edition)",
+      "core_algos": [
+        {
+          "name": "Cohesity-developed 多 ML 模型 (Multivariate, Stacked-Ensemble 风格)",
+          "characteristics": "Multiple Cohesity-developed ML models; 多元 (multivariate) 而非传统 AI-washing; 由 human-written heuristic rules + ML 联合判断 (ensemble with associated weightage)",
+          "ref_url": "https://www.cohesity.com/blogs/cohesity-ransomware-detection-machine-learning-models/"
+        },
+        {
+          "name": "Entropy / Data-Reduction Ratio Anomaly Detection",
+          "method": "利用 backup 自身的数据缩减 (dedup+compression) 链路观察 entropy 突变 — 加密后数据可压缩性骤降, 表现为高熵, 无需额外算力",
+          "ref_url": "https://staging-docs.cohesity.com/docs/technicalguides/Content/ExternalFiles/TechGuides/Cohesity-White-Paper-Accelerate-Anomaly-Detection-with-Cohesity.pdf"
+        },
+        {
+          "name": "ML 输入信号 (Cohesity feeds into ML)",
+          "signals": [
+            "Content info per backup: size of data written, size of data read, logical size",
+            "Entropy / data-reduction ratio per backup (post dedup & compression)",
+            "Change tracking per backup: # files added, # files deleted, # files updated, # files unchanged",
+            "Aggregated stats across multiple backups: max data written bytes, max source logical size bytes, # successful runs"
+          ],
+          "min_history_required": "minimum 15 valid historical records to trigger detection",
+          "ref_url": "https://staging-docs.cohesity.com/docs/technicalguides/Content/ExternalFiles/TechGuides/Cohesity-White-Paper-Accelerate-Anomaly-Detection-with-Cohesity.pdf"
+        },
+        {
+          "name": "Human-written Heuristic Rule (FP suppression)",
+          "example": "If data is compressible AND replacement files are equally compressible, unlikely crypto attack — used to remove false positives",
+          "ref_url": "https://www.cohesity.com/blogs/cohesity-ransomware-detection-machine-learning-models/"
+        }
+      ],
+      "fp_suppression_mech": [
+        "ML + human-written heuristics 联合 ensemble (避免单 ML 模型的 FP)",
+        "需要 minimum 15 historical records 才有判断 (避免冷启动 FP)",
+        "Anomaly alert 可被标记 'Ignore Anomaly' — 抑制该 object 后续 30 天告警 (Cohesity Helios / AntiRansomware Dashboard)",
+        "SOAR 集成: Palo Alto XSOAR / Cisco SecureX 支持 'Ignore' 闭环处置"
+      ],
+      "compute_infra": "Cohesity Data Cloud control plane (Helios) 中跑 ML 推理; 训练数据来自集群 + 已知 malware 训练集; 推理为 scale-out SaaS",
+      "ransomware_variant_validation": {
+        "tested_variants": ["WannaCry (488 samples, 100% recall)", "Locky (495, 100%)", "Radamant (494, 100%)", "Jigsaw (411, 100%)", "Cerber", "Cryptxxx", "Cryptolocker"],
+        "ref_url": "https://staging-docs.cohesity.com/docs/technicalguides/Content/ExternalFiles/TechGuides/Cohesity-White-Paper-Accelerate-Anomaly-Detection-with-Cohesity.pdf"
+      },
+      "whitepapers": [
+        {
+          "title": "Accelerate Anomaly Detection with Cohesity (White Paper v1.1, Feb 2025)",
+          "url": "https://staging-docs.cohesity.com/docs/technicalguides/Content/ExternalFiles/TechGuides/Cohesity-White-Paper-Accelerate-Anomaly-Detection-with-Cohesity.pdf"
+        },
+        {
+          "title": "Counter Ransomware Attacks with Cohesity (Solution Brief)",
+          "url": "https://www.content.shi.com/cms-content/accelerator/media/pdfs/cohesity/cohesity-082625-counter-ransomware-attacks-with-cohesity-solution-brief-en.pdf"
+        },
+        {
+          "title": "Cohesity DataHawk Solution Overview (folded into Data Cloud Enterprise Edition)",
+          "url": "https://microshare-inc.com/wp-content/uploads/2024/05/Cohesity-DataHawk.pdf"
+        }
+      ],
+      "blog_urls": [
+        "https://www.cohesity.com/blogs/cohesity-ransomware-detection-machine-learning-models/",
+        "https://www.cohesity.com/blogs/introducing-cohesity-datahawk",
+        "https://www.cohesity.com/blogs/cyber-resilience-in-the-ransomware-era-introducing-new-cohesity-datahawk-capabilities"
+      ],
+      "research_papers": [
+        {
+          "title": "A Lightweight Stacked Ensemble Model for Efficient Ransomware Detection (academic reference, IoT)",
+          "url": "https://www.semanticscholar.org/paper/A-Lightweight-Stacked-Ensemble-Model-for-Efficient-Lin-Lin/f141ef26231fe2e1b0471336e98fd0d36d7d90d3"
+        }
+      ]
+    },
+    "index_engines": {
+      "vendor": "Index Engines (delivered via Dell PowerProtect Cyber Recovery)",
+      "product": "CyberSense® for Dell PowerProtect Cyber Recovery",
+      "core_algos": [
+        {
+          "name": "Full-Content AI Analytics (CyberSense 引擎)",
+          "feature_count": "200+ content-based analytics / 统计特征",
+          "feature_categories": [
+            "file entropy (文件熵)",
+            "data anomaly (数据异常)",
+            "metadata (元数据)",
+            "database consistency (数据库一致性)"
+          ],
+          "scope": "在 backup image 内部直接扫描, 无需 rehydrate (支持 Dell Avamar, NetWorker, Commvault, NetBackup, PowerProtect Data Manager)",
+          "ref_url": "https://www.delltechnologies.com/asset/en-ng/products/cyber-resilience/briefs-summaries/cybersense-for-powerprotect-cyber-recovery-brief.pdf"
+        },
+        {
+          "name": "AI 训练集规模 (Index Engines Research Lab)",
+          "scale": "7,500+ ransomware variants analyzed, 120M+ customer datasets collected, patented training approach",
+          "training_data": "actual ransomware variants + sophisticated intermittent encryption variants + tens of millions of data sets",
+          "ref_url": "https://indexengines.com/products/cybersense/"
+        }
+      ],
+      "fp_suppression_mech": [
+        "Full-content AI analysis (vs metadata-only) — metadata 层面 (扩展名/size) 易被攻击者绕过, CyberSense 走 full-content 避免 metadata-级误报",
+        "YARA 规则 + 自定义 malware signatures 支持 forward & backward detection",
+        "自定义 threshold alerts (基于 files changed/added/deleted 的基线)",
+        "Vault 内运行 (air-gapped) — 不在主链路, 不受主存储 I/O 抖动影响, 减少环境因素 FP"
+      ],
+      "compute_infra": "运行在 Dell PowerProtect Cyber Recovery Vault 内 (air-gapped cyber vault), 与主链路物理隔离; 100% full-content inspection, 不采样",
+      "validated_accuracy": {
+        "accuracy": "99.99%",
+        "sla": "industry-first 99.99% SLA (June 2024)",
+        "validator": "Enterprise Strategy Group (ESG) — Senior Analyst Alex Arcilla",
+        "report_title": "Index Engines' CyberSense Validated 99.99% Effective in Detecting Ransomware Corruption",
+        "report_date": "2024-06",
+        "url": "https://indexengines.com/resources/whitepaper/cybersense-ransomware-detection-accuracy/"
+      },
+      "forrester_tei_metrics": {
+        "study_title": "The Total Economic Impact Of Dell PowerProtect Cyber Recovery",
+        "commissioner": "Dell Technologies",
+        "forrester_consulting_date": "2023-08",
+        "verified_metrics": {
+          "reduction_in_data_recovery_time": "80% (data protection teams spent 80% less time locating uncompromised data and restoring)",
+          "reduction_in_system_downtime": "75% (systems back online 75% faster with PowerProtect + CyberSense vs without)"
+        },
+        "unverified_metric_note": "委托方提供的 '53% ROI' 数字在公开可访问的 2023-08 Forrester TEI of Dell PowerProtect Cyber Recovery 主报告中未找到对应具体数字, 可能引用自其他版本或 composite organization 量化模型; 本调研仅列出公开可验证的 80% recovery time / 75% downtime 数字",
+        "url": "https://tei.forrester.com/go/dell/powerprotect/docs/The_Total_Economic_Impact_Of_Dell_PowerProtect_Cyber_Recovery.pdf"
+      },
+      "whitepapers": [
+        {
+          "title": "CyberSense® for Dell PowerProtect Cyber Recovery — Solution Brief",
+          "url": "https://www.delltechnologies.com/asset/en-ng/products/cyber-resilience/briefs-summaries/cybersense-for-powerprotect-cyber-recovery-brief.pdf"
+        },
+        {
+          "title": "ESG: Index Engines' CyberSense Validated 99.99% Effective (Research Brief)",
+          "url": "https://indexengines.com/resources/whitepaper/cybersense-ransomware-detection-accuracy/"
+        },
+        {
+          "title": "Dell PowerProtect Cyber Recovery Forrester TEI Study (2023-08)",
+          "url": "https://tei.forrester.com/go/dell/powerprotect/docs/The_Total_Economic_Impact_Of_Dell_PowerProtect_Cyber_Recovery.pdf"
+        }
+      ],
+      "blog_urls": [
+        "https://indexengines.com/products/cybersense/",
+        "https://www.insightsfromanalytics.com/post/index-engines-cybersense-delivers-unparalleled-ransomware-detection-with-99-99-accuracy",
+        "https://infohub.delltechnologies.com/l/ransomware-protection-secure-your-data-on-dell-powerflex-with-powerprotect-cyber-recovery-1/cybersense-engine-documentation/"
+      ],
+      "research_papers": [
+        {
+          "title": "Enterprise Strategy Group (ESG) — Index Engines' CyberSense Validated 99.99% Effective (2024-06)",
+          "url": "https://indexengines.com/resources/whitepaper/cybersense-ransomware-detection-accuracy/"
+        }
+      ]
+    }
+  }
+}
