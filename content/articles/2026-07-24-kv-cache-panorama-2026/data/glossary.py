@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+"""hacms-glossary: Generate tooltip data for KV Cache Panorama article."""
+
+import json
+
+GLOSSARY = [
+  {
+    "term": "KV Cache",
+    "en": "Key-Value Cache",
+    "definition": "在 autoregressive 解码过程中, 把每个 token 的 Key 和 Value 矩阵缓存起来, 避免每生成一个新 token 都重新计算整个序列的 attention. 这是以空间换时间的经典权衡"
+  },
+  {
+    "term": "Memory Wall",
+    "en": "Memory Wall",
+    "definition": "Wulf & McKee 1995 提出的经典论断 — 内存带宽增长速度远低于计算能力, 最终计算单元将无数据可算. 在 LLM 时代, 这一论断在 KV Cache 场景被彻底兑现"
+  },
+  {
+    "term": "MLA",
+    "en": "Multi-head Latent Attention",
+    "definition": "DeepSeek-V2 提出的低秩压缩注意力机制, 通过 down-projection 把 K, V 压缩到固定 latent 维度 (~512), 相比 MHA 减少 93.3% KV 缓存, 质量近似无损"
+  },
+  {
+    "term": "GQA",
+    "en": "Grouped-Query Attention",
+    "definition": "2023 年 Google 提出的注意力机制, 把 Q 头分组, 同组共享 K, V. 相比 MHA 减少 ~8× KV 缓存, 是 Llama-2/3, Mistral, Qwen 默认"
+  },
+  {
+    "term": "MQA",
+    "en": "Multi-Query Attention",
+    "definition": "Shazeer 2019 年提出的极端共享方案, 所有 Q 头共享 1 个 K, V. 相比 MHA 减少 H× KV 缓存"
+  },
+  {
+    "term": "SSM",
+    "en": "State Space Model",
+    "definition": "状态空间模型, 经典控制论 h'(t) = Ah(t) + Bx(t), 在序列建模中, A 是状态转移矩阵. Mamba 让 A/B/C 输入依赖, 实现选择性记忆"
+  },
+  {
+    "term": "PagedAttention",
+    "en": "PagedAttention",
+    "definition": "vLLM 提出的 KV Cache 操作系统式分页机制, 把 KV 按 16 token/页分块按需分配, 减少碎片 2-4× 提升吞吐量"
+  },
+  {
+    "term": "RadixAttention",
+    "en": "RadixAttention",
+    "definition": "SGLang 提出的基于 radix tree 的前缀共享机制, 自动索引和复用共享前缀, 命中率 70-90%"
+  },
+  {
+    "term": "SSD 对偶性",
+    "en": "State Space Duality",
+    "definition": "Mamba-2 论文提出的核心理论 — SSM 与 Attention 在数学上是一对偶, 都是半可分矩阵实例. 这让 SSM 能复用 Attention 的硬件加速 (矩阵乘)"
+  }
+]
+
+
+def main():
+    out = {t["term"]: t["definition"] for t in GLOSSARY}
+    print(json.dumps(out, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()
