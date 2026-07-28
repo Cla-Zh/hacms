@@ -186,20 +186,43 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 }
 </style>
 
-<!-- KaTeX for beautiful math -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
-  onload="renderMathInElement(document.body, {delimiters:[{left:"$$",right:"$$",display:true},{left:"$",right:"$",display:false}]});"></script>
+<!-- Math: 纯 Unicode + CSS, 无外部依赖, 离线可用 -->
 <style>
-/* 公式块美化 */
-.formula { background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%); border-left: 4px solid #6366f1; padding: 18px 22px; margin: 14px 0; border-radius: 0 10px 10px 0; font-size: 16px; line-height: 1.8; overflow-x: auto; }
-.formula .katex { font-size: 1.05em; }
-.formula-note { background: #f9fafb; color: #6b7280; font-size: 13px; padding: 8px 18px; border-radius: 6px; margin: -4px 0 14px 0; border-left: 3px solid #d1d5db; }
-.formula strong { color: #4f46e5; }
+.formula {
+  background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+  border-left: 4px solid #6366f1;
+  padding: 16px 22px;
+  margin: 14px 0;
+  border-radius: 0 10px 10px 0;
+  font-family: "Cambria Math", "STIX Two Math", "Latin Modern Math", "Times New Roman", "Georgia", serif;
+  font-size: 17px;
+  line-height: 1.9;
+  letter-spacing: 0.01em;
+  overflow-x: auto;
+}
+.formula .katex, .formula sub, .formula sup { font-style: normal; }
+.formula sub { font-size: 0.75em; vertical-align: -0.25em; }
+.formula sup { font-size: 0.75em; vertical-align: 0.5em; }
+.formula .frac { display: inline-block; vertical-align: middle; text-align: center; padding: 0 4px; }
+.formula .frac .num { display: block; border-bottom: 1px solid #374151; padding: 0 4px 2px 4px; }
+.formula .frac .den { display: block; padding: 2px 4px 0 4px; }
+.formula .vec { text-decoration: overline; text-decoration-thickness: 1.5px; }
+.formula .vec::after { content: "→"; display:inline-block; margin-left:2px; }
+.formula .op { color: #4f46e5; font-weight: 600; }
 .formula .var { color: #059669; font-style: italic; }
-.formula .const { color: #dc2626; font-weight: 600; }
-.katex-display { margin: 0.5em 0 !important; }
+.formula .const { color: #dc2626; font-weight: 700; }
+.formula .num-val { color: #4f46e5; font-weight: 700; }
+.formula .unit { color: #6b7280; font-size: 0.85em; }
+.formula strong { color: #4f46e5; }
+.formula-note {
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 13px;
+  padding: 8px 18px;
+  border-radius: 6px;
+  margin: -4px 0 14px 0;
+  border-left: 3px solid #d1d5db;
+}
 </style>
 </head>
 <body>
@@ -360,14 +383,14 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 <p>自注意力的核心计算可以浓缩为三个矩阵乘法:</p>
 
 <div class="formula">
-$$\mathrm{Attention}(Q, K, V) = \mathrm{softmax}\!\left(\frac{Q K^{\top}}{\sqrt{d_k}}\right) V$$
+<b>Attention</b>(<i class="var">Q</i>, <i class="var">K</i>, <i class="var">V</i>) = <b class="op">softmax</b><big>(</big><span class="frac"><span class="num"><i class="var">Q</i> <i class="var">K</i><sup>⊤</sup></span><span class="den">√<i class="var">d<sub>k</sub></i></span></span><big>)</big> · <i class="var">V</i>
 </div>
 <div class="formula-note">Q: query, K: key, V: value, d<sub>k</sub>: key 维度 — Vaswani et al. 2017</div>
 
 <p>其中 Q, K, V 都是从输入 X 通过线性投影得到. 在自回归解码阶段, 第 t 个 token 只与前 t-1 个 token 做 attention, 因此 K 和 V 可以缓存:</p>
 
 <div class="formula">
-$$\mathrm{KV\_Memory} \propto 2 \times L \times B \times S \times H_{kv} \times d_h \times \mathrm{bytes}$$
+<b>KV<sub>memory</sub></b> ∝ <span class="num-val">2</span> × <i class="var">L</i> × <i class="var">B</i> × <i class="var">S</i> × <i class="var">H<sub>kv</sub></i> × <i class="var">d<sub>h</sub></i> × <i class="const">bytes</i>
 </div>
 <div class="formula-note">L: 层数, B: batch, S: 序列长度, H<sub>kv</sub>: KV 头数, d<sub>h</sub>: 头维度, bytes: 精度 (FP16=2, FP8=1, INT4=0.5)</div>
 
@@ -453,7 +476,7 @@ $$\mathrm{KV\_Memory} \propto 2 \times L \times B \times S \times H_{kv} \times 
 <p>用户提到一个"极限假设": <b>1T 参数 + 128K 上下文 = KV Cache 仅 2300 MiB</b>. 这看起来不可能, 因为按 MHA 标准:</p>
 
 <div class="formula">
-$$\mathrm{KV}_{\mathrm{baseline}} = 2 \cdot L \cdot S \cdot H_{kv} \cdot d_h \cdot \mathrm{bytes} = 2 \times 80 \times 131072 \times 8 \times 128 \times 2 = \mathbf{42.95\ GB}$$
+<b>KV<sub>baseline</sub></b> = <span class="num-val">2</span> · <i class="var">L</i> · <i class="var">S</i> · <i class="var">H<sub>kv</sub></i> · <i class="var">d<sub>h</sub></i> · <i class="const">bytes</i> = 2 × 80 × 131072 × 8 × 128 × 2 = <b class="num-val">42.95 GB</b> ≈ 40 GB
 </div>
 <div class="formula-note">基线 = 1T 模型 GQA-8 (类似 Llama-3-70B, 8 KV heads); 若纯 MHA 128 头, baseline = 640 GB, 实际 MoE+MLA 立刻降到 2-5 GB</div>
 <div class="formula-note">假设 80 层 (1T 大模型典型), 8 组 GQA, 头维度 128, FP16 — <b>单 token 约 320 KB KV</b> (2×80×8×128×2 字节)</div>
@@ -475,7 +498,7 @@ $$\mathrm{KV}_{\mathrm{baseline}} = 2 \cdot L \cdot S \cdot H_{kv} \cdot d_h \cd
 </table>
 
 <div class="formula">
-$$2.3\ \mathrm{GB} \approx 42.95\ \mathrm{GB} \times \frac{1}{8} \times \frac{1}{8} \times \frac{1}{2} \times \frac{1}{2} \times \frac{1}{2} \times \frac{1}{4} \approx \mathbf{2.6\ GB} \checkmark$$
+<span class="num-val">2.3 GB</span> ≈ <span class="num-val">42.95 GB</span> × <sup>1</sup>⁄<sub>8</sub> × <sup>1</sup>⁄<sub>8</sub> × <sup>1</sup>⁄<sub>2</sub> × <sup>1</sup>⁄<sub>2</sub> × <sup>1</sup>⁄<sub>2</sub> × <sup>1</sup>⁄<sub>4</sub> ≈ <b class="num-val">2.6 GB</b> ✓
 </div>
 <div class="formula-note">叠乘 ≈ ×16.7, 实际再考虑 batch=1 (单请求) 与 128K 是上下界 (实际可 sliding window 缩短到 32K)</div>
 
@@ -762,7 +785,7 @@ $$2.3\ \mathrm{GB} \approx 42.95\ \mathrm{GB} \times \frac{1}{8} \times \frac{1}
 <h4 style="color:var(--accent);margin-top:12px">🔬 A. PagedAttention (vLLM) — 操作系统虚拟内存的 LLM 移植</h4>
 <p><b>核心思想</b>: 把 KV Cache 当作"用户内存", 借鉴 OS 虚拟内存的<b>分页机制</b>. 一个请求的 KV 不再必须连续存放, 而是被切成固定大小 (默认 16 token) 的<b>logical block</b>, 通过<b>block table</b>映射到物理 block.</p>
 <div class="formula">
-$$\mathrm{KV}_{\mathrm{paged}} = \sum_{i=1}^{B}\mathrm{block}[i] \cdot Q_t = \sum_{i=1}^{B}\mathrm{softmax}\!\left(\frac{Q_t \cdot K_{\mathrm{block}[i]}^{\top}}{\sqrt{d}}\right) V_{\mathrm{block}[i]}$$
+<b>KV<sub>paged</sub></b> = ∑<sub><i>i</i>=1..<i>B</i></sub> <b class="op">block</b>[<i>i</i>] · <i class="var">Q<sub>t</sub></i> = ∑<sub><i>i</i>=1..<i>B</i></sub> <b class="op">softmax</b><big>(</big><span class="frac"><span class="num"><i class="var">Q<sub>t</sub></i> · <i class="var">K</i><sub>block[<i>i</i>]</sub><sup>⊤</sup></span><span class="den">√<i class="var">d</i></span></span><big>)</big> · <i class="var">V</i><sub>block[<i>i</i>]</sub>
 </div>
 <div class="formula-note">关键数据结构: (1) <b>Block Table</b> — 每个请求维护 logical→physical 映射; (2) <b>Block Engine</b> — 在 GPU 上预分配物理 block 池; (3) <b>Reference Counting</b> — 多请求共享 (beam search / parallel sampling) 时复用同一 physical block</div>
 <p><b>三大收益</b>:</p>
@@ -775,8 +798,8 @@ $$\mathrm{KV}_{\mathrm{paged}} = \sum_{i=1}^{B}\mathrm{block}[i] \cdot Q_t = \su
 <h4 style="color:var(--accent);margin-top:18px">🔬 B. RadixAttention (SGLang) — Radix Tree + LRU 的 KV 索引</h4>
 <p><b>核心思想</b>: 把 KV Cache 按<b>token 序列为 key</b>建立 <b>Radix Tree</b> (基数树) 索引. 不同请求若共享任意长度前缀, 自动匹配复用. 区别于 vLLM 的"同 prefix"匹配, RadixAttention 支持<b>任意长度的 prefix 子树复用</b>.</p>
 <div class="formula">
-$$\mathrm{node}[i] = (\mathrm{tokens},\ \mathrm{kv\_ref},\ \mathrm{children}[256])$$
-$$\mathrm{LRU:\ touch\ node\ on\ access},\ \mathrm{evict\ LRU\ leaf\ when\ capacity\ full}$$
+<b>node[<i>i</i>]</b> = ( <i class="var">tokens</i>, <i class="var">kv_ref</i>, <i class="var">children</i>[256] )<br>
+<b class="op">LRU</b>: <i class="var">touch node on access</i>, <i class="var">evict LRU leaf when capacity full</i>
 </div>
 <div class="formula-note">关键操作: (1) <b>Match</b> — 新请求序列在 radix tree 找最长公共前缀; (2) <b>Insert</b> — decode 完新 token 后挂到 tree; (3) <b>Evict</b> — LRU 递归驱逐叶子; (4) <b>Cache Hit</b> — 命中前缀直接复用, 跳过 prefill</div>
 <p><b>核心特性</b>:</p>
@@ -790,7 +813,7 @@ $$\mathrm{LRU:\ touch\ node\ on\ access},\ \mathrm{evict\ LRU\ leaf\ when\ capac
 <h4 style="color:var(--accent);margin-top:18px">🔬 C. Mooncake (Moonshot AI) — 集群级 KV 池化 + RDMA Transfer Engine</h4>
 <p><b>核心思想</b>: KV Cache 不再是"GPU 私有", 而是<b>集群级共享资源池</b>. 用 RDMA 网络让 GPU 节点高速共享 KV, prefill 节点算完后 KV 立即通过 RDMA 传给 decode 节点.</p>
 <div class="formula">
-$$\mathrm{Mooncake} = \underbrace{\mathrm{Conductor}}_{\mathrm{调度}} + \underbrace{\mathrm{Prefill\ Cluster}}_{\mathrm{预填}} + \underbrace{\mathrm{Decode\ Cluster}}_{\mathrm{解码}} + \underbrace{\mathrm{KV\_Pool}}_{\mathrm{CPU/DRAM/SSD}} + \underbrace{\mathrm{Transfer\ Engine}}_{\mathrm{RDMA}}$$
+<b>Mooncake</b> = <i class="var">Conductor</i><sub>(调度)</sub> + <i class="var">Prefill Cluster</i> + <i class="var">Decode Cluster</i> + <i class="var">KV Pool</i><sub>(CPU/DRAM/SSD)</sub> + <i class="var">Transfer Engine</i><sub>(RDMA)</sub>
 </div>
 <div class="formula-note">关键组件: (1) <b>Conductor (调度器)</b> — KV-aware 调度, SLO-aware early-rejection; (2) <b>Transfer Engine</b> — 基于 RDMA 的 GPU Direct 传输, 跨节点延迟 &lt; 10μs; (3) <b>Mooncake Store</b> — 分布式 KV 池, 存 CPU/DRAM/SSD; (4) <b>PD Disaggregation</b> — Prefill / Decode 分离到不同 GPU 集群</div>
 <p><b>三大算法创新</b>:</p>
@@ -881,7 +904,7 @@ $$\mathrm{Mooncake} = \underbrace{\mathrm{Conductor}}_{\mathrm{调度}} + \under
 </table>
 
 <div class="formula">
-$$h_t = A \cdot h_{t-1} + B \cdot x_t, \quad y_t = C \cdot h_t$$
+<i class="var">h<sub>t</sub></i> = <i class="const">A</i> · <i class="var">h</i><sub><i>t</i>−1</sub> + <i class="const">B</i> · <i class="var">x<sub>t</sub></i> , &nbsp;&nbsp;&nbsp; <i class="var">y<sub>t</sub></i> = <i class="const">C</i> · <i class="var">h<sub>t</sub></i>
 </div>
 <div class="formula-note">A, B, C 都是输入依赖 (selective) — 推理时只需存固定 h (≈ 16 维), 不需存 KV</div>
 
@@ -1630,9 +1653,9 @@ PD 分离 + prefix cache + FP8 KV 已是 2026 工业默认. Mooncake 已在 vLLM
 <p>三个核心 SLA 指标 — 任何优化都最终反映到这三者:</p>
 
 <div class="formula">
-$$\mathrm{TTFT} = T_{\mathrm{prefill}} + T_{\mathrm{queue}} \quad [\mathrm{ms}]$$
-$$\mathrm{TPOT} = \frac{T_{\mathrm{decode}}}{N_{\mathrm{tokens}}} \quad [\mathrm{ms/tok}]$$
-$$\mathrm{Throughput} = \frac{N_{\mathrm{requests}} \cdot N_{\mathrm{tokens}}}{\mathrm{wall\_time}} \quad [\mathrm{tok/s}]$$
+<b class="op">TTFT</b> = <i class="var">T</i><sub>prefill</sub> + <i class="var">T</i><sub>queue</sub> &nbsp;&nbsp;<span class="unit">[ms]</span><br>
+<b class="op">TPOT</b> = <span class="frac"><span class="num"><i class="var">T</i><sub>decode</sub></span><span class="den"><i class="var">N</i><sub>tokens</sub></span></span> &nbsp;&nbsp;<span class="unit">[ms/tok]</span><br>
+<b class="op">Throughput</b> = <span class="frac"><span class="num"><i class="var">N</i><sub>requests</sub> × <i class="var">N</i><sub>tokens</sub></span><span class="den"><i class="var">T</i><sub>wall</sub></span></span> &nbsp;&nbsp;<span class="unit">[tok/s]</span>
 </div>
 
 <div class="formula-note">
@@ -1645,13 +1668,14 @@ TTFT = Time To First Token (用户发完 prompt 到看到第一个 token 的等�
 <p>TTFT 几乎完全由 prefill 决定 (decode 还没开始). Prefill 阶段需要把整个 prompt 跑一遍, 计算复杂度是 $O(n^2)$ (n = prompt tokens):</p>
 
 <div class="formula">
-$$T_{\mathrm{prefill}} = \underbrace{\frac{n^2 \cdot d_{\mathrm{model}} \cdot 2}{\mathrm{GPU\_peak\_FLOPS}}}_{\mathrm{计算时间}} + \underbrace{\frac{n \cdot d_{\mathrm{model}} \cdot \mathrm{bytes}}{\mathrm{HBM\_bandwidth}}}_{\mathrm{权重加载}} + \underbrace{\frac{n \cdot \mathrm{KV\_size}}{\mathrm{HBM\_bandwidth}}}_{\mathrm{KV 写入}}$$
+<b><i>T</i><sub>prefill</sub></b> = <span class="frac"><span class="num"><i>n</i>² × <i>d</i><sub>model</sub> × 2</span><span class="den">GPU<sub>peak</sub> FLOPS</span></span> &nbsp;<i>(计算)</i> &nbsp;+&nbsp; <span class="frac"><span class="num"><i>n</i> × <i>d</i><sub>model</sub> × bytes</span><span class="den">HBM<sub>BW</sub></span></span> &nbsp;<i>(权重加载)</i> &nbsp;+&nbsp; <span class="frac"><span class="num"><i>n</i> × KV<sub>size</sub></span><span class="den">HBM<sub>BW</sub></span></span> &nbsp;<i>(KV 写入)</i>
 </div>
 
 <p><b>数值代入</b> (Llama-3-70B, n=2048 prompt tokens):</p>
 
 <div class="formula">
-$$T_{\mathrm{prefill}} = \frac{2048^2 \times 8192 \times 2}{989 \times 10^{12}} + \frac{2048 \times 8192 \times 2}{3.35 \times 10^{12}} + \frac{2048 \times 131072 \times 2 \times 2}{3.35 \times 10^{12}} \approx 69\ \mathrm{ms} + 10\ \mathrm{ms} + 327\ \mathrm{ms}} \approx \mathbf{406\ ms}$$
+<b><i>T</i><sub>prefill</sub></b> = <span class="frac"><span class="num">2048² × 8192 × 2</span><span class="den">989 × 10¹²</span></span> + <span class="frac"><span class="num">2048 × 8192 × 2</span><span class="den">3.35 × 10¹²</span></span> + <span class="frac"><span class="num">2048 × 131072 × 2 × 2</span><span class="den">3.35 × 10¹²</span></span><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; = <span class="num-val">69 ms</span> + <span class="num-val">10 ms</span> + <span class="num-val">327 ms</span> &nbsp;≈&nbsp; <b class="num-val">406 ms</b>
 </div>
 
 <div class="formula-note">
@@ -1664,13 +1688,14 @@ $$T_{\mathrm{prefill}} = \frac{2048^2 \times 8192 \times 2}{989 \times 10^{12}} 
 <p>Decode 阶段每个新 token 都需要读<b>整个历史 KV</b> 来计算 attention. 这就是 memory-bound 的根本原因:</p>
 
 <div class="formula">
-$$T_{\mathrm{decode\_per\_tok}} = \underbrace{\frac{L \cdot S \cdot H_{kv} \cdot d_h \cdot \mathrm{bytes}}{\mathrm{HBM\_bandwidth}}}_{\mathrm{KV 读取}} + \underbrace{\frac{2 \cdot L \cdot H_{attn} \cdot d_h}{\mathrm{GPU\_peak\_FLOPS}}}_{\mathrm{Attention 计算}} + \underbrace{\frac{d_{\mathrm{model}} \cdot \mathrm{bytes}}{\mathrm{HBM\_bandwidth}}}_{\mathrm{权重读取}}$$
+<b><i>T</i><sub>decode/tok</sub></b> = <span class="frac"><span class="num"><i>L</i> × <i>S</i> × <i>H</i><sub>kv</sub> × <i>d<sub>h</sub></i> × bytes</span><span class="den">HBM<sub>BW</sub></span></span> &nbsp;<i>(KV 读)</i> &nbsp;+&nbsp; <span class="frac"><span class="num">2 × <i>L</i> × <i>H</i><sub>attn</sub> × <i>d<sub>h</sub></i></span><span class="den">GPU<sub>peak</sub> FLOPS</span></span> &nbsp;<i>(attention)</i> &nbsp;+&nbsp; <span class="frac"><span class="num"><i>d</i><sub>model</sub> × bytes</span><span class="den">HBM<sub>BW</sub></span></span> &nbsp;<i>(权重)</i>
 </div>
 
 <p><b>数值代入</b> (Llama-3-70B, S=4096 已生成 tokens):</p>
 
 <div class="formula">
-$$T_{\mathrm{decode}} = \frac{80 \times 4096 \times 8 \times 128 \times 2}{3.35 \times 10^{12}} + \frac{2 \times 80 \times 64 \times 128}{989 \times 10^{12}} + \frac{8192 \times 2}{3.35 \times 10^{12}} \approx 20\ \mathrm{ms} + 1.3\ \mathrm{μs} + 4.9\ \mathrm{μs}} \approx \mathbf{20\ ms}$$
+<b><i>T</i><sub>decode</sub></b> = <span class="frac"><span class="num">80 × 4096 × 8 × 128 × 2</span><span class="den">3.35 × 10¹²</span></span> + <span class="frac"><span class="num">2 × 80 × 64 × 128</span><span class="den">989 × 10¹²</span></span> + <span class="frac"><span class="num">8192 × 2</span><span class="den">3.35 × 10¹²</span></span><br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; = <span class="num-val">20.0 ms</span> + <span class="num-val">1.3 μs</span> + <span class="num-val">4.9 μs</span> &nbsp;≈&nbsp; <b class="num-val">20.0 ms</b> &nbsp;<i style="color:#dc2626">(99.7% 在 KV 读 HBM)</i>
 </div>
 
 <div class="formula-note">
@@ -1683,15 +1708,14 @@ $$T_{\mathrm{decode}} = \frac{80 \times 4096 \times 8 \times 128 \times 2}{3.35 
 <p>回到 §1.1 的核心公式, 代入 batch 与并发:</p>
 
 <div class="formula">
-$$\mathrm{KV\_size} = 2 \cdot L \cdot S \cdot H_{kv} \cdot d_h \cdot B \cdot \mathrm{bytes}$$
-$$= 2 \times L \times S \times H_{kv} \times d_h \times B \times \mathrm{bytes}\ \ [\mathrm{bytes}]$$
+<b>KV<sub>size</sub></b> = <span class="num-val">2</span> × <i class="var">L</i> × <i class="var">S</i> × <i class="var">H</i><sub>kv</sub> × <i class="var">d<sub>h</sub></i> × <i class="var">B</i> × <i class="const">bytes</i> &nbsp;&nbsp;<span class="unit">[bytes]</span>
 </div>
 
 <p><b>生产场景</b> (Llama-3-70B, batch=32 并发, S=32K 上下文):</p>
 
 <div class="formula">
-$$\mathrm{KV\_size} = 2 \times 80 \times 32768 \times 8 \times 128 \times 32 \times 2 = 17.18\ \mathrm{GB\ /\ request}$$
-$$\mathrm{Total\_HBM} = 17.18 \times 32 = 549.8\ \mathrm{GB}$$
+<b>KV<sub>size</sub></b> = 2 × 80 × 32768 × 8 × 128 × 32 × 2 = <b class="num-val">17.18 GB / request</b><br>
+<b>HBM<sub>total</sub></b> = 17.18 × 32 = <b class="num-val">549.8 GB</b> &nbsp;<i style="color:#dc2626">(单 H100 80GB 装不下, 需 TP-7)</i>
 </div>
 
 <div class="formula-note">
@@ -1704,7 +1728,7 @@ $$\mathrm{Total\_HBM} = 17.18 \times 32 = 549.8\ \mathrm{GB}$$
 <p>即使算力无穷, <b>TPOT 的物理下限</b> 由 HBM 带宽决定:</p>
 
 <div class="formula">
-$$\mathrm{TPOT}_{\min} = \frac{\mathrm{KV\_per\_tok}}{\mathrm{HBM\_bandwidth}} = \frac{2 \cdot L \cdot S \cdot H_{kv} \cdot d_h \cdot \mathrm{bytes}}{\mathrm{HBM\_bandwidth}}$$
+<b>TPOT<sub>min</sub></b> = <span class="frac"><span class="num">KV<sub>per<sub>tok</sub></sub></span><span class="den">HBM<sub>BW</sub></span></span> = <span class="frac"><span class="num">2 × <i>L</i> × <i>S</i> × <i>H</i><sub>kv</sub> × <i>d<sub>h</sub></i> × bytes</span><span class="den">HBM<sub>BW</sub></span></span>
 </div>
 
 <table class="data-table">
@@ -1728,13 +1752,13 @@ $$\mathrm{TPOT}_{\min} = \frac{\mathrm{KV\_per\_tok}}{\mathrm{HBM\_bandwidth}} =
 <p>当单卡装不下 (Step 4), 必须 TP/PP/EP. 跨卡 KV 传输需要 NVLink:</p>
 
 <div class="formula">
-$$T_{\mathrm{NVLink}} = \frac{\mathrm{KV\_size}}{\mathrm{NVLink\_bandwidth}} = \frac{17.18\ \mathrm{GB}}{900\ \mathrm{GB/s}} = 19\ \mathrm{ms}$$
+<b><i>T</i><sub>NVLink</sub></b> = <span class="frac"><span class="num">KV<sub>size</sub></span><span class="den">NVLink<sub>BW</sub></span></span> = <span class="frac"><span class="num">17.18 GB</span><span class="den">900 GB/s</span></span> = <b class="num-val">19 ms</b>
 </div>
 
 <p>vs 跨机 RDMA (Mooncake Transfer Engine):</p>
 
 <div class="formula">
-$$T_{\mathrm{RDMA}} = \frac{\mathrm{KV\_size}}{\mathrm{RDMA\_bandwidth}} = \frac{17.18\ \mathrm{GB}}{200\ \mathrm{GB/s\ (HDR\ InfiniBand)}} = 86\ \mathrm{ms}$$
+<b><i>T</i><sub>RDMA</sub></b> = <span class="frac"><span class="num">KV<sub>size</sub></span><span class="den">RDMA<sub>BW</sub></span></span> = <span class="frac"><span class="num">17.18 GB</span><span class="den">200 GB/s (HDR IB)</span></span> = <b class="num-val">86 ms</b> &nbsp;<i style="color:#dc2626">(比 NVLink 慢 4.5×)</i>
 </div>
 
 <div class="formula-note">
@@ -1747,15 +1771,14 @@ $$T_{\mathrm{RDMA}} = \frac{\mathrm{KV\_size}}{\mathrm{RDMA\_bandwidth}} = \frac
 <p>当 HBM 装不下, 必须 offload 到 DRAM 或 NVMe (§2.3):</p>
 
 <div class="formula">
-$$T_{\mathrm{offload\_read}} = \frac{\mathrm{KV\_size}}{\mathrm{DRAM\_BW}} + \frac{\mathrm{KV\_size}}{\mathrm{NVMe\_BW}}$$
-$$= \frac{17.18\ \mathrm{GB}}{80\ \mathrm{GB/s}} + \frac{17.18\ \mathrm{GB}}{7\ \mathrm{GB/s}} = 215\ \mathrm{ms} + 2.45\ \mathrm{s}$$
+<b><i>T</i><sub>offload</sub></b> = <span class="frac"><span class="num">KV<sub>size</sub></span><span class="den">DRAM<sub>BW</sub></span></span> + <span class="frac"><span class="num">KV<sub>size</sub></span><span class="den">NVMe<sub>BW</sub></span></span> = <span class="frac"><span class="num">17.18 GB</span><span class="den">80 GB/s</span></span> + <span class="frac"><span class="num">17.18 GB</span><span class="den">7 GB/s</span></span> = <b class="num-val">215 ms + 2.45 s</b>
 </div>
 
 <p><b>关键</b>: NVMe 读取 KV 比 HBM 慢 <b>73×</b>! 所以 Offload 只能用于<b>冷数据预取</b>, 不能用于热数据. Mooncake 用 <b>预测性 prefetch</b> 把 NVMe 延迟隐藏.</p>
 
 <div class="formula">
-$$\mathrm{NVMe\_IOPS}_{\mathrm{needed}} = \frac{N_{\mathrm{concurrent\_requests}}}{\mathrm{TPOT}} = \frac{32}{0.020} = 1600\ \mathrm{IOPS}$$
-$$\mathrm{NVMe\_capacity}_{\mathrm{needed}} = N_{\mathrm{cold\_requests}} \times \mathrm{KV\_size} = 100 \times 17.18 = 1.7\ \mathrm{TB}$$
+<b>NVMe<sub>IOPS<sub>needed</sub></sub></b> = <span class="frac"><span class="num"><i>N</i><sub>concurrent</sub></span><span class="den">TPOT</span></span> = <span class="frac"><span class="num">32</span><span class="den">0.020 s</span></span> = <b class="num-val">1600 IOPS</b><br>
+<b>NVMe<sub>cap<sub>needed</sub></sub></b> = <i>N</i><sub>cold</sub> × KV<sub>size</sub> = 100 × 17.18 = <b class="num-val">1.7 TB</b>
 </div>
 
 <!-- ========== Step 8: 全链路汇总 (互动 SVG) ========== -->
