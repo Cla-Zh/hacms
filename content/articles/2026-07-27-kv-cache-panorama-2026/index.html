@@ -249,7 +249,7 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 <li><b>物理底层</b>: <span class="hl">HBM 带宽 2-3 TB/s</span> vs SRAM <span class="hl">19-33 TB/s</span> — <b>10 倍内存墙</b> 导致推理从"计算瓶颈"必然转向"内存带宽瓶颈"<a class="cite" data-num="2" href="#ref-2"></a>;</li>
 <li><b>FlashAttention</b>: 通过 <b>tiling + softmax-on-chip + recomputation</b> 重构数据流, 把 HBM 访问次数从 <b>O(n²)</b> 降到 <b>O(n)</b>, FA-3 在 H100 达到 <span class="hl">840 TFLOPS/s (BF16, 85% peak)</span><a class="cite" data-num="3" href="#ref-3"></a>;</li>
 <li><b>2300 MiB 极限压缩</b>: 1T 参数 + 128K 上下文做到 KV Cache 仅 2300 MiB, 需叠加 <b>MoE 稀疏激活 (×10) + MLA 低秩压缩 (×8) + INT4 量化 (×4) + 层衰减 (×2) + 共享前缀 (×4) ≈ ×2560</b> 综合优化<a class="cite" data-num="4" href="#ref-4"></a>;</li>
-<li><b>12 大流派</b>: <span class="hl">GQA<a class="cite" data-num="17" href="#ref-17"></a> + INT8 KV + PagedAttention + Continuous Batching + Prefix Cache</span> 是工业五件套; <b>MLA (DeepSeek-V3<a class="cite" data-num="14" href="#ref-14"></a>)</b> 进一步把 KV 单 token 压缩到 <span class="hl">576 维</span> (MHA 是 32,768 维), <b>98.24%</b> 压缩<a class="cite" data-num="5" href="#ref-5"></a>;</li>
+<li><b>12 大流派</b>: <span class="hl">GQA<a class="cite" data-num="17" href="#ref-17"></a> + INT8 KV + PagedAttention + Continuous Batching + Prefix Cache</span> 是工业五件套; <b>MLA (DeepSeek-V3<a class="cite" data-num="14" href="#ref-14"></a>)</b> 进一步把 KV 单 token 压缩到 <span class="hl">576 维</span> (MHA 是 32,768 维 = 128 头 × 256), <b>~93.3% 压缩</b> (V2 论文原值, V3 d_c=512 vs 4096 ≈ 87.5%)<a class="cite" data-num="5" href="#ref-5"></a>;</li>
 <li><b>破局者</b>: <span class="hl">Mamba-3<a class="cite" data-num="53" href="#ref-53"></a> (2026)</span> 用 SSD 对偶性让 SSM 训练速度 8x 提升, <span class="hl">Jamba<a class="cite" data-num="58" href="#ref-58"></a> 1.5</span> (398B/94B 激活, 256K 上下文) 用 ExpertsInt8 在 8×80GB GPU 上可跑 256K; <b>RWKV-7<a class="cite" data-num="56" href="#ref-56"></a> "Goose"</b> (2025-03) 突破 TC⁰ 复杂度<a class="cite" data-num="6" href="#ref-6"></a>;</li>
 <li><b>业界共识</b>: <span class="hl">2026 学术前沿不是"谁取代 Transformer", 而是"如何融合"</span> — SSM/线性注意力 + 微型精确缓存是主流趋势;</li>
 <li><b>结论</b>: hacms/中型企业 2026 推荐 <b>DeepSeek-V3 MLA</b> (开源极致压缩) + <b>vLLM + PagedAttention</b> (生产部署) + <b>H100 FP8</b> (硬件原生) 三件套.</li>
@@ -538,7 +538,7 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 <tr><td><b>HBM3e</b> (现役)</td><td>2024</td><td>H200: 141GB / 4.8 TB/s; B200: 192GB / 8 TB/s</td><td>DeepSeek-V3 / Kimi K2 现役</td></tr>
 <tr><td><b>GDDR7</b> (消费级)</td><td><b>2025-01</b></td><td>RTX 5090: 32GB / 1.79 TB/s</td><td>端侧 + 桌面推理</td></tr>
 <tr><td><b>HBM4</b></td><td><b>2026 路线图</b> (JEDEC JESD238A 2025-04)</td><td>单 pin 1.5 Tb/s, 单 stack 64-80GB, 带宽 1.5 TB/s</td><td><b>为 LLM KV 池化量身定做</b></td></tr>
-<tr><td><b>B300</b></td><td><b>2025-Q4 / 2026-Q1</b></td><td>288GB HBM3e, 14.4 TB/s (传闻)</td><td>单卡可服务 1M 上下文</td></tr>
+<tr><td><b>B300</b></td><td><b>2025-Q4 / 2026-Q1</b></td><td>288GB HBM3e, ~8 TB/s (14.4 TB/s 是 HGX B300 8 卡 NVLink Switch 聚合, 单卡 HBM 是 8 TB/s)</td><td>单卡可服务 1M 上下文</td></tr>
 <tr><td><b>GB300 NVL72</b></td><td><b>2026-中</b></td><td>72× B300, 集群 20 PB/s NVLink</td><td>KV 池化跨卡零拷贝</td></tr>
 </tbody>
 </table>
@@ -1635,7 +1635,7 @@ PD 分离 + prefix cache + FP8 KV 已是 2026 工业默认. Mooncake 已在 vLLM
 <rect x="530" y="60" width="80" height="55" class="tl-event" style="stroke:#f59e0b;stroke-width:2"/>
 <text x="570" y="78" class="tl-year">2024-05</text>
 <text x="570" y="93" class="tl-name">MLA</text>
-<text x="570" y="108" class="tl-desc">98.24% 压缩</text>
+<text x="570" y="108" class="tl-desc">~93.3% 压缩 (V2)</text>
 
 <!-- 2024 Jamba -->
 <rect x="530" y="160" width="80" height="55" class="tl-event" style="stroke:#a78bfa"/>
@@ -1831,8 +1831,8 @@ TTFT = Time To First Token (用户发完 prompt 到看到第一个 token 的等�
 <p><b>生产场景</b> (Llama-3-70B, batch=32 并发, S=32K 上下文):</p>
 
 <div class="formula">
-<b>KV<sub>size</sub></b> = 2 × 80 × 32768 × 8 × 128 × 32 × 2 = <b class="num-val">17.18 GB / request</b><br>
-<b>HBM<sub>total</sub></b> = 17.18 × 32 = <b class="num-val">549.8 GB</b> &nbsp;<i style="color:#dc2626">(单 H100 80GB 装不下, 需 TP-7)</i>
+<b>KV<sub>size</sub></b> (单 req, B=1) = 2 × 80 × 32768 × 8 × 128 × 2 = <b class="num-val">10.74 GB / request</b> (重算: bytes=2 已含 K+V, 不应再 ×2)<br>
+<b>HBM<sub>total</sub></b> (B=32 并发同时存在) = 10.74 × 32 = <b class="num-val">343.6 GB</b> &nbsp;<i style="color:#dc2626">(单 H100 80GB 装 8 reqs 就超 → 需 TP-8 8 卡 = 640 GB 总 HBM)</i>
 </div>
 
 <div class="formula-note">
@@ -1854,8 +1854,8 @@ TTFT = Time To First Token (用户发完 prompt 到看到第一个 token 的等�
 <tr><td><b>H100 SXM</b></td><td>3.35 TB/s</td><td>20.0 ms/tok</td><td>1× (baseline)</td></tr>
 <tr><td><b>H200 SXM</b></td><td>4.8 TB/s</td><td>14.0 ms/tok</td><td><b>1.43×</b></td></tr>
 <tr><td><b>B200</b></td><td>8.0 TB/s</td><td>8.4 ms/tok</td><td><b>2.38×</b></td></tr>
-<tr><td><b>B300</b> (2026-Q1)</td><td>~8 TB/s</td><td>4.0 ms/tok</td><td><b>2.10×</b></td></tr>
-<tr><td><b>HBM4</b> (2026-Q4)</td><td>1.5 TB/s/GPU (5× B200)</td><td>~1 ms/tok</td><td>20×</td></tr>
+<tr><td><b>B300</b> (2026-Q1)</td><td>~8 TB/s (与 B200 同, 单卡 HBM 升级 0-25%)</td><td>8.4 ms/tok (≈ B200)</td><td><b>2.38×</b></td></tr>
+<tr><td><b>HBM4</b> (2026-Q4)</td><td>per-stack 1.5 TB/s (整 GPU ~12 TB/s, 1.5× B200)</td><td>~5.6 ms/tok</td><td><b>3.6×</b></td></tr>
 </tbody>
 </table>
 
@@ -1946,14 +1946,14 @@ TTFT = Time To First Token (用户发完 prompt 到看到第一个 token 的等�
   
   <rect x="50" y="280" width="800" height="100" rx="10" fill="url(#gradMemory)" opacity="0.9"/>
   <text x="450" y="310" text-anchor="middle" fill="white" font-size="18" font-weight="700">🟡 第 3 层: 内存 (HBM) — 真正瓶颈</text>
-  <text x="450" y="335" text-anchor="middle" fill="white" font-size="13" id="svg-mem">KV 读取: 327 ms  |  HBM3 3.35 TB/s  |  H100 80GB</text>
+  <text x="450" y="335" text-anchor="middle" fill="white" font-size="13" id="svg-mem">KV 读取: 0.4 ms (默认 H100 KV 读, 实际随 S)  |  HBM3 3.35 TB/s  |  H100 80GB</text>
   <text x="450" y="355" text-anchor="middle" fill="white" font-size="13">占比: <tspan id="svg-mem-pct" font-weight="700">80%</tspan> (memory wall 量化证据)</text>
   
   <line x1="450" y1="380" x2="450" y2="410" stroke="#374151" stroke-width="2" marker-end="url(#arr)"/>
   
   <rect x="50" y="420" width="800" height="80" rx="10" fill="url(#gradInterconnect)" opacity="0.9"/>
   <text x="450" y="450" text-anchor="middle" fill="white" font-size="18" font-weight="700">🟣 第 4 层: 互联 (NVLink / RDMA)</text>
-  <text x="450" y="475" text-anchor="middle" fill="white" font-size="13" id="svg-inter">NVLink 900 GB/s (19ms)  |  RDMA 200 GB/s (86ms)</text>
+  <text x="450" y="475" text-anchor="middle" fill="white" font-size="13" id="svg-inter">NVLink 900 GB/s (12 ms, 用 10.74 GB/900 GB/s)  |  RDMA 200 GB/s (86ms)</text>
   
   <line x1="450" y1="500" x2="450" y2="530" stroke="#374151" stroke-width="2" marker-end="url(#arr)"/>
   
@@ -2292,7 +2292,7 @@ TTFT = Time To First Token (用户发完 prompt 到看到第一个 token 的等�
 <p><b>关键洞察 (单节点 8 卡视角)</b>:</p>
 <ul>
 <li><b>TP-8 把 130 GB 模型权重 + KV 切到 8×80 GB HBM</b>: 每卡 ~16 GB 权重 + KV slice. 权重只读 1 次, KV 持续增长. 权重 16 GB < KV 49 GB (1M ctx), <b>KV 才是单节点主战场</b>.</li>
-<li><b>MLA + FP8 = 70B 1M 上下文 KV 从 549 GB → 17 GB</b>: 在单节点 8 卡装得下, <b>不需要跨节点 RDMA</b>, <b>不需要 PD Disagg</b> — 这是 2025-2026 大多数生产部署的甜点.</li>
+<li><b>MLA + FP8 = 70B 1M 上下文 KV 从 343.6 GB → 96 GB (3.56× 压缩, MLA 3.56× × FP8 2× = 7.1×)</b>: 在单节点 8 卡装得下, <b>不需要跨节点 RDMA</b>, <b>不需要 PD Disagg</b> — 这是 2025-2026 大多数生产部署的甜点.</li>
 <li><b>NVSwitch 900 GB/s (H100) 全互联</b>: 任意两卡之间 latency < 1 μs, 几乎等价于 HBM 读. 跨卡 TP 通信开销 < 5%.</li>
 </ul>
 
@@ -2440,7 +2440,7 @@ TTFT = Time To First Token (用户发完 prompt 到看到第一个 token 的等�
 <li><b>原则 1 — 分层设计, 每一层优化目标不同</b>: 硬件层 (cycle) / HBM (bandwidth) / NVLink (跨卡 latency) / RDMA (跨节点) / region (跨数据中心). <b>不要把所有优化压在一层</b>.</li>
 <li><b>原则 2 — 2025-2026 主流: 软硬协同 + PD Disagg + 集群 KV 池</b>: 单机 FlashAttention (2022) → 单节点 vLLM PagedAttention (2023) → 单机房 Mooncake PD Disagg (2024-2025) → 跨 region 边缘缓存 (2025-2026). <b>每一步都是"把上层瓶颈变下层优化"</b>.</li>
 <li><b>原则 3 — KV Cache 优化 = 减少 HBM 访问</b>: 从 §1 SRAM↔HBM 200-400× 鸿沟开始, 到 §10 99.7% 时间在 KV 读, <b>所有优化都是"减少 KV 读 HBM 次数或减少读量"</b>: 量化 (FP8) / 压缩 (MLA) / 稀疏 (DSA) / 池化 (HiCache) / 跨机 (RDMA) / 跨 region (边缘缓存).</li>
-<li><b>原则 4 — 部署前先算每层数字 (用 §10 SVG 滑块)</b>: 70B 1M context 在 H100 8 卡 = <b>549.8 GB KV > 80 GB × 8 = 640 GB</b> (装得下, 但单卡装不下). <b>单节点 8 卡已经是 2026 70B 模型的甜点</b>; V4-Pro 1.6T 必须 PD Disagg 跨节点.</li>
+<li><b>原则 4 — 部署前先算每层数字 (用 §10 SVG 滑块)</b>: 70B 1M context 在 H100 8 卡 = <b>343.6 GB KV</b> (B=1, 10.74 GB/req) <b>&lt; 80 GB × 8 = 640 GB</b> (总 HBM 装得下, 但 B=32 时 343.6 GB &gt; 640 GB×1/8, 仍需 TP). <b>单节点 8 卡已经是 2026 70B 模型的甜点</b>; V4-Pro 1.6T 必须 PD Disagg 跨节点.</li>
 <li><b>原则 5 — 开源 + 商业双轮</b>: vLLM V1 (Berkeley) / SGLang HiCache (LMSYS) / Mooncake (Moonshot) / Cloudflare AI Gateway (Cloudflare) / Together.AI (YC) — 5 套 2026 主流全部开源. <b>从 0 商业闭源到 5 套开源 3 年走完</b>, 任何团队 2026 都能白嫖 SOTA.</li>
 </ol>
 </div>
