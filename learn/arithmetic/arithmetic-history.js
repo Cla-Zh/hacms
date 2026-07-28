@@ -34,7 +34,7 @@
     const arr = loadHistory();
     renderStats(arr);
     renderList(arr);
-    bindClear();
+    bindClear(); bindExportImport();
   }
 
   function renderStats(arr) {
@@ -144,11 +144,53 @@
       if (!confirm('确定要清空所有答题记录吗? 此操作不可恢复。')) return;
       try {
         localStorage.removeItem(HISTORY_KEY);
+        if (window.LearnData) LearnData.lsDel(HISTORY_KEY + '_xml');
         render();
       } catch (e) {
         alert('清空失败: ' + e.message);
       }
     });
+  }
+
+  function bindExportImport() {
+    const exportBtn = $('btnExportXml');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', () => {
+        const arr = loadHistory();
+        if (arr.length === 0) { alert('没有记录可导出'); return; }
+        const xml = LearnData.historyToXml(arr, { source: 'arithmetic-home-export' });
+        const ts = new Date().toISOString().slice(0, 10);
+        LearnData.downloadXml(`arithmetic-history-${ts}.xml`, xml);
+        // 同时保存 XML 备份到 localStorage
+        LearnData.lsSet(HISTORY_KEY + '_xml', xml);
+        alert(`✅ 已导出 ${arr.length} 条记录为 XML 文件。\n\n提示: 将下载的 XML 文件保存到:\n  /mnt/g/hermes_data/learn-data/arithmetic/\n即可跨设备/浏览器共享。`);
+      });
+    }
+    const importInput = $('importXmlInput');
+    if (importInput) {
+      importInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+          const xml = await LearnData.readXmlFile(file);
+          const arr = LearnData.xmlToHistory(xml);
+          if (!arr) { alert('XML 解析失败, 请检查格式'); return; }
+          if (!confirm(`导入 ${arr.length} 条记录?\n(会与现有记录合并, 按时间排序)`)) return;
+          const existing = loadHistory();
+          // 合并去重 (按 ts)
+          const map = new Map();
+          [...arr, ...existing].forEach(r => map.set(r.ts, r));
+          const merged = Array.from(map.values()).sort((a, b) => b.ts - a.ts).slice(0, 100);
+          LearnData.lsSet(HISTORY_KEY, JSON.stringify(merged));
+          LearnData.lsSet(HISTORY_KEY + '_xml', LearnData.historyToXml(merged));
+          render();
+          alert(`✅ 导入成功! 当前共 ${merged.length} 条记录`);
+        } catch (err) {
+          alert('导入失败: ' + err.message);
+        }
+        importInput.value = '';
+      });
+    }
   }
 
   // 跨 tab 同步: storage 事件触发时刷新

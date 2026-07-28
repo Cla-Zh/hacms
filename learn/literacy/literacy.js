@@ -45,19 +45,55 @@
   }
 
   // ── 字表存储 ──────────────────────────────────────
+  // 加载字表: localStorage 优先 → XML 备份 → 默认
   function loadWords() {
+    // 1) localStorage JSON (主存储)
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return DEFAULT_WORDS.slice(0, 10);  // 默认 10 字
-      const arr = JSON.parse(raw);
-      return Array.isArray(arr) && arr.length > 0 ? arr : DEFAULT_WORDS.slice(0, 10);
-    } catch (e) {
-      return DEFAULT_WORDS.slice(0, 10);
-    }
+      const raw = LearnData.lsGet(STORAGE_KEY);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr) && arr.length > 0) return arr;
+      }
+    } catch (e) {}
+    // 2) localStorage XML 备份
+    try {
+      const xml = LearnData.lsGet(STORAGE_KEY + '_xml');
+      if (xml) {
+        const arr = LearnData.xmlToWords(xml);
+        if (arr && arr.length > 0) {
+          // 同步回 localStorage JSON
+          LearnData.lsSet(STORAGE_KEY, JSON.stringify(arr));
+          return arr;
+        }
+      }
+    } catch (e) {}
+    // 3) 默认 10 字
+    return DEFAULT_WORDS.slice(0, 10);
   }
+
+  // 可选: 页面加载时从软链 fetch 同步 (用户可放 XML 到 hermes_data)
+  async function loadWordsFromDataDir() {
+    if (!window.fetch) return;
+    try {
+      const xml = await LearnData.fetchFromDataDir('word-list.xml');
+      if (xml) {
+        const arr = LearnData.xmlToWords(xml);
+        if (arr && arr.length > 0) {
+          LearnData.lsSet(STORAGE_KEY, JSON.stringify(arr));
+          LearnData.lsSet(STORAGE_KEY + '_xml', xml);
+          return arr;
+        }
+      }
+    } catch (e) {}
+    return null;
+  }
+
   function saveWords(words) {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
+      LearnData.lsSet(STORAGE_KEY, JSON.stringify(words));
+      // 同步 XML 备份
+      const xml = LearnData.wordsToXml(words, { source: 'literacy-edit-save' });
+      LearnData.lsSet(STORAGE_KEY + '_xml', xml);
     } catch (e) {
       console.warn('save words failed', e);
     }
@@ -245,17 +281,28 @@
   // ── 答题记录 ──────────────────────────────────────
   function loadHistory() {
     try {
-      const raw = localStorage.getItem(HISTORY_KEY);
-      if (!raw) return [];
-      const arr = JSON.parse(raw);
-      return Array.isArray(arr) ? arr : [];
-    } catch (e) { return []; }
+      const raw = LearnData.lsGet(HISTORY_KEY);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr) && arr.length > 0) return arr;
+      }
+      const xml = LearnData.lsGet(HISTORY_KEY + '_xml');
+      if (xml) {
+        const arr = LearnData.xmlToHistory(xml);
+        if (arr) return arr;
+      }
+    } catch (e) {}
+    return [];
   }
   function saveHistory(record) {
     const arr = loadHistory();
     arr.unshift(record);
     if (arr.length > 100) arr.length = 100;
-    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(arr)); } catch (e) {}
+    try {
+      LearnData.lsSet(HISTORY_KEY, JSON.stringify(arr));
+      const xml = LearnData.historyToXml(arr, { source: 'literacy-finish-round' });
+      LearnData.lsSet(HISTORY_KEY + '_xml', xml);
+    } catch (e) {}
   }
 
   // ── 编辑 (edit.html) ──────────────────────────────────────
@@ -295,6 +342,39 @@
       setTimeout(() => $('savedHint').classList.remove('show'), 2000);
     });
 
+    $('exportXmlBtn')?.addEventListener('click', () => {
+      // 先保存当前字表
+      const text = ta.value;
+      const words = dedupeWords(text.split(''));
+      if (words.length < 1) { alert('请至少输入 1 个字!'); return; }
+      saveWords(words);
+      // 导出 XML
+      const xml = LearnData.wordsToXml(words, { source: 'literacy-edit-export' });
+      const ts = new Date().toISOString().slice(0, 10);
+      LearnData.downloadXml(`word-list-${ts}.xml`, xml);
+      // 同时存到 localStorage XML 备份
+      LearnData.lsSet(STORAGE_KEY + '_xml', xml);
+      alert(`✅ 已导出 ${words.length} 个字为 XML。\n\n提示: 把下载的 XML 文件保存到:\n  /mnt/g/hermes_data/learn-data/literacy/word-list.xml\n\n下次任意浏览器打开主页会自动加载!`);
+    });
+
+    $('importXmlFile')?.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const xml = await LearnData.readXmlFile(file);
+        const arr = LearnData.xmlToWords(xml);
+        if (!arr) { alert('XML 解析失败, 请检查格式'); return; }
+        ta.value = arr.join('');
+        ta.dispatchEvent(new Event('input'));
+        // 同步保存
+        saveWords(arr);
+        alert(`✅ 导入成功! 共 ${arr.length} 个字`);
+      } catch (err) {
+        alert('导入失败: ' + err.message);
+      }
+      e.target.value = '';
+    });
+
     $('clearBtn')?.addEventListener('click', () => {
       if (confirm('确定清空所有字吗? 此操作不可恢复。')) {
         ta.value = '';
@@ -328,6 +408,13 @@
     if ($('wordsGrid')) { renderHome(); bindHome(); }
     if ($('qChar')) { bindPlay(); }
     if ($('wordsTextarea')) { renderEdit(); }
+    // 页面加载时尝试从软链 fetch XML (用户可放 hermes_data/learn-data/literacy/word-list.xml)
+    loadWordsFromDataDir().then(remoteWords => {
+      if (remoteWords && $('wordsGrid')) {
+        // 远程 XML 加载了, 重新渲染主页
+        renderHome();
+      }
+    });
   });
 
   function bindPlay() {

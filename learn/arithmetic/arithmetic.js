@@ -252,25 +252,39 @@
     renderQuestion();
   }
 
-  // ── 记录 (localStorage) ──────────────────────────────
+  // ── 记录 (XML + localStorage 双写) ──────────────────────
   function loadHistory() {
+    // 优先从 localStorage 读取 (即时)
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
-      if (!raw) return [];
-      const arr = JSON.parse(raw);
-      return Array.isArray(arr) ? arr : [];
-    } catch (e) {
-      console.warn('load history failed', e);
-      return [];
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr) && arr.length > 0) return arr;
+      }
+    } catch (e) {}
+    // fallback: 尝试从软链 XML 加载 (用户跨设备/浏览器共享)
+    if (window.LearnData) {
+      const xml = LearnData.lsGet('hacms_arith_history_v1_xml');
+      if (xml) {
+        const arr = LearnData.xmlToHistory(xml);
+        if (arr) return arr;
+      }
     }
+    return [];
   }
 
   function saveHistory(record) {
     const arr = loadHistory();
     arr.unshift(record);  // 最新在前
     if (arr.length > HISTORY_MAX) arr.length = HISTORY_MAX;
+    // 双写: localStorage (主) + XML 备份
     try {
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
+      LearnData.lsSet(HISTORY_KEY, JSON.stringify(arr));
+      // XML 备份
+      const xml = LearnData.historyToXml(arr, { source: 'arithmetic-finish-round' });
+      LearnData.lsSet(HISTORY_KEY + '_xml', xml);
+      // 自动下载 XML 到用户下载文件夹 (家长可手动 cp 到 hermes_data)
+      // 注: 不在每次答题都下载, 仅在用户点导出按钮时
     } catch (e) {
       console.warn('save history failed', e);
     }
