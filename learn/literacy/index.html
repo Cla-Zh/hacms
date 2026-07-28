@@ -4,85 +4,49 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>认字识字 · 学习乐园</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%96%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="literacy.css?v=2">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%9A%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="literacy.css?v=3">
 </head>
 <body class="lit-body">
 
 <div class="lit-wrap">
 
   <header class="lit-header">
-    <a href="../" class="lit-back" aria-label="返回学习乐园">← 返回</a>
-    <h1 class="lit-title">📖 认字识字</h1>
-    <p class="lit-sub">勾选要练的字 → 选模式 → 开始</p>
+    <a href="../" class="lit-back">← 返回</a>
+    <h1 class="lit-title">📚 字表集合</h1>
+    <p class="lit-sub">每个集合一组字 · 独立练习 · 独立统计</p>
   </header>
 
   <!-- 顶部统计 -->
   <div class="lit-summary">
-    <div class="lit-sum-item"><div class="lit-sum-num" id="wordCount">0</div><div class="lit-sum-label">字表</div></div>
-    <div class="lit-sum-item"><div class="lit-sum-num" id="practicedCount">0</div><div class="lit-sum-label">已练过</div></div>
-    <div class="lit-sum-item lit-sum-good"><div class="lit-sum-num" id="masteredCount">0</div><div class="lit-sum-label">已掌握</div></div>
-    <div class="lit-sum-item lit-sum-bad"><div class="lit-sum-num" id="wrongCount">0</div><div class="lit-sum-label">有错字</div></div>
+    <div class="lit-sum-item"><div class="lit-sum-num" id="totalGroups">0</div><div class="lit-sum-label">集合</div></div>
+    <div class="lit-sum-item"><div class="lit-sum-num" id="totalWords">0</div><div class="lit-sum-label">总字数</div></div>
+    <div class="lit-sum-item lit-sum-good"><div class="lit-sum-num" id="totalMastered">0</div><div class="lit-sum-label">已掌握</div></div>
+    <div class="lit-sum-item lit-sum-bad"><div class="lit-sum-num" id="totalWrong">0</div><div class="lit-sum-label">有错字</div></div>
+    <div class="lit-sum-item"><div class="lit-sum-num" id="totalLearned">0</div><div class="lit-sum-label">已练过</div></div>
   </div>
 
-  <!-- 操作工具栏 -->
+  <!-- 操作 -->
   <div class="lit-toolbar">
     <div class="lit-toolbar-group">
-      <button class="lit-tb-btn" id="btnSelectAll" type="button">✅ 全选</button>
-      <button class="lit-tb-btn" id="btnSelectNone" type="button">⬜ 全不选</button>
-      <button class="lit-tb-btn" id="btnSelectInverse" type="button">🔄 反选</button>
-      <button class="lit-tb-btn lit-tb-warn" id="btnSelectWrong" type="button">🎯 只选错字</button>
-      <button class="lit-tb-btn lit-tb-good" id="btnSelectMastered" type="button">⭐ 只选掌握字</button>
-    </div>
-    <div class="lit-toolbar-group">
-      <button class="lit-tb-btn lit-tb-danger" id="btnDelete" type="button">🗑️ 删除选中</button>
+      <button class="lit-tb-btn lit-tb-good" id="btnNewGroup" type="button">➕ 新建字表集合</button>
+      <button class="lit-tb-btn" id="btnImportGroups" type="button">📥 导入集合</button>
+      <input type="file" id="importGroupsFile" accept=".xml,application/xml" style="display:none">
     </div>
   </div>
 
-  <!-- 字列表 (复选框) -->
-  <main class="lit-card">
-    <ul class="lit-wordlist" id="wordList"></ul>
-    <div class="lit-empty" id="emptyState" style="display:none">
-      <div class="lit-empty-emoji">📭</div>
-      <div class="lit-empty-title">还没有字</div>
-      <div class="lit-empty-sub">请家长点右上角 "✏️ 家长编辑" 添加字</div>
-    </div>
-  </main>
+  <!-- 集合列表 -->
+  <main class="lit-groups-wrap" id="groupList"></main>
 
-  <!-- 选中数 + 模式选择 + 开始 -->
-  <div class="lit-selection-bar" id="selectionBar">
-    <div class="lit-sel-info">
-      <span class="lit-sel-num" id="selectionNum">0 / 0</span>
-      <span class="lit-sel-label">已选</span>
-    </div>
-    <div class="lit-mode-switch">
-      <button class="lit-mode-btn active" id="btnStartAll" type="button" data-mode="all">
-        <div class="lit-mode-icon">📚</div>
-        <div class="lit-mode-text">全量作答</div>
-        <div class="lit-mode-sub">所有选中字</div>
-      </button>
-      <button class="lit-mode-btn" id="btnStartWrong" type="button" data-mode="wrong">
-        <div class="lit-mode-icon">🎯</div>
-        <div class="lit-mode-text">只答错字</div>
-        <div class="lit-mode-sub">宝宝以前错的</div>
-      </button>
-    </div>
-  </div>
-
-  <!-- 折叠: 统计详情 -->
-  <details class="lit-details">
-    <summary id="btnToggleStats">📊 查看统计详情 (错字排行 / 掌握字 / 历史)</summary>
-    <div class="lit-stats-detail" id="statsDetail"></div>
-  </details>
-
-  <!-- 编辑入口 -->
-  <div class="lit-edit-entry">
-    <a class="lit-btn lit-btn-edit" href="edit.html">✏️ 家长编辑字表 (添加 / 删除 / 改字 / 预设)</a>
+  <div class="lit-empty" id="emptyState" style="display:none">
+    <div class="lit-empty-emoji">📚</div>
+    <div class="lit-empty-title">还没有字表集合</div>
+    <div class="lit-empty-sub">点上方 "➕ 新建字表集合" 开始</div>
   </div>
 
 </div>
 
 <script src="../shared/learn-shared.js?v=1"></script>
-<script src="literacy.js?v=2" defer></script>
+<script src="literacy.js?v=3" defer></script>
 </body>
 </html>
