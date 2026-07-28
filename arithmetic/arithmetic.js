@@ -1,19 +1,19 @@
 /* ============================================================
-   算术题乐园 · 核心引擎
+   算术题乐园 · 核心引擎  (v3 — 删 5 以内 + 计时 + 答题记录)
    功能:
    1. 随机生成 4 选 1 加减法 (无负数, 范围内)
-   2. 4 档难度 (5/10/20/100)
+   2. 3 档难度 (10/20/100)  — 5 以内已删除 (2026-07-28)
    3. 答对撒星星 + 答错晃动 + 鼓励语
-   4. 答对 10 题自动升档
-   5. localStorage 记录最高连击
+   4. ⏱️ 答题过程实时计时 (MM:SS, 第 1 题点击即开始)
+   5. 📊 答题记录写入 localStorage (时间戳/难度/对/错/用时)
+   6. 📜 index.html 显示最近 20 条记录 + 总统计
    ============================================================ */
 
 (() => {
   'use strict';
 
-  // ── 配置 ──────────────────────────────────────
+  // ── 配置 (5 以内已删除) ──────────────────────────────────────
   const LEVELS = [
-    { max: 5,   name: '5 以内',  emoji: '🐣', color: 'blue'   },
     { max: 10,  name: '10 以内', emoji: '🐰', color: 'green'  },
     { max: 20,  name: '20 以内', emoji: '🦊', color: 'yellow' },
     { max: 100, name: '100 以内',emoji: '🦁', color: 'red'    },
@@ -23,11 +23,13 @@
   const FEEDBACK_WRONG   = ['差一点!💡', '再想想!🤔', '没关系!❤️'];
   const EMOJIS_HAPPY = ['😄','🤩','🥳','😁','😆','🤗'];
   const EMOJIS_THINK = ['🤔','🧐','😯','😮'];
+  const HISTORY_KEY = 'hacms_arith_history_v1';
+  const HISTORY_MAX = 100;   // localStorage 保留最近 100 条
 
   // ── 状态 ──────────────────────────────────────
   const url = new URL(window.location.href);
   let levelIdx = Math.max(0, Math.min(LEVELS.length - 1,
-    LEVELS.findIndex(l => l.max === parseInt(url.searchParams.get('max') || '5', 10))
+    LEVELS.findIndex(l => l.max === parseInt(url.searchParams.get('max') || '10', 10))
   ));
   if (levelIdx < 0) levelIdx = 0;
 
@@ -35,8 +37,15 @@
     levelIdx,
     qIndex: 0,
     correct: 0,
+    wrong: 0,
     current: null,
     locked: false,
+    // 计时
+    startTime: null,      // 第 1 题点击时记录
+    elapsedMs: 0,         // 当前用时 (每 250ms 刷新)
+    timerHandle: null,
+    // 本轮记录
+    roundStart: null,     // ISO string, round 开始时间
   };
 
   // ── DOM ──────────────────────────────────────
@@ -48,6 +57,7 @@
     qIndex:     $('qIndex'),
     qTotal:     $('qTotal'),
     starsRow:   $('starsRow'),
+    timer:      $('timer'),
     qCard:      $('qCard'),
     qEmoji:     $('qEmoji'),
     qText:      $('qText'),
@@ -65,7 +75,6 @@
     const lv = LEVELS[state.levelIdx];
     let a, b, op, answer, expr;
 
-    // 保证 a, b 在 [0, max], 减法不出现负数
     do {
       op = Math.random() < 0.5 ? '+' : '-';
       a = randInt(lv.max);
@@ -87,7 +96,6 @@
     const set = new Set([answer]);
     const range = Math.max(2, Math.floor(lv.max * 0.3));
 
-    // 生成干扰项 (近邻答案 ±1..range, 但不能超过题目范围)
     while (set.size < 4) {
       const delta = randInt(range) + 1;
       const sign = Math.random() < 0.5 ? -1 : 1;
@@ -116,8 +124,7 @@
     dom.levelBadge.style.color = lv.color === 'yellow' ? 'var(--text)' : '#FFF';
     dom.qTotal.textContent = TOTAL_PER_LEVEL;
     dom.levelTitle.textContent = `${lv.emoji} ${lv.name}`;
-    dom.levelSub.textContent = lv.max <= 5 ? '幼儿园小班, 慢慢来!' :
-                                lv.max <= 10 ? '幼儿园中班, 加油!' :
+    dom.levelSub.textContent = lv.max <= 10 ? '幼儿园中班, 加油!' :
                                 lv.max <= 20 ? '幼儿园大班, 你真棒!' :
                                                '小学一年级, 来挑战!';
   }
@@ -153,7 +160,6 @@
       btn.addEventListener('click', () => onChoice(parseInt(btn.dataset.val, 10), btn));
     });
 
-    // 数字键盘支持 (1-9 直接选)
     document.removeEventListener('keydown', onKey);
     document.addEventListener('keydown', onKey);
   }
@@ -163,14 +169,48 @@
     if (k >= '0' && k <= '9') {
       const target = [...dom.choices.children].find(b => parseInt(b.dataset.val, 10) === parseInt(k, 10));
       if (target) target.click();
-    } else if (k === 'Enter' || k === ' ') {
-      // 不强制定位正确答案, 由用户点
     }
   }
 
+  // ── 计时 ──────────────────────────────────────
+  function startTimer() {
+    if (state.timerHandle) return;  // 已在跑
+    state.startTime = Date.now() - state.elapsedMs;
+    state.timerHandle = setInterval(() => {
+      state.elapsedMs = Date.now() - state.startTime;
+      if (dom.timer) dom.timer.textContent = formatTime(state.elapsedMs);
+    }, 250);
+  }
+
+  function stopTimer() {
+    if (state.timerHandle) {
+      clearInterval(state.timerHandle);
+      state.timerHandle = null;
+    }
+  }
+
+  function resetTimer() {
+    stopTimer();
+    state.elapsedMs = 0;
+    if (dom.timer) dom.timer.textContent = '00:00';
+  }
+
+  function formatTime(ms) {
+    const totalSec = Math.floor(ms / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
+  // ── 答题 ──────────────────────────────────────
   function onChoice(val, btn) {
     if (state.locked) return;
     state.locked = true;
+
+    // 第一次点击 → 开始计时
+    if (state.startTime === null) {
+      startTimer();
+    }
 
     const correct = val === state.current.answer;
     if (correct) {
@@ -188,7 +228,7 @@
       dom.qCard.classList.add('wrong');
       dom.feedback.textContent = randomFrom(FEEDBACK_WRONG);
       dom.feedback.className = 'arith-feedback wrong';
-      // 显示正确答案 (高亮)
+      state.wrong++;
       [...dom.choices.children].forEach(b => {
         if (parseInt(b.dataset.val, 10) === state.current.answer) {
           b.classList.add('correct');
@@ -201,31 +241,95 @@
   function nextQuestion() {
     state.locked = false;
     if (state.correct >= TOTAL_PER_LEVEL) {
-      // 通关
-      showLevelUpModal();
+      finishRound('全对');
       return;
     }
     if (state.qIndex >= TOTAL_PER_LEVEL - 1) {
-      // 本档结束 (无论对错)
-      showLevelResult();
+      finishRound('完成');
       return;
     }
     state.qIndex++;
     renderQuestion();
   }
 
-  function showLevelUpModal() {
-    // 用户要求 (2026-07-20): 不进入下一级, 永远再来十道
+  // ── 记录 (localStorage) ──────────────────────────────
+  function loadHistory() {
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      if (!raw) return [];
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) {
+      console.warn('load history failed', e);
+      return [];
+    }
+  }
+
+  function saveHistory(record) {
+    const arr = loadHistory();
+    arr.unshift(record);  // 最新在前
+    if (arr.length > HISTORY_MAX) arr.length = HISTORY_MAX;
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
+    } catch (e) {
+      console.warn('save history failed', e);
+    }
+  }
+
+  function finishRound(reason) {
+    stopTimer();
     const lv = LEVELS[state.levelIdx];
+    const elapsedMs = state.elapsedMs;
+    const record = {
+      ts: Date.now(),
+      tsISO: new Date().toISOString(),
+      level: lv.name,
+      levelMax: lv.max,
+      correct: state.correct,
+      wrong: state.wrong,
+      total: TOTAL_PER_LEVEL,
+      elapsedMs: elapsedMs,
+      elapsedStr: formatTime(elapsedMs),
+      reason: reason,  // '全对' 或 '完成'
+      pass: state.correct >= 7,
+    };
+    saveHistory(record);
+    showLevelResult(record);
+  }
+
+  // ── 结算弹窗 ──────────────────────────────────────
+  function showLevelResult(record) {
+    const lv = LEVELS[state.levelIdx];
+    const pass = record.pass;
+    const accuracy = ((record.correct / TOTAL_PER_LEVEL) * 100).toFixed(0);
     const modal = document.createElement('div');
     modal.className = 'arith-modal';
     modal.innerHTML = `
       <div class="arith-modal-card">
-        <div class="arith-modal-emoji">🎉</div>
-        <div class="arith-modal-title">太棒啦!</div>
+        <div class="arith-modal-emoji">${pass ? '🏆' : (record.correct >= 5 ? '👍' : '💪')}</div>
+        <div class="arith-modal-title">${pass ? '太棒啦!' : (record.correct >= 5 ? '真不错!' : '继续加油!')}</div>
         <div class="arith-modal-sub">
-          ${lv.name}加减法 ${TOTAL_PER_LEVEL} 题全部答对!<br>
-          再来十道继续挑战吧!
+          <div style="font-size:1.05rem;margin-bottom:8px"><b>${lv.name}</b>加减法</div>
+          <div class="arith-result-row">
+            <div class="arith-result-item">
+              <div class="arith-result-num">${record.correct}</div>
+              <div class="arith-result-label">答对</div>
+            </div>
+            <div class="arith-result-item">
+              <div class="arith-result-num">${record.wrong}</div>
+              <div class="arith-result-label">答错</div>
+            </div>
+            <div class="arith-result-item">
+              <div class="arith-result-num">${accuracy}%</div>
+              <div class="arith-result-label">正确率</div>
+            </div>
+            <div class="arith-result-item">
+              <div class="arith-result-num">${record.elapsedStr}</div>
+              <div class="arith-result-label">用时</div>
+            </div>
+          </div>
+          <div class="arith-result-time">🕐 ${formatTimestamp(record.ts)}</div>
+          ${pass ? '<div style="margin-top:10px;color:var(--c-green);font-weight:700">🎉 7 题以上, 过关!</div>' : ''}
         </div>
         <button class="arith-modal-btn" id="btnAgain">再来十道 🔁</button>
         <button class="arith-modal-btn alt" id="btnBackLevel">换个难度 🎯</button>
@@ -249,47 +353,24 @@
     });
   }
 
-  function showLevelResult() {
-    // 用户要求 (2026-07-20): 本档结束永远再来十道, 不升档
-    const lv = LEVELS[state.levelIdx];
-    const modal = document.createElement('div');
-    modal.className = 'arith-modal';
-    const pass = state.correct >= 7;
-    modal.innerHTML = `
-      <div class="arith-modal-card">
-        <div class="arith-modal-emoji">${pass ? '👍' : '💪'}</div>
-        <div class="arith-modal-title">${pass ? '真不错!' : '继续加油!'}</div>
-        <div class="arith-modal-sub">
-          ${lv.name}加减法<br>
-          答对 <b>${state.correct}</b> / ${TOTAL_PER_LEVEL} 题<br>
-          ${pass ? '你真棒, 再来十道!' : '再多练几次就更棒啦!'}
-        </div>
-        <button class="arith-modal-btn" id="btnAgain">再来十道 🔁</button>
-        <button class="arith-modal-btn alt" id="btnBackLevel">换个难度 🎯</button>
-        <button class="arith-modal-btn alt" id="btnHome2">回首页 🏠</button>
-      </div>
-    `;
-    dom.modalRoot.appendChild(modal);
-
-    $('btnAgain').addEventListener('click', () => {
-      dom.modalRoot.innerHTML = '';
-      resetRound();
-      renderLevelBadge();
-      renderStars();
-      renderQuestion();
-    });
-    $('btnBackLevel').addEventListener('click', () => {
-      window.location.href = 'index.html';
-    });
-    $('btnHome2').addEventListener('click', () => {
-      window.location.href = 'index.html';
-    });
+  function formatTimestamp(ts) {
+    const d = new Date(ts);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const h = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${y}-${m}-${day} ${h}:${min}`;
   }
 
   function resetRound() {
     state.qIndex = 0;
     state.correct = 0;
+    state.wrong = 0;
     state.locked = false;
+    state.startTime = null;
+    state.elapsedMs = 0;
+    resetTimer();
   }
 
   // ── 动画 ──────────────────────────────────────
@@ -318,5 +399,6 @@
   renderLevelBadge();
   renderStars();
   renderQuestion();
+  resetTimer();  // 显示 00:00
 
 })();
