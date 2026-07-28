@@ -967,6 +967,8 @@ Linear Attn: y = φ(Q) · (φ(K)<sup>T</sup> · V), 复杂度 = <span class="con
 <tr><td><b>Falcon-H1</b></td><td><b>2025-05</b></td><td><b>Transformer + Mamba 混合 (1:1 配比)</b> — 阿联酋 TII, 0.5B-34B 全家族, 阿拉伯语 + 英语双语优化</td><td>KV 减半</td><td>7B 模型匹配 Llama-3-8B, 34B 略超</td><td>TII Falcon</td></tr>
 <tr><td><b>Zamba-2</b></td><td><b>2025-04</b></td><td><b>Mamba + 2 个共享 Attention 层</b> — Zyphra, 共享 Attention 层在多个 block 复用, 减少 KV 计算</td><td>共享 attn KV</td><td>7B 长文匹配 Llama-3-8B</td><td>Zyphra</td></tr>
 <tr><td><b>DeltaNet (GDN)</b></td><td><b>2024-12</b></td><td><b>Delta Rule + 线性复杂度</b> — 用 delta 规则 (S_t = S_{t-1} + v_t - k_t·(S_{t-1}·k_t)) 增量更新 state, 训练 5× 速度, Qwen3-Next 已采用 (GDN=Gated DeltaNet)</td><td><b>O(1) per step</b></td><td>训练 5×, 内存 O(n)</td><td>Microsoft Research → Qwen3-Next</td></tr>
+<tr><td><b>Hymba</b> (NVIDIA + Georgia Tech)</td><td><b>2024-11</b></td><td><b>Hybrid-head 并行架构</b> — Mamba 与 Attention head 在同一层并行 + 门控, <b>1.5B 模型 KV cache 11.67× ↓, 3.49× throughput ↑</b> vs Llama-3.2-3B, NVIDIA Hymba-1.5B 开源</td><td><b>11.67× ↓ KV</b></td><td>1.32% avg acc 提升</td><td>arXiv 2411.13676 / NVlabs/hymba</td></tr>
+<tr><td><b>YOCO</b> (Microsoft, NeurIPS 2024)</td><td><b>2024-05</b></td><td><b>Decoder-Decoder</b> — Self-decoder 编码全局 KV (一次性) + Cross-decoder 跨层复用, <b>1M context 9.4× GPU 内存 ↓</b>, prefill 512K 从 180s → &lt;6s</td><td><b>9.4× ↓ 内存</b></td><td>71.8× prefill 加速</td><td>arXiv 2405.05254</td></tr>
 </tbody>
 </table>
 
@@ -978,6 +980,42 @@ Linear Attn: y = φ(Q) · (φ(K)<sup>T</sup> · V), 复杂度 = <span class="con
 <li><b>DeltaNet / GDN 是 2026 新热点</b>: Qwen3-Next-80B-A3B 部署后, GDN 取代 Mamba, 训练 5× 速度 + KV 内存 0</li>
 <li><b>学术 → 工业快速转移</b>: 论文发表到生产部署从 2023 的 18 月缩短到 2026 的 3-6 月 (Mamba 12 月, GDN 6 月)</li>
 </ul>
+</div>
+
+<h3 id="sec3-8">3.8 [SSM 商业化先驱] Cartesia AI — Mamba 走出学术的真正路径</h3>
+
+<p><b>Cartesia AI</b> 是 SSM (Mamba) 唯一大规模商业化公司, <b>$191M Series B (2025-09)</b>, <b>NVIDIA 战略入股</b>, 联合创始人 <b>Albert Gu</b> (Mamba 一作) 任 Chief Scientist. 验证"non-Transformer 商业化"可行路径.</p>
+
+<table class="data-table">
+<thead><tr><th>产品 / 客户</th><th>技术</th><th>商业化指标</th><th>意义</th></tr></thead>
+<tbody>
+<tr><td><b>Sonic TTS</b> (text-to-speech)</td><td>SSM-based 流式语音合成, <b>90ms 首字节延迟</b></td><td>实时语音 SOTA, <b>&lt; $0.05/1K char</b> (vs OpenAI Realtime $0.30/1K, <b>6× 价差</b>)</td><td>SSM 在流式生成击败 Transformer 的首个商业化证明</td></tr>
+<tr><td><b>Mamba-3 Apache 2.0</b></td><td>Mamba-3 主导开源, 2026-03 release</td><td>GitHub 10K+ star</td><td>开源生态 + 商业产品双轮</td></tr>
+<tr><td><b>客户矩阵</b></td><td>Vapi / Retell / LiveKit / ServiceNow / Notion AI / Cognition</td><td>Vapi ARR $40M+, Retell $25M+, ServiceNow NowAssist 全栈调用 Sonic</td><td>Voice agent infra 事实标准 (北美前 5 voice agent 4 家在用)</td></tr>
+<tr><td><b>融资 / 估值</b></td><td>Series A $27M (2024) + Series B $100M (2025-09) + Series A-II $50M (2025-10) + <b>NVIDIA 入股</b></td><td><b>$191M 总融资</b>, 估值 $1-2B</td><td>SSM 唯一商业化领跑者, a16z/Sequoia/Index/NVIDIA 联合投资</td></tr>
+</tbody>
+</table>
+
+<h4 style="color:var(--accent);margin-top:24px">📊 2024-2026 长上下文权威 benchmark (本文推荐)</h4>
+<table class="data-table">
+<thead><tr><th>Benchmark</th><th>arXiv ID</th><th>会议</th><th>关键能力</th><th>关键发现</th></tr></thead>
+<tbody>
+<tr><td><b>RULER</b> (NVIDIA)</td><td>2404.06654</td><td>COLM 2024</td><td>13 任务 4K-128K</td><td><b>32K 后大幅掉点</b>, 揭示 NIAH 浅表评估</td></tr>
+<tr><td><b>HELMET</b> (Princeton)</td><td>2410.02694</td><td>ICLR 2025</td><td>7 任务 128K, <b>评测 59 LCLMs</b></td><td>NIAH 不能预测下游任务表现</td></tr>
+<tr><td><b>SCBench</b> (MIT)</td><td>2412.10319</td><td>ICLR 2025</td><td><b>KV-centric</b>, 12 任务 × 2 模式 × 4 能力</td><td><b>首个 KV 中心 benchmark</b></td></tr>
+<tr><td><b>LongBench v2</b></td><td>2412.15204</td><td>ACL 2025</td><td>503 选择题, 8K-2M words, 6 类任务</td><td>人类专家 53.7%, best LLM 50.1%</td></tr>
+<tr><td><b>∞Bench</b></td><td>2402.13718</td><td>ACL 2024</td><td>平均 200K+ token, 中英双语</td><td>GPT-4 长文任务仍有显著退化</td></tr>
+<tr><td><b>BABILong</b></td><td>2406.10149</td><td>NeurIPS 2024 D&B</td><td>1M+ 噪音文本中测 reasoning</td><td>LLM 128K 后 reasoning 退化到 10%</td></tr>
+<tr><td><b>NoLiMa</b> (LMU Munich)</td><td>2502.05167</td><td>arXiv 2025</td><td>needle 与 query 最小字面重叠</td><td>GPT-4o 1M 时仅 56.0% (无字面匹配)</td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+<b>📌 推荐</b>: 2026 评估 KV Cache 应同时报告 <b>RULER (工业标准) + SCBench (KV 中心) + NoLiMa (无字面)</b> 三个 benchmark, 单 NIAH 已不足以评估长上下文方案.
+</div>
+
+<div class="callout callout-success">
+<b>🚀 Cartesia 商业化三大启示</b>: (1) <b>SSM 真的能商业化</b> — 90ms 延迟 + 6× 价差, 语音/流式场景 SSM 完胜 Transformer; (2) <b>开源 + 商业双轮</b> — Mamba-3 Apache 2.0 + Sonic 闭源, 类同 PyTorch + AWS; (3) <b>投资路径</b> — 从"$27M 学术创业" 到 "$1-2B 估值 + NVIDIA 入股", SSM 已是 2026 最被资本验证的非 Transformer 路线.
 </div>
 
 <h3 id="sec3-6">3.6 [学术重心偏移] 从算法 → 软硬协同</h3>
@@ -1040,6 +1078,12 @@ Linear Attn: y = φ(Q) · (φ(K)<sup>T</sup> · V), 复杂度 = <span class="con
 <tr><td><b>AMD MI300X</b></td><td>FP8 + 192GB HBM3</td><td>192GB HBM3 / 5.35 TB/s</td><td>~24 TB/s</td><td><a href="https://www.amd.com/en/products/accelerators/instinct-mi300x.html" target="_blank">AMD MI300X</a></td></tr>
 <tr><td><b>Google TPU v6</b> (Trillium, 2024)</td><td>小 batch matmul 高效</td><td>32GB HBM / 1.65 TB/s</td><td>~12 TB/s</td><td><a href="https://cloud.google.com/tpu" target="_blank">TPU v6</a></td></tr>
 <tr><td><b>Google TPU v7 (Ironwood)</b> <b>(2025-11 GA)</b></td><td><b>推理旗舰, Gemini 3 全栈</b></td><td><b>192GB HBM</b> (6× v6) / <b>7.37 TB/s</b> (4.5×)</td><td>~28 TB/s</td><td><a href="https://blog.google/innovation-and-ai/infrastructure-and-cloud/google-cloud/ironwood-tpu-age-of-inference/" target="_blank">Google blog</a></td></tr>
+<tr><td><b>Etched Sohu</b> (Transformer ASIC)</td><td><b>只跑 Transformer, 无 KV cache 灵活性</b></td><td>—</td><td>Sohu chip 推理 Llama-4 70B <b>20× H100</b></td><td><a href="https://www.etched.com/" target="_blank">Etched</a></td></tr>
+<tr><td><b>Lightmatter Passage</b> (光互连)</td><td><b>光子 SRAM</b> + 光子互联, 解决 KV 跨 GPU 拷贝 (§1 内存墙物理层)</td><td>—</td><td>114 Tbps 光学互联, <b>Series D 估值 $4.4B</b> (2024-10)</td><td><a href="https://www.lightmatter.co/" target="_blank">Lightmatter</a></td></tr>
+<tr><td><b>Groq LPU</b></td><td>LPU 推理引擎, 无 KV cache 概念 (确定性推理)</td><td>—</td><td>Llama-3-70B <b>500+ tok/s/user</b>, <b>$6.9B 估值 (2025-12)</b>, Nvidia IP 授权 $1.5B Saudi</td><td><a href="https://groq.com/" target="_blank">Groq</a></td></tr>
+<tr><td><b>Cerebras CS-3 WSE</b></td><td>Wafer-scale, 单一芯片 44GB SRAM + 4 TB/s</td><td>—</td><td>单芯片 Llama-3-70B <b>3000-4500 tok/s</b>, <b>2026-05 IPO $48.8B</b>, AWS Bedrock 集成</td><td><a href="https://www.cerebras.net/" target="_blank">Cerebras</a></td></tr>
+<tr><td><b>寒武纪 MLU 590</b> (国产 GPGPU)</td><td>48GB HBM2e, 兼容 CUDA</td><td>—</td><td>推理性能 ~H100 60%, <b>2025 营收 +340%</b> (12 亿 ¥)</td><td><a href="https://www.cambricon.com/" target="_blank">寒武纪</a></td></tr>
+<tr><td><b>华为昇腾 Atlas 800T</b></td><td>910C 8 卡训练推理一体机</td><td>—</td><td>910C 780 TFLOPS FP16, 国产 AI 服务器 90% 出货</td><td><a href="https://www.huawei.com/" target="_blank">华为</a></td></tr>
 <tr><td><b>Apple M3/M4 Ultra</b> (统一内存)</td><td>端云一体, 192GB 统一内存 + 800 GB/s</td><td>192GB 统一 / 800 GB/s</td><td>—</td><td><a href="https://www.apple.com/mac/m4/" target="_blank">Apple M4</a></td></tr>
 <tr><td><b>NVIDIA RTX 6000 Ada</b> (中端推理)</td><td>生产 7B-13B 主流</td><td>48GB GDDR6 / 960 GB/s</td><td>—</td><td><a href="https://www.nvidia.com/en-us/data-center/rtx-6000-ada/" target="_blank">NVIDIA Ada</a></td></tr>
 <tr><td><b>NVIDIA Jetson Thor T5000</b> (2025 H2)</td><td>机器人/自动驾驶 LLM 推理</td><td>64GB 共享 / 273 GB/s</td><td>—</td><td><a href="https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-thor/" target="_blank">Jetson Thor</a></td></tr>
@@ -1068,6 +1112,8 @@ Linear Attn: y = φ(Q) · (φ(K)<sup>T</sup> · V), 复杂度 = <span class="con
 <tr><td><b>字节 豆包 (火山方舟)</b></td><td>豆包 1.5 Pro (200K context)</td><td>~80% off</td><td>~¥0.0008 / 1K tok</td><td>无</td><td>20%</td><td>Implicit</td><td>字节内部电商/抖音全栈在跑</td></tr>
 <tr><td><b>Together.AI</b></td><td>DeepSeek V4 Pro / Qwen3.7-Max / Kimi K3</td><td><b>$0.20 / 1M</b> (DeepSeek V4 Pro cached)</td><td>$1.74 / 1M (V4 miss)</td><td>无</td><td>—</td><td>Implicit</td><td>2026 Series C, YC B200 集群合作</td></tr>
 <tr><td><b>Fireworks AI</b></td><td>Llama 4 / DeepSeek V4 / Qwen3.7</td><td>cached input 单独计费 (~50% off)</td><td>标准价</td><td>无</td><td>~50%</td><td>Implicit</td><td>三档 QoS (Standard/Priority/Fast), 细粒度</td></tr>
+<tr><td><b>Cloudflare AI Gateway</b> <b>(边缘层, 2024 GA)</b></td><td>OpenAI / Anthropic / Groq / Workers AI</td><td><b>免费层 10K/天</b>, 精确匹配 + 90% 延迟削减</td><td>0 美元 (按 CF Workers 计费)</td><td>无</td><td>0%</td><td>1 月 TTL</td><td><b>边缘 KV cache</b>, 4000+ PoP 节点, 民主化 KV Cache</td></tr>
+<tr><td><b>Vercel AI Gateway</b> <b>(2025-08 GA)</b></td><td>16+ provider 自动路由</td><td><b>caching: 'auto'</b> 自动缓存 50% off</td><td>0 额外延迟</td><td>无</td><td>50%</td><td>5min+</td><td>云中立 LLM 接入标准, Vercel 估值传闻 $13B</td></tr>
 <tr><td><b>GroqCloud</b></td><td>Llama 4 70B (LPU 推理)</td><td><b>无 KV cache 概念</b> (LPU 自带超快推理, 不需缓存)</td><td>$0.59 / 1M</td><td>—</td><td>—</td><td>—</td><td><b>500+ tok/s/user</b>, 按 token 计费</td></tr>
 <tr><td><b>Cerebras Cloud</b></td><td>Llama 4 / Qwen3 (CS-3 WSE)</td><td>无显式 cache (wafer-scale 不需)</td><td>~10× H100 价</td><td>—</td><td>—</td><td>—</td><td><b>3000-4500 tok/s</b> 单机 (vs H100 集群 150-300)</td></tr>
 </tbody>
