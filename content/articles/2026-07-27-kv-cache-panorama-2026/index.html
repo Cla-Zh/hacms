@@ -1014,11 +1014,11 @@ Linear Attn: y = φ(Q) · (φ(K)<sup>T</sup> · V), 复杂度 = <span class="con
 <table class="data-table">
 <thead><tr><th>引擎</th><th>KV 优化核心</th><th>Llama-3-70B H100 吞吐</th><th>TTFT</th><th>TPOT</th><th>GitHub</th></tr></thead>
 <tbody>
-<tr><td><b>vLLM</b> (Berkeley)</td><td>PagedAttention + Continuous Batching</td><td>~1800 tok/s @ 64 并发</td><td>~250 ms</td><td>~80 ms</td><td><a href="https://github.com/vllm-project/vllm" target="_blank">vllm-project/vllm</a></td></tr>
-<tr><td><b>SGLang</b> (Berkeley)</td><td>RadixAttention + Structured Programming</td><td>~1500 tok/s</td><td>~300 ms</td><td>~85 ms</td><td><a href="https://github.com/sgl-project/sglang" target="_blank">sgl-project/sglang</a></td></tr>
-<tr><td><b>TensorRT-LLM</b> (NVIDIA)</td><td>In-flight batching + FP8/INT8 kernel</td><td>~2000 tok/s</td><td>~200 ms</td><td>~70 ms</td><td><a href="https://github.com/NVIDIA/TensorRT-LLM" target="_blank">TensorRT-LLM</a></td></tr>
+<tr><td><b>vLLM</b> (Berkeley + Red Hat, PyTorch 基金会)</td><td><b>V1 (2025-01-27)</b> — 1.7× 加速 + zero-overhead prefix cache 默认 + Marlin INT4 kernel + 集成 Mooncake Store (2026-05) + V0 KV swap 已弃用</td><td>~2200 tok/s @ 64 并发 (V1)</td><td>~200 ms</td><td>~70 ms</td><td><a href="https://github.com/vllm-project/vllm" target="_blank">vllm-project/vllm</a></td></tr>
+<tr><td><b>SGLang</b> (LMSYS, PyTorch 生态)</td><td><b>HiCache (2025-09-10)</b> 3-tier (GPU HBM + Host DRAM + 3FS/Mooncake/AIBrix/NIXL) + RadixAttention + XGrammar 结构化生成</td><td>~2800 tok/s (HiCache + Mooncake)</td><td>~120 ms (cache hit, ↓84%)</td><td>~55 ms</td><td><a href="https://github.com/sgl-project/sglang" target="_blank">sgl-project/sglang</a></td></tr>
+<tr><td><b>TensorRT-LLM</b> (NVIDIA)</td><td>In-flight batching + FP8/INT8 kernel + 集成 Mooncake Transfer Engine (2025-12) + EAGLE-3 投机解码</td><td>~2000 tok/s</td><td>~200 ms</td><td>~70 ms</td><td><a href="https://github.com/NVIDIA/TensorRT-LLM" target="_blank">TensorRT-LLM</a></td></tr>
 <tr><td><b>TGI</b> (HuggingFace)</td><td>Rust 核心 + Continuous Batching</td><td>~1200 tok/s</td><td>~350 ms</td><td>~95 ms</td><td><a href="https://github.com/huggingface/text-generation-inference" target="_blank">TGI</a></td></tr>
-<tr><td><b>LMDeploy</b> (上海 AI Lab)</td><td>4-bit AWQ + 持久化批</td><td>~2200 tok/s (4bit)</td><td>~180 ms</td><td>~60 ms</td><td><a href="https://github.com/InternLM/lmdeploy" target="_blank">lmdeploy</a></td></tr>
+<tr><td><b>LMDeploy</b> (上海 AI Lab)</td><td>TurboMind C++ 后端 + 4-bit AWQ 2.4× vs FP16 + 国产 InternLM/Qwen3/DeepSeek Day 0 支持</td><td><b>~2200 tok/s</b> (4bit AWQ, 1.5× vLLM)</td><td>~180 ms</td><td>~60 ms</td><td><a href="https://github.com/InternLM/lmdeploy" target="_blank">lmdeploy</a></td></tr>
 <tr><td><b>llama.cpp</b> (Gerganov)</td><td>量化 + CPU/GPU offload</td><td>~200 tok/s (CPU)</td><td>~2000 ms</td><td>~100 ms</td><td><a href="https://github.com/ggerganov/llama.cpp" target="_blank">llama.cpp</a></td></tr>
 <tr><td><b>DeepSpeed-MII</b> (Microsoft)</td><td>ZeRO-Infinity + Dynamic SplitFuse</td><td>~1300 tok/s</td><td>~280 ms</td><td>~90 ms</td><td><a href="https://github.com/microsoft/DeepSpeed-MII" target="_blank">DeepSpeed-MII</a></td></tr>
 </tbody>
@@ -1038,7 +1038,11 @@ Linear Attn: y = φ(Q) · (φ(K)<sup>T</sup> · V), 复杂度 = <span class="con
 <tr><td><b>NVIDIA B200</b> (Blackwell)</td><td>FP4 + FP6 + 5th-gen Tensor Core</td><td>192GB HBM3e / 8 TB/s</td><td>~38 TB/s</td><td><a href="https://www.nvidia.com/en-us/data-center/b200-gpu/" target="_blank">B200 Page</a></td></tr>
 <tr><td><b>NVIDIA GB200</b></td><td>72 GPU 互联 (NVLink Switch)</td><td>13.8 TB HBM3e / cluster</td><td>~38 TB/s/GPU</td><td><a href="https://www.nvidia.com/en-us/data-center/gb200-nvl72/" target="_blank">GB200 Page</a></td></tr>
 <tr><td><b>AMD MI300X</b></td><td>FP8 + 192GB HBM3</td><td>192GB HBM3 / 5.35 TB/s</td><td>~24 TB/s</td><td><a href="https://www.amd.com/en/products/accelerators/instinct-mi300x.html" target="_blank">AMD MI300X</a></td></tr>
-<tr><td><b>Google TPU v6</b></td><td>小 batch matmul 高效</td><td>32GB HBM / ~1.5 TB/s</td><td>~12 TB/s</td><td><a href="https://cloud.google.com/tpu" target="_blank">TPU v6</a></td></tr>
+<tr><td><b>Google TPU v6</b> (Trillium, 2024)</td><td>小 batch matmul 高效</td><td>32GB HBM / 1.65 TB/s</td><td>~12 TB/s</td><td><a href="https://cloud.google.com/tpu" target="_blank">TPU v6</a></td></tr>
+<tr><td><b>Google TPU v7 (Ironwood)</b> <b>(2025-11 GA)</b></td><td><b>推理旗舰, Gemini 3 全栈</b></td><td><b>192GB HBM</b> (6× v6) / <b>7.37 TB/s</b> (4.5×)</td><td>~28 TB/s</td><td><a href="https://blog.google/innovation-and-ai/infrastructure-and-cloud/google-cloud/ironwood-tpu-age-of-inference/" target="_blank">Google blog</a></td></tr>
+<tr><td><b>Apple M3/M4 Ultra</b> (统一内存)</td><td>端云一体, 192GB 统一内存 + 800 GB/s</td><td>192GB 统一 / 800 GB/s</td><td>—</td><td><a href="https://www.apple.com/mac/m4/" target="_blank">Apple M4</a></td></tr>
+<tr><td><b>NVIDIA RTX 6000 Ada</b> (中端推理)</td><td>生产 7B-13B 主流</td><td>48GB GDDR6 / 960 GB/s</td><td>—</td><td><a href="https://www.nvidia.com/en-us/data-center/rtx-6000-ada/" target="_blank">NVIDIA Ada</a></td></tr>
+<tr><td><b>NVIDIA Jetson Thor T5000</b> (2025 H2)</td><td>机器人/自动驾驶 LLM 推理</td><td>64GB 共享 / 273 GB/s</td><td>—</td><td><a href="https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-thor/" target="_blank">Jetson Thor</a></td></tr>
 <tr><td><b>华为昇腾 910B</b></td><td>FP16 + 自研 Cube</td><td>64GB HBM / ~1.6 TB/s</td><td>~10 TB/s</td><td><a href="https://www.hiascend.com/" target="_blank">Ascend 910B</a></td></tr>
 <tr><td><b>寒武纪 MLU 590</b></td><td>FP16/INT8</td><td>48GB / ~1.2 TB/s</td><td>~8 TB/s</td><td><a href="https://www.cambricon.com/" target="_blank">Cambricon MLU</a></td></tr>
 </tbody>
@@ -1048,18 +1052,30 @@ Linear Attn: y = φ(Q) · (φ(K)<sup>T</sup> · V), 复杂度 = <span class="con
 <b>🏆 当前最优</b>: NVIDIA H200 是 2026 性价比最高的推理 GPU (141GB + 4.8 TB/s, 单卡可跑 100B+ 模型 128K 上下文). B200 (8 TB/s) 适合万亿参数集群.
 </div>
 
-<h3 id="sec4-3">4.3 云厂商 Context Caching 计费模型</h3>
+<h3 id="sec4-3">4.3 云厂商 Context Caching 计费模型 — 商业化定价地图 (2026-07 实时)</h3>
+
+<p><b>2025-2026 KV Cache 商业化大爆发</b>: Anthropic 1h TTL 独占优势, OpenAI 自动 90% off 追平, DeepSeek V4 cache hit $0.003625/M 价格屠夫, 阿里百炼 80% off 国产替代. 这一节给出 <b>2026-07 实时定价地图</b>.</p>
 
 <table class="data-table">
-<thead><tr><th>厂商</th><th>产品</th><th>缓存折扣</th><th>TTL</th><th>最小粒度</th><th>来源</th></tr></thead>
+<thead><tr><th>厂商</th><th>代表模型</th><th>Cache Hit 价格</th><th>Cache Miss 价格</th><th>Cache 写价 (一次性)</th><th>Cache 读价 (重复)</th><th>TTL 选项</th><th>商业化亮点</th></tr></thead>
 <tbody>
-<tr><td><b>OpenAI</b></td><td>Prompt Caching (2024-06)</td><td><b>50% off</b></td><td>5-10 min</td><td>1024 tokens</td><td><a href="https://openai.com/index/api-prompt-caching/" target="_blank">OpenAI</a></td></tr>
-<tr><td><b>Anthropic</b></td><td>Prompt Caching (2024-08)</td><td><b>~90% off</b> (5min) / 60-80% (1h)</td><td>5min / 1h</td><td>1024 tokens (Claude Sonnet 4K)</td><td><a href="https://www.anthropic.com/news/prompt-caching" target="_blank">Anthropic</a></td></tr>
-<tr><td><b>Google</b></td><td>Gemini Context Caching</td><td><b>~75% off</b></td><td>默认 1h, 可调</td><td>32K tokens</td><td><a href="https://ai.google.dev/gemini-api/docs/caching" target="_blank">Google AI</a></td></tr>
-<tr><td><b>DeepSeek</b></td><td>API Cache (2024)</td><td><b>~75% off</b> (cache hit)</td><td>几小时-几天</td><td>64 tokens prefix</td><td><a href="https://api-docs.deepseek.com/guides/kv_cache" target="_blank">DeepSeek API</a></td></tr>
-<tr><td><b>Moonshot</b></td><td>Kimi Cache</td><td>Cache 月费 $1/百万 tokens</td><td>—</td><td>—</td><td><a href="https://platform.moonshot.cn/" target="_blank">Moonshot</a></td></tr>
+<tr><td><b>Anthropic</b></td><td>Claude Opus 4.7 / Sonnet 4.5 / Haiku 4.5</td><td><b>$0.50 / 1M tok</b> (10% of base, <b>90% off</b>)</td><td>$15 / 1M tok (Opus)</td><td>5min: 1.25× / 1h: <b>2×</b></td><td><b>0.1×</b></td><td><b>5min + 1h</b> (1h 独家)</td><td>1h 写价 2× 换 90% 读, 适合 batch</td></tr>
+<tr><td><b>OpenAI</b></td><td>GPT-5.5 / GPT-5 / GPT-4o / o3</td><td><b>$0.50 / 1M tok</b> (10% of base, <b>90% off</b>, 2026 升)</td><td>$5 / 1M tok (GPT-5.5)</td><td>无 (自动)</td><td>0.1×</td><td>5-10min (隐式)</td><td><b>零配置</b>, ≥1024 token 自动缓存</td></tr>
+<tr><td><b>Google</b></td><td>Gemini 3.1 Pro / Flash</td><td><b>$0.20 / 1M tok</b> (10% of base, 90% off)</td><td>$2 / 1M tok (Pro)</td><td>无</td><td>0.1×</td><td>1h 默认</td><td><b>$4.50/Mtok/h 存储费</b> (长驻贵)</td></tr>
+<tr><td><b>DeepSeek</b></td><td>V4 Pro (1M context)</td><td><b>$0.003625 / 1M tok</b> (V4 Pro) / $0.0028/M (V4 Flash)</td><td>$0.435 / 1M tok (V4 Pro 75% 促销价)</td><td>无</td><td>0.83%</td><td>隐式 (会话级)</td><td><b>无写价 + 无存储费</b>, 99% 缓存折扣</td></tr>
+<tr><td><b>Moonshot Kimi</b></td><td>Kimi K3 (2026-07-16 发布)</td><td><b>$0.30 / 1M tok</b></td><td><b>$3.00 / 1M tok</b> (10×)</td><td>无</td><td>10%</td><td>隐式 (会话级)</td><td>cache-hit 率 > 90% 时 blending $0.57/M, ARR 2 月 $100M→$200M</td></tr>
+<tr><td><b>阿里 Qwen (百炼)</b></td><td>Qwen3-Max / Qwen3-Next</td><td><b>¥0.0004 / 1K tok</b> (20% of base, <b>80% off</b>)</td><td>¥0.002 / 1K tok</td><td>无 (显式 cache_control)</td><td>20%</td><td>5min (Explicit) + Implicit + Session</td><td><b>Session Cache</b> 兼容 Anthropic 协议, 国内最易接入</td></tr>
+<tr><td><b>字节 豆包 (火山方舟)</b></td><td>豆包 1.5 Pro (200K context)</td><td>~80% off</td><td>~¥0.0008 / 1K tok</td><td>无</td><td>20%</td><td>Implicit</td><td>字节内部电商/抖音全栈在跑</td></tr>
+<tr><td><b>Together.AI</b></td><td>DeepSeek V4 Pro / Qwen3.7-Max / Kimi K3</td><td><b>$0.20 / 1M</b> (DeepSeek V4 Pro cached)</td><td>$1.74 / 1M (V4 miss)</td><td>无</td><td>—</td><td>Implicit</td><td>2026 Series C, YC B200 集群合作</td></tr>
+<tr><td><b>Fireworks AI</b></td><td>Llama 4 / DeepSeek V4 / Qwen3.7</td><td>cached input 单独计费 (~50% off)</td><td>标准价</td><td>无</td><td>~50%</td><td>Implicit</td><td>三档 QoS (Standard/Priority/Fast), 细粒度</td></tr>
+<tr><td><b>GroqCloud</b></td><td>Llama 4 70B (LPU 推理)</td><td><b>无 KV cache 概念</b> (LPU 自带超快推理, 不需缓存)</td><td>$0.59 / 1M</td><td>—</td><td>—</td><td>—</td><td><b>500+ tok/s/user</b>, 按 token 计费</td></tr>
+<tr><td><b>Cerebras Cloud</b></td><td>Llama 4 / Qwen3 (CS-3 WSE)</td><td>无显式 cache (wafer-scale 不需)</td><td>~10× H100 价</td><td>—</td><td>—</td><td>—</td><td><b>3000-4500 tok/s</b> 单机 (vs H100 集群 150-300)</td></tr>
 </tbody>
 </table>
+
+<div class="callout callout-success">
+<b>🏆 2026-07 商业化王者</b>: (1) <b>DeepSeek V4 Pro</b>: cache hit $0.003625/M = 比 Anthropic 90% off 后还便宜 <b>138×</b>; (2) <b>Kimi K3</b>: cache-hit 10× cache-miss 价差, 直接驱动 ARR 翻倍; (3) <b>Anthropic 1h TTL</b>: 唯一支持, 适合企业批处理; (4) <b>阿里百炼 Session Cache</b>: 国产最容易接入. <b>共同点</b>: cache 缓存 hit 价格比 cache miss 低 <b>5-10×</b>, 这是 2026 商业化铁律.
+</div>
 
 <div class="callout">
 <b>💰 业界共识</b>: 2024-2026 长上下文缓存已成为云厂商<b>第二增长曲线</b>. Anthropic 的 5min 缓存折扣 90% 是行业激进派, OpenAI 50% 是稳健派.
@@ -1139,6 +1155,69 @@ Linear Attn: y = φ(Q) · (φ(K)<sup>T</sup> · V), 复杂度 = <span class="con
 <li><b>MLX</b> (Apple Silicon): M2/M3 统一内存, 4-bit Llama-3-8B 实时推理</li>
 <li><b>llamafile</b>: 单文件可执行, 跨平台</li>
 <li><b>高通 Snapdragon NPU</b>: 端侧 1B-3B 模型实时</li>
+</ul>
+
+<h3 id="sec5-5">5.5 PD Disaggregation (Prefill/Decode 分离) — 2025-2026 工业头号实战变化</h3>
+<p>传统推理把 prefill + decode 放在同一组 GPU, prefill 阻塞 decode (head-of-line). <b>PD Disaggregation</b> 是 Moonshot Kimi 2024-06 首创, 2025-2026 成为 vLLM/SGLang/TRT-LLM 默认部署模式.</p>
+
+<table class="data-table">
+<thead><tr><th>方案</th><th>实现</th><th>代表部署</th><th>吞吐提升</th><th>TTFT 影响</th></tr></thead>
+<tbody>
+<tr><td><b>Mooncake PD</b></td><td>Conductor 调度 + Transfer Engine RDMA</td><td>Kimi K2 (128×H200)</td><td><b>75% ↑ (Kimi)</b>, 525% ↑ (长文)</td><td>不变</td></tr>
+<tr><td><b>DistServe</b></td><td>Prefill/Decode 独立 GPU 集群</td><td>vLLM 实验性</td><td>~4× TTFT</td><td>↓ 显著</td></tr>
+<tr><td><b>vLLM V1 + Dynamo</b></td><td>GPU 池化 + 智能调度</td><td>NVIDIA GB200 NVL72</td><td>~30× cluster 调度</td><td>可控</td></tr>
+<tr><td><b>SGLang HiCache PD</b></td><td>3-tier KV + 调度感知</td><td>SGLang v0.4+ (2025-12)</td><td>~2-3× (cache hit)</td><td>↓ 84%</td></tr>
+</tbody>
+</table>
+
+<div class="callout callout-success">
+<b>🚀 vLLM V1 (2025-01) PD 启动命令</b>:
+<pre>python -m vllm.entrypoints.openai.api_server \
+  --model deepseek-ai/DeepSeek-V3 \
+  --tensor-parallel-size 8 \
+  --enable-prefix-caching \
+  --num-prefill-gpus 4 --num-decode-gpus 4 \
+  --kv-cache-dtype fp8</pre>
+PD 分离 + prefix cache + FP8 KV 已是 2026 工业默认. Mooncake 已在 vLLM V1 + TRT-LLM + SGLang 三引擎集成.
+</div>
+
+<h3 id="sec5-6">5.6 多 LoRA 动态加载 / 热插拔 (RAG/Agent 商业化刚需)</h3>
+<p>生产 RAG/Agent 场景: <b>1 个 base 模型 + 几十个 LoRA adapter</b> (不同领域/客户/任务). vLLM `LoRARequest` 支持动态切换, SGLang `LoRA RadixAttention` 共享 base KV.</p>
+
+<table class="data-table">
+<thead><tr><th>引擎</th><th>LoRA 数量</th><th>切换延迟</th><th>KV 共享</th><th>商业案例</th></tr></thead>
+<tbody>
+<tr><td><b>vLLM LoRARequest</b></td><td>~50 LoRA / base</td><td>~10ms (内存预热)</td><td>base KV 共享, LoRA 独立</td><td>ByteDance 50+ 业务线共享 base</td></tr>
+<tr><td><b>SGLang LoRA RadixAttention</b></td><td>~100 LoRA / base</td><td>~5ms</td><td>Radix tree 索引 LoRA prefix</td><td>小红书 多 LoRA agent</td></tr>
+<tr><td><b>TRT-LLM LoRA</b></td><td>~30 LoRA / base</td><td>~20ms</td><td>完全独立 KV</td><td>企业定制</td></tr>
+</tbody>
+</table>
+
+<h3 id="sec5-7">5.7 冷启动 + 动态扩缩容 (K8s HPA + KV-aware)</h3>
+<p>单实例启动 70B 模型需 <b>5-15 分钟</b> (权重加载 + KV cache 预热). 生产突发流量 100× 必须 <b>预热池 + KV-aware HPA</b>.</p>
+<ul>
+<li><b>预热池</b>: 维护 N 个 idle 实例 ready, 请求来直接接 (无冷启动)</li>
+<li><b>KV-aware HPA</b>: K8s 自定义指标, 根据 KV cache 占用率扩缩容 (不是 CPU/Memory)</li>
+<li><b>SGLang v0.4 (2024-12) Cache-Aware Load Balancer</b>: 路由到 cache hit 率最高的实例</li>
+<li><b>vLLM Production Stack</b>: 2024 发布的 K8s operator + 自动扩缩 + KV 迁移</li>
+</ul>
+
+<h3 id="sec5-8">5.8 降级策略 (Graceful Degradation / SLO-aware early-rejection)</h3>
+<p>Mooncake 核心卖点: <b>early-rejection</b> — 超载时拒绝低优先级请求, 避免全系统崩溃. 生产必备.</p>
+<ul>
+<li><b>优先级队列</b>: Premium 用户 > Free 用户, 满载时 Free 拒绝</li>
+<li><b>SLO-aware early-rejection</b>: Mooncake Conductor 预测哪些请求会超时, 调度前 reject, 长文场景 <b>525% throughput ↑</b></li>
+<li><b>降级到小模型</b>: 主模型 70B 满载时, 自动降级到 7B 蒸馏模型 (CoT 退化但保证响应)</li>
+<li><b>降级到短上下文</b>: 长文请求排队, 短文请求优先</li>
+</ul>
+
+<h3 id="sec5-9">5.9 量化感知调度 (QAS: per-request 量化等级)</h3>
+<p>vLLM/SGLang 已支持 <b>KV 混合精度</b> (prefill FP16 KV + decode INT4 KV). Mooncake 2.0 支持 per-request 量化切换 — 真实省钱 <b>30%</b>.</p>
+<ul>
+<li><b>FP16 优先 (Premium)</b>: $0.50/M cache hit, 适合企业 SLA</li>
+<li><b>FP8 平衡</b>: $0.30/M cache hit, 99% 场景够用</li>
+<li><b>INT4 省钱</b>: $0.10/M cache hit, 适合 batch / 异步</li>
+<li><b>2-bit 极限</b>: $0.05/M cache hit, 适合 embedding / classification</li>
 </ul>
 </section>
 
