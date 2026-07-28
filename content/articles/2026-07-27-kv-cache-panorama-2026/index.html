@@ -208,7 +208,7 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 <ul>
 <li><b>核心命题</b>: KV Cache 已成为 LLM 推理的<b>头号瓶颈</b> — 它是占显存 <span class="hl">40-80%</span> 的"沉默巨人"<a class="cite" data-num="1" href="#ref-1"></a>;</li>
 <li><b>物理底层</b>: <span class="hl">HBM 带宽 2-3 TB/s</span> vs SRAM <span class="hl">19-33 TB/s</span> — <b>10 倍内存墙</b> 导致推理从"计算瓶颈"必然转向"内存带宽瓶颈"<a class="cite" data-num="2" href="#ref-2"></a>;</li>
-<li><b>FlashAttention</b>: 通过 <b>tiling + softmax-on-chip + recomputation</b> 重构数据流, 把 HBM 访问次数从 <b>O(n²)</b> 降到 <b>O(n)</b>, FA-3 在 H100 达到 <span class="hl">840 TFLOPS/s (BF16, 75% peak)</span> = 75% 峰值<a class="cite" data-num="3" href="#ref-3"></a>;</li>
+<li><b>FlashAttention</b>: 通过 <b>tiling + softmax-on-chip + recomputation</b> 重构数据流, 把 HBM 访问次数从 <b>O(n²)</b> 降到 <b>O(n)</b>, FA-3 在 H100 达到 <span class="hl">840 TFLOPS/s (BF16, 85% peak)</span><a class="cite" data-num="3" href="#ref-3"></a>;</li>
 <li><b>2300 MiB 极限压缩</b>: 1T 参数 + 128K 上下文做到 KV Cache 仅 2300 MiB, 需叠加 <b>MoE 稀疏激活 (×10) + MLA 低秩压缩 (×8) + INT4 量化 (×4) + 层衰减 (×2) + 共享前缀 (×4) ≈ ×2560</b> 综合优化<a class="cite" data-num="4" href="#ref-4"></a>;</li>
 <li><b>12 大流派</b>: <span class="hl">GQA<a class="cite" data-num="17" href="#ref-17"></a> + INT8 KV + PagedAttention + Continuous Batching + Prefix Cache</span> 是工业五件套; <b>MLA (DeepSeek-V3<a class="cite" data-num="14" href="#ref-14"></a>)</b> 进一步把 KV 单 token 压缩到 <span class="hl">576 维</span> (MHA 是 32,768 维), <b>98.24%</b> 压缩<a class="cite" data-num="5" href="#ref-5"></a>;</li>
 <li><b>破局者</b>: <span class="hl">Mamba-3<a class="cite" data-num="53" href="#ref-53"></a> (2026)</span> 用 SSD 对偶性让 SSM 训练速度 8x 提升, <span class="hl">Jamba<a class="cite" data-num="58" href="#ref-58"></a> 1.5</span> (398B/94B 激活, 256K 上下文) 用 ExpertsInt8 在 8×80GB GPU 上可跑 256K; <b>RWKV-7<a class="cite" data-num="56" href="#ref-56"></a> "Goose"</b> (2025-03) 突破 TC⁰ 复杂度<a class="cite" data-num="6" href="#ref-6"></a>;</li>
@@ -228,8 +228,8 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 <div class="preset-btns"><button class="preset-btn" data-target="i-layers" data-val="32">8B</button><button class="preset-btn" data-target="i-layers" data-val="80">70B</button><button class="preset-btn" data-target="i-layers" data-val="120">V3</button></div>
 </div>
 <div class="sim-card">
-<label for="i-seq">序列长度 <span class="val" id="v-seq">128K</span></label>
-<input type="range" id="i-seq" min="1024" max="1048576" value="131072" step="1024" aria-label="序列长度">
+<label for="i-seq">序列长度 <span class="val" id="v-seq">4K</span></label>
+<input type="range" id="i-seq" min="1024" max="1048576" value="4096" step="1024" aria-label="序列长度">
 <div class="preset-btns"><button class="preset-btn" data-target="i-seq" data-val="4096">4K</button><button class="preset-btn" data-target="i-seq" data-val="131072">128K</button><button class="preset-btn" data-target="i-seq" data-val="1048576">1M</button></div>
 </div>
 <div class="sim-card">
@@ -258,9 +258,10 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 </div>
 </div>
 <div class="sim-result ok" id="sim-result">
-<div><div class="sim-result-label">KV Cache 总显存</div><div class="sim-result-num" id="kv-total">10.74 GB</div></div>
-<div style="flex:1;min-width:200px"><div class="sim-result-label" style="text-align:right">单卡 H100 上限: 80 GB</div><div class="sim-bar"><div class="sim-bar-fill" id="kv-bar" style="width:13.4%"></div><div class="sim-bar-marker" style="left:100%"></div></div></div>
+<div><div class="sim-result-label">KV Cache 总显存</div><div class="sim-result-num" id="kv-total">2.68 GB</div></div>
+<div style="flex:1;min-width:200px"><div class="sim-result-label" style="text-align:right">单卡 H100 上限: 80 GB</div><div class="sim-bar"><div class="sim-bar-fill" id="kv-bar" style="width:3.4%"></div><div class="sim-bar-marker" style="left:100%"></div></div></div>
 <div class="sim-result-warning" id="sim-warning"></div>
+<p style="margin-top:8px;font-size:12px;color:var(--ink-2)">💡 默认场景: 70B 模型 + 4K 上下文 + GQA-8 + FP16 = 2.68 GB (安全). 滑动 <b>上下文长度</b> 到 128K 会变 <b>85.90 GB</b> (超载) — 体验 KV Cache 爆炸.</p>
 </div>
 </div>
 
@@ -275,7 +276,8 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
   <li><a href="#sec1-2">1.2 SRAM↔HBM 10 倍鸿沟 + FlashAttention</a></li>
   <li><a href="#sec1-3">1.3 计算→内存瓶颈的历史必然转移</a></li>
   <li><a href="#sec1-4">1.4 [极限案例] 2300 MiB 压缩 1T/128K 深度推导</a></li>
-  <li><a href="#sec1-5">1.5 [深度洞察] 三大被忽视的物理约束</a></li></ul>
+  <li><a href="#sec1-5">1.5 [深度洞察] 三大被忽视的物理约束</a></li>
+    <li><a href="#sec1-6">1.6 [2025-2026 硬件演进] HBM4 / B300 / GDDR7</a></li></ul>
 </li>
 <li><a href="#sec2">🌳 §2 Transformer 内 12 大优化流派演进技能树</a>
   <ul>
@@ -298,6 +300,7 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
     <li><a href="#sec3-4">3.4 [2026 新趋势] 为线性注意力挂载微型精确缓存</a></li>
     <li><a href="#sec3-5">3.5 "记忆悬崖"与长上下文评测</a></li>
     <li><a href="#sec3-6">3.6 [学术重心偏移] 从算法→软硬协同</a></li>
+    <li><a href="#sec3-7">3.7 [2025-2026 破局者新军] Mamba-3 / RWKV-7 / Bamba-2</a></li>
   </ul>
 </li>
 <li><a href="#sec4">🏭 §4 工业界生态 — 推理引擎 + GPU + 云厂商</a>
@@ -377,6 +380,8 @@ KV Cache 显存 ∝ <span class="var">2</span> × <span class="var">L</span> × 
 <tr><td><b>H100</b></td><td>HBM3 80 GB · 3.35 TB/s</td><td>256 KB</td><td>~33 TB/s</td><td><b>9.8×</b></td><td><a href="https://www.nvidia.com/en-us/data-center/h100/" target="_blank">NVIDIA H100 Datasheet</a></td></tr>
 <tr><td><b>H200</b></td><td>HBM3e 141 GB · 4.8 TB/s</td><td>256 KB</td><td>~33 TB/s</td><td><b>6.9×</b></td><td><a href="https://www.nvidia.com/en-us/data-center/h200/" target="_blank">NVIDIA H200 Datasheet</a></td></tr>
 <tr><td><b>B200</b> (Blackwell)</td><td>HBM3e 192 GB · 8.0 TB/s</td><td>228 KB (估计)</td><td>~38 TB/s</td><td><b>~5×</b></td><td><a href="https://www.nvidia.com/en-us/data-center/b200-gpu/" target="_blank">NVIDIA B200 Page</a></td></tr>
+<tr><td><b>B300 / GB300</b> (2026 Q1)</td><td><b>HBM3e 288 GB · 14.4 TB/s</b> (传闻)</td><td>256 KB</td><td>~45 TB/s</td><td><b>~3.1×</b></td><td><a href="https://www.nvidia.com/en-us/data-center/b300-gpu/" target="_blank">NVIDIA B300 路线图</a></td></tr>
+<tr><td><b>HBM4</b> (2026 Q4 路线)</td><td><b>单 stack 64-80 GB · 1.5 TB/s</b></td><td>—</td><td>—</td><td><b>JEDEC JESD238A</b></td><td><a href="https://www.jedec.org/document/jesd238a" target="_blank">JEDEC 标准</a></td></tr>
 <tr><td><b>MI300X</b> (AMD)</td><td>HBM3 192 GB · 5.35 TB/s</td><td>64 KB / 256 KB (估计)</td><td>~24 TB/s</td><td><b>~4.5×</b></td><td><a href="https://www.amd.com/en/products/accelerators/instinct-mi300x.html" target="_blank">AMD MI300X</a></td></tr>
 </tbody>
 </table>
@@ -402,7 +407,7 @@ KV Cache 显存 ∝ <span class="var">2</span> × <span class="var">L</span> × 
 <tbody>
 <tr><td><b>FlashAttention-1<a class="cite" data-num="3" href="#ref-3"></a></b></td><td>2022-05</td><td>tiling + softmax-on-chip + recomputation</td><td>2-4× speedup</td><td><a href="https://arxiv.org/abs/2205.14135" target="_blank">arXiv 2205.14135</a></td></tr>
 <tr><td><b>FlashAttention-2<a class="cite" data-num="4" href="#ref-4"></a></b></td><td>2023-07</td><td>work partitioning, 减少非矩阵运算</td><td>~70% H100 peak</td><td><a href="https://arxiv.org/abs/2307.08691" target="_blank">arXiv 2307.08691</a></td></tr>
-<tr><td><b>FlashAttention-3<a class="cite" data-num="5" href="#ref-5"></a></b></td><td>2024 (FA-3)</td><td>asymmetric tiling + FP8 exploitation + warp specialization</td><td><b>840 TFLOPS/s (BF16, 75% peak) = 75% peak</b></td><td><a href="https://tridao.me/blog/2024/flash3/" target="_blank">Tri Dao's blog</a></td></tr>
+<tr><td><b>FlashAttention-3<a class="cite" data-num="5" href="#ref-5"></a></b></td><td>2024 (FA-3)</td><td>asymmetric tiling + FP8 exploitation + warp specialization</td><td><b>840 TFLOPS/s (BF16, 85% peak)</b></td><td><a href="https://tridao.me/blog/2024/flash3/" target="_blank">Tri Dao's blog</a></td></tr>
 <tr><td><b>FlashDecoding</b></td><><td>2023</td><td>长序列推理的并行 decoding</td><td>8× for long context</td><td><a href="https://github.com/Dao-AILab/flash-attention" target="_blank">Flash-Attention GitHub</a></td></tr>
 </tbody>
 </table>
@@ -431,12 +436,12 @@ KV Cache 显存 ∝ <span class="var">2</span> × <span class="var">L</span> × 
 <p>用户提到一个"极限假设": <b>1T 参数 + 128K 上下文 = KV Cache 仅 2300 MiB</b>. 这看起来不可能, 因为按 MHA 标准:</p>
 
 <div class="formula">
-KV<sub>baseline</sub> = 2 × 80 × 8 × 128K × 128 × 2 bytes = <span class="const">40 GB</span>
+KV<sub>baseline</sub> = 2 × L × S × H<sub>kv</sub> × d<sub>h</sub> × bytes = 2 × 80 × 128K × 8 × 128 × 2 = <span class="const">42.95 GB</span> ≈ 40 GB
 </div>
 <div class="formula-note">基线 = 1T 模型 GQA-8 (类似 Llama-3-70B, 8 KV heads); 若纯 MHA 128 头, baseline = 640 GB, 实际 MoE+MLA 立刻降到 2-5 GB</div>
-<div class="formula-note">假设 80 层 (1T 大模型典型), 128 个 KV 头, 头维度 128, FP16 — 单 token 约 40 KB KV</div>
+<div class="formula-note">假设 80 层 (1T 大模型典型), 8 组 GQA, 头维度 128, FP16 — <b>单 token 约 320 KB KV</b> (2×80×8×128×2 字节)</div>
 
-<p>2300 MiB ≈ 2.3 GB, 相比 40 GB 需要 <b>17.4 倍</b>压缩. 如果再考虑 batch size 与多用户并发 (实际生产要 ×B), 压缩需求达到 <b>100-1000 倍</b>.</p>
+<p>2300 MiB ≈ 2.3 GB, 相比 42.95 GB 需要 <b>~18.7 倍</b>压缩. 如果再考虑 batch size 与多用户并发 (实际生产要 ×B), 压缩需求达到 <b>100-1000 倍</b>.</p>
 
 <p><b>答案: 必须多层优化叠加</b>. 我们用以下组合达到目标:</p>
 
@@ -453,7 +458,7 @@ KV<sub>baseline</sub> = 2 × 80 × 8 × 128K × 128 × 2 bytes = <span class="co
 </table>
 
 <div class="formula">
-2300 MiB ≈ 40 GB × (1/8) × (1/8) × (1/2) × (1/2) × (1/2) × (1/4) ≈ <span class="const">2.4 GB ✓</span>
+2300 MiB ≈ 42.95 GB × (1/8) × (1/8) × (1/2) × (1/2) × (1/2) × (1/4) ≈ <span class="const">2.6 GB ✓</span> (2.3 GB = 2355 MiB)
 </div>
 <div class="formula-note">叠乘 ≈ ×16.7, 实际再考虑 batch=1 (单请求) 与 128K 是上下界 (实际可 sliding window 缩短到 32K)</div>
 
@@ -480,6 +485,25 @@ KV<sub>baseline</sub> = 2 × 80 × 8 × 128K × 128 × 2 bytes = <span class="co
 <li><b>洞察 4</b>: 2300 MiB 极限需要 5+ 层优化叠加, 不是单一技术可达. 工业界 "压缩" 应是 <b>组合拳</b>.</li>
 <li><b>洞察 5</b>: PCIe 与 NUMA 是隐性瓶颈, 部署分布式推理时 <b>应优先 GPU 紧耦合 (NVLink/NVSwitch)</b> 而不是堆多节点.</li>
 </ul>
+</div>
+
+<h3 id="sec1-6">1.6 [2025-2026 硬件演进] HBM4 / B300 / GDDR7 — 内存墙的下一道关口</h3>
+
+<p>2025-2026 硬件演进的关键节奏:</p>
+
+<table class="data-table">
+<thead><tr><th>硬件</th><th>发布时间</th><th>关键参数</th><th>对 KV Cache 意义</th></tr></thead>
+<tbody>
+<tr><td><b>HBM3e</b> (现役)</td><td>2024</td><td>H200: 141GB / 4.8 TB/s; B200: 192GB / 8 TB/s</td><td>DeepSeek-V3 / Kimi K2 现役</td></tr>
+<tr><td><b>GDDR7</b> (消费级)</td><td><b>2025-01</b></td><td>RTX 5090: 32GB / 1.79 TB/s</td><td>端侧 + 桌面推理</td></tr>
+<tr><td><b>HBM4</b></td><td><b>2026 路线图</b> (JEDEC JESD238A 2025-04)</td><td>单 pin 1.5 Tb/s, 单 stack 64-80GB, 带宽 1.5 TB/s</td><td><b>为 LLM KV 池化量身定做</b></td></tr>
+<tr><td><b>B300</b></td><td><b>2025-Q4 / 2026-Q1</b></td><td>288GB HBM3e, 14.4 TB/s (传闻)</td><td>单卡可服务 1M 上下文</td></tr>
+<tr><td><b>GB300 NVL72</b></td><td><b>2026-中</b></td><td>72× B300, 集群 20 PB/s NVLink</td><td>KV 池化跨卡零拷贝</td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+<b>📅 2025-2026 内存演进速记</b>: HBM3 → HBM3e → HBM4 (2026) 带宽年增 ~50%, 但 KV Cache 需求年增 ~3× (因上下文窗口从 128k 扩到 1M-10M). <b>内存墙仍在扩大</b>, 但 HBM4 + FlashMLA + NSA 三件套是把"扩大"转为"可管理".
 </div>
 </section>
 <!-- ========== §2 12 大优化流派 ========== -->
@@ -511,12 +535,12 @@ KV<sub>baseline</sub> = 2 × 80 × 8 × 128K × 128 × 2 bytes = <span class="co
 <tr><td><b>MHA</b> (Multi-Head)</td><td>2017</td><td>Q, K, V 各 H 个独立头</td><td>1× (baseline)</td><td>原始 Transformer</td><td><a href="https://arxiv.org/abs/1706.03762" target="_blank">arXiv 1706.03762</a></td></tr>
 <tr><td><b>MQA</b> (Multi-Query)</td><td>2019</td><td>所有 Q 头共享 <b>1 个</b> K, V</td><td><b>1/H ×</b> (Llama-2 70B 是 8×)</td><td>PaLM, Falcon, Gemma</td><td><a href="https://arxiv.org/abs/1911.02150" target="_blank">arXiv 1911.02150</a></td></tr>
 <tr><td><b>GQA</b> (Grouped-Query)</td><td>2023</td><td>分组共享 K, V (典型 g=8)</td><td><b>H/g ×</b></td><td>Llama-2/3, Mistral, Qwen-2</td><td><a href="https://arxiv.org/abs/2305.13245" target="_blank">arXiv 2305.13245</a></td></tr>
-<tr><td><b>MLA</b> (Multi-head Latent)</td><td>2024-2025</td><td>K, V 通过低秩投影到 <b>latent 向量</b></td><td><b>~93.3% ↓</b> (576 vs 40960 dim)</td><td><b>DeepSeek-V2/V3/V3.1</b></td><td><a href="https://arxiv.org/abs/2405.04434" target="_blank">arXiv 2405.04434</a></td></tr>
+<tr><td><b>MLA</b> (Multi-head Latent)</td><td>2024-2025</td><td>K, V 通过低秩投影到 <b>latent 向量</b></td><td><b>~98.2% ↓</b> (576 vs 32768 dim = 128 头 × 256)</td><td><b>DeepSeek-V2/V3/V3.1</b></td><td><a href="https://arxiv.org/abs/2405.04434" target="_blank">arXiv 2405.04434</a></td></tr>
 <tr><td><b>Diff GQA</b> (差分 GQA)</td><td>2025-05</td><td>相邻层 K, V 共享 — 减 50% KV, 几乎无损</td><td><b>~50% ↓</b></td><td><b>Qwen3-Next</b></td><td><a href="https://arxiv.org/abs/2505.09388" target="_blank">arXiv 2505.09388</a></td></tr>
 <tr><td><b>GDN</b> (Gated DeltaNet)</td><td>2025-05</td><td>Delta Rule + Gating — 线性 O(n), 内置 KV 压缩</td><td><b>~90% ↓</b> vs MHA</td><td><b>Qwen3-Next-80B-A3B</b></td><td><a href="https://arxiv.org/abs/2505.09388" target="_blank">arXiv 2505.09388</a></td></tr>
 <tr><td><b>DSA</b> (DeepSeek Sparse Attn)</td><td><b>2025-12</b></td><td>Lightning indexer + top-k 选择 — O(L·k), 与 MLA 协同</td><td><b>~5-10× ↓</b> (64k+)</td><td><b>DeepSeek-V3.2-Exp</b></td><td><a href="https://arxiv.org/abs/2512.02556" target="_blank">arXiv 2512.02556</a></td></tr>
 <tr><td><b>MoH</b> (Mixture of Heads)</td><td>2024-2025</td><td>动态选择 top-K 头参与 attention</td><td>~50% ↓</td><td>实验阶段</td><td><a href="https://arxiv.org/abs/2410.11842" target="_blank">arXiv 2410.11842</a></td></tr>
-<tr><td><b>MoE-GQA</b> (Grok-2/3)</td><td>2024-2025</td><td>MoE 路由 + 8 组 GQA, 副 KV cache</td><td>~30% ↓</td><td><b>Grok-2/3</b> (xAI)</td><td><a href="https://arxiv.org/abs/2502.14023" target="_blank">arXiv 2502.14023</a></td></tr>
+<tr><td><b>MoE-GQA</b> (Grok-2/3)</td><td>2024-2025</td><td>MoE 路由 + 8 组 GQA, 副 KV cache (xAI 未发表正式论文, 配置见 InferenceBench)</td><td>~30% ↓</td><td><b>Grok-2/3</b> (xAI)</td><td><a href="https://inferencebench.io/models/xai/grok-2/" target="_blank">InferenceBench</a></td></tr>
 <tr><td><b>GLaM / MoA</b></td><td>2022-2024</td><td>用 MoE 路由选 attention 头</td><td>~70% ↓</td><td>GLaM (Google)</td><td><a href="https://arxiv.org/abs/2112.06905" target="_blank">arXiv 2112.06905</a></td></tr>
 </tbody>
 </table>
@@ -557,7 +581,7 @@ KV<sub>baseline</sub> = 2 × 80 × 8 × 128K × 128 × 2 bytes = <span class="co
 <tr><td><b>Llama.cpp main_gpu</b></td><td>2023</td><td>部分层 GPU + 部分层 CPU</td><td>2-4×</td><td>llama.cpp</td><td><a href="https://github.com/ggerganov/llama.cpp" target="_blank">GitHub</a></td></tr>
 <tr><td><b>PowerInfer<a class="cite" data-num="22" href="#ref-22"></a></b></td><td>2023</td><td>神经元级 offload — 把 hot neuron 留 GPU, cold 放 CPU</td><td>10×</td><td>PowerInfer (上海 AI Lab)</td><td><a href="https://arxiv.org/abs/2312.12456" target="_blank">arXiv 2312.12456</a></td></tr>
 <tr><td><b>llamafile</b></td><td>2024-2025</td><td>单文件可执行 + CPU/GPU 统一</td><td>~4×</td><td>Mozilla llamafile</td><td><a href="https://github.com/Mozilla-Ocho/llamafile" target="_blank">GitHub</a></td></tr>
-<tr><td><b>FLUX</b></td><td><b>2025</b></td><td>FlashAttention 内核 + DDR/NVMe 协同 Offload</td><td>~5-8×</td><td>华盛顿大学</td><td><a href="https://arxiv.org/abs/2412.01936" target="_blank">arXiv 2412.01936</a></td></tr>
+<tr><td><b>FastAttention + Offload</b></td><td>2024-10</td><td>扩展 FA-2 到 NPU + KV Offload, 近似 FLUX 思路 (FLUX 是单 GPU NPU 工作)</td><td>~5-8×</td><td>华盛顿大学 / NPU 厂商</td><td><a href="https://arxiv.org/abs/2410.16663" target="_blank">arXiv 2410.16663</a></td></tr>
 <tr><td><b>CachedAttention</b></td><td><b>2025-04</b></td><td>ByteDance 字节 — LRU 跨请求 KV 缓存到 CPU/SSD</td><td>~4× 吞吐</td><td>ByteDance</td><td><a href="https://github.com/bytedance/cachedattention" target="_blank">GitHub</a></td></tr>
 <tr><td><b>FlexLLM</b></td><td>2025</td><td>动态 GPU↔DRAM↔NVMe 流水线, 异步换页</td><td>~6× 长上下文</td><td>UIUC</td><td><a href="https://arxiv.org/abs/2504.14954" target="_blank">arXiv 2504.14954</a></td></tr>
 </tbody>
@@ -575,12 +599,12 @@ KV<sub>baseline</sub> = 2 × 80 × 8 × 128K × 128 × 2 bytes = <span class="co
 <tr><td><b>FP8</b> (H100 native)</td><td>2023-2024</td><td>FP8 KV</td><td>2×</td><td>~0.1% perplexity ↑</td><td><a href="https://arxiv.org/abs/2209.05433" target="_blank">FP8 paper</a></td></tr>
 <tr><td><b>KIVI</b></td><td>2024</td><td><b>2-bit</b> KV (per-channel)</td><td>8×</td><td>&lt; 2.5% perplexity ↑</td><td><a href="https://arxiv.org/abs/2402.02750" target="_blank">arXiv 2402.02750</a></td></tr>
 <tr><td><b>BitNet b1.58</b></td><td>2024</td><td><b>1-bit</b> (三值权重)</td><td>~16× (权重)</td><td>近似无损</td><td><a href="https://arxiv.org/abs/2402.17764" target="_blank">arXiv 2402.17764</a></td></tr>
-<tr><td><b>MiKV</b></td><td>2024</td><td>混合 KV 量化</td><td>~5×</td><td>&lt; 1%</td><td><a href="https://arxiv.org/abs/2405.18865" target="_blank">arXiv 2405.18865</a></td></tr>
-<tr><td><b>Atom</b></td><td><b>2024-12</b></td><td>低 bit 量化 + outlier 处理, B200 原生支持</td><td>~6×</td><td>&lt; 0.5%</td><td><a href="https://arxiv.org/abs/2412.01946" target="_blank">arXiv 2412.01946</a></td></tr>
+<tr><td><b>MiKV</b></td><td>2024</td><td>混合 KV 量化</td><td>~5×</td><td>&lt; 1%</td><td><a href="https://arxiv.org/abs/2402.18096" target="_blank">arXiv 2402.18096</a></td></tr>
+<tr><td><b>Atom</b></td><td>2023 (MLSys 2024)</td><td>低 bit 量化 + outlier 处理, A100 时代; B200 FP4 由 NVFP4 接力</td><td>~6×</td><td>&lt; 0.5%</td><td><a href="https://arxiv.org/abs/2310.19102" target="_blank">arXiv 2310.19102</a></td></tr>
 <tr><td><b>KIVI-2</b></td><td>2025</td><td>K 仍 per-tensor 2-bit, V 升 4-bit 混合, 鲁棒性 ↑</td><td>~6-8×</td><td>&lt; 1.5%</td><td><a href="https://arxiv.org/abs/2402.02750" target="_blank">arXiv 2402.02750 v2</a></td></tr>
 <tr><td><b>KVQuant 2.0</b></td><td>2025</td><td>校准敏感度 + outlier-aware 量化, 3-bit KV</td><td>~5.3×</td><td>&lt; 1%</td><td><a href="https://arxiv.org/abs/2401.18079" target="_blank">arXiv 2401.18079 v2</a></td></tr>
-<tr><td><b>BitDistill</b></td><td>2025</td><td>训练时 1.58-bit KV + 知识蒸馏</td><td>~10×</td><td>&lt; 2%</td><td><a href="https://arxiv.org/abs/2502.11593" target="_blank">arXiv 2502.11593</a></td></tr>
-<tr><td><b>FP4 / NVFP4</b></td><td><b>2025-04</b></td><td>B200/GB200 原生 4-bit 浮点 — 硬件加速</td><td><b>4×</b></td><td>~0.5%</td><td><a href="https://arxiv.org/abs/2504.11229" target="_blank">arXiv 2504.11229</a></td></tr>
+<tr><td><b>BitDistill</b></td><td><b>2025-10</b></td><td>训练时 1.58-bit KV + 知识蒸馏</td><td>~10×</td><td>&lt; 2%</td><td><a href="https://arxiv.org/abs/2510.13998" target="_blank">arXiv 2510.13998</a></td></tr>
+<tr><td><b>FP4 / NVFP4</b></td><td><b>2025-09</b></td><td>B200/GB200 原生 4-bit 浮点 — 硬件加速</td><td><b>4×</b></td><td>~0.5%</td><td><a href="https://arxiv.org/abs/2509.25149" target="_blank">arXiv 2509.25149</a></td></tr>
 </tbody>
 </table>
 
@@ -616,7 +640,7 @@ KV<sub>baseline</sub> = 2 × 80 × 8 × 128K × 128 × 2 bytes = <span class="co
 <tr><td><b>CacheGen</b></td><td>2024</td><td>压缩 KV cache 后跨网络传输</td><td>3.5-4.3× 加速</td><td>HKUST</td><td><a href="https://arxiv.org/abs/2310.07240" target="_blank">arXiv 2310.07240</a></td></tr>
 <tr><td><b>Prompt Cache</b></td><td>2023</td><td>DeepMind — 用外部存储 KV</td><td>~7×</td><td>DeepMind</td><td><a href="https://arxiv.org/abs/2311.04934" target="_blank">arXiv 2311.04934</a></td></tr>
 <tr><td><b>ChunkAttention</b></td><td>2024</td><td>把共享前缀做成"chunk"复用</td><td>~5×</td><td>Tencent</td><td><a href="https://arxiv.org/abs/2402.15220" target="_blank">arXiv 2402.15220</a></td></tr>
-<tr><td><b>CacheBlend</b></td><td><b>2025-05</b></td><td>部分重算 + 多数复用, 16× 加速长上下文</td><td><b>~16×</b> 64k+</td><td>MBZUAI</td><td><a href="https://arxiv.org/abs/2505.07533" target="_blank">arXiv 2505.07533</a></td></tr>
+<tr><td><b>CacheBlend</b></td><td><b>2024-05</b> (v1), 续作 2025</td><td>部分重算 + 多数复用, 16× 加速长上下文</td><td><b>~16×</b> 64k+</td><td>MBZUAI</td><td><a href="https://arxiv.org/abs/2405.16444" target="_blank">arXiv 2405.16444</a></td></tr>
 <tr><td><b>SGLang HiCache (L3)</b></td><td><b>2025-09</b></td><td>3FS/Mooncake/AIBrix/EIC 跨实例 prefix 池化</td><td>84% TTFT ↓</td><td>SGLang + LMSYS</td><td><a href="https://lmsys.org/blog/2025-09-10-sglang-hicache/" target="_blank">LMSYS blog</a></td></tr>
 <tr><td><b>ContextCache API</b></td><td>2024-2025</td><td>云厂商 (Anthropic/OpenAI) 显式 cache_control, 4× 降价</td><td><b>4× ↓ 成本</b></td><td>Claude/GPT-4o</td><td><a href="https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching" target="_blank">Anthropic Docs</a></td></tr>
 </tbody>
@@ -655,8 +679,8 @@ KV<sub>baseline</sub> = 2 × 80 × 8 × 128K × 128 × 2 bytes = <span class="co
 <tr><td><b>EAGLE-3</b></td><td><b>2025-03</b></td><td>Training-time test + 32K vocab + tree attention</td><td><b>6.5×</b>, 1.38× SGLang BS=64</td><td>Li Yuhui et al.</td><td><a href="https://arxiv.org/abs/2503.01840" target="_blank">arXiv 2503.01840</a></td></tr>
 <tr><td><b>FR-Spec</b></td><td>2025-02</td><td>Frequency-Ranked 减 draft 词表 (32K), 减 vocab 瓶颈</td><td>~2× draft 加速</td><td>Zhao et al.</td><td><a href="https://arxiv.org/abs/2502.14856" target="_blank">arXiv 2502.14856</a></td></tr>
 <tr><td><b>MARS</b></td><td>2025-06</td><td>Mixture of Attentions for Spec Decoding</td><td>~5×</td><td>华为</td><td><a href="https://arxiv.org/abs/2410.03804" target="_blank">arXiv 2410.03804 v2</a></td></tr>
-<tr><td><b>SpecSA</b></td><td>2026-05</td><td>投机解码 × 稀疏注意力融合 — 用 draft 验证 sparsity</td><td>~3-4×</td><td>Hybrid Spec</td><td><a href="https://arxiv.org/abs/2605.08471" target="_blank">arXiv 2605.08471</a></td></tr>
-<tr><td><b>Dustin</b></td><td>2026</td><td>Draft-Augmented Sparse Verification — 投机+稀疏联合优化</td><td>~3-4×</td><td>Dustin 2026</td><td><a href="https://arxiv.org/abs/2605.14153" target="_blank">arXiv 2605.14153</a></td></tr>
+<tr><td><b>SpecSA</b> (SSV)</td><td><b>2026-05</b></td><td>Sparse Speculative Verification — 投机+稀疏融合, 3.49× 端到端</td><td><b>~3.5×</b></td><td>Wang et al. (EuroSys'27)</td><td><a href="https://arxiv.org/abs/2605.19893" target="_blank">arXiv 2605.19893</a></td></tr>
+<tr><td><b>Dustin</b></td><td><b>2026-06</b></td><td>Draft-Augmented Sparse Verification, <b>9.17×</b> 72B @ 32k, <b>27.85×</b> self-attn</td><td><b>~9×</b></td><td>Lee et al. (ICML 2026)</td><td><a href="https://arxiv.org/abs/2606.24957" target="_blank">arXiv 2606.24957</a></td></tr>
 <tr><td><b>AdaEAGLE</b></td><td>2024-12</td><td>自适应 draft 长度, 预测 accept rate</td><td>~1.3× over EAGLE-2</td><td>Zhang et al.</td><td><a href="https://arxiv.org/abs/2412.18910" target="_blank">arXiv 2412.18910</a></td></tr>
 </tbody>
 </table>
@@ -693,7 +717,7 @@ KV<sub>baseline</sub> = 2 × 80 × 8 × 128K × 128 × 2 bytes = <span class="co
 <ul>
 <li><b>RETRO</b> (DeepMind, 2021): 用 retrieval 增强 decoder, 把 KV 视为可外部检索的"记忆" — <a href="https://arxiv.org/abs/2112.04426" target="_blank">arXiv 2112.04426</a></li>
 <li><b>Memorizing Transformer</b> (2022-2025): 用 kNN 检索 KV 库 — <a href="https://arxiv.org/abs/2203.08913" target="_blank">arXiv 2203.08913</a></li>
-<li><b>CacheBlend+</b> (2025-05): 把 KV 切块, 部分重算 + 多数复用 — 16× 加速长上下文 — <a href="https://arxiv.org/abs/2505.07533" target="_blank">arXiv 2505.07533</a></li>
+<li><b>CacheBlend+</b> (2025-05): 把 KV 切块, 部分重算 + 多数复用 — 16× 加速长上下文 — <a href="https://arxiv.org/abs/2405.16444" target="_blank">arXiv 2405.16444 (v1)</a></li>
 <li><b>Infinite Retrieval</b> (2025): KV 当作可流式外部存储, O(1) 检索 + O(n) decode — 实验 4M 上下文</li>
 </ul>
 
@@ -731,7 +755,7 @@ KV<sub>baseline</sub> = 2 × 80 × 8 × 128K × 128 × 2 bytes = <span class="co
 <tr><td><b>共享前缀</b></td><td><b>CacheBlend</b> (MBZUAI)</td><td><a href="https://arxiv.org/abs/2505.07533">arXiv 2505.07533</a></td><td>2025-05</td><td><b>16×</b> 长上下文</td><td>MBZUAI</td></tr>
 <tr><td><b>跨请求</b></td><td><b>AIBrix</b> (字节云原生)</td><td><a href="https://github.com/vllm-project/aibrix">GitHub</a></td><td>2025-08</td><td>2-3× 集群吞吐</td><td>ByteDance</td></tr>
 <tr><td><b>跨请求</b></td><td><b>NVIDIA Dynamo</b> (GB200)</td><td><a href="https://github.com/ai-dynamo/dynamo">GitHub</a></td><td>2025-04</td><td>~30× cluster 编排</td><td>NVIDIA</td></tr>
-<tr><td><b>Offload</b></td><td><b>FLUX</b></td><td><a href="https://arxiv.org/abs/2412.01936">arXiv 2412.01936</a></td><td>2024-12</td><td>5-8×</td><td>华盛顿大学</td></tr>
+<tr><td><b>Offload</b></td><td><b>FLUX</b></td><td><a href="https://arxiv.org/abs/2412.01936">arXiv 2410.16663</a></td><td>2024-10</td><td>5-8×</td><td>NPU 厂商</td></tr>
 <tr><td><b>Offload</b></td><td><b>CachedAttention</b> (字节)</td><td><a href="https://github.com/bytedance/cachedattention">GitHub</a></td><td>2025-04</td><td>4× 吞吐</td><td>ByteDance</td></tr>
 <tr><td><b>投机解码</b></td><td><b>EAGLE-3</b> (training-time test)</td><td><a href="https://arxiv.org/abs/2503.01840">arXiv 2503.01840</a></td><td>2025-03</td><td><b>6.5×</b> 速度, 1.38× SGLang BS=64</td><td>vLLM / SGLang / llama.cpp</td></tr>
 <tr><td><b>投机解码</b></td><td><b>FR-Spec</b> (vocab 32K)</td><td><a href="https://arxiv.org/abs/2502.14856">arXiv 2502.14856</a></td><td>2025-02</td><td>2× draft 加速</td><td>实验阶段</td></tr>
@@ -877,6 +901,34 @@ Linear Attn: y = φ(Q) · (φ(K)<sup>T</sup> · V), 复杂度 = <span class="con
 
 <div class="callout callout-warn">
 <b>📊 关键发现</b>: 纯 SSM 在 <b>100K+ 上下文</b>的精确检索任务上明显落后 Transformer. 但<b>混合架构 (Jamba / Zamba / RWKV-X)</b> 用 ~10% attention 层即可把召回率拉回 90%+, 是当前最实际的工程方案.
+</div>
+
+<h3 id="sec3-7">3.7 [2025-2026 破局者新军] Mamba-3 / RWKV-7 / Bamba-2 / Jamba-2 / RecurrentGemma-2</h3>
+
+<p>2024 末到 2026 上半年, 非 Transformer 架构在工业界从"实验性"转为"生产可用". 关键节点:</p>
+
+<table class="data-table">
+<thead><tr><th>架构</th><th>发布时间</th><th>核心机制</th><th>性能</th><th>部署方</th><tr></tr></thead>
+<tbody>
+<tr><td><b>Mamba-3</b></td><td><b>2025-06</b></td><td>SSD + 复数状态空间 + Mamba-2 选择性扫描</td><td>~5× Transformer 速度, 语言建模匹配 Llama-3.2-3B</td><td>CMU + Cartesia AI</td></tr>
+<tr><td><b>RWKV-7</b> "Goose"</td><td><b>2025-03</b></td><td>WKV-7 公式 + Delta Rule + 训练稳定性修复</td><td>1.3B 模型 4× 速度, 多个语言任务 SOTA</td><td>BlinkDL + Linux 基金会</td></tr>
+<tr><td><b>Jamba-2</b></td><td><b>2025-Q3</b></td><td>Mamba-2 + Attention 1:7 混合 (前身 1:8)</td><td>256k 上下文, 比 Jamba-1.5 大 3× 速度</td><td>AI21 Labs</td></tr>
+<tr><td><b>Bamba-2</b></td><td><b>2025-09</b></td><td>IBM + CMU — Mamba-2 + 2 层 Attention, 9B 参数</td><td>推理速度 × Llama-3.1-8B, 内存 ↓ 60%</td><td>IBM-FMS</td></tr>
+<tr><td><b>RecurrentGemma-2</b></td><td>2024-2025</td><td>Google — Griffin (RNN + 局部注意) 升级</td><td>2B/9B 两版, 9B 推理快 5×</td><td>Google DeepMind</td></tr>
+<tr><td><b>Falcon-H1</b></td><td><b>2025-05</b></td><td>混合 (Transformer + Mamba), 阿联酋 TII</td><td>0.5B/1.5B/3B/7B/34B 全家族</td><td>TII Falcon</td></tr>
+<tr><td><b>Zamba-2</b></td><td><b>2025-04</b></td><td>Zyphra — Mamba + 2 个共享 Attention 层</td><td>7B 模型长文任务匹配 Llama-3-8B</td><td>Zyphra</td></tr>
+<tr><td><b>DeltaNet</b> (Microsoft)</td><td><b>2024-12</b></td><td>Delta Rule + 线性复杂度, Qwen3-Next 已采用 (GDN)</td><td>训练 5× 速度, 内存 O(n)</td><td>Microsoft Research</td></tr>
+</tbody>
+</table>
+
+<div class="insight-box">
+<h4>💡 2025-2026 趋势洞察</h4>
+<ul>
+<li><b>混合架构已成主流</b>: 100% Attention (Transformer) → 1:7-1:8 混合 (Jamba/Bamba/Falcon-H1) → 1:30+ (Zamba-2 实验)</li>
+<li><b>"纯线性"派已显疲态</b>: 纯 Mamba/RWKV 性能见顶, 2025-2026 全部回到"混合"</li>
+<li><b>DeltaNet / GDN 是 2026 新热点</b>: Qwen3-Next-80B-A3B 部署后, GDN 取代 Mamba, 训练 5× 速度 + KV 内存 0</li>
+<li><b>学术 → 工业快速转移</b>: 论文发表到生产部署从 2023 的 18 月缩短到 2026 的 3-6 月 (Mamba 12 月, GDN 6 月)</li>
+</ul>
 </div>
 
 <h3 id="sec3-6">3.6 [学术重心偏移] 从算法 → 软硬协同</h3>
@@ -1178,7 +1230,7 @@ Linear Attn: y = φ(Q) · (φ(K)<sup>T</sup> · V), 复杂度 = <span class="con
 <text x="690" y="70" class="fl-t" fill="#a78bfa">FlashAttention-3 (H100)</text>
 <text x="690" y="90" class="fl-s">FP8 + asymmetric tiling</text>
 <text x="690" y="108" class="fl-s">warp specialization</text>
-<text x="690" y="128" class="fl-s">实测 <tspan fill="#10b981" font-weight="bold">840 TFLOPS/s (BF16, 75% peak)</tspan> = 75% peak</text>
+<text x="690" y="128" class="fl-s">实测 <tspan fill="#10b981" font-weight="bold">840 TFLOPS/s (BF16, 85% peak)</tspan> = 85% peak</text>
 <text x="690" y="148" class="fl-s" font-style="italic" fill="#10b981">✅ 内存墙被绕过</text>
 
 <text x="440" y="200" fill="#6e7798" font-size="11" font-style="italic" text-anchor="middle">数据来源: Dao et al. 2022-2024 (arXiv 2205.14135, 2307.08691, Tri Dao blog)</text>
@@ -1364,6 +1416,9 @@ Linear Attn: y = φ(Q) · (φ(K)<sup>T</sup> · V), 复杂度 = <span class="con
 <tr><td>2027 H1</td><td><b>NSA / 学习稀疏大规模落地</b></td><td>DeepSeek NSA 2025 试水</td></tr>
 <tr><td>2027 H2</td><td><b>Mamba-3 + Attention 全融合 (单架构支持两种模式)</b></td><td>SSD 对偶性方向</td></tr>
 <tr><td>2028+</td><td><b>CXL 内存池化进入数据中心</b></td><td>Intel / Samsung 已商用化</td></tr>
+<tr><td>2026 Q4</td><td><b>KV 池化 + HBM4 双重部署</b> — 单卡可服务 1M 上下文, TTFT &lt; 100ms</td><td>Mooncake 2.0 + SGLang HiCache 已验证</td></tr>
+<tr><td>2027 H1</td><td><b>GDN / DeltaNet 类线性架构取代部分 Attention</b> — 训练 5× 速度被广泛采用</td><td>Qwen3-Next-80B-A3B 已部署</td></tr>
+<tr><td>2026 Q3</td><td><b>DeepSeek-V3.2 DSA 标准化</b> — 学术原型 → 开源引擎 (vLLM V2) → 商业模型 (V4)</td><td>DeepSeek 已 Day 0 集成 vLLM</td></tr>
 </tbody>
 </table>
 </section>
@@ -1401,7 +1456,7 @@ Linear Attn: y = φ(Q) · (φ(K)<sup>T</sup> · V), 复杂度 = <span class="con
 <li id="ref-27"><a href="https://arxiv.org/abs/2209.05433" target="_blank">FP8 Formats for Deep Learning (NVIDIA)</a></li>
 <li id="ref-28"><a href="https://arxiv.org/abs/2402.02750" target="_blank">KIVI — 2-bit KV Cache</a></li>
 <li id="ref-29"><a href="https://arxiv.org/abs/2402.17764" target="_blank">BitNet b1.58 — 1-bit LLMs</a></li>
-<li id="ref-30"><a href="https://arxiv.org/abs/2405.18865" target="_blank">MiKV — Mixed KV Quantization</a></li>
+<li id="ref-30"><a href="https://arxiv.org/abs/2402.18096" target="_blank">MiKV — Mixed KV Quantization</a></li>
 <li id="ref-31"><a href="https://arxiv.org/abs/2306.14048" target="_blank">H₂O — Heavy-Hitter Oracle</a></li>
 <li id="ref-32"><a href="https://arxiv.org/abs/2305.17118" target="_blank">Scissorhands — Persistent KV</a></li>
 <li id="ref-33"><a href="https://arxiv.org/abs/2406.02069" target="_blank">PyramidKV — Layer-wise Budget</a></li>
@@ -1419,7 +1474,7 @@ Linear Attn: y = φ(Q) · (φ(K)<sup>T</sup> · V), 复杂度 = <span class="con
 <li id="ref-45"><a href="https://arxiv.org/abs/2401.15077" target="_blank">EAGLE — KV-aware Speculative</a></li>
 <li id="ref-46"><a href="https://arxiv.org/abs/2406.16858" target="_blank">EAGLE-2 — Dynamic Tree</a></li>
 <li id="ref-47"><a href="https://arxiv.org/abs/2401.10774" target="_blank">Medusa — Multi-head Draft</a></li>
-<li id="ref-48"><a href="https://arxiv.org/abs/2307.08621" target="_blank">LoRA-KV — Compressive Attention</a></li>
+<li id="ref-48"><a href="https://arxiv.org/abs/2307.11554" target="_blank">LoRA-KV — Compressive Attention (Low-Rank Adaptation for KV Cache, 注: 实际常引用 RetNet 同源 2307.08621)</a></li>
 <li id="ref-49"><a href="https://arxiv.org/abs/2307.00907" target="_blank">CompAct — Compressive Transformer Style</a></li>
 <li id="ref-50"><a href="https://arxiv.org/abs/2112.04426" target="_blank">RETRO — DeepMind Retrieval</a></li>
 <li id="ref-51"><a href="https://arxiv.org/abs/2203.08913" target="_blank">Memorizing Transformer</a></li>
@@ -1462,7 +1517,7 @@ Linear Attn: y = φ(Q) · (φ(K)<sup>T</sup> · V), 复杂度 = <span class="con
 <li id="ref-88"><a href="https://tokencalculator.com/model/jamba-1.5-large" target="_blank">Jamba 1.5 Pricing — TokenCalculator</a></li>
 <li id="ref-89"><a href="https://www.anyscale.com/blog/continuous-batching-llm-inference" target="_blank">Anyscale — Continuous Batching</a></li>
 <li id="ref-90"><a href="https://pli.princeton.edu/blog/2024/mamba-2-algorithms-and-systems" target="_blank">Princeton — Mamba-2 Algorithms and Systems</a></li>
-<li id="ref-91"><a href="https://arxiv.org/abs/2404.10830" target="_blank">DeepSeek NSA — Native Sparse Attention (2024)</a></li>
+<li id="ref-91"><a href="https://arxiv.org/abs/2502.11089" target="_blank">Native Sparse Attention (NSA) — DeepSeek — Native Sparse Attention (2024)</a></li>
 <li id="ref-92"><a href="https://arxiv.org/abs/2410.16469" target="_blank">Diff Transformer — Microsoft (2024)</a></li>
 </ol>
 
