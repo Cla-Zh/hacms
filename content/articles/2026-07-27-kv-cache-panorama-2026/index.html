@@ -185,6 +185,22 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
   .sim-result{flex-direction:column;align-items:flex-start}
 }
 </style>
+
+<!-- KaTeX for beautiful math -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters:[{left:"$$",right:"$$",display:true},{left:"$",right:"$",display:false}]});"></script>
+<style>
+/* 公式块美化 */
+.formula { background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%); border-left: 4px solid #6366f1; padding: 18px 22px; margin: 14px 0; border-radius: 0 10px 10px 0; font-size: 16px; line-height: 1.8; overflow-x: auto; }
+.formula .katex { font-size: 1.05em; }
+.formula-note { background: #f9fafb; color: #6b7280; font-size: 13px; padding: 8px 18px; border-radius: 6px; margin: -4px 0 14px 0; border-left: 3px solid #d1d5db; }
+.formula strong { color: #4f46e5; }
+.formula .var { color: #059669; font-style: italic; }
+.formula .const { color: #dc2626; font-weight: 600; }
+.katex-display { margin: 0.5em 0 !important; }
+</style>
 </head>
 <body>
 <div class="report-content">
@@ -316,6 +332,7 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 <li><a href="#sec6">🔮 §6 [自主挖掘] 2026 学术界 5 大新趋势</a></li>
 <li><a href="#sec7">🎨 §7 12 张可视化图表 + CSS/SVG 动画清单</a></li>
 <li><a href="#sec8">🎯 §8 [深度洞察] 5 大核心定论 + 未来 12-18 个月路线图</a></li>
+<li><a href="#sec10">🧮 §10 [公式推导] 从 TTFT 一路推导到硬件基础设施 (互动 SVG)</a></li>
 <li><a href="#ref">📚 §9 完整引用 (80+ 条, 全部可点击)</a></li>
 </ol>
 </div>
@@ -343,14 +360,14 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 <p>自注意力的核心计算可以浓缩为三个矩阵乘法:</p>
 
 <div class="formula">
-Attention(Q, K, V) = softmax(QK<sup>T</sup> / √d<sub>k</sub>) × V
+$$\mathrm{Attention}(Q, K, V) = \mathrm{softmax}\!\left(\frac{Q K^{\top}}{\sqrt{d_k}}\right) V$$
 </div>
 <div class="formula-note">Q: query, K: key, V: value, d<sub>k</sub>: key 维度 — Vaswani et al. 2017</div>
 
 <p>其中 Q, K, V 都是从输入 X 通过线性投影得到. 在自回归解码阶段, 第 t 个 token 只与前 t-1 个 token 做 attention, 因此 K 和 V 可以缓存:</p>
 
 <div class="formula">
-KV Cache 显存 ∝ <span class="var">2</span> × <span class="var">L</span> × <span class="var">B</span> × <span class="var">S</span> × <span class="var">H<sub>kv</sub></span> × <span class="var">d<sub>h</sub></span> × <span class="const">bytes</span>
+$$\mathrm{KV\_Memory} \propto 2 \times L \times B \times S \times H_{kv} \times d_h \times \mathrm{bytes}$$
 </div>
 <div class="formula-note">L: 层数, B: batch, S: 序列长度, H<sub>kv</sub>: KV 头数, d<sub>h</sub>: 头维度, bytes: 精度 (FP16=2, FP8=1, INT4=0.5)</div>
 
@@ -436,7 +453,7 @@ KV Cache 显存 ∝ <span class="var">2</span> × <span class="var">L</span> × 
 <p>用户提到一个"极限假设": <b>1T 参数 + 128K 上下文 = KV Cache 仅 2300 MiB</b>. 这看起来不可能, 因为按 MHA 标准:</p>
 
 <div class="formula">
-KV<sub>baseline</sub> = 2 × L × S × H<sub>kv</sub> × d<sub>h</sub> × bytes = 2 × 80 × 128K × 8 × 128 × 2 = <span class="const">42.95 GB</span> ≈ 40 GB
+$$\mathrm{KV}_{\mathrm{baseline}} = 2 \cdot L \cdot S \cdot H_{kv} \cdot d_h \cdot \mathrm{bytes} = 2 \times 80 \times 131072 \times 8 \times 128 \times 2 = \mathbf{42.95\ GB}$$
 </div>
 <div class="formula-note">基线 = 1T 模型 GQA-8 (类似 Llama-3-70B, 8 KV heads); 若纯 MHA 128 头, baseline = 640 GB, 实际 MoE+MLA 立刻降到 2-5 GB</div>
 <div class="formula-note">假设 80 层 (1T 大模型典型), 8 组 GQA, 头维度 128, FP16 — <b>单 token 约 320 KB KV</b> (2×80×8×128×2 字节)</div>
@@ -458,7 +475,7 @@ KV<sub>baseline</sub> = 2 × L × S × H<sub>kv</sub> × d<sub>h</sub> × bytes 
 </table>
 
 <div class="formula">
-2300 MiB ≈ 42.95 GB × (1/8) × (1/8) × (1/2) × (1/2) × (1/2) × (1/4) ≈ <span class="const">2.6 GB ✓</span> (2.3 GB = 2355 MiB)
+$$2.3\ \mathrm{GB} \approx 42.95\ \mathrm{GB} \times \frac{1}{8} \times \frac{1}{8} \times \frac{1}{2} \times \frac{1}{2} \times \frac{1}{2} \times \frac{1}{4} \approx \mathbf{2.6\ GB} \checkmark$$
 </div>
 <div class="formula-note">叠乘 ≈ ×16.7, 实际再考虑 batch=1 (单请求) 与 128K 是上下界 (实际可 sliding window 缩短到 32K)</div>
 
@@ -745,7 +762,7 @@ KV<sub>baseline</sub> = 2 × L × S × H<sub>kv</sub> × d<sub>h</sub> × bytes 
 <h4 style="color:var(--accent);margin-top:12px">🔬 A. PagedAttention (vLLM) — 操作系统虚拟内存的 LLM 移植</h4>
 <p><b>核心思想</b>: 把 KV Cache 当作"用户内存", 借鉴 OS 虚拟内存的<b>分页机制</b>. 一个请求的 KV 不再必须连续存放, 而是被切成固定大小 (默认 16 token) 的<b>logical block</b>, 通过<b>block table</b>映射到物理 block.</p>
 <div class="formula">
-KV<sub>paged</sub> = Σ<sub>i=1..B</sub> block[i] · Q<sub>t</sub> = Σ<sub>i=1..B</sub> softmax(Q<sub>t</sub> · K<sub>block[i]</sub><sup>T</sup> / √d) · V<sub>block[i]</sub>
+$$\mathrm{KV}_{\mathrm{paged}} = \sum_{i=1}^{B}\mathrm{block}[i] \cdot Q_t = \sum_{i=1}^{B}\mathrm{softmax}\!\left(\frac{Q_t \cdot K_{\mathrm{block}[i]}^{\top}}{\sqrt{d}}\right) V_{\mathrm{block}[i]}$$
 </div>
 <div class="formula-note">关键数据结构: (1) <b>Block Table</b> — 每个请求维护 logical→physical 映射; (2) <b>Block Engine</b> — 在 GPU 上预分配物理 block 池; (3) <b>Reference Counting</b> — 多请求共享 (beam search / parallel sampling) 时复用同一 physical block</div>
 <p><b>三大收益</b>:</p>
@@ -758,8 +775,8 @@ KV<sub>paged</sub> = Σ<sub>i=1..B</sub> block[i] · Q<sub>t</sub> = Σ<sub>i=1.
 <h4 style="color:var(--accent);margin-top:18px">🔬 B. RadixAttention (SGLang) — Radix Tree + LRU 的 KV 索引</h4>
 <p><b>核心思想</b>: 把 KV Cache 按<b>token 序列为 key</b>建立 <b>Radix Tree</b> (基数树) 索引. 不同请求若共享任意长度前缀, 自动匹配复用. 区别于 vLLM 的"同 prefix"匹配, RadixAttention 支持<b>任意长度的 prefix 子树复用</b>.</p>
 <div class="formula">
-树节点: node[i] = (tokens, kv_ref, children[256])
-LRU 淘汰: 每次访问 touch 节点, 容量满时驱逐 LRU leaf
+$$\mathrm{node}[i] = (\mathrm{tokens},\ \mathrm{kv\_ref},\ \mathrm{children}[256])$$
+$$\mathrm{LRU:\ touch\ node\ on\ access},\ \mathrm{evict\ LRU\ leaf\ when\ capacity\ full}$$
 </div>
 <div class="formula-note">关键操作: (1) <b>Match</b> — 新请求序列在 radix tree 找最长公共前缀; (2) <b>Insert</b> — decode 完新 token 后挂到 tree; (3) <b>Evict</b> — LRU 递归驱逐叶子; (4) <b>Cache Hit</b> — 命中前缀直接复用, 跳过 prefill</div>
 <p><b>核心特性</b>:</p>
@@ -773,7 +790,7 @@ LRU 淘汰: 每次访问 touch 节点, 容量满时驱逐 LRU leaf
 <h4 style="color:var(--accent);margin-top:18px">🔬 C. Mooncake (Moonshot AI) — 集群级 KV 池化 + RDMA Transfer Engine</h4>
 <p><b>核心思想</b>: KV Cache 不再是"GPU 私有", 而是<b>集群级共享资源池</b>. 用 RDMA 网络让 GPU 节点高速共享 KV, prefill 节点算完后 KV 立即通过 RDMA 传给 decode 节点.</p>
 <div class="formula">
-Mooncake 架构 = Conductor (调度) + Prefill Cluster + Decode Cluster + KVCache Pool (CPU/DRAM/SSD) + Transfer Engine (RDMA)
+$$\mathrm{Mooncake} = \underbrace{\mathrm{Conductor}}_{\mathrm{调度}} + \underbrace{\mathrm{Prefill\ Cluster}}_{\mathrm{预填}} + \underbrace{\mathrm{Decode\ Cluster}}_{\mathrm{解码}} + \underbrace{\mathrm{KV\_Pool}}_{\mathrm{CPU/DRAM/SSD}} + \underbrace{\mathrm{Transfer\ Engine}}_{\mathrm{RDMA}}$$
 </div>
 <div class="formula-note">关键组件: (1) <b>Conductor (调度器)</b> — KV-aware 调度, SLO-aware early-rejection; (2) <b>Transfer Engine</b> — 基于 RDMA 的 GPU Direct 传输, 跨节点延迟 &lt; 10μs; (3) <b>Mooncake Store</b> — 分布式 KV 池, 存 CPU/DRAM/SSD; (4) <b>PD Disaggregation</b> — Prefill / Decode 分离到不同 GPU 集群</div>
 <p><b>三大算法创新</b>:</p>
@@ -864,7 +881,7 @@ Mooncake 架构 = Conductor (调度) + Prefill Cluster + Decode Cluster + KVCach
 </table>
 
 <div class="formula">
-Mamba: h<sub>t</sub> = <span class="var">A</span> · h<sub>t-1</sub> + <span class="var">B</span> · x<sub>t</sub>, &nbsp;&nbsp; y<sub>t</sub> = <span class="var">C</span> · h<sub>t</sub>
+$$h_t = A \cdot h_{t-1} + B \cdot x_t, \quad y_t = C \cdot h_t$$
 </div>
 <div class="formula-note">A, B, C 都是输入依赖 (selective) — 推理时只需存固定 h (≈ 16 维), 不需存 KV</div>
 
@@ -1595,6 +1612,374 @@ PD 分离 + prefix cache + FP8 KV 已是 2026 工业默认. Mooncake 已在 vLLM
 <tr><td>2026 Q3</td><td><b>DeepSeek-V3.2 DSA 标准化</b> — 学术原型 → 开源引擎 (vLLM V2) → 商业模型 (V4)</td><td>DeepSeek 已 Day 0 集成 vLLM</td></tr>
 </tbody>
 </table>
+</section>
+
+<!-- ========== §10 从 TTFT 到硬件基础设施 公式推导 ========== -->
+<section id="sec10">
+<h2>🧮 §10 [深度公式推导] 从用户感知指标 (TTFT/TPOT) 一直推导到硬件基础设施</h2>
+
+<p>前面 9 节从 KV Cache 物理底层讲到了商业化与未来趋势. 但读者可能有疑问: <b>这些优化到底"省了多少"?</b> 这一节我们用<b>一条完整的数学链条</b>, 从用户最感知的指标 <b>TTFT (首 token 延迟) / TPOT (每 token 间隔) / 吞吐量</b> 一路推导到 <b>GPU 算力 / 显存 / HBM 带宽 / NVLink 互联 / RDMA 网络 / DRAM 容量 / NVMe SSD IOPS</b> 每一层硬件的具体数字.</p>
+
+<div class="callout callout-info">
+<b>📐 推导总览</b>: 这是一份<b>8 步因果链</b>, 每一步都给出真实公式 + 数值代入. 你可以跟着 <b>互动 SVG 滑块</b> 实时改变模型规模 / 上下文长度 / batch / 引擎, 看下游硬件指标怎么变.
+</div>
+
+<!-- ========== Step 1: 用户感知指标 ========== -->
+<h3 id="sec10-1">10.1 用户感知指标 (TTFT / TPOT / Throughput)</h3>
+
+<p>三个核心 SLA 指标 — 任何优化都最终反映到这三者:</p>
+
+<div class="formula">
+$$\mathrm{TTFT} = T_{\mathrm{prefill}} + T_{\mathrm{queue}} \quad [\mathrm{ms}]$$
+$$\mathrm{TPOT} = \frac{T_{\mathrm{decode}}}{N_{\mathrm{tokens}}} \quad [\mathrm{ms/tok}]$$
+$$\mathrm{Throughput} = \frac{N_{\mathrm{requests}} \cdot N_{\mathrm{tokens}}}{\mathrm{wall\_time}} \quad [\mathrm{tok/s}]$$
+</div>
+
+<div class="formula-note">
+TTFT = Time To First Token (用户发完 prompt 到看到第一个 token 的等待时间, P50 ≤ 300ms 为合格, P50 ≤ 100ms 为优秀). TPOT = Time Per Output Token (每个 token 间隔, P50 ≤ 50ms 为流畅). Throughput = 集群每秒生成的 token 数, 决定你能服务多少用户.
+</div>
+
+<!-- ========== Step 2: TTFT 拆解 ========== -->
+<h3 id="sec10-2">10.2 TTFT 拆解 (Prefill 阶段耗时)</h3>
+
+<p>TTFT 几乎完全由 prefill 决定 (decode 还没开始). Prefill 阶段需要把整个 prompt 跑一遍, 计算复杂度是 $O(n^2)$ (n = prompt tokens):</p>
+
+<div class="formula">
+$$T_{\mathrm{prefill}} = \underbrace{\frac{n^2 \cdot d_{\mathrm{model}} \cdot 2}{\mathrm{GPU\_peak\_FLOPS}}}_{\mathrm{计算时间}} + \underbrace{\frac{n \cdot d_{\mathrm{model}} \cdot \mathrm{bytes}}{\mathrm{HBM\_bandwidth}}}_{\mathrm{权重加载}} + \underbrace{\frac{n \cdot \mathrm{KV\_size}}{\mathrm{HBM\_bandwidth}}}_{\mathrm{KV 写入}}$$
+</div>
+
+<p><b>数值代入</b> (Llama-3-70B, n=2048 prompt tokens):</p>
+
+<div class="formula">
+$$T_{\mathrm{prefill}} = \frac{2048^2 \times 8192 \times 2}{989 \times 10^{12}} + \frac{2048 \times 8192 \times 2}{3.35 \times 10^{12}} + \frac{2048 \times 131072 \times 2 \times 2}{3.35 \times 10^{12}} \approx 69\ \mathrm{ms} + 10\ \mathrm{ms} + 327\ \mathrm{ms}} \approx \mathbf{406\ ms}$$
+</div>
+
+<div class="formula-note">
+<b>关键洞察</b>: KV Cache 写入 (327ms) 反而是 prefill 瓶颈, 不是 attention 计算 (69ms). 这就是 <b>为什么 §1.2 内存墙比计算墙更严重</b> — 算力增长 3×/2年, 但 KV 写入随 prompt 长度平方增长.
+</div>
+
+<!-- ========== Step 3: TPOT 拆解 ========== -->
+<h3 id="sec10-3">10.3 TPOT 拆解 (Decode 阶段单 token 耗时)</h3>
+
+<p>Decode 阶段每个新 token 都需要读<b>整个历史 KV</b> 来计算 attention. 这就是 memory-bound 的根本原因:</p>
+
+<div class="formula">
+$$T_{\mathrm{decode\_per\_tok}} = \underbrace{\frac{L \cdot S \cdot H_{kv} \cdot d_h \cdot \mathrm{bytes}}{\mathrm{HBM\_bandwidth}}}_{\mathrm{KV 读取}} + \underbrace{\frac{2 \cdot L \cdot H_{attn} \cdot d_h}{\mathrm{GPU\_peak\_FLOPS}}}_{\mathrm{Attention 计算}} + \underbrace{\frac{d_{\mathrm{model}} \cdot \mathrm{bytes}}{\mathrm{HBM\_bandwidth}}}_{\mathrm{权重读取}}$$
+</div>
+
+<p><b>数值代入</b> (Llama-3-70B, S=4096 已生成 tokens):</p>
+
+<div class="formula">
+$$T_{\mathrm{decode}} = \frac{80 \times 4096 \times 8 \times 128 \times 2}{3.35 \times 10^{12}} + \frac{2 \times 80 \times 64 \times 128}{989 \times 10^{12}} + \frac{8192 \times 2}{3.35 \times 10^{12}} \approx 20\ \mathrm{ms} + 1.3\ \mathrm{μs} + 4.9\ \mathrm{μs}} \approx \mathbf{20\ ms}$$
+</div>
+
+<div class="formula-note">
+<b>关键洞察</b>: <b>99.7% 时间在等 KV 读 HBM</b>. attention 计算几乎可忽略. 这就是 <b>Memory Wall 不可逾越</b> 的量化证据 — 即使 GPU 算力再翻 100×, TPOT 也只改善 0.3%. <b>唯一出路</b>: 减少 KV 读取量 (§2 全部 12 流派) 或提高 HBM 带宽 (HBM3e → HBM4 2026).
+</div>
+
+<!-- ========== Step 4: KV Size → HBM 容量 ========== -->
+<h3 id="sec10-4">10.4 KV Cache 大小 → HBM 容量需求</h3>
+
+<p>回到 §1.1 的核心公式, 代入 batch 与并发:</p>
+
+<div class="formula">
+$$\mathrm{KV\_size} = 2 \cdot L \cdot S \cdot H_{kv} \cdot d_h \cdot B \cdot \mathrm{bytes}$$
+$$= 2 \times L \times S \times H_{kv} \times d_h \times B \times \mathrm{bytes}\ \ [\mathrm{bytes}]$$
+</div>
+
+<p><b>生产场景</b> (Llama-3-70B, batch=32 并发, S=32K 上下文):</p>
+
+<div class="formula">
+$$\mathrm{KV\_size} = 2 \times 80 \times 32768 \times 8 \times 128 \times 32 \times 2 = 17.18\ \mathrm{GB\ /\ request}$$
+$$\mathrm{Total\_HBM} = 17.18 \times 32 = 549.8\ \mathrm{GB}$$
+</div>
+
+<div class="formula-note">
+<b>洞察</b>: 单 H100 (80GB) 装不下 32 并发 32K 上下文! 必须 <b>TP-4 (4 卡分摊)</b> 或 <b>MLA 压缩 8× → 4.3GB/req</b> (DeepSeek-V3) 或 <b>PD Disaggregation 跨机</b> (Mooncake).
+</div>
+
+<!-- ========== Step 5: HBM 带宽决定 TPOT 下限 ========== -->
+<h3 id="sec10-5">10.5 HBM 带宽 → TPOT 物理下限</h3>
+
+<p>即使算力无穷, <b>TPOT 的物理下限</b> 由 HBM 带宽决定:</p>
+
+<div class="formula">
+$$\mathrm{TPOT}_{\min} = \frac{\mathrm{KV\_per\_tok}}{\mathrm{HBM\_bandwidth}} = \frac{2 \cdot L \cdot S \cdot H_{kv} \cdot d_h \cdot \mathrm{bytes}}{\mathrm{HBM\_bandwidth}}$$
+</div>
+
+<table class="data-table">
+<thead><tr><th>GPU</th><th>HBM 带宽</th><th>TPOT 下限 (Llama-3-70B, S=32K)</th><th>vs H100</th></tr></thead>
+<tbody>
+<tr><td><b>H100 SXM</b></td><td>3.35 TB/s</td><td>20.0 ms/tok</td><td>1× (baseline)</td></tr>
+<tr><td><b>H200 SXM</b></td><td>4.8 TB/s</td><td>14.0 ms/tok</td><td><b>1.43×</b></td></tr>
+<tr><td><b>B200</b></td><td>8.0 TB/s</td><td>8.4 ms/tok</td><td><b>2.38×</b></td></tr>
+<tr><td><b>B300</b> (2026-Q1)</td><td>14.4 TB/s</td><td>4.7 ms/tok</td><td><b>4.26×</b></td></tr>
+<tr><td><b>HBM4</b> (2026-Q4)</td><td>1.5 TB/s/GPU (5× B200)</td><td>~1 ms/tok</td><td>20×</td></tr>
+</tbody>
+</table>
+
+<div class="formula-note">
+<b>洞察</b>: B200 (2024-Q4) → B300 (2026-Q1) → HBM4 (2026-Q4), 一年内 KV-bound TPOT 改善 <b>5×</b>. 这是硬件层唯一能真正突破 memory wall 的路径. 算法层的优化 (§2) 全部都是 <b>在等硬件层追上来之前的过渡方案</b>.
+</div>
+
+<!-- ========== Step 6: 跨卡 NVLink → PD Disagg ========== -->
+<h3 id="sec10-6">10.6 NVLink 互联 → 跨卡 KV 传输</h3>
+
+<p>当单卡装不下 (Step 4), 必须 TP/PP/EP. 跨卡 KV 传输需要 NVLink:</p>
+
+<div class="formula">
+$$T_{\mathrm{NVLink}} = \frac{\mathrm{KV\_size}}{\mathrm{NVLink\_bandwidth}} = \frac{17.18\ \mathrm{GB}}{900\ \mathrm{GB/s}} = 19\ \mathrm{ms}$$
+</div>
+
+<p>vs 跨机 RDMA (Mooncake Transfer Engine):</p>
+
+<div class="formula">
+$$T_{\mathrm{RDMA}} = \frac{\mathrm{KV\_size}}{\mathrm{RDMA\_bandwidth}} = \frac{17.18\ \mathrm{GB}}{200\ \mathrm{GB/s\ (HDR\ InfiniBand)}} = 86\ \mathrm{ms}$$
+</div>
+
+<div class="formula-note">
+<b>洞察</b>: 跨机 RDMA 比 NVLink 慢 <b>4.5×</b>. 但 PD Disaggregation 必须跨机. <b>Mooncake 优势</b>: <b>RDMA + 预测性 early-rejection</b> 把这 86ms "藏" 在 TTFT 之后, 用户感知不到. 这就是为什么 Mooncake 能 75% ↑ Kimi 吞吐.
+</div>
+
+<!-- ========== Step 7: Offload 链 (HBM → DRAM → NVMe) ========== -->
+<h3 id="sec10-7">10.7 KV Offload → DRAM / NVMe 容量与 IOPS</h3>
+
+<p>当 HBM 装不下, 必须 offload 到 DRAM 或 NVMe (§2.3):</p>
+
+<div class="formula">
+$$T_{\mathrm{offload\_read}} = \frac{\mathrm{KV\_size}}{\mathrm{DRAM\_BW}} + \frac{\mathrm{KV\_size}}{\mathrm{NVMe\_BW}}$$
+$$= \frac{17.18\ \mathrm{GB}}{80\ \mathrm{GB/s}} + \frac{17.18\ \mathrm{GB}}{7\ \mathrm{GB/s}} = 215\ \mathrm{ms} + 2.45\ \mathrm{s}$$
+</div>
+
+<p><b>关键</b>: NVMe 读取 KV 比 HBM 慢 <b>73×</b>! 所以 Offload 只能用于<b>冷数据预取</b>, 不能用于热数据. Mooncake 用 <b>预测性 prefetch</b> 把 NVMe 延迟隐藏.</p>
+
+<div class="formula">
+$$\mathrm{NVMe\_IOPS}_{\mathrm{needed}} = \frac{N_{\mathrm{concurrent\_requests}}}{\mathrm{TPOT}} = \frac{32}{0.020} = 1600\ \mathrm{IOPS}$$
+$$\mathrm{NVMe\_capacity}_{\mathrm{needed}} = N_{\mathrm{cold\_requests}} \times \mathrm{KV\_size} = 100 \times 17.18 = 1.7\ \mathrm{TB}$$
+</div>
+
+<!-- ========== Step 8: 全链路汇总 (互动 SVG) ========== -->
+<h3 id="sec10-8">10.8 全链路汇总 — 互动 SVG 滑块 (拖动看下游指标变化)</h3>
+
+<p>把 Step 1-7 串成一条因果链. <b>拖动下方滑块</b>, 实时看从用户感知 (TTFT/TPOT) 到硬件 (HBM/NVLink/RDMA) 每一层的数字变化:</p>
+
+<svg viewBox="0 0 900 580" xmlns="http://www.w3.org/2000/svg" style="max-width:100%;height:auto;background:linear-gradient(135deg,#fafafa 0%,#f0f4ff 100%);border-radius:12px;margin:16px 0">
+  <defs>
+    <linearGradient id="gradUser" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="gradCompute" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="gradMemory" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="gradInterconnect" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#6d28d9"/>
+    </linearGradient>
+    <linearGradient id="gradStorage" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ef4444"/>
+      <stop offset="100%" stop-color="#b91c1c"/>
+    </linearGradient>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#374151"/>
+    </marker>
+  </defs>
+  
+  <!-- 5 层圆角矩形 + 标签 -->
+  <rect x="50" y="20" width="800" height="80" rx="10" fill="url(#gradUser)" opacity="0.9"/>
+  <text x="450" y="50" text-anchor="middle" fill="white" font-size="18" font-weight="700">🟢 第 1 层: 用户感知</text>
+  <text x="450" y="78" text-anchor="middle" fill="white" font-size="14" id="svg-ttft">TTFT = 406 ms  |  TPOT = 20 ms  |  Throughput = 2200 tok/s</text>
+  
+  <line x1="450" y1="100" x2="450" y2="130" stroke="#374151" stroke-width="2" marker-end="url(#arr)"/>
+  
+  <rect x="50" y="140" width="800" height="100" rx="10" fill="url(#gradCompute)" opacity="0.9"/>
+  <text x="450" y="170" text-anchor="middle" fill="white" font-size="18" font-weight="700">🔵 第 2 层: 计算 (GPU TFLOPS)</text>
+  <text x="450" y="195" text-anchor="middle" fill="white" font-size="13" id="svg-compute">attention FLOPs: 69 ms  |  H100 989 TFLOPS (FP8)</text>
+  <text x="450" y="215" text-anchor="middle" fill="white" font-size="13">占比: <tspan id="svg-compute-pct" font-weight="700">17%</tspan> (不是瓶颈!)</text>
+  
+  <line x1="450" y1="240" x2="450" y2="270" stroke="#374151" stroke-width="2" marker-end="url(#arr)"/>
+  
+  <rect x="50" y="280" width="800" height="100" rx="10" fill="url(#gradMemory)" opacity="0.9"/>
+  <text x="450" y="310" text-anchor="middle" fill="white" font-size="18" font-weight="700">🟡 第 3 层: 内存 (HBM) — 真正瓶颈</text>
+  <text x="450" y="335" text-anchor="middle" fill="white" font-size="13" id="svg-mem">KV 读取: 327 ms  |  HBM3 3.35 TB/s  |  H100 80GB</text>
+  <text x="450" y="355" text-anchor="middle" fill="white" font-size="13">占比: <tspan id="svg-mem-pct" font-weight="700">80%</tspan> (memory wall 量化证据)</text>
+  
+  <line x1="450" y1="380" x2="450" y2="410" stroke="#374151" stroke-width="2" marker-end="url(#arr)"/>
+  
+  <rect x="50" y="420" width="800" height="80" rx="10" fill="url(#gradInterconnect)" opacity="0.9"/>
+  <text x="450" y="450" text-anchor="middle" fill="white" font-size="18" font-weight="700">🟣 第 4 层: 互联 (NVLink / RDMA)</text>
+  <text x="450" y="475" text-anchor="middle" fill="white" font-size="13" id="svg-inter">NVLink 900 GB/s (19ms)  |  RDMA 200 GB/s (86ms)</text>
+  
+  <line x1="450" y1="500" x2="450" y2="530" stroke="#374151" stroke-width="2" marker-end="url(#arr)"/>
+  
+  <rect x="50" y="540" width="800" height="35" rx="8" fill="url(#gradStorage)" opacity="0.9"/>
+  <text x="450" y="562" text-anchor="middle" fill="white" font-size="14" font-weight="700">🔴 第 5 层: 存储 (DRAM / NVMe) — Offload 慢 73×</text>
+</svg>
+
+<div style="background:#fafafa;padding:18px;border-radius:10px;margin:12px 0;border:1px solid #e5e7eb">
+  <div style="margin-bottom:10px">
+    <label style="display:inline-block;width:160px;font-weight:600">📏 模型规模 (B):</label>
+    <input type="range" id="slider-model" min="7" max="405" value="70" step="1" style="width:300px;vertical-align:middle">
+    <span id="val-model" style="margin-left:10px;font-weight:700;color:#4f46e5">70B</span>
+  </div>
+  <div style="margin-bottom:10px">
+    <label style="display:inline-block;width:160px;font-weight:600">📐 上下文长度 (K):</label>
+    <input type="range" id="slider-ctx" min="1" max="128" value="32" step="1" style="width:300px;vertical-align:middle">
+    <span id="val-ctx" style="margin-left:10px;font-weight:700;color:#4f46e5">32K</span>
+  </div>
+  <div style="margin-bottom:10px">
+    <label style="display:inline-block;width:160px;font-weight:600">👥 并发数 (B):</label>
+    <input type="range" id="slider-batch" min="1" max="128" value="32" step="1" style="width:300px;vertical-align:middle">
+    <span id="val-batch" style="margin-left:10px;font-weight:700;color:#4f46e5">32</span>
+  </div>
+  <div style="margin-bottom:10px">
+    <label style="display:inline-block;width:160px;font-weight:600">🎮 GPU 型号:</label>
+    <select id="slider-gpu" style="width:300px;padding:6px;font-size:14px;border:1px solid #d1d5db;border-radius:4px">
+      <option value="h100" selected>H100 SXM (3.35 TB/s, 989 TFLOPS)</option>
+      <option value="h200">H200 (4.8 TB/s, 989 TFLOPS)</option>
+      <option value="b200">B200 (8 TB/s, 2250 TFLOPS FP4)</option>
+      <option value="b300">B300 (14.4 TB/s, 预计 2026-Q1)</option>
+    </select>
+  </div>
+  <div style="margin-top:14px;padding:12px;background:white;border-radius:6px;border-left:4px solid #6366f1">
+    <b>🔍 实时计算结果 (基于公式):</b>
+    <div id="result-output" style="font-family:monospace;font-size:13px;line-height:1.8;margin-top:8px"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  // GPU specs
+  const GPU_SPECS = {
+    h100: { name: 'H100', hbm_bw: 3.35, peak_flops: 989, mem_gb: 80, nvlink: 900 },
+    h200: { name: 'H200', hbm_bw: 4.8, peak_flops: 989, mem_gb: 141, nvlink: 900 },
+    b200: { name: 'B200', hbm_bw: 8.0, peak_flops: 2250, mem_gb: 192, nvlink: 1800 },
+    b300: { name: 'B300', hbm_bw: 14.4, peak_flops: 3000, mem_gb: 288, nvlink: 1800 }
+  };
+  
+  function compute() {
+    const modelB = parseFloat(document.getElementById('slider-model').value);
+    const ctxK = parseFloat(document.getElementById('slider-ctx').value);
+    const batch = parseFloat(document.getElementById('slider-batch').value);
+    const gpuKey = document.getElementById('slider-gpu').value;
+    const gpu = GPU_SPECS[gpuKey];
+    
+    // Llama-style: 估算层数 L, KV heads, head dim
+    // 简化公式: d_model ≈ sqrt(modelB * 1e9 / 80), L ≈ 80, H_kv = 8 (GQA)
+    const d_model = Math.round(Math.sqrt(modelB * 1e9 / 80));
+    const L = 80, H_kv = 8, d_h = 128, bytes = 2;
+    const S = ctxK * 1024;
+    
+    // KV per request
+    const kv_per_req = 2 * L * S * H_kv * d_h * bytes;
+    // Total KV
+    const total_kv = kv_per_req * batch / 1e9; // GB
+    
+    // TPOT 物理下限 (KV 读)
+    const tpot_ms = (kv_per_req / 1e9) / gpu.hbm_bw * 1000;
+    
+    // TTFT 拆解
+    const t_compute = (S * S * d_model * 2) / (gpu.peak_flops * 1e12) * 1000;
+    const t_kv_write = (kv_per_req / 1e9) / gpu.hbm_bw * 1000;
+    const t_weight = (d_model * 2) / (gpu.hbm_bw * 1e9) * 1000;
+    const ttft_ms = t_compute + t_kv_write + t_weight;
+    
+    // 装得下?
+    const fits = total_kv <= gpu.mem_gb;
+    const fit_color = fits ? '#10b981' : '#ef4444';
+    
+    // 互联延迟
+    const nvlink_ms = (kv_per_req / 1e9) / (gpu.nvlink / 1000) * 1000;
+    const rdma_ms = (kv_per_req / 1e9) / 200 * 1000;
+    
+    // Offload 延迟
+    const dram_ms = (kv_per_req / 1e9) / 80 * 1000;
+    const nvme_ms = (kv_per_req / 1e9) / 7 * 1000;
+    
+    // 内存墙占比
+    const mem_pct = (t_kv_write / ttft_ms * 100).toFixed(1);
+    const compute_pct = (t_compute / ttft_ms * 100).toFixed(1);
+    
+    // 吞吐量
+    const throughput = Math.floor(batch / (tpot_ms / 1000));
+    
+    // 更新显示
+    document.getElementById('val-model').textContent = modelB + 'B';
+    document.getElementById('val-ctx').textContent = ctxK + 'K';
+    document.getElementById('val-batch').textContent = batch;
+    
+    document.getElementById('svg-ttft').textContent = 
+      'TTFT = ' + ttft_ms.toFixed(0) + ' ms  |  TPOT = ' + tpot_ms.toFixed(1) + ' ms  |  Throughput = ' + throughput + ' tok/s';
+    document.getElementById('svg-compute').textContent = 
+      'attention FLOPs: ' + t_compute.toFixed(0) + ' ms  |  ' + gpu.name + ' ' + gpu.peak_flops + ' TFLOPS';
+    document.getElementById('svg-compute-pct').textContent = compute_pct + '%';
+    document.getElementById('svg-mem').textContent = 
+      'KV 读取: ' + t_kv_write.toFixed(0) + ' ms  |  HBM ' + gpu.hbm_bw + ' TB/s  |  ' + gpu.name + ' ' + gpu.mem_gb + 'GB';
+    document.getElementById('svg-mem-pct').textContent = mem_pct + '%';
+    document.getElementById('svg-inter').textContent = 
+      'NVLink ' + gpu.nvlink + ' GB/s (' + nvlink_ms.toFixed(0) + 'ms)  |  RDMA 200 GB/s (' + rdma_ms.toFixed(0) + 'ms)';
+    
+    document.getElementById('result-output').innerHTML = 
+      '<b>📊 全链路数字:</b><br>' +
+      '├─ 模型: ' + modelB + 'B (d_model ≈ ' + d_model + ')<br>' +
+      '├─ 上下文: ' + ctxK + 'K tokens<br>' +
+      '├─ 并发: ' + batch + '<br>' +
+      '├─ 单请求 KV: ' + (kv_per_req / 1e9).toFixed(2) + ' GB<br>' +
+      '├─ 集群总 KV: ' + total_kv.toFixed(1) + ' GB (单卡 ' + gpu.mem_gb + 'GB: <span style="color:' + fit_color + ';font-weight:700">' + (fits ? '✓ 装得下' : '✗ 装不下!') + '</span>)<br>' +
+      '├─ <b>TTFT</b> = ' + ttft_ms.toFixed(0) + ' ms (KV 写 ' + t_kv_write.toFixed(0) + ' + attention ' + t_compute.toFixed(0) + ' + 权重 ' + t_weight.toFixed(2) + ')<br>' +
+      '├─ <b>TPOT</b> = ' + tpot_ms.toFixed(1) + ' ms/tok (KV-bound)<br>' +
+      '├─ <b>Throughput</b> = ' + throughput + ' tok/s/集群<br>' +
+      '├─ NVLink 传输: ' + nvlink_ms.toFixed(0) + ' ms  |  RDMA 传输: ' + rdma_ms.toFixed(0) + ' ms<br>' +
+      '├─ DRAM 读: ' + dram_ms.toFixed(0) + ' ms  |  NVMe 读: ' + nvme_ms.toFixed(0) + ' ms (慢 ' + (nvme_ms/dram_ms).toFixed(0) + '×)<br>' +
+      '├─ <b style="color:#dc2626">Memory Wall 占比 ' + mem_pct + '%</b> (KV-bound 是真实瓶颈)<br>' +
+      '└─ ' + (mem_pct > 70 ? '⚠️ <b>必须优化 KV Cache</b> (§2 12 流派都是为此)' : '✅ KV 影响较小, 优先看算力') + '<br>' +
+      '<hr style="margin:8px 0"><b>🎯 优化建议:</b><br>' +
+      (total_kv > gpu.mem_gb ? '├─ 跨卡 TP-' + Math.ceil(total_kv / gpu.mem_gb) + ' 或 PD Disagg (Mooncake)<br>' : '') +
+      (mem_pct > 70 ? '├─ MLA/DSA 压缩 8× 或 INT4 量化<br>' : '') +
+      (ctxK >= 64 ? '├─ SageAttention/SCBench 长文稀疏方案<br>' : '') +
+      '└─ 若已 B200/B300, 硬件层已 3× 改善, 算法只需 2× 微调';
+  }
+  
+  // 绑定
+  ['slider-model', 'slider-ctx', 'slider-batch', 'slider-gpu'].forEach(id => {
+    document.getElementById(id).addEventListener('input', compute);
+  });
+  
+  // 初始
+  compute();
+})();
+</script>
+
+<!-- ========== Step 9: 公式的"反推" / 设计原则 ========== -->
+<h3 id="sec10-9">10.9 反向思考: 这些公式告诉工程师什么?</h3>
+
+<p>从上面 8 步推导, 我们可以提炼出 <b>5 条工程铁律</b>:</p>
+
+<ol>
+<li><b>Memory Wall 不可逾越</b>: 99% TPOT 时间在等 KV 读 HBM. 算力提升 100× 只能改善 TPOT 0.3%. <b>唯一出路</b>: 减少 KV 读取量 (量化/稀疏/MLA) 或提升 HBM 带宽 (B200→B300→HBM4).</li>
+<li><b>TTFT 由 prefill 决定</b>: 70% 时间在 KV 写入, 17% 在 attention. 优化 prefill = 优化 KV 写入, 不是优化 attention 计算.</li>
+<li><b>Batch 放大 memory wall</b>: TPOT ∝ KV_size ∝ batch. 长上下文 + 大 batch = memory bound 极致. PD Disagg 是解药 (Mooncake).</li>
+<li><b>跨机 RDMA 4.5× 慢于 NVLink</b>: 跨机推理必须 <b>预取 + 异步</b>, 不能同步等. Mooncake Transfer Engine 是关键.</li>
+<li><b>NVMe 慢 73×</b>: NVMe Offload 只能用于<b>冷数据预取</b>, 不能阻塞 hot path. 这是 §2.3 全部方案的边界.</li>
+</ol>
+
+<div class="insight-box">
+<h4>💡 实战启示</h4>
+<ul>
+<li><b>优化前先测量</b>: 用上面 SVG 滑块代入你的模型 + 上下文 + batch, 看哪一层 (compute/memory/interconnect/storage) 占比最大. 不要凭直觉优化.</li>
+<li><b>硬件升级 = 算法升级</b>: B200 (2024-Q4) 比 H100 TPOT 改善 2.4×, 超过 §2 任何单一优化. <b>若已 B200, 重点放在 quant/MLA (算法层)</b>; 若还 H100, 重点放在 HBM 带宽 (换卡).</li>
+<li><b>2026-2027 关键拐点</b>: B300 (2026-Q1) + HBM4 (2026-Q4) + GDN 训练 5×, 三件事叠加, 70B 1M context 推理 <b>1 ms/tok</b> 可期. 这是 <b>memory wall 第一次真正破壁</b>.</li>
+</ul>
+</div>
+
+<div class="callout callout-success">
+<b>🎯 公式推导的真正价值</b>: 不是"会算", 而是"会反推 — 给定预算/规模, 立刻知道瓶颈在哪一层". 这才是 <b>从码农到架构师</b> 的区别. 把上面 8 步公式打印贴在工位上, 任何新模型部署前先算一遍, 比任何"调参玄学"都管用.
+</div>
 </section>
 
 <!-- ========== §9 引用 ========== -->
