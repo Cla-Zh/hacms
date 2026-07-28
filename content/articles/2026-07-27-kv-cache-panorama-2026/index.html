@@ -184,6 +184,143 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
   .sim-grid{grid-template-columns:1fr}
   .sim-result{flex-direction:column;align-items:flex-start}
 }
+
+/* === Abbreviation Tooltip (悬浮说明, 移走消失, 不遮挡) === */
+.gloss {
+  position: relative;
+  cursor: help;
+  border-bottom: 1px dotted var(--accent);
+  color: var(--accent-3);
+  transition: color .15s ease;
+}
+.gloss:hover, .gloss:focus { color: var(--accent); }
+.gloss::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(4px);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.55;
+  width: max-content;
+  max-width: 360px;
+  min-width: 180px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease, transform .15s ease;
+  z-index: 9999;
+  white-space: normal;
+  text-align: left;
+}
+.gloss::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 2px);
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--accent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease;
+  z-index: 9999;
+}
+.gloss:hover::after, .gloss:focus::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.gloss:hover::before, .gloss:focus::before { opacity: 1; }
+/* 靠边检测: 防止 tooltip 超出视窗 */
+.gloss.tip-right::after { left: 0; transform: translateX(0) translateY(4px); }
+.gloss.tip-right::before { left: 12px; transform: translateX(0); }
+.gloss.tip-right:hover::after { transform: translateX(0) translateY(0); }
+.gloss.tip-left::after { left: auto; right: 0; transform: translateX(0) translateY(4px); }
+.gloss.tip-left::before { left: auto; right: 12px; transform: translateX(0); }
+.gloss.tip-left:hover::after { transform: translateX(0) translateY(0); }
+
+/* §10.8 互动 SVG 深色背景 (改硬编码浅色 → 用 CSS 变量) */
+#sec10-8 svg, #sec10-8 .slider-panel {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+}
+#sec10-8 .slider-panel {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border-2) !important;
+  padding: 18px;
+  border-radius: 10px;
+  margin: 12px 0;
+}
+#sec10-8 .slider-row {
+  display: flex; align-items: center; margin-bottom: 10px;
+  color: var(--text); font-weight: 600;
+}
+#sec10-8 .slider-row label {
+  width: 160px; color: var(--text);
+}
+#sec10-8 .slider-row input[type=range] { width: 300px; vertical-align: middle; accent-color: var(--accent); }
+#sec10-8 .slider-row select {
+  width: 300px; padding: 6px; font-size: 14px;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border-2); border-radius: 4px;
+}
+#sec10-8 .slider-row span.val {
+  margin-left: 10px; font-weight: 700; color: var(--accent);
+  font-family: var(--font-mono);
+}
+#sec10-8 .result-box {
+  margin-top: 14px; padding: 12px;
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border-radius: 6px; border-left: 4px solid var(--accent);
+}
+#sec10-8 #result-output {
+  font-family: var(--font-mono); font-size: 13px;
+  line-height: 1.8; margin-top: 8px; color: var(--text);
+}
+
+/* CSS 动画真实可见 (确保 keyframes 触发) */
+@keyframes blink{0%,100%{opacity:.3}50%{opacity:1}}
+@keyframes dataFlow {
+  0% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -40; }
+}
+@keyframes barGrow{0%{width:0;opacity:0}100%{opacity:1}}
+.fl-arrow-animated {
+  stroke-dasharray: 6 4;
+  animation: dataFlow 2s linear infinite;
+}
+@keyframes pulse-glow {
+  0%, 100% { filter: drop-shadow(0 0 2px var(--accent)); }
+  50% { filter: drop-shadow(0 0 8px var(--accent)); }
+}
+.pulse-dot { animation: pulse-glow 2s ease-in-out infinite; }
+
+/* === KV Bar Chart (动画 2) === */
+.kv-growth { background: var(--surface-2); padding: 18px; border-radius: 10px; margin: 14px 0; border: 1px solid var(--border-2); }
+.kv-bar { display: flex; align-items: center; margin: 6px 0; gap: 12px; }
+.ctx-label { width: 100px; color: var(--text-2); font-weight: 600; font-size: 13px; flex-shrink: 0; }
+.ctx-track { flex: 1; background: var(--surface); border-radius: 4px; height: 28px; overflow: hidden; border: 1px solid var(--border-2); }
+.ctx-fill {
+  display: block; height: 28px;
+  background: linear-gradient(90deg, #7eb6ff 0%, #3b82f6 100%);
+  color: white; text-align: right; padding-right: 10px;
+  line-height: 28px; font-weight: 600; border-radius: 4px;
+  font-size: 12px; transition: width 1.2s ease-out;
+  animation: barGrow 1.2s ease-out;
+}
+
+/* §7 表格 #位置 列跳转链接 */
+.jump-link { color: var(--accent); text-decoration: none; font-weight: 600; }
+.jump-link:hover { color: var(--accent-3); text-decoration: underline; }
+
 </style>
 
 <!-- Math: 纯 Unicode + CSS, 无外部依赖, 离线可用 -->
@@ -239,7 +376,7 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
   <div class="meta-row">
     <span>📅 2026-07-27</span>
     <span>✍️ 川龙 (Hermes Agent)</span>
-    <span>🏷️ LLM · KV Cache · FlashAttention · SSM · Mamba · MLA<a class="cite" data-num="13" href="#ref-13"></a> · PagedAttention<a class="cite" data-num="8" href="#ref-8"></a></span>
+    <span>🏷️ LLM · KV Cache · FlashAttention · SSM · Mamba · MLA<a class="cite" data-num="13" href="#ref-13"></a> · <span class="gloss" data-tip="PagedAttention: vLLM 2023 首创, 把 KV Cache 切成 16 token 块用 Block Table 映射. 源自 OS 虚拟内存, 碎片从 60-80% 降到 4%.">PagedAttention</span><a class="cite" data-num="8" href="#ref-8"></a></span>
     <span>🔍 30 轮 agent 全自动复核</span>
   </div>
 </div>
@@ -249,11 +386,11 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 <h2>⚡ 一页纸结论 (TL;DR)</h2>
 <ul>
 <li><b>核心命题</b>: KV Cache 已成为 LLM 推理的<b>头号瓶颈</b> — 它是占显存 <span class="hl">40-80%</span> 的"沉默巨人"<a class="cite" data-num="1" href="#ref-1"></a>;</li>
-<li><b>物理底层</b>: <span class="hl">HBM 带宽 3.35 TB/s (H100) → 8 TB/s (B200/B300) → 12 TB/s (HBM4)</span> vs L2 SRAM <span class="hl">6 TB/s (H100 50MB) → ~16 TB/s (B200 96MB)</span> — <b>~2-10 倍内存墙</b> (取决于粒度), 推理从"计算瓶颈"必然转向"内存带宽瓶颈"<a class="cite" data-num="2" href="#ref-2"></a>;</li>
+<li><b>物理底层</b>: <span class="hl"><span class="gloss" data-tip="HBM (High Bandwidth Memory) 高带宽显存: GPU 专用堆叠式内存, 带宽是普通 DDR5 的 5-10 倍. H100 3.35 TB/s, B200 8 TB/s, <span class="gloss" data-tip="HBM4: 2026 量产, 单 stack 36 GB, 带宽 12 TB/s (H100 HBM3 是 3.35 TB/s, 3.6× 提升).">HBM4</span> 12 TB/s 是 2024-2026 三代硬件代差.">HBM 带宽 3.35 TB/s (H100) → 8 TB/s (B200/B300) → 12 TB/s (HBM4)</span></span> vs L2 SRAM <span class="hl">6 TB/s (H100 50MB) → ~16 TB/s (B200 96MB)</span> — <b>~2-10 倍内存墙</b> (取决于粒度), 推理从"计算瓶颈"必然转向"内存带宽瓶颈"<a class="cite" data-num="2" href="#ref-2"></a>;</li>
 <li><b>FlashAttention</b>: 通过 <b>tiling + softmax-on-chip + recomputation</b> 重构数据流, 把 HBM 访问次数从 <b>O(n²)</b> 降到 <b>O(n)</b>, FA-3 在 H100 达到 <span class="hl">840 TFLOPS/s (BF16, 85% peak)</span><a class="cite" data-num="3" href="#ref-3"></a>;</li>
 <li><b>2300 MiB 极限压缩</b>: 1T 参数 + 128K 上下文做到 KV Cache 仅 2300 MiB, 需叠加 <b>MLA 低秩压缩 (×6) + Cross-Layer Attention 共享 (×2) + INT4 量化 (×4) + 共享前缀 (×2) + Sliding Window 64K (×2) = 42.95 GB / 192 ≈ 224 MiB (真实物理极限)</b>; 2300 MiB 是 <b>保守工程极限</b> (单请求 + V3 MLA + 4-bit + SW 64K, 实际 ×96 压缩) <a class="cite" data-num="4" href="#ref-4"></a>;</li>
-<li><b>12 大流派</b>: <span class="hl">GQA<a class="cite" data-num="17" href="#ref-17"></a> + INT8 KV + PagedAttention + Continuous Batching + Prefix Cache</span> 是工业五件套; <b>MLA (DeepSeek-V3<a class="cite" data-num="14" href="#ref-14"></a>)</b> 进一步把 KV 单 token 压缩到 <span class="hl">576 维</span> (MHA 是 32,768 维 = 128 头 × 256), <b>~93.3% 压缩</b> (V2 论文原值, V3 d_c=512 vs 4096 ≈ 87.5%)<a class="cite" data-num="5" href="#ref-5"></a>;</li>
-<li><b>破局者</b>: <span class="hl">Mamba-3<a class="cite" data-num="53" href="#ref-53"></a> (2026)</span> 用 SSD 对偶性让 SSM 训练速度 8x 提升, <span class="hl">Jamba<a class="cite" data-num="58" href="#ref-58"></a> 1.5</span> (398B/94B 激活, 256K 上下文) 用 ExpertsInt8 在 8×80GB GPU 上可跑 256K; <b>RWKV-7<a class="cite" data-num="56" href="#ref-56"></a> "Goose"</b> (2025-03) 突破 TC⁰ 复杂度<a class="cite" data-num="6" href="#ref-6"></a>;</li>
+<li><b>12 大流派</b>: <span class="hl">GQA<a class="cite" data-num="17" href="#ref-17"></a> + INT8 KV + PagedAttention + <span class="gloss" data-tip="Continuous Batching: 请求一完成就替换新请求, 不等整批完成. vLLM/TGI 2023 普及, 提升 GPU 利用率 2-4×.">Continuous Batching</span> + <span class="gloss" data-tip="Prefix Cache: 同一 system prompt 跨请求共享 KV, 跳过 prefill. vLLM/SGLang 标配.">Prefix Cache</span></span> 是工业五件套; <b>MLA (DeepSeek-V3<a class="cite" data-num="14" href="#ref-14"></a>)</b> 进一步把 KV 单 token 压缩到 <span class="hl">576 维</span> (MHA 是 32,768 维 = 128 头 × 256), <b>~93.3% 压缩</b> (V2 论文原值, V3 d_c=512 vs 4096 ≈ 87.5%)<a class="cite" data-num="5" href="#ref-5"></a>;</li>
+<li><b>破局者</b>: <span class="hl"><span class="gloss" data-tip="Mamba-3: 2026-03 ICLR 接收, 改进的 SSD 算法 + complex-valued state + MIMO, 训练速度 +0.6pp/半状态. arXiv 2603.15569.">Mamba-3</span><a class="cite" data-num="53" href="#ref-53"></a> (2026)</span> 用 SSD 对偶性让 SSM 训练速度 8x 提升, <span class="hl"><span class="gloss" data-tip="Jamba: AI21 2024 混合架构, 1:7 Mamba:Attn + MoE, 256K ctx, 52B/12B 激活. 商业最成功.">Jamba</span><a class="cite" data-num="58" href="#ref-58"></a> 1.5</span> (398B/94B 激活, 256K 上下文) 用 ExpertsInt8 在 8×80GB GPU 上可跑 256K; <b><span class="gloss" data-tip="RWKV-7 "Goose": 2025-03 发布, Dynamic State Evolution 突破 <span class="gloss" data-tip="TC⁰: 理论计算机科学复杂度类 — 阈值电路常数深度. 之前的 RNN 都被证明受限于 TC⁰, RWKV-7 突破此限制.">TC⁰ 复杂度</span>, RNN 类首次追平 Attention. arXiv 2503.14456.">RWKV-7</span><a class="cite" data-num="56" href="#ref-56"></a> "Goose"</b> (2025-03) 突破 TC⁰ 复杂度<a class="cite" data-num="6" href="#ref-6"></a>;</li>
 <li><b>业界共识</b>: <span class="hl">2026 学术前沿不是"谁取代 Transformer", 而是"如何融合"</span> — SSM/线性注意力 + 微型精确缓存是主流趋势;</li>
 <li><b>结论</b>: hacms/中型企业 2026 推荐 <b>DeepSeek-V3 MLA</b> (开源极致压缩) + <b>vLLM + PagedAttention</b> (生产部署) + <b>H100 FP8</b> (硬件原生) 三件套.</li>
 </ul>
@@ -324,20 +461,20 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 <li><a href="#sec2">🌳 §2 Transformer 内 12 大优化流派演进技能树</a>
   <ul>
     <li><a href="#sec2-1">2.1 结构改造 (MHA→MQA<a class="cite" data-num="16" href="#ref-16"></a>→GQA→MLA→MoH<a class="cite" data-num="18" href="#ref-18"></a>)</a></li>
-    <li><a href="#sec2-2">2.2 显存池化 (PagedAttention / Chunked Prefill / Continuous Batching)</a></li>
+    <li><a href="#sec2-2">2.2 显存池化 (PagedAttention / <span class="gloss" data-tip="Chunked Prefill: 把长 prompt 切成小块, 与 decode 混合调度. 避免 prefill 长尾延迟饿死 decode 请求.">Chunked Prefill</span> / Continuous Batching)</a></li>
     <li><a href="#sec2-3">2.3 分层 Offloading (HBM→DRAM→NVMe)</a></li>
     <li><a href="#sec2-4">2.4 量化 (INT8/INT4/FP8/2-bit/1-bit)</a></li>
-    <li><a href="#sec2-5">2.5 稀疏丢弃 (H₂O<a class="cite" data-num="31" href="#ref-31"></a> / Scissorhands / PyramidKV<a class="cite" data-num="32" href="#ref-32"></a>)</a></li>
-    <li><a href="#sec2-6">2.6 共享前缀 (Prefix Cache / RadixAttention<a class="cite" data-num="11" href="#ref-11"></a>)</a></li>
-    <li><a href="#sec2-7">2.7 跨请求调度 (Mooncake<a class="cite" data-num="38" href="#ref-38"></a> / MemServe<a class="cite" data-num="39" href="#ref-39"></a>)</a></li>
-    <li><a href="#sec2-8">2.8 Speculative Decoding<a class="cite" data-num="42" href="#ref-42"></a> 联动</a></li>
+    <li><a href="#sec2-5">2.5 稀疏丢弃 (H₂O<a class="cite" data-num="31" href="#ref-31"></a> / Scissorhands / <span class="gloss" data-tip="PyramidKV: 早期层 KV 衰减 + 深层完整保留, 像金字塔. arXiv 2406.02069 (2024-06).">PyramidKV</span><a class="cite" data-num="32" href="#ref-32"></a>)</a></li>
+    <li><a href="#sec2-6">2.6 共享前缀 (Prefix Cache / <span class="gloss" data-tip="RadixAttention: SGLang 2024 首创, 用 Radix Tree (基数树) 索引任意长度 prefix. 区别于 vLLM 的精确同 prefix 匹配, 支持 prefix 子树复用.">RadixAttention</span><a class="cite" data-num="11" href="#ref-11"></a>)</a></li>
+    <li><a href="#sec2-7">2.7 跨请求调度 (<span class="gloss" data-tip="Mooncake: Moonshot AI 2024 集群级 KV 缓存, <span class="gloss" data-tip="PD Disaggregation (Prefill-Decode 分离): prefill 和 decode 跑在不同 GPU 上, 各取最优. Mooncake 2024 推广.">PD Disaggregation</span> + 跨节点 KV Cache Store, FAST 2025 Best Paper.">Mooncake</span><a class="cite" data-num="38" href="#ref-38"></a> / MemServe<a class="cite" data-num="39" href="#ref-39"></a>)</a></li>
+    <li><a href="#sec2-8">2.8 <span class="gloss" data-tip="Speculative Decoding: 小模型 draft → 大模型 verify, 一次生成 4-8 token. <span class="gloss" data-tip="EAGLE-3: 2025 SOTA speculative decoding, 用 feature 预测 + tree attention, 5× 加速 (比 EAGLE-2 提升 1.3×).">EAGLE-3</span> 2025 达 5× 加速.">Speculative Decoding</span><a class="cite" data-num="42" href="#ref-42"></a> 联动</a></li>
     <li><a href="#sec2-9">2.9-2.12 [自主挖掘] 4 大新流派</a></li>
   </ul>
 </li>
 <li><a href="#sec3">🚀 §3 破局者 — 非 Transformer 架构 (2026 学术前沿)</a>
   <ul>
-    <li><a href="#sec3-1">3.1 SSM 家族 (Mamba-1/2/3) — SSD 对偶性</a></li>
-    <li><a href="#sec3-2">3.2 线性注意力复兴 (RWKV-7 / RetNet<a class="cite" data-num="54" href="#ref-54"></a> / Hyena<a class="cite" data-num="57" href="#ref-57"></a>)</a></li>
+    <li><a href="#sec3-1">3.1 SSM 家族 (<span class="gloss" data-tip="Mamba-1: SSM + selective 状态空间, 5× Transformer 推理速度, 2023-12 Gu & Dao.">Mamba-1</span>/2/3) — SSD 对偶性</a></li>
+    <li><a href="#sec3-2">3.2 线性注意力复兴 (RWKV-7 / <span class="gloss" data-tip="RetNet: Microsoft 2023, retention 机制 + 衰减 mask + chunkwise 递归, 训练 O(n²) 但推理 O(n).">RetNet</span><a class="cite" data-num="54" href="#ref-54"></a> / Hyena<a class="cite" data-num="57" href="#ref-57"></a>)</a></li>
     <li><a href="#sec3-3">3.3 混合架构爆发 (Jamba / Bamba<a class="cite" data-num="62" href="#ref-62"></a> / RecurrentGemma<a class="cite" data-num="63" href="#ref-63"></a>)</a></li>
     <li><a href="#sec3-4">3.4 [2026 新趋势] 为线性注意力挂载微型精确缓存</a></li>
     <li><a href="#sec3-5">3.5 "记忆悬崖"与长上下文评测</a></li>
@@ -358,7 +495,7 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 <li><a href="#sec6">🔮 §6 [自主挖掘] 2026 学术界 5 大新趋势</a></li>
 <li><a href="#sec7">🎨 §7 12 张可视化图表 + CSS/SVG 动画清单</a></li>
 <li><a href="#sec8">🎯 §8 [深度洞察] 5 大核心定论 + 未来 12-18 个月路线图</a></li>
-<li><a href="#sec10">🧮 §10 [公式推导] 从 TTFT 一路推导到硬件基础设施 (互动 SVG)</a></li>
+<li><a href="#sec10">🧮 §10 [公式推导] 从 <span class="gloss" data-tip="TTFT (Time To First Token): 用户发请求到收到第一个 token 的时间, 衡量 prefill 速度. 理想 <500ms.">TTFT</span> 一路推导到硬件基础设施 (互动 SVG)</a></li>
 <li><a href="#sec11">🏗️ §11 [整体架构图] 一个 LLM 推理集群里, 哪些地方被优化 (4 张分层图 + 5 大原则 + 5 部署场景)</a></li>
 <li><a href="#ref">📚 §9 完整引用 (80+ 条, 全部可点击)</a></li>
 </ol>
@@ -458,14 +595,14 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 
 <h3 id="sec1-3">1.3 计算→内存瓶颈的历史必然转移</h3>
 
-<p>过去 20 年, 处理器设计遵循一条铁律: <b class="gloss" tabindex="0" data-tip="Memory Wall: Wulf & McKee 1995 提出的经典论断 — 内存带宽增长速度远低于计算能力, 最终计算单元将无数据可算. 在 LLM 时代, 这一论断在 KV Cache 场景被彻底兑现.">Memory Wall</b> (Wulf & McKee, 1995). 进入 LLM 时代, 这条铁律在 KV Cache 上彻底兑现:</p>
+<p>过去 20 年, 处理器设计遵循一条铁律: <b class="gloss" tabindex="0" data-tip="<span class="gloss" data-tip="内存墙: CPU/GPU 计算速度每 2 年翻 3 倍, 内存带宽只翻 1.6 倍, 导致 90% 推理时间花在等数据. 1985 年 Wulf-McKee 提出, 2024 仍未根本解决, 但 LLM 推理 80% 瓶颈都在它.">Memory Wall</span>: Wulf & McKee 1995 提出的经典论断 — 内存带宽增长速度远低于计算能力, 最终计算单元将无数据可算. 在 LLM 时代, 这一论断在 KV Cache 场景被彻底兑现.">Memory Wall</b> (Wulf & McKee, 1995). 进入 LLM 时代, 这条铁律在 KV Cache 上彻底兑现:</p>
 
 <table class="data-table">
 <thead><tr><th>指标</th><th>增长速率 (每 2 年)</th><th>含义</th></tr></thead>
 <tbody>
 <tr><td>GPU FP16 TFLOPS</td><td><b>3.0×</b></td><td>算力暴增</td></tr>
 <tr><td>DRAM 带宽</td><td>1.6×</td><td>带宽缓慢</td></tr>
-<tr><td>互联 (NVLink)</td><td>1.4×</td><td>扩展最难</td></tr>
+<tr><td>互联 (<span class="gloss" data-tip="NVLink: NVIDIA GPU 间互联, 第 5 代 1.8 TB/s/GPU. 8 卡 HGX 总 14.4 TB/s, 72 卡 NVL72 总 130 TB/s.">NVLink</span>)</td><td>1.4×</td><td>扩展最难</td></tr>
 <tr><td><b>差距</b></td><td><b>每 2 年 1.88×</b></td><td>内存墙持续扩大</td></tr>
 </tbody>
 </table>
@@ -495,7 +632,7 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 <tr><td><b>1. Cross-Layer Attention (CLA)</b></td><td>×2-4</td><td>相邻层共享 KV 投影 (NeurIPS 2024 论文), 1T/80 层用 CLA2 可减半 KV, 不损失 perplexity</td><td>CLA (Brandon 2024)</td><td><a href="https://arxiv.org/abs/2405.12981" target="_blank">arXiv 2405.12981</a></td></tr>
 <tr><td><b>2. MLA 低秩压缩</b></td><td>×6 (V3) / ×15 (V2)</td><td>K, V 通过低秩投影压缩到 latent 维度. V3 d_c=1536 实际 cache/head ≈ 3 KB, MHA ≈ 18 KB → <b>×6</b>; V2 论文 93.3% 压缩 → <b>×15</b></td><td>MLA (DeepSeek-V2<a class="cite" data-num="13" href="#ref-13"></a>/V3/V4)</td><td><a href="https://arxiv.org/abs/2405.04434" target="_blank">arXiv 2405.04434</a></td></tr>
 <tr><td><b>3. KV 量化</b></td><td>×2-8</td><td>FP8 (H100 原生) / INT4 (KVQuant<a class="cite" data-num="26" href="#ref-26"></a>) / 2-bit (KIVI<a class="cite" data-num="27" href="#ref-27"></a>)</td><td>FP8/INT4/2-bit KV</td><td><a href="https://arxiv.org/abs/2401.18079" target="_blank">KVQuant</a></td></tr>
-<tr><td><b>4. Layer-wise 衰减</b></td><td>×2</td><td>深层 KV 衰减 / 早期层 KV 降采样 (PyramidKV)</td><td>PyramidKV / StreamingLLM<a class="cite" data-num="34" href="#ref-34"></a></td><td><a href="https://arxiv.org/abs/2406.02069" target="_blank">PyramidKV</a></td></tr>
+<tr><td><b>4. Layer-wise 衰减</b></td><td>×2</td><td>深层 KV 衰减 / 早期层 KV 降采样 (PyramidKV)</td><td>PyramidKV / <span class="gloss" data-tip="StreamingLLM: 滑动窗口 + 前 4 个 attention sinks, 无限长文本. arXiv 2309.17453 (Xiao et al.).">StreamingLLM</span><a class="cite" data-num="34" href="#ref-34"></a></td><td><a href="https://arxiv.org/abs/2406.02069" target="_blank">PyramidKV</a></td></tr>
 <tr><td><b>5. Sliding Window (单请求)</b></td><td>×2-4</td><td>只保留最近 N token + attention sinks, 128K → 64K/32K 截断. <b>单请求有效</b></td><td>StreamingLLM / LM-Infinite</td><td><a href="https://arxiv.org/abs/2309.17453" target="_blank">arXiv 2309.17453</a></td></tr>
 <tr><td><b>6. YOCO Decoder-Decoder</b></td><td>×L-1</td><td>self-decoder 编码全局 KV 一次, cross-decoder 跨 L 层复用, KV 总量 O(N) 而非 O(NL)</td><td>YOCO (Microsoft 2024)</td><td><a href="https://arxiv.org/abs/2405.05254" target="_blank">arXiv 2405.05254</a></td></tr>
 </tbody>
@@ -516,8 +653,8 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 
 <ol>
 <li><b>VRAM 频率墙</b>: HBM3 频率 4-6 Gbps, DDR5 5.6 Gbps, 带宽差距 10x. 这是为什么 LLM 推理 <i>必须</i> 在 HBM GPU 上跑 — DDR5 服务器无法承担 KV Cache 带宽压力.</li>
-<li><b>PCIe 5.0 瓶颈</b>: PCIe 5.0 ×16 lane = 128 GB/s 双向, 远低于 NVLink 4.0 的 900 GB/s. Offloading 到 NVMe 必须穿过 PCIe, 带宽不够时延成瓶颈 — FlexGen<a class="cite" data-num="7" href="#ref-7"></a> 论文实测 PCIe 3.0 时延增加 30ms<a class="cite" data-num="7" href="#ref-7"></a>.</li>
-<li><b>NUMA 跨 socket 惩罚</b>: 多 socket 服务器上, 跨 socket 内存访问延迟 80-120 ns (本地 30-40 ns), 带宽 1.5-2x 损失. 这就是为什么分布式推理 <i>优先</i> 单 socket 多 GPU 而不是跨 socket.</li>
+<li><b><span class="gloss" data-tip="PCIe: 外设组件互连, 5.0 ×16 = 128 GB/s 双向, 比 NVLink 慢 7×. KV 跨 CPU 通信瓶颈点.">PCIe</span> 5.0 瓶颈</b>: PCIe 5.0 ×16 lane = 128 GB/s 双向, 远低于 NVLink 4.0 的 900 GB/s. Offloading 到 NVMe 必须穿过 PCIe, 带宽不够时延成瓶颈 — FlexGen<a class="cite" data-num="7" href="#ref-7"></a> 论文实测 PCIe 3.0 时延增加 30ms<a class="cite" data-num="7" href="#ref-7"></a>.</li>
+<li><b><span class="gloss" data-tip="NUMA: 非一致内存访问, 多 CPU 服务器上跨 socket 内存访问延迟 80-120 ns (本地 30-40 ns). 跨 socket 带宽 1.5-2× 损失.">NUMA</span> 跨 socket 惩罚</b>: 多 socket 服务器上, 跨 socket 内存访问延迟 80-120 ns (本地 30-40 ns), 带宽 1.5-2x 损失. 这就是为什么分布式推理 <i>优先</i> 单 socket 多 GPU 而不是跨 socket.</li>
 </ol>
 
 <div class="insight-box">
@@ -563,8 +700,8 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 <p>一个警局需要审讯 100 个嫌疑人. 三种警力配置:</p>
 <ul>
 <li><b>MHA (Multi-Head Attention)</b>: <b>100 个独立审讯室</b>, 每个审讯室都有自己独立的录像带. 占用大量空间.</li>
-<li><b>MQA (Multi-Query)</b>: <b>1 个审讯室</b>, 100 个嫌疑人都来这一个房间审讯. 录像带只有一份. 空间节省 99%, 但嫌疑人之间可能"互相干扰".</li>
-<li><b>GQA (Grouped-Query)</b>: <b>8 个分组审讯室</b>, 每个房间负责 12-13 个嫌疑人. 平衡方案.</li>
+<li><b><span class="gloss" data-tip="MQA: 所有 Q 头共享同一个 K/V 头, 8× 压缩 KV. 2019 年 Google 提出, 用在 PaLM/Falcon/Gemma. 缺点是质量略降, 后被 GQA 取代.">MQA (Multi-Query)</span></b>: <b>1 个审讯室</b>, 100 个嫌疑人都来这一个房间审讯. 录像带只有一份. 空间节省 99%, 但嫌疑人之间可能"互相干扰".</li>
+<li><b><span class="gloss" data-tip="GQA: 把 Q 头分组, 每组共享 1 个 K/V 头. Llama-2/3, Mistral, Qwen-2 默认用 GQA-8. 是 2024 工业标准.">GQA (Grouped-Query)</span></b>: <b>8 个分组审讯室</b>, 每个房间负责 12-13 个嫌疑人. 平衡方案.</li>
 <li><b>MLA (Multi-head Latent Attention)</b>: <b>不是减少审讯室, 而是用高强度压缩录像带</b>. 每个嫌疑人只录 512 维的关键特征, 而不是 4096 维的完整录像. 事后需要时再解压. <b>DeepSeek-V3 实际做到 ~98% 压缩</b>.</li>
 </ul>
 </div>
@@ -580,12 +717,12 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 <tr><td><b>MQA</b> (Multi-Query)</td><td>2019</td><td>所有 Q 头共享 <b>1 个</b> K, V</td><td><b>1/H ×</b> (Llama-2 70B 是 8×)</td><td>PaLM, Falcon, Gemma</td><td><a href="https://arxiv.org/abs/1911.02150" target="_blank">arXiv 1911.02150</a></td></tr>
 <tr><td><b>GQA</b> (Grouped-Query)</td><td>2023</td><td>分组共享 K, V (典型 g=8)</td><td><b>H/g ×</b></td><td>Llama-2/3, Mistral, Qwen-2</td><td><a href="https://arxiv.org/abs/2305.13245" target="_blank">arXiv 2305.13245</a></td></tr>
 <tr><td><b>MLA</b> (Multi-head Latent)</td><td>2024-2025</td><td>K, V 通过低秩投影到 <b>latent 向量</b></td><td><b>~98.2% ↓</b> (576 vs 32768 dim = 128 头 × 256)</td><td><b>DeepSeek-V2/V3/V3.1</b></td><td><a href="https://arxiv.org/abs/2405.04434" target="_blank">arXiv 2405.04434</a></td></tr>
-<tr><td><b>Diff GQA</b> (差分 GQA)</td><td>2025-05</td><td>相邻层 K, V 共享 — 减 50% KV, 几乎无损</td><td><b>~50% ↓</b></td><td><b>Qwen3-Next</b></td><td><a href="https://arxiv.org/abs/2505.09388" target="_blank">arXiv 2505.09388</a></td></tr>
+<tr><td><b><span class="gloss" data-tip="Diff GQA (差分 GQA): 相邻 Transformer 层共享 K, V 投影, 减半 KV 容量几乎无损. 2025-05 Qwen3-Next 首创.">Diff GQA</span></b> (差分 GQA)</td><td>2025-05</td><td>相邻层 K, V 共享 — 减 50% KV, 几乎无损</td><td><b>~50% ↓</b></td><td><b>Qwen3-Next</b></td><td><a href="https://arxiv.org/abs/2505.09388" target="_blank">arXiv 2505.09388</a></td></tr>
 <tr><td><b>GDN</b> (Gated DeltaNet)</td><td>2025-05</td><td>Delta Rule + Gating — 线性 O(n), 内置 KV 压缩</td><td><b>~90% ↓</b> vs MHA</td><td><b>Qwen3-Next-80B-A3B</b></td><td><a href="https://arxiv.org/abs/2505.09388" target="_blank">arXiv 2505.09388</a></td></tr>
 <tr><td><b>DSA</b> (DeepSeek Sparse Attn)</td><td><b>2025-12</b></td><td>Lightning indexer + top-k 选择 — O(L·k), 与 MLA 协同</td><td><b>~5-10× ↓</b> (64k+)</td><td><b>DeepSeek-V3.2-Exp</b></td><td><a href="https://arxiv.org/abs/2512.02556" target="_blank">arXiv 2512.02556</a></td></tr>
 <tr><td><b>MoH</b> (Mixture of Heads)</td><td>2024-2025</td><td>动态选择 top-K 头参与 attention</td><td>~50% ↓</td><td>实验阶段</td><td><a href="https://arxiv.org/abs/2410.11842" target="_blank">arXiv 2410.11842</a></td></tr>
-<tr><td><b>MoE-GQA</b> (Grok-2/3)</td><td>2024-2025</td><td>MoE 路由 + 8 组 GQA, 副 KV cache (xAI 未发表正式论文, 配置见 InferenceBench)</td><td>~30% ↓</td><td><b>Grok-2/3</b> (xAI)</td><td><a href="https://inferencebench.io/models/xai/grok-2/" target="_blank">InferenceBench</a></td></tr>
-<tr><td><b>GLaM / MoA</b></td><td>2022-2024</td><td>用 MoE 路由选 attention 头</td><td>~70% ↓</td><td>GLaM (Google)</td><td><a href="https://arxiv.org/abs/2112.06905" target="_blank">arXiv 2112.06905</a></td></tr>
+<tr><td><b><span class="gloss" data-tip="MoE-GQA: MoE 路由 + 8 组 GQA, 副 KV cache. xAI <span class="gloss" data-tip="Grok-2/3: xAI 模型, 用 MoE-GQA (MoE 路由 + 8 组 GQA), 副 KV cache 设计.">Grok-2/3</span> 使用, xAI 未发表正式论文.">MoE-GQA</span></b> (Grok-2/3)</td><td>2024-2025</td><td>MoE 路由 + 8 组 GQA, 副 KV cache (xAI 未发表正式论文, 配置见 InferenceBench)</td><td>~30% ↓</td><td><b>Grok-2/3</b> (xAI)</td><td><a href="https://inferencebench.io/models/xai/grok-2/" target="_blank">InferenceBench</a></td></tr>
+<tr><td><b><span class="gloss" data-tip="GLaM: Google 2022, MoE 路由选 attention 头, 1.2T 总参/96.6B 激活.">GLaM</span> / MoA</b></td><td>2022-2024</td><td>用 MoE 路由选 attention 头</td><td>~70% ↓</td><td>GLaM (Google)</td><td><a href="https://arxiv.org/abs/2112.06905" target="_blank">arXiv 2112.06905</a></td></tr>
 </tbody>
 </table>
 
@@ -662,9 +799,9 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 <tr><td><b>H₂O</b> (Heavy-Hitter Oracle)</td><td>2023</td><td><b>累积 attention score</b> — 每个 token 跟踪它被关注的总分数, 低分 token 被淘汰, 高分 (heavy hitter) 永远保留. 假设 20% token 占 80% attention</td><td>20-40% ↓</td><td>Zhang et al. 2023</td><td><a href="https://arxiv.org/abs/2306.14048" target="_blank">arXiv 2306.14048</a></td></tr>
 <tr><td><b>Scissorhands</b></td><td>2023</td><td><b>Persistent Importance 假设</b> — 一旦某 token 被关注超阈值, 它之后会持续重要 (类似 attention sink), 找出这个 persistent 子集保留, 其余剪掉</td><td>30-50% ↓</td><td>Del Corro et al.</td><td><a href="https://arxiv.org/abs/2305.17118" target="_blank">arXiv 2305.17118</a></td></tr>
 <tr><td><b>PyramidKV</b></td><td>2024</td><td><b>层宽 budget 倒金字塔</b> — 浅层 (输入侧) 给更多 KV slot, 深层 (输出侧) 少 (因深层已抽象, 不需要长上下文), 配合 query-aware 选 token</td><td>40-60% ↓</td><td>Yang et al.</td><td><a href="https://arxiv.org/abs/2406.02069" target="_blank">arXiv 2406.02069</a></td></tr>
-<tr><td><b>SnapKV</b></td><td>2024</td><td><b>观察窗 + 聚类</b> — 取 prompt 末尾的 observation window 内的 attention 分布, 聚类选 cluster 中心作为 KV 保留, 假设 prompt 头部与尾部最重要</td><td>40-60% ↓</td><td>Li et al.</td><td><a href="https://arxiv.org/abs/2407.01028" target="_blank">arXiv 2407.01028</a></td></tr>
+<tr><td><b><span class="gloss" data-tip="SnapKV: 用 prompt 末尾观察窗聚类选 cluster 中心 KV 保留, 假设头尾最重要. arXiv 2407.01028.">SnapKV</span></b></td><td>2024</td><td><b>观察窗 + 聚类</b> — 取 prompt 末尾的 observation window 内的 attention 分布, 聚类选 cluster 中心作为 KV 保留, 假设 prompt 头部与尾部最重要</td><td>40-60% ↓</td><td>Li et al.</td><td><a href="https://arxiv.org/abs/2407.01028" target="_blank">arXiv 2407.01028</a></td></tr>
 <tr><td><b>StreamingLLM</b></td><td>2024-2025</td><td>滑动窗口 + attention sinks (前 4 tokens)</td><td>无界长文本</td><td>Xiao et al.</td><td><a href="https://arxiv.org/abs/2309.17453" target="_blank">arXiv 2309.17453</a></td></tr>
-<tr><td><b>Ada-KV</b></td><td><b>2024-07</b></td><td>头级自适应预算 — 理论 loss 上界, plug-and-play</td><td>40-60% ↓</td><td>Feng et al.</td><td><a href="https://arxiv.org/abs/2407.11550" target="_blank">arXiv 2407.11550</a></td></tr>
+<tr><td><b><span class="gloss" data-tip="Ada-KV: 头级自适应预算, 理论 loss 上界保证, plug-and-play. arXiv 2407.11550.">Ada-KV</span></b></td><td><b>2024-07</b></td><td>头级自适应预算 — 理论 loss 上界, plug-and-play</td><td>40-60% ↓</td><td>Feng et al.</td><td><a href="https://arxiv.org/abs/2407.11550" target="_blank">arXiv 2407.11550</a></td></tr>
 <tr><td><b>CAKE</b></td><td>2025</td><td>层宽体窄 — 跨层共享 budget, 集群级调度</td><td>~70% ↓</td><td>Microsoft</td><td><a href="https://arxiv.org/abs/2501.15543" target="_blank">arXiv 2501.15543</a></td></tr>
 <tr><td><b>K-VEC</b></td><td>2025</td><td>Coverage-Driven — 头/层联合覆盖, 防 evict 集中</td><td>~50% ↓</td><td>覆盖驱动</td><td><a href="https://arxiv.org/abs/2606.29563" target="_blank">arXiv 2606.29563</a></td></tr>
 <tr><td><b>LAVa</b></td><td>2025-11</td><td>层宽动态 budget + Sliding Window, EMNLP 2025</td><td>~50% ↓</td><td>EMNLP 2025 Findings</td><td><a href="https://aclanthology.org/2025.findings-emnlp.737/" target="_blank">EMNLP 2025</a></td></tr>
@@ -686,7 +823,7 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 <tr><td><b>CacheGen</b></td><td>2024</td><td><b>tensor compression + delta coding</b> — 把 KV tensor 当图像, 用 autoencoder 编码为 bitstream, 接收方解码, 适配跨 WAN 传输, 带宽敏感场景下 3.5-4.3× 加速</td><td>3.5-4.3×</td><td>HKUST</td><td><a href="https://arxiv.org/abs/2310.07240" target="_blank">arXiv 2310.07240</a></td></tr>
 <tr><td><b>Prompt Cache</b></td><td>2023</td><td><b>外部 KV 存储 + 重新加载</b> — DeepMind 把长 prompt KV 序列化存 SSD/DRAM, 新会话加载复用, 训练时即学会选择性重算, 适合 agent 多轮场景</td><td>~7×</td><td>DeepMind</td><td><a href="https://arxiv.org/abs/2311.04934" target="_blank">arXiv 2311.04934</a></td></tr>
 <tr><td><b>ChunkAttention</b></td><td>2024</td><td><b>Chunk-level 共享 + 并行 attention kernel</b> — 同一 prompt 不同样本共享 chunk KV, 设计专门 CUDA kernel 并行读 shared memory, 比 prefix cache 更细粒度</td><td>~5×</td><td>Tencent</td><td><a href="https://arxiv.org/abs/2402.15220" target="_blank">arXiv 2402.15220</a></td></tr>
-<tr><td><b>CacheBlend</b></td><td><b>2024-05</b> (v1), 续作 2025</td><td>部分重算 + 多数复用, 16× 加速长上下文</td><td><b>~16×</b> 64k+</td><td>MBZUAI</td><td><a href="https://arxiv.org/abs/2405.16444" target="_blank">arXiv 2405.16444</a></td></tr>
+<tr><td><b><span class="gloss" data-tip="CacheBlend: MBZUAI 2025-05, 16× 长上下文压缩, 混合 sparse + dense 验证. arXiv 2505.07533.">CacheBlend</span></b></td><td><b>2024-05</b> (v1), 续作 2025</td><td>部分重算 + 多数复用, 16× 加速长上下文</td><td><b>~16×</b> 64k+</td><td>MBZUAI</td><td><a href="https://arxiv.org/abs/2405.16444" target="_blank">arXiv 2405.16444</a></td></tr>
 <tr><td><b>SGLang HiCache (L3)</b></td><td><b>2025-09</b></td><td>3FS/Mooncake/AIBrix/EIC 跨实例 prefix 池化</td><td>84% TTFT ↓</td><td>SGLang + LMSYS</td><td><a href="https://lmsys.org/blog/2025-09-10-sglang-hicache/" target="_blank">LMSYS blog</a></td></tr>
 <tr><td><b>ContextCache API</b></td><td>2024-2025</td><td>云厂商 (Anthropic/OpenAI) 显式 cache_control, 4× 降价</td><td><b>4× ↓ 成本</b></td><td>Claude/GPT-4o</td><td><a href="https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching" target="_blank">Anthropic Docs</a></td></tr>
 </tbody>
@@ -699,7 +836,7 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 <table class="data-table">
 <thead><tr><th>流派</th><th>年份</th><th>机制</th><th>吞吐量</th><th>代表方案</th><th>来源</th></tr></thead>
 <tbody>
-<tr><td><b>Mooncake</b></td><td>2024-2025</td><td><b>KV-centric disaggregation + Transfer Engine (RDMA) + 预测性 early-rejection</b> — prefill/decode 分离到不同 cluster, 跨 GPU 共享 CPU/DRAM/SSD KV 池, SLO-aware 调度, Kimi 生产 75%↑, 长上下文 525%↑</td><td><b>75% ↑</b> (Kimi)</td><td>Moonshot AI + 清华</td><td><a href="https://arxiv.org/abs/2407.00079" target="_blank">arXiv 2407.00079 v4</a></td></tr>
+<tr><td><b>Mooncake</b></td><td>2024-2025</td><td><b>KV-centric disaggregation + Transfer Engine (<span class="gloss" data-tip="RDMA: 远程直接内存访问, 跨节点 GPU 互联 (InfiniBand/Ethernet). 200 GB/s (HDR IB), 4.5× 慢于 NVLink.">RDMA</span>) + 预测性 early-rejection</b> — prefill/decode 分离到不同 cluster, 跨 GPU 共享 CPU/DRAM/SSD KV 池, SLO-aware 调度, Kimi 生产 75%↑, 长上下文 525%↑</td><td><b>75% ↑</b> (Kimi)</td><td>Moonshot AI + 清华</td><td><a href="https://arxiv.org/abs/2407.00079" target="_blank">arXiv 2407.00079 v4</a></td></tr>
 <tr><td><b>MemServe</b></td><td>2024</td><td><b>集中式 KV memory pool + 弹性调度</b> — 多个 LLM 实例共享内存池, 跨实例 KV 迁移, 上下文感知调度, 清华 + MSRA</td><td>~2-3×</td><td>清华 + MSRA</td><td><a href="https://arxiv.org/abs/2406.17565" target="_blank">arXiv 2406.17565</a></td></tr>
 <tr><td><b>Infinite-LLM</b></td><td>2024</td><td><b>跨节点 KV 分布 + attention 计算分解</b> — 把长序列 attention 切到多节点并行, 每节点负责部分 head/layer, 支持无界上下文, CMU</td><td>~2-4×</td><td>CMU</td><td><a href="https://arxiv.org/abs/2401.02669" target="_blank">arXiv 2401.02669</a></td></tr>
 <tr><td><b>Llumnix</b></td><td>2024-2025</td><td>KV cache 跨实例迁移</td><td>~1.5×</td><td>Alibaba</td><td><a href="https://arxiv.org/abs/2406.03243" target="_blank">arXiv 2406.03243</a></td></tr>
@@ -878,12 +1015,51 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 <div class="insight-box">
 <h4>🌳 §2 [2025-2026 突破] 12 流派的演进与新生</h4>
 <ul>
-<li><b>洞察 9 — 流派数量从 12 → 16+ (2025-2026)</b>: 2024 时 KV 优化主要是 12 流派; 2025-2026 新增 <b>§2.13 综合对比表 16 行</b> (NSA / DSA / Mooncake 2.0 / SGLang HiCache / EAGLE-3 / Ada-KV / SageAttention / CacheBlend / XAttention / Twilight / ShadowKV / RetrievalAttention / MoBA / MiniCache / FreeKV / KVTC) — 新流派全部围绕"<b>超长上下文 + 集群共享 + 投机 + 稀疏</b>"四个方向.</li>
+<li><b>洞察 9 — 流派数量从 12 → 16+ (2025-2026)</b>: 2024 时 KV 优化主要是 12 流派; 2025-2026 新增 <b>§2.13 综合对比表 16 行</b> (NSA / DSA / Mooncake 2.0 / SGLang HiCache / EAGLE-3 / Ada-KV / <span class="gloss" data-tip="SageAttention: INT8 量化 + 稀疏融合, 2025 SOTA 长文方案. SCBench 基准 SOTA.">SageAttention</span> / CacheBlend / XAttention / Twilight / ShadowKV / RetrievalAttention / MoBA / MiniCache / FreeKV / KVTC) — 新流派全部围绕"<b>超长上下文 + 集群共享 + 投机 + 稀疏</b>"四个方向.</li>
 <li><b>洞察 10 — 三大旗舰框架 2026 全部开源</b>: PagedAttention (vLLM, 2023) → RadixAttention (SGLang, 2024) → Mooncake (Moonshot, 2024-2025, <b>FAST 2025 Best Paper</b>). <b>从 0 商业闭源到 3 大开源框架 3 年走完</b>, 2026 任何团队都能白嫖 SOTA 推理.</li>
 <li><b>洞察 11 — "硬件原生"成新流派判定标准</b>: 2024 优化只看"软件算法", 2025-2026 <b>必须硬件对齐</b> (FA-4 Tensor Core 5 代 / NVFP4 B200 / FlashMLA MLA 专属内核 / SageAttention INT8). 不写硬件对齐 = 进不了 SOTA.</li>
 </ul>
 </div>
 </section>
+
+<h3 id="sec2-14">2.14 [2026+ 后流派] 2026 年后出现的 8 大新方向 + 缺 2026 的洞察</h3>
+
+<p>前面 12 流派 (2.1-2.12) 覆盖到 2024-2025. 但 <b>2026 年才是 KV Cache 优化真正爆发的一年</b> — 一系列新流派涌现, 解决前代方案的死结. 这一节是 2026 重点 (用户要求"重点关注 2026 以后的技术").</p>
+
+<table class="data-table">
+<thead><tr><th>流派</th><th>发布时间</th><th>核心机制</th><th>压缩/加速</th><th>代表方案</th><th>来源</th></tr></thead>
+<tbody>
+<tr><td><b>DSA</b> (DeepSeek Sparse Attn)</td><td><b>2025-12</b></td><td><b>Lightning indexer + top-k</b> — 用小 indexer 预筛哪些 compressed KV 重要, query 只 attend top-k 个 block, O(L·k) 而非 O(L²)</td><td><b>~5-10× ↓</b> (64k+)</td><td>DeepSeek-V3.2-Exp</td><td><a href="https://arxiv.org/abs/2512.02556" target="_blank">arXiv 2512.02556</a></td></tr>
+<tr><td><b>CSA + HCA</b> (V4 极限压缩)</td><td><b>2026-04</b></td><td><b>每 m=4 / m'=128 token 压缩成 1 entry</b> + DSA 稀疏 + sliding window; V4-Pro 1.6T 模型 1M ctx 仅 10% V3.2 KV</td><td><b>~10× ↓</b> (1M ctx)</td><td>DeepSeek-V4-Pro/Flash</td><td><a href="https://arxiv.org/abs/2606.19348" target="_blank">arXiv 2606.19348</a></td></tr>
+<tr><td><b>YOCO</b> (Decoder-Decoder)</td><td>2024-05 (2026 普及)</td><td><b>Self-decoder 编码全局 KV 一次, cross-decoder 跨 L 层复用</b> — KV 总量 O(N) 而非 O(NL), 30.3× GPU 内存节省</td><td><b>~L× ↓</b></td><td>YOCO (Microsoft 2024, 2026 大量部署)</td><td><a href="https://arxiv.org/abs/2405.05254" target="_blank">arXiv 2405.05254</a></td></tr>
+<tr><td><b>CLA</b> (Cross-Layer Attention)</td><td>2024-05 (2026 落地)</td><td><b>相邻层共享 KV 投影</b> — CLA2 每 2 层共用一个 KV, 1B-3B 模型 perplexity 几乎不变</td><td><b>~2× ↓</b></td><td>Brandon et al. (NeurIPS 2024)</td><td><a href="https://arxiv.org/abs/2405.12981" target="_blank">arXiv 2405.12981</a></td></tr>
+<tr><td><b>Dustin</b> (Draft-Sparse Verify)</td><td><b>2026-06</b></td><td><b>Draft-Augmented Sparse Verification</b> — 投机 + 稀疏融合, 9.17× 72B @ 32k, 27.85× self-attn</td><td><b>~9×</b></td><td>Lee et al. (ICML 2026)</td><td><a href="https://arxiv.org/abs/2606.24957" target="_blank">arXiv 2606.24957</a></td></tr>
+<tr><td><b>SpecSA</b> (Sparse Speculative)</td><td><b>2026-05</b></td><td><b>Sparse Speculative Verification</b> — 投机 + 稀疏融合, 3.49× 端到端加速</td><td><b>~3.5×</b></td><td>Wang et al. (EuroSys'27)</td><td><a href="https://arxiv.org/abs/2605.19893" target="_blank">arXiv 2605.19893</a></td></tr>
+<tr><td><b>Engram</b> (Conditional Memory)</td><td><b>2026-01</b></td><td><b>Modernized N-gram 查表</b> — 静态知识存 CPU 查表, GPU 专注推理, 解耦 memory/compute</td><td><b>~3-5×</b> 推理</td><td>DeepSeek-AI Engram</td><td><a href="https://arxiv.org/abs/2601.07372" target="_blank">arXiv 2601.07372</a></td></tr>
+<tr><td><b>HiCache</b> (SGLang)</td><td><b>2026-Q1</b></td><td><b>多层 KV cache (GPU HBM + CPU DRAM + Disk)</b> — Prefix KV 跨实例共享, 命中率 60-80%</td><td><b>3-5× 吞吐</b></td><td>SGLang HiCache</td><td><a href="https://github.com/sgl-project/sglang" target="_blank">SGLang GitHub</a></td></tr>
+</tbody>
+</table>
+
+<div class="callout callout-warn">
+<b>🔍 缺 2026 进展的洞察</b> — 12 大流派中, 哪些 2026 年进展慢? 为什么?
+<ul>
+<li><b>量化 (§2.4)</b>: 2026 进展是 <b>FP4/NVFP4 硬件原生</b> (B200 1.5×), 但 <b>KV 1-bit/0.5-bit</b> 仍是实验性 — 原因是 KV 量化需保留 outlier, 太激进会失忆. <b>2026 SOTA 是 FP8 (稳定) + INT4 (V3 默认) + 2-bit 实验</b>.</li>
+<li><b>分层 Offloading (§2.3)</b>: 2026 进展慢 — 因 HBM4 (12 TB/s) + 288 GB HBM3e 已把大部分 KV 装进显存, <b>offload 只剩 64k+ 极端长文场景</b>. 商业部署基本不需要 offload.</li>
+<li><b>卷积压缩缓存 (§2.10)</b>: 2026 进展慢 — 因 SSM 已是更优替代 (Mamba 固定状态), 没人再写卷积压缩. <b>已被 Mamba-3 取代</b>.</li>
+<li><b>RAG-as-KV (§2.11)</b>: 2026 进展是 <b>Engram 替代</b> — 同样思路 (把知识从 KV 移到外部存储) 但更高效 (CPU 查表 vs 外部向量库).</li>
+<li><b>自适应预算 (§2.12)</b>: 2026 进展是 <b>Ada-KV → SGLang HiCache</b> 集成, 但单层研究已饱和, 焦点转向集群级调度.</li>
+</ul>
+</div>
+
+<div class="callout callout-success">
+<b>🎯 2026 KV Cache 三大趋势</b>:
+<ol>
+<li><b>压缩-稀疏-量化三位一体</b>: V4 同时用 CSA+HCA+DSA+Sliding Window, 1M ctx 仅 10% V3 KV. 单一技术已达极限, 必须组合.</li>
+<li><b>跨层共享</b>: CLA + YOCO 让 KV 总量从 O(NL) 降到 O(N) 或 O(N/L), 这是 2026 唯一能改变 L 维度的方案.</li>
+<li><b>解耦 memory/compute</b>: Engram + HiCache 把"记忆"从 GPU 搬到 CPU/Disk, GPU 只做"推理" — 这是 2026 最重要范式转移.</li>
+</ol>
+</div>
+
 
 <!-- ========== §3 破局者 ========== -->
 <section id="sec3">
@@ -893,7 +1069,7 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 
 <h3 id="sec3-1">3.1 SSM 家族 (Mamba-1/2/3) — SSD 对偶性</h3>
 <details class="dex">
-<summary>📌 Mamba-2 SSD 对偶性 — 史上最优雅的"两类数学是同一种东西"</summary>
+<summary>📌 <span class="gloss" data-tip="Mamba-2: SSD 对偶性 — SSM 与 Attention 在数学上是同一类矩阵, 8× 训练加速. 2024-05.">Mamba-2</span> SSD 对偶性 — 史上最优雅的"两类数学是同一种东西"</summary>
 <div class="dex-body">
 <p>2024 年 Tri Dao 和 Albert Gu 发现了一个惊人的事实: <b>SSM 和 Attention 在数学上是一对偶</b> — 它们都是<b>半可分矩阵</b> (semiseparable matrix) 的实例.</p>
 <p>这就像发现"正弦波和余弦波其实是同一个圆上不同角度的点" — 数学结构上是同一个东西.</p>
@@ -907,7 +1083,7 @@ pre code{background:none;border:none;padding:0;color:var(--text)}
 </details>
 
 
-<p><b class="gloss" tabindex="0" data-tip="SSM (State Space Model): 经典控制论模型 h'(t) = Ah(t) + Bx(t), y(t) = Ch(t). 在序列建模中, A 是状态转移矩阵, B/C 是输入/输出投影. Mamba 让 A/B/C 输入依赖, 实现选择性记忆.">SSM</b> 用固定大小的状态矩阵 <code>h_t = A h_{t-1} + B x_t</code> 代替 attention, 复杂度 O(N) 而非 O(N²), 状态大小 O(1) 而非 O(N).</p>
+<p><b class="gloss" tabindex="0" data-tip="<span class="gloss" data-tip="SSM: 经典控制论模型 h'(t) = Ah(t) + Bx(t). Mamba 让 A/B/C 输入依赖, 实现选择性记忆, 固定 O(1) 状态.">SSM (State Space Model)</span>: 经典控制论模型 h'(t) = Ah(t) + Bx(t), y(t) = Ch(t). 在序列建模中, A 是状态转移矩阵, B/C 是输入/输出投影. Mamba 让 A/B/C 输入依赖, 实现选择性记忆.">SSM</b> 用固定大小的状态矩阵 <code>h_t = A h_{t-1} + B x_t</code> 代替 attention, 复杂度 O(N) 而非 O(N²), 状态大小 O(1) 而非 O(N).</p>
 
 <table class="data-table">
 <thead><tr><th>版本</th><th>年份</th><th>核心创新</th><th>训练速度</th><th>记忆</th><th>来源</th></tr></thead>
@@ -960,7 +1136,7 @@ Linear Attn: y = φ(Q) · (φ(K)<sup>T</sup> · V), 复杂度 = <span class="con
 <thead><tr><th>模型</th><th>厂商</th><th>年份</th><th>结构 (Mamba:Attn)</th><th>上下文</th><th>关键特性</th><th>来源</th></tr></thead>
 <tbody>
 <tr><td><b>Jamba</b></td><td>AI21</td><td>2024-03</td><td>1:7 Mamba:Attn + MoE</td><td>256K</td><td>52B/12B 激活</td><td><a href="https://arxiv.org/abs/2403.19887" target="_blank">arXiv 2403.19887</a></td></tr>
-<tr><td><b>Jamba-1.5 Large<a class="cite" data-num="60" href="#ref-60"></a></b></td><td>AI21</td><td>2024-08</td><td>1:7 + MoE</td><td>256K</td><td><b>398B/94B</b> 激活</td><td><a href="https://arxiv.org/abs/2408.12570" target="_blank">arXiv 2408.12570</a></td></tr>
+<tr><td><b><span class="gloss" data-tip="Jamba-1.5 Large: 2024-08, 398B/94B 激活, 8×80GB GPU 跑 256K ctx, ExpertsInt8 量化. 售价 $2/$8 per 1M.">Jamba-1.5</span> Large<a class="cite" data-num="60" href="#ref-60"></a></b></td><td>AI21</td><td>2024-08</td><td>1:7 + MoE</td><td>256K</td><td><b>398B/94B</b> 激活</td><td><a href="https://arxiv.org/abs/2408.12570" target="_blank">arXiv 2408.12570</a></td></tr>
 <tr><td><b>Jamba 2 Mini</b></td><td>AI21</td><td>2026-01</td><td>1:7 + MoE</td><td>256K</td><td>52B/12B v2</td><td><a href="https://docs.ai21.com/docs/jamba-foundation-models" target="_blank">AI21 Docs</a></td></tr>
 <tr><td><b>Bamba</b></td><td>IBM</td><td>2024</td><td>Mamba + Attn 混合</td><td>~32K</td><td>实验模型</td><td><a href="https://huggingface.co/ibm/Bamba" target="_blank">HF Bamba</a></td></tr>
 <tr><td><b>RecurrentGemma</b></td><td>Google</td><td>2024</td><td>Griffin (RNN + Local Attn)</td><td>~8K</td><td>线性复杂度</td><td><a href="https://arxiv.org/abs/2402.19427" target="_blank">arXiv 2402.19427</a></td></tr>
@@ -1133,7 +1309,7 @@ Linear Attn: y = φ(Q) · (φ(K)<sup>T</sup> · V), 复杂度 = <span class="con
 <h3 id="sec4-1">4.1 6 大推理引擎横向 benchmark</h3>
 
 <table class="data-table">
-<thead><tr><th>引擎</th><th>KV 优化核心</th><th>Llama-3-70B H100 吞吐</th><th>TTFT</th><th>TPOT</th><th>GitHub</th></tr></thead>
+<thead><tr><th>引擎</th><th>KV 优化核心</th><th>Llama-3-70B H100 吞吐</th><th>TTFT</th><th><span class="gloss" data-tip="TPOT (Time Per Output Token): 之后每个 token 间隔, 衡量 decode 速度. 理想 <50ms (流式对话).">TPOT</span></th><th>GitHub</th></tr></thead>
 <tbody>
 <tr><td><b>vLLM</b> (Berkeley + Red Hat, PyTorch 基金会)</td><td><b>V1 (2025-01-27)</b> — 1.7× 加速 + zero-overhead prefix cache 默认 + Marlin INT4 kernel + 集成 Mooncake Store (2026-05) + V0 KV swap 已弃用</td><td>~2200 tok/s @ 64 并发 (V1)</td><td>~200 ms</td><td>~70 ms</td><td><a href="https://github.com/vllm-project/vllm" target="_blank">vllm-project/vllm</a></td></tr>
 <tr><td><b>SGLang</b> (LMSYS, PyTorch 生态)</td><td><b>HiCache (2025-09-10)</b> 3-tier (GPU HBM + Host DRAM + 3FS/Mooncake/AIBrix/NIXL) + RadixAttention + XGrammar 结构化生成</td><td>~2800 tok/s (HiCache + Mooncake)</td><td>~120 ms (cache hit, ↓84%)</td><td>~55 ms</td><td><a href="https://github.com/sgl-project/sglang" target="_blank">sgl-project/sglang</a></td></tr>
@@ -1484,20 +1660,20 @@ PD 分离 + prefix cache + FP8 KV 已是 2026 工业默认. Mooncake 已在 vLLM
 <p>本章列出本文涉及的 12 张可视化. 完整 SVG 源码嵌入在前文各 section.</p>
 
 <table class="data-table">
-<thead><tr><th>#</th><th>类型</th><th>主题</th><th>位置</th></tr></thead>
+<thead><tr><th>#</th><th>类型</th><th>主题</th><th>位置 (点击跳转)</th></tr></thead>
 <tbody>
-<tr><td>1</td><td>表格</td><td>A100/H100/H200/B200/MI300X 带宽对比</td><td>§1.2</td></tr>
-<tr><td>2</td><td>CSS 动画</td><td>KV Cache 显存随上下文增长 (4K→128K)</td><td>§1.4</td></tr>
-<tr><td>3</td><td>表格</td><td>12 个优化流派横向对比 (压缩比/吞吐/质量)</td><td>§2.1-§2.12</td></tr>
-<tr><td>4</td><td>CSS 动画</td><td>MHA→MQA→GQA→MLA 头数变化</td><td>§2.1</td></tr>
-<tr><td>5</td><td>表格</td><td>SSM/线性/混合 12 模型对比</td><td>§3.1-§3.3</td></tr>
-<tr><td>6</td><td>表格</td><td>NIAH 1M 准确率 SSM vs Transformer</td><td>§3.5</td></tr>
-<tr><td>7</td><td>表格</td><td>6 推理引擎横向 benchmark</td><td>§4.1</td></tr>
-<tr><td>8</td><td>表格</td><td>8 款 GPU/AI 芯片对比</td><td>§4.2</td></tr>
-<tr><td>9</td><td>表格</td><td>5 家云厂商 Context Caching 定价</td><td>§4.3</td></tr>
-<tr><td>10</td><td>表格</td><td>PagedAttention vs RadixAttention</td><td>§4.4</td></tr>
-<tr><td>11</td><td>CSS 动画</td><td>上下文长度 4K→1M 的吞吐下降</td><td>§4.5</td></tr>
-<tr><td>12</td><td>表格</td><td>2026 学术界 5 大新趋势</td><td>§6</td></tr>
+<tr><td>1</td><td>表格</td><td>A100/H100/H200/B200/MI300X 带宽对比</td><td><a href="#sec1-2" class="jump-link">→ §1.2</a></td></tr>
+<tr><td>2</td><td>CSS 动画</td><td>KV Cache 显存随上下文增长 (4K→128K)</td><td><a href="#sec1-4" class="jump-link">→ §1.4</a></td></tr>
+<tr><td>3</td><td>表格</td><td>12 个优化流派横向对比 (压缩比/吞吐/质量)</td><td><a href="#sec2-1" class="jump-link">→ §2.1</a> / <a href="#sec2-12" class="jump-link">§2.12</a></td></tr>
+<tr><td>4</td><td>CSS 动画</td><td>MHA→MQA→GQA→MLA 头数变化</td><td><a href="#sec2-1" class="jump-link">→ §2.1</a></td></tr>
+<tr><td>5</td><td>表格</td><td>SSM/线性/混合 12 模型对比</td><td><a href="#sec3-1" class="jump-link">→ §3.1</a> / <a href="#sec3-3" class="jump-link">§3.3</a></td></tr>
+<tr><td>6</td><td>表格</td><td>NIAH 1M 准确率 SSM vs Transformer</td><td><a href="#sec3-5" class="jump-link">→ §3.5</a></td></tr>
+<tr><td>7</td><td>表格</td><td>6 推理引擎横向 benchmark</td><td><a href="#sec4-1" class="jump-link">→ §4.1</a></td></tr>
+<tr><td>8</td><td>表格</td><td>8 款 GPU/AI 芯片对比</td><td><a href="#sec4-2" class="jump-link">→ §4.2</a></td></tr>
+<tr><td>9</td><td>表格</td><td>5 家云厂商 Context Caching 定价</td><td><a href="#sec4-3" class="jump-link">→ §4.3</a></td></tr>
+<tr><td>10</td><td>表格</td><td>PagedAttention vs RadixAttention</td><td><a href="#sec4-4" class="jump-link">→ §4.4</a></td></tr>
+<tr><td>11</td><td>CSS 动画</td><td>上下文长度 4K→1M 的吞吐下降</td><td><a href="#sec4-5" class="jump-link">→ §4.5</a></td></tr>
+<tr><td>12</td><td>表格</td><td>2026 学术界 5 大新趋势</td><td><a href="#sec6" class="jump-link">→ §6</a></td></tr>
 </tbody>
 </table>
 
@@ -1507,7 +1683,7 @@ PD 分离 + prefix cache + FP8 KV 已是 2026 工业默认. Mooncake 已在 vLLM
 .fl-h{stroke:#3a4a6b;stroke-width:1.5;fill:#1c2440;rx:6}
 .fl-t{font:bold 12px sans-serif;fill:#7eb6ff;text-anchor:middle}
 .fl-s{font:10px sans-serif;fill:#aab2cf;text-anchor:middle}
-.fl-arrow{stroke:#7eb6ff;stroke-width:1.5;fill:none;marker-end:url(#arr)}
+.fl-arrow{stroke:#7eb6ff;stroke-width:1.5;fill:none;stroke-dasharray:6 4;animation:dataFlow 1.5s linear infinite;marker-end:url(#arr)}
 .fl-arrow-fast{stroke:#10b981;stroke-width:2;fill:none;marker-end:url(#arr-fast)}
 @keyframes flow{0%{opacity:.2;offset-distance:0%}50%{opacity:1}100%{opacity:.2;offset-distance:100%}}
 .fl-dot{fill:#7eb6ff}
@@ -1516,6 +1692,9 @@ PD 分离 + prefix cache + FP8 KV 已是 2026 工业默认. Mooncake 已在 vLLM
 <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><polygon points="0,0 10,5 0,10" fill="#7eb6ff"/></marker>
 <marker id="arr-fast" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><polygon points="0,0 10,5 0,10" fill="#10b981"/></marker>
 </defs>
+<!-- 动画数据流脉动点 -->
+<circle cx="250" cy="110" r="4" fill="#7eb6ff" class="pulse-dot"/>
+<circle cx="510" cy="110" r="4" fill="#10b981" class="pulse-dot"/>
 <text x="440" y="22" fill="#7eb6ff" font-size="14" font-weight="700" text-anchor="middle">FlashAttention: O(n²) HBM 访问 → O(n) HBM 访问</text>
 
 <!-- 标准 Attention -->
@@ -1657,6 +1836,7 @@ PD 分离 + prefix cache + FP8 KV 已是 2026 工业默认. Mooncake 已在 vLLM
 <text x="770" y="78" class="tl-year">2026-03</text>
 <text x="770" y="93" class="tl-name">Mamba-3</text>
 <text x="770" y="108" class="tl-desc">10x 加速</text>
+<circle cx="770" cy="135" r="8" fill="none" stroke="#ef4444" stroke-width="1.5" class="pulse-dot"/>
 
 <!-- 2026 NSA -->
 <rect x="730" y="160" width="80" height="55" class="tl-event" style="stroke:#f59e0b"/>
@@ -1906,7 +2086,7 @@ TTFT = Time To First Token (用户发完 prompt 到看到第一个 token 的等�
 
 <p>把 Step 1-7 串成一条因果链. <b>拖动下方滑块</b>, 实时看从用户感知 (TTFT/TPOT) 到硬件 (HBM/NVLink/RDMA) 每一层的数字变化:</p>
 
-<svg viewBox="0 0 900 580" xmlns="http://www.w3.org/2000/svg" style="max-width:100%;height:auto;background:linear-gradient(135deg,#fafafa 0%,#f0f4ff 100%);border-radius:12px;margin:16px 0">
+<svg viewBox="0 0 900 580" xmlns="http://www.w3.org/2000/svg" style="max-width:100%;height:auto;background:linear-gradient(135deg,#1c2440 0%,#2a3554 100%);border-radius:12px;margin:16px 0">
   <defs>
     <linearGradient id="gradUser" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#10b981"/>
@@ -1929,7 +2109,7 @@ TTFT = Time To First Token (用户发完 prompt 到看到第一个 token 的等�
       <stop offset="100%" stop-color="#b91c1c"/>
     </linearGradient>
     <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
-      <path d="M0,0 L10,5 L0,10 z" fill="#374151"/>
+      <path d="M0,0 L10,5 L0,10 z" fill="#aab2cf"/>
     </marker>
   </defs>
   
@@ -1964,23 +2144,23 @@ TTFT = Time To First Token (用户发完 prompt 到看到第一个 token 的等�
   <text x="450" y="562" text-anchor="middle" fill="white" font-size="14" font-weight="700">🔴 第 5 层: 存储 (DRAM / NVMe) — Offload 慢 73×</text>
 </svg>
 
-<div style="background:#fafafa;padding:18px;border-radius:10px;margin:12px 0;border:1px solid #e5e7eb">
-  <div style="margin-bottom:10px">
+<div class="slider-panel">
+  <div class="slider-row">
     <label style="display:inline-block;width:160px;font-weight:600">📏 模型规模 (B):</label>
     <input type="range" id="slider-model" min="7" max="405" value="70" step="1" style="width:300px;vertical-align:middle">
-    <span id="val-model" style="margin-left:10px;font-weight:700;color:#4f46e5">70B</span>
+    <span class="val" id="val-model" style="margin-left:10px;font-weight:700;color:#4f46e5">70B</span>
   </div>
-  <div style="margin-bottom:10px">
+  <div class="slider-row">
     <label style="display:inline-block;width:160px;font-weight:600">📐 上下文长度 (K):</label>
     <input type="range" id="slider-ctx" min="1" max="128" value="32" step="1" style="width:300px;vertical-align:middle">
-    <span id="val-ctx" style="margin-left:10px;font-weight:700;color:#4f46e5">32K</span>
+    <span class="val" id="val-ctx" style="margin-left:10px;font-weight:700;color:#4f46e5">32K</span>
   </div>
-  <div style="margin-bottom:10px">
+  <div class="slider-row">
     <label style="display:inline-block;width:160px;font-weight:600">👥 并发数 (B):</label>
     <input type="range" id="slider-batch" min="1" max="128" value="32" step="1" style="width:300px;vertical-align:middle">
-    <span id="val-batch" style="margin-left:10px;font-weight:700;color:#4f46e5">32</span>
+    <span class="val" id="val-batch" style="margin-left:10px;font-weight:700;color:#4f46e5">32</span>
   </div>
-  <div style="margin-bottom:10px">
+  <div class="slider-row">
     <label style="display:inline-block;width:160px;font-weight:600">🎮 GPU 型号:</label>
     <select id="slider-gpu" style="width:300px;padding:6px;font-size:14px;border:1px solid #d1d5db;border-radius:4px">
       <option value="h100" selected>H100 SXM (3.35 TB/s, 989 TFLOPS)</option>
@@ -1989,7 +2169,7 @@ TTFT = Time To First Token (用户发完 prompt 到看到第一个 token 的等�
       <option value="b300">B300 (~8 TB/s, 2026-Q1)</option>
     </select>
   </div>
-  <div style="margin-top:14px;padding:12px;background:white;border-radius:6px;border-left:4px solid #6366f1">
+  <div class="result-box">
     <b>🔍 实时计算结果 (基于公式):</b>
     <div id="result-output" style="font-family:monospace;font-size:13px;line-height:1.8;margin-top:8px"></div>
   </div>
