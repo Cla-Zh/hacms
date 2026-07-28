@@ -556,9 +556,9 @@ KV<sub>baseline</sub> = 2 × L × S × H<sub>kv</sub> × d<sub>h</sub> × bytes 
 <table class="data-table">
 <thead><tr><th>流派</th><th>年份</th><th>机制</th><th>吞吐量提升</th><th>代表引擎</th><th>来源</th></tr></thead>
 <tbody>
-<tr><td><b>PagedAttention</b></td><td>2023</td><td>把 KV Cache 按"页"分块 (16 token/页), 按需分配, 减少碎片</td><td><b>2-4×</b></td><td>vLLM</td><td><a href="https://arxiv.org/abs/2309.06180" target="_blank">arXiv 2309.06180</a></td></tr>
-<tr><td><b>Chunked Prefill</b></td><td>2024</td><td>把长 prompt 切成 chunk, 与 decode 共享 GPU</td><td>~2×</td><td>vLLM / TGI</td><td><a href="https://github.com/vllm-project/vllm/issues/3550" target="_blank">vLLM issue</a></td></tr>
-<tr><td><b>Continuous Batching</b></td><td>2022-2023</td><td>迭代级别调度 — 解码完一个请求立刻接新请求</td><td><b>8-23×</b> (vs static)</td><td>vLLM / TGI / SGLang</td><td><a href="https://www.anyscale.com/blog/continuous-batching-llm-inference" target="_blank">Anyscale blog</a></td></tr>
+<tr><td><b>PagedAttention</b></td><td>2023</td><td><b>借鉴 OS 虚拟内存</b>: KV 分固定 size block (默认 16 token/页), <b>block table 维护 logical→physical 映射</b>, 动态按需分配, 支持 complex sampling 共享 (beam/parallel), 浪费 &lt; 4% (原 60-80%)</td><td><b>2-4×</b></td><td>vLLM</td><td><a href="https://arxiv.org/abs/2309.06180" target="_blank">arXiv 2309.06180</a></td></tr>
+<tr><td><b>Chunked Prefill</b></td><td>2024</td><td>长 prompt 切成 N 个 chunk (如 512/2048/6144 token), <b>与 decode 请求混合调度同一 batch</b>, 消除 prefill 阻塞 decode (head-of-line blocking), 提升 GPU 利用率</td><td>~2×</td><td>vLLM / TGI / SGLang</td><td><a href="https://github.com/vllm-project/vllm/issues/3550" target="_blank">vLLM issue</a></td></tr>
+<tr><td><b>Continuous Batching</b></td><td>2022-2023</td><td><b>迭代级 (iteration-level) 调度</b> — 每次 forward 解码完的请求立刻被换出, 新请求填入, 不等所有请求 finish (vs 静态 batching). 显著提升 throughput + 减少 padding 浪费</td><td><b>8-23×</b> (vs static)</td><td>vLLM / TGI / SGLang</td><td><a href="https://www.anyscale.com/blog/continuous-batching-llm-inference" target="_blank">Anyscale blog</a></td></tr>
 <tr><td><b>Sarathi-Serve<a class="cite" data-num="20" href="#ref-20"></a></b></td><td>2023</td><td>Splitwise + piggyback 策略</td><td>~2.4×</td><td>Microsoft Sarathi</td><td><a href="https://arxiv.org/abs/2308.16369" target="_blank">arXiv 2308.16369</a></td></tr>
 <tr><td><b>DistServe<a class="cite" data-num="21" href="#ref-21"></a></b></td><td>2024</td><td>Prefill / Decode 分离到不同 GPU</td><td>~4× TTFT</td><td>DistServe (清华)</td><td><a href="https://arxiv.org/abs/2401.09670" target="_blank">arXiv 2401.09670</a></td></tr>
 <tr><td><b>vLLM V1</b></td><td><b>2025-01</b></td><td>重构 scheduler + KV manager + sampler, 1.7× 加速, zero-overhead prefix cache 默认开</td><td><b>1.7×</b></td><td><b>vLLM V1</b> (alpha 2025-01-27)</td><td><a href="https://blog.vllm.ai/2025/01/27/v1-alpha-release.html" target="_blank">vLLM blog</a></td></tr>
@@ -594,11 +594,11 @@ KV<sub>baseline</sub> = 2 × L × S × H<sub>kv</sub> × d<sub>h</sub> × bytes 
 <table class="data-table">
 <thead><tr><th>流派</th><th>年份</th><th>精度</th><th>压缩比 (vs FP16)</th><th>质量损失</th><th>来源</th></tr></thead>
 <tbody>
-<tr><td><b>SmoothQuant<a class="cite" data-num="25" href="#ref-25"></a></b></td><td>2022</td><td>INT8 KV</td><td>2×</td><td>&lt; 1% perplexity ↑</td><td><a href="https://arxiv.org/abs/2211.10438" target="_blank">arXiv 2211.10438</a></td></tr>
-<tr><td><b>KVQuant</b></td><td>2024</td><td>INT4 KV</td><td>4×</td><td>&lt; 0.5% perplexity ↑</td><td><a href="https://arxiv.org/abs/2401.18079" target="_blank">arXiv 2401.18079</a></td></tr>
-<tr><td><b>FP8</b> (H100 native)</td><td>2023-2024</td><td>FP8 KV</td><td>2×</td><td>~0.1% perplexity ↑</td><td><a href="https://arxiv.org/abs/2209.05433" target="_blank">FP8 paper</a></td></tr>
-<tr><td><b>KIVI</b></td><td>2024</td><td><b>2-bit</b> KV (per-channel)</td><td>8×</td><td>&lt; 2.5% perplexity ↑</td><td><a href="https://arxiv.org/abs/2402.02750" target="_blank">arXiv 2402.02750</a></td></tr>
-<tr><td><b>BitNet b1.58</b></td><td>2024</td><td><b>1-bit</b> (三值权重)</td><td>~16× (权重)</td><td>近似无损</td><td><a href="https://arxiv.org/abs/2402.17764" target="_blank">arXiv 2402.17764</a></td></tr>
+<tr><td><b>SmoothQuant</b></td><td>2022</td><td><b>数学等价变换</b> — 把 activation 难度迁移到 weight (scale per-channel), 让 INT8 KV + INT8 W 都能用, 几乎无质量损失</td><td>2×</td><td>&lt; 1%</td><td><a href="https://arxiv.org/abs/2211.10438" target="_blank">arXiv 2211.10438</a></td></tr>
+<tr><td><b>KVQuant</b></td><td>2024</td><td><b>校准敏感度 + outlier 隔离</b> — 用 calibration set 学每层 outlier 通道, 移到 FP16 buffer 单独存, 其余通道 INT4, 几乎无质量损失</td><td>4×</td><td>&lt; 0.5%</td><td><a href="https://arxiv.org/abs/2401.18079" target="_blank">arXiv 2401.18079</a></td></tr>
+<tr><td><b>FP8</b> (H100 native)</td><td>2023-2024</td><td><b>8-bit 浮点</b> (E4M3/E5M2) — H100 硬件原生, KV 直接转 FP8 存储, decode 时反量化, 几乎无精度损失 (perplexity 持平 ±0.1%)</td><td>2×</td><td>~0.1%</td><td><a href="https://arxiv.org/abs/2209.05433" target="_blank">FP8 paper</a></td></tr>
+<tr><td><b>KIVI</b></td><td>2024</td><td><b>K per-token 2-bit, V per-channel 2-bit</b> — 利用 K 和 V 的不同分布特性分别量化, 几乎无精度损失, H100 上实测 2.6× decode 加速</td><td>8×</td><td>&lt; 2.5%</td><td><a href="https://arxiv.org/abs/2402.02750" target="_blank">arXiv 2402.02750</a></td></tr>
+<tr><td><b>BitNet b1.58</b></td><td>2024</td><td><b>三值权重 {-1, 0, +1}</b> + 8-bit 激活 — 训练后权重 1.58 bit 平均, 推理无需乘法 (用加法), 16× 内存压缩, 几乎无损</td><td>~16× (权重)</td><td>近似无损</td><td><a href="https://arxiv.org/abs/2402.17764" target="_blank">arXiv 2402.17764</a></td></tr>
 <tr><td><b>MiKV</b></td><td>2024</td><td>混合 KV 量化</td><td>~5×</td><td>&lt; 1%</td><td><a href="https://arxiv.org/abs/2402.18096" target="_blank">arXiv 2402.18096</a></td></tr>
 <tr><td><b>Atom</b></td><td>2023 (MLSys 2024)</td><td>低 bit 量化 + outlier 处理, A100 时代; B200 FP4 由 NVFP4 接力</td><td>~6×</td><td>&lt; 0.5%</td><td><a href="https://arxiv.org/abs/2310.19102" target="_blank">arXiv 2310.19102</a></td></tr>
 <tr><td><b>KIVI-2</b></td><td>2025</td><td>K 仍 per-tensor 2-bit, V 升 4-bit 混合, 鲁棒性 ↑</td><td>~6-8×</td><td>&lt; 1.5%</td><td><a href="https://arxiv.org/abs/2402.02750" target="_blank">arXiv 2402.02750 v2</a></td></tr>
@@ -615,10 +615,10 @@ KV<sub>baseline</sub> = 2 × L × S × H<sub>kv</sub> × d<sub>h</sub> × bytes 
 <table class="data-table">
 <thead><tr><th>流派</th><th>年份</th><th>机制</th><th>压缩比</th><th>代表论文</th><th>来源</th></tr></thead>
 <tbody>
-<tr><td><b>H₂O</b> (Heavy-Hitter Oracle)</td><td>2023</td><td>动态淘汰低 attention score 的 token</td><td>20-40% ↓</td><td>Zhang et al. 2023</td><td><a href="https://arxiv.org/abs/2306.14048" target="_blank">arXiv 2306.14048</a></td></tr>
-<tr><td><b>Scissorhands</b></td><td>2023</td><td>识别"persistent"重要 token 子集</td><td>30-50% ↓</td><td>Del Corro et al.</td><td><a href="https://arxiv.org/abs/2305.17118" target="_blank">arXiv 2305.17118</a></td></tr>
-<tr><td><b>PyramidKV</b></td><td>2024</td><td>分层 KV 预算 — 浅层多, 深层少</td><td>40-60% ↓</td><td>Yang et al.</td><td><a href="https://arxiv.org/abs/2406.02069" target="_blank">arXiv 2406.02069</a></td></tr>
-<tr><td><b>SnapKV<a class="cite" data-num="33" href="#ref-33"></a></b></td><td>2024</td><td>聚类 attention 选 "snap" token</td><td>40-60% ↓</td><td>Li et al.</td><td><a href="https://arxiv.org/abs/2407.01028" target="_blank">arXiv 2407.01028</a></td></tr>
+<tr><td><b>H₂O</b> (Heavy-Hitter Oracle)</td><td>2023</td><td><b>累积 attention score</b> — 每个 token 跟踪它被关注的总分数, 低分 token 被淘汰, 高分 (heavy hitter) 永远保留. 假设 20% token 占 80% attention</td><td>20-40% ↓</td><td>Zhang et al. 2023</td><td><a href="https://arxiv.org/abs/2306.14048" target="_blank">arXiv 2306.14048</a></td></tr>
+<tr><td><b>Scissorhands</b></td><td>2023</td><td><b>Persistent Importance 假设</b> — 一旦某 token 被关注超阈值, 它之后会持续重要 (类似 attention sink), 找出这个 persistent 子集保留, 其余剪掉</td><td>30-50% ↓</td><td>Del Corro et al.</td><td><a href="https://arxiv.org/abs/2305.17118" target="_blank">arXiv 2305.17118</a></td></tr>
+<tr><td><b>PyramidKV</b></td><td>2024</td><td><b>层宽 budget 倒金字塔</b> — 浅层 (输入侧) 给更多 KV slot, 深层 (输出侧) 少 (因深层已抽象, 不需要长上下文), 配合 query-aware 选 token</td><td>40-60% ↓</td><td>Yang et al.</td><td><a href="https://arxiv.org/abs/2406.02069" target="_blank">arXiv 2406.02069</a></td></tr>
+<tr><td><b>SnapKV</b></td><td>2024</td><td><b>观察窗 + 聚类</b> — 取 prompt 末尾的 observation window 内的 attention 分布, 聚类选 cluster 中心作为 KV 保留, 假设 prompt 头部与尾部最重要</td><td>40-60% ↓</td><td>Li et al.</td><td><a href="https://arxiv.org/abs/2407.01028" target="_blank">arXiv 2407.01028</a></td></tr>
 <tr><td><b>StreamingLLM</b></td><td>2024-2025</td><td>滑动窗口 + attention sinks (前 4 tokens)</td><td>无界长文本</td><td>Xiao et al.</td><td><a href="https://arxiv.org/abs/2309.17453" target="_blank">arXiv 2309.17453</a></td></tr>
 <tr><td><b>Ada-KV</b></td><td><b>2024-07</b></td><td>头级自适应预算 — 理论 loss 上界, plug-and-play</td><td>40-60% ↓</td><td>Feng et al.</td><td><a href="https://arxiv.org/abs/2407.11550" target="_blank">arXiv 2407.11550</a></td></tr>
 <tr><td><b>CAKE</b></td><td>2025</td><td>层宽体窄 — 跨层共享 budget, 集群级调度</td><td>~70% ↓</td><td>Microsoft</td><td><a href="https://arxiv.org/abs/2501.15543" target="_blank">arXiv 2501.15543</a></td></tr>
@@ -635,11 +635,11 @@ KV<sub>baseline</sub> = 2 × L × S × H<sub>kv</sub> × d<sub>h</sub> × bytes 
 <table class="data-table">
 <thead><tr><th>流派</th><th>年份</th><th>机制</th><th>缓存命中率</th><th>代表方案</th><th>来源</th></tr></thead>
 <tbody>
-<tr><td><b>Prefix Caching</b></td><td>2024</td><td>vLLM 自动缓存相同前缀</td><td>30-80%</td><td>vLLM Prefix Cache</td><td><a href="https://blog.vllm.ai/2024/01/prefix-cache.html" target="_blank">vLLM blog</a></td></tr>
-<tr><td><b>RadixAttention</b></td><td>2023</td><td>用 radix tree 索引共享前缀</td><td>40-90%</td><td>SGLang</td><td><a href="https://arxiv.org/abs/2312.07104" target="_blank">arXiv 2312.07104</a></td></tr>
-<tr><td><b>CacheGen</b></td><td>2024</td><td>压缩 KV cache 后跨网络传输</td><td>3.5-4.3× 加速</td><td>HKUST</td><td><a href="https://arxiv.org/abs/2310.07240" target="_blank">arXiv 2310.07240</a></td></tr>
-<tr><td><b>Prompt Cache</b></td><td>2023</td><td>DeepMind — 用外部存储 KV</td><td>~7×</td><td>DeepMind</td><td><a href="https://arxiv.org/abs/2311.04934" target="_blank">arXiv 2311.04934</a></td></tr>
-<tr><td><b>ChunkAttention</b></td><td>2024</td><td>把共享前缀做成"chunk"复用</td><td>~5×</td><td>Tencent</td><td><a href="https://arxiv.org/abs/2402.15220" target="_blank">arXiv 2402.15220</a></td></tr>
+<tr><td><b>Prefix Caching</b></td><td>2024</td><td><b>Hash 匹配 + block-level 复用</b> — 把 prompt 前 N token 的 KV 按 block 哈希, 新请求相同前缀直接复用 block table, 不重新 prefill, 与 PagedAttention 正交</td><td>30-80%</td><td>vLLM Prefix Cache</td><td><a href="https://blog.vllm.ai/2024/01/prefix-cache.html" target="_blank">vLLM blog</a></td></tr>
+<tr><td><b>RadixAttention</b></td><td>2023</td><td><b>Radix Tree + LRU 淘汰</b> — 把 KV 按 radix tree 索引 (token 序列为 key), 自动跨请求匹配任意长度前缀, <b>LRU 递归淘汰叶子</b>, page size 默认 1 (无对齐), 支持多模态 token</td><td>40-90%</td><td>SGLang</td><td><a href="https://arxiv.org/abs/2312.07104" target="_blank">arXiv 2312.07104</a></td></tr>
+<tr><td><b>CacheGen</b></td><td>2024</td><td><b>tensor compression + delta coding</b> — 把 KV tensor 当图像, 用 autoencoder 编码为 bitstream, 接收方解码, 适配跨 WAN 传输, 带宽敏感场景下 3.5-4.3× 加速</td><td>3.5-4.3×</td><td>HKUST</td><td><a href="https://arxiv.org/abs/2310.07240" target="_blank">arXiv 2310.07240</a></td></tr>
+<tr><td><b>Prompt Cache</b></td><td>2023</td><td><b>外部 KV 存储 + 重新加载</b> — DeepMind 把长 prompt KV 序列化存 SSD/DRAM, 新会话加载复用, 训练时即学会选择性重算, 适合 agent 多轮场景</td><td>~7×</td><td>DeepMind</td><td><a href="https://arxiv.org/abs/2311.04934" target="_blank">arXiv 2311.04934</a></td></tr>
+<tr><td><b>ChunkAttention</b></td><td>2024</td><td><b>Chunk-level 共享 + 并行 attention kernel</b> — 同一 prompt 不同样本共享 chunk KV, 设计专门 CUDA kernel 并行读 shared memory, 比 prefix cache 更细粒度</td><td>~5×</td><td>Tencent</td><td><a href="https://arxiv.org/abs/2402.15220" target="_blank">arXiv 2402.15220</a></td></tr>
 <tr><td><b>CacheBlend</b></td><td><b>2024-05</b> (v1), 续作 2025</td><td>部分重算 + 多数复用, 16× 加速长上下文</td><td><b>~16×</b> 64k+</td><td>MBZUAI</td><td><a href="https://arxiv.org/abs/2405.16444" target="_blank">arXiv 2405.16444</a></td></tr>
 <tr><td><b>SGLang HiCache (L3)</b></td><td><b>2025-09</b></td><td>3FS/Mooncake/AIBrix/EIC 跨实例 prefix 池化</td><td>84% TTFT ↓</td><td>SGLang + LMSYS</td><td><a href="https://lmsys.org/blog/2025-09-10-sglang-hicache/" target="_blank">LMSYS blog</a></td></tr>
 <tr><td><b>ContextCache API</b></td><td>2024-2025</td><td>云厂商 (Anthropic/OpenAI) 显式 cache_control, 4× 降价</td><td><b>4× ↓ 成本</b></td><td>Claude/GPT-4o</td><td><a href="https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching" target="_blank">Anthropic Docs</a></td></tr>
@@ -653,9 +653,9 @@ KV<sub>baseline</sub> = 2 × L × S × H<sub>kv</sub> × d<sub>h</sub> × bytes 
 <table class="data-table">
 <thead><tr><th>流派</th><th>年份</th><th>机制</th><th>吞吐量</th><th>代表方案</th><th>来源</th></tr></thead>
 <tbody>
-<tr><td><b>Mooncake</b></td><td>2024</td><td>KV-centric disaggregation, Moonshot Kimi</td><td>~75% ↑ (Kimi)</td><td>Moonshot AI</td><td><a href="https://arxiv.org/abs/2407.00079" target="_blank">arXiv 2407.00079</a></td></tr>
-<tr><td><b>MemServe</b></td><td>2024</td><td>Memory-pool-based LLM serving (清华)</td><td>~2-3×</td><td>MemServe</td><td><a href="https://arxiv.org/abs/2406.17565" target="_blank">arXiv 2406.17565</a></td></tr>
-<tr><td><b>Infinite-LLM</b></td><td>2024</td><td>Distributed KV cache across nodes</td><td>~2-4×</td><td>CMU</td><td><a href="https://arxiv.org/abs/2401.02669" target="_blank">arXiv 2401.02669</a></td></tr>
+<tr><td><b>Mooncake</b></td><td>2024-2025</td><td><b>KV-centric disaggregation + Transfer Engine (RDMA) + 预测性 early-rejection</b> — prefill/decode 分离到不同 cluster, 跨 GPU 共享 CPU/DRAM/SSD KV 池, SLO-aware 调度, Kimi 生产 75%↑, 长上下文 525%↑</td><td><b>75% ↑</b> (Kimi)</td><td>Moonshot AI + 清华</td><td><a href="https://arxiv.org/abs/2407.00079" target="_blank">arXiv 2407.00079 v4</a></td></tr>
+<tr><td><b>MemServe</b></td><td>2024</td><td><b>集中式 KV memory pool + 弹性调度</b> — 多个 LLM 实例共享内存池, 跨实例 KV 迁移, 上下文感知调度, 清华 + MSRA</td><td>~2-3×</td><td>清华 + MSRA</td><td><a href="https://arxiv.org/abs/2406.17565" target="_blank">arXiv 2406.17565</a></td></tr>
+<tr><td><b>Infinite-LLM</b></td><td>2024</td><td><b>跨节点 KV 分布 + attention 计算分解</b> — 把长序列 attention 切到多节点并行, 每节点负责部分 head/layer, 支持无界上下文, CMU</td><td>~2-4×</td><td>CMU</td><td><a href="https://arxiv.org/abs/2401.02669" target="_blank">arXiv 2401.02669</a></td></tr>
 <tr><td><b>Llumnix</b></td><td>2024-2025</td><td>KV cache 跨实例迁移</td><td>~1.5×</td><td>Alibaba</td><td><a href="https://arxiv.org/abs/2406.03243" target="_blank">arXiv 2406.03243</a></td></tr>
 <tr><td><b>Mooncake 2.0</b></td><td><b>2025-08</b></td><td>Transfer Engine 集成 vLLM V1 / SGLang / TRT-LLM</td><td><b>75% ↑</b> (Kimi)</td><td>Moonshot AI</td><td><a href="https://github.com/kvcache-ai/Mooncake" target="_blank">GitHub</a></td></tr>
 <tr><td><b>Kimi K2 部署</b></td><td><b>2025-07</b></td><td>128×H200 + PD-disagg + 大规模 EP — Mooncake 1T 参数</td><td>224k / 288k tok/s</td><td>Moonshot K2</td><td><a href="https://lmsys.org/blog/2025-07-20-k2-large-scale-ep/" target="_blank">LMSYS blog</a></td></tr>
@@ -671,11 +671,11 @@ KV<sub>baseline</sub> = 2 × L × S × H<sub>kv</sub> × d<sub>h</sub> × bytes 
 <table class="data-table">
 <thead><tr><th>流派</th><th>年份</th><th>机制</th><th>加速</th><th>代表方案</th><th>来源</th></tr></thead>
 <tbody>
-<tr><td><b>Speculative Decoding</b></td><td>2022</td><td>Draft-Verify, 复用 KV</td><td>2-3×</td><td>Leviathan et al.</td><td><a href="https://arxiv.org/abs/2211.17192" target="_blank">arXiv 2211.17192</a></td></tr>
-<tr><td><b>Lookahead Decoding<a class="cite" data-num="43" href="#ref-43"></a></b></td><td>2023</td><td>用 n-gram 生成候选, 复用 KV</td><td>1.5-2.4×</td><td>Fu et al.</td><td><a href="https://arxiv.org/abs/2402.02057" target="_blank">arXiv 2402.02057</a></td></tr>
-<tr><td><b>EAGLE<a class="cite" data-num="44" href="#ref-44"></a></b></td><td>2024</td><td>用单层 draft, KV-aware</td><td><b>2-3×</b></td><td>Li et al.</td><td><a href="https://arxiv.org/abs/2401.15077" target="_blank">arXiv 2401.15077</a></td></tr>
-<tr><td><b>EAGLE-2</b></td><td>2024</td><td>动态 draft tree</td><td>~4×</td><td>Li et al.</td><td><a href="https://arxiv.org/abs/2406.16858" target="_blank">arXiv 2406.16858</a></td></tr>
-<tr><td><b>Medusa<a class="cite" data-num="46" href="#ref-46"></a></b></td><td>2024-2025</td><td>多头并行 draft head</td><td>2.2-3.6×</td><td>Cai et al.</td><td><a href="https://arxiv.org/abs/2401.10774" target="_blank">arXiv 2401.10774</a></td></tr>
+<tr><td><b>Speculative Decoding</b></td><td>2022</td><td><b>Draft-Verify 框架</b> — 小 draft model 快速生成 k 个候选, 大 target model 一次 forward 验证 k 个, 接受率高的 token 直接保留 (分布严格匹配, 无损), KV 同步写</td><td>2-3×</td><td>Leviathan et al.</td><td><a href="https://arxiv.org/abs/2211.17192" target="_blank">arXiv 2211.17192</a></td></tr>
+<tr><td><b>Lookahead Decoding</b></td><td>2023</td><td><b>Jacobi iteration + n-gram 池</b> — 不需 draft model, 用 Jacobi 迭代并行生成多步, 用历史 n-gram 验证候选, 适合无小模型场景</td><td>1.5-2.4×</td><td>Fu et al.</td><td><a href="https://arxiv.org/abs/2402.02057" target="_blank">arXiv 2402.02057</a></td></tr>
+<tr><td><b>EAGLE</b></td><td>2024</td><td><b>Feature-level uncertainty + 单层 draft head</b> — 不预测 token, 预测 target model 倒数第二层 hidden feature, 用 feature 不确定性采样 token, KV 完全复用</td><td><b>2-3×</b></td><td>Li et al.</td><td><a href="https://arxiv.org/abs/2401.15077" target="_blank">arXiv 2401.15077</a></td></tr>
+<tr><td><b>EAGLE-2</b></td><td>2024</td><td><b>Dynamic draft tree (Tree Attention)</b> — 用 draft 模型的 confidence 自适应展开 tree, 一次 verify 多个分支, 比 EAGLE 静态 tree 接受率更高</td><td>~4×</td><td>Li et al.</td><td><a href="https://arxiv.org/abs/2406.16858" target="_blank">arXiv 2406.16858</a></td></tr>
+<tr><td><b>Medusa</b></td><td>2024-2025</td><td><b>多个并行 draft head</b> — 在主模型上挂 K 个 Medusa head, 每 head 独立预测未来第 i 个 token, Tree attention 一次 verify, 无需 draft model</td><td>2.2-3.6×</td><td>Cai et al.</td><td><a href="https://arxiv.org/abs/2401.10774" target="_blank">arXiv 2401.10774</a></td></tr>
 <tr><td><b>EAGLE-3</b></td><td><b>2025-03</b></td><td>Training-time test + 32K vocab + tree attention</td><td><b>6.5×</b>, 1.38× SGLang BS=64</td><td>Li Yuhui et al.</td><td><a href="https://arxiv.org/abs/2503.01840" target="_blank">arXiv 2503.01840</a></td></tr>
 <tr><td><b>FR-Spec</b></td><td>2025-02</td><td>Frequency-Ranked 减 draft 词表 (32K), 减 vocab 瓶颈</td><td>~2× draft 加速</td><td>Zhao et al.</td><td><a href="https://arxiv.org/abs/2502.14856" target="_blank">arXiv 2502.14856</a></td></tr>
 <tr><td><b>MARS</b></td><td>2025-06</td><td>Mixture of Attentions for Spec Decoding</td><td>~5×</td><td>华为</td><td><a href="https://arxiv.org/abs/2410.03804" target="_blank">arXiv 2410.03804 v2</a></td></tr>
@@ -685,17 +685,17 @@ KV<sub>baseline</sub> = 2 × L × S × H<sub>kv</sub> × d<sub>h</sub> × bytes 
 </tbody>
 </table>
 
-<h3 id="sec2-9">2.9 [自主挖掘] 压缩注意力 (Compressive Attention)</h3>
+<h3 id="sec2-9">2.9 [训练时压缩] Compressive Attention — 让模型学会"自带压缩 KV"</h3>
 
-<p>训练时就让 KV Cache 落入低秩子空间, 而不是推理时压缩. 代表: LoRA-KV, CompAct.</p>
+<p>这不是"推理时压缩", 而是<b>训练阶段就让 KV Cache 落入低秩子空间</b>, 推理时无需额外量化即可天然小. 代表: LoRA-KV, CompAct, RetNet, MoLA.</p>
 
 <table class="data-table">
-<thead><tr><th>流派</th><th>核心机制</th><th>代表方案</th><th>来源</th></tr></thead>
+<thead><tr><th>流派</th><th>发布时间</th><th>核心机制 (算法层)</th><th>代表方案 / 部署</th><th>来源</th></tr></thead>
 <tbody>
-<tr><td><b>LoRA-KV</b></td><td>训练阶段在 KV 上加低秩分解</td><td>2024</td><td><a href="https://arxiv.org/abs/2307.08621" target="_blank">arXiv 2307.08621</a></td></tr>
-<tr><td><b>CompAct</b></td><td>Compressive transformer 风格 KV</td><td>2023</td><td><a href="https://arxiv.org/abs/2307.00907" target="_blank">arXiv 2307.00907</a></td></tr>
-<tr><td><b>RetNet</b></td><td>Retention 机制 — 训练时即压缩 KV, O(n) 推理</td><td><b>2023-2025</b></td><td><a href="https://arxiv.org/abs/2307.08621" target="_blank">arXiv 2307.08621</a></td></tr>
-<tr><td><b>MoLA</b> (MoE Layer Attention)</td><td>层间路由, 不同层用不同 attention</td><td>2025</td><td><a href="https://arxiv.org/abs/2502.12147" target="_blank">arXiv 2502.12147</a></td></tr>
+<tr><td><b>LoRA-KV</b></td><td>2024</td><td><b>训练时低秩分解</b> — 在 KV 投影层加 LoRA rank-r 矩阵, 让 KV 训练时即压缩到 r 维, 推理时无需解压</td><td>LoRA-KV (PEFT 变体)</td><td><a href="https://arxiv.org/abs/2307.11554" target="_blank">arXiv 2307.11554</a></td></tr>
+<tr><td><b>CompAct</b></td><td>2023</td><td><b>Compressive Transformer 风格</b> — 长上下文被压成"旧记忆"粗粒度表示, 近期上下文保留细节, 类似人脑长短期记忆</td><td>CompAct (Rae et al.)</td><td><a href="https://arxiv.org/abs/2307.00907" target="_blank">arXiv 2307.00907</a></td></tr>
+<tr><td><b>RetNet</b></td><td>2023-2025</td><td><b>Retention 机制 (Recurrent 表示)</b> — 用递推式 (γ·S_{t-1} + k_t·v_t) 替代 softmax attention, 训练 O(n²) 但推理 O(n), KV 状态 = 固定大小 hidden state (非 n 长度)</td><td>RetNet (Microsoft)</td><td><a href="https://arxiv.org/abs/2307.08621" target="_blank">arXiv 2307.08621</a></td></tr>
+<tr><td><b>MoLA</b> (MoE Layer Attn)</td><td>2025</td><td><b>层间路由</b> — 不同 Transformer 层用不同 attention 变体 (full/sparse/linear), 训练时路由, 推理时按层选, 平衡效果和速度</td><td>MoLA (2025)</td><td><a href="https://arxiv.org/abs/2502.12147" target="_blank">arXiv 2502.12147</a></td></tr>
 </tbody>
 </table>
 
@@ -704,10 +704,10 @@ KV<sub>baseline</sub> = 2 × L × S × H<sub>kv</sub> × d<sub>h</sub> × bytes 
 <p>用 CNN / 频域 (DCT / 傅里叶) 压缩 KV 时间序列 — 把 KV 看作图像, 用 JPEG 风格量化.</p>
 
 <ul>
-<li><b>Conv-KV</b> (2024): 用 1D 卷积压缩相邻 token 的 KV — 压缩比 ~4×, 质量损失 &lt;1%</li>
-<li><b>FreqCache</b> (2024-2025): 用 DCT 保留低频分量, 丢弃高频 — 实验显示长上下文任务 (NIAH) 几乎无损</li>
-<li><b>Wavelet-KV</b> (2025-06): 用小波变换多分辨率分解 KV, 保留低频近似 + 关键高频细节 — 长上下文 perplexity &lt; 1%</li>
-<li><b>Conv-KV-2</b> (2025): 在 Conv-KV 基础上加可学习卷积核, 进一步压缩到 1/8 容量, 几乎无损</li>
+<li><b>Conv-KV</b> (2024): <b>1D 卷积压缩相邻 token</b> — 用 1D CNN 滑窗对 KV 序列降采样, 压缩 ~4×, 质量损失 &lt;1%</li>
+<li><b>FreqCache</b> (2024-2025): <b>DCT 频域压缩</b> — 对 KV 做离散余弦变换, 保留低频分量 (主信息), 丢弃高频 (细节噪声), 长上下文 NIAH 几乎无损</li>
+<li><b>Wavelet-KV</b> (2025-06): <b>小波多分辨率分解</b> — 用 Haar/Meyer 小波多分辨率分解 KV, 保留低频近似 + 关键高频细节, 长文 perplexity &lt; 1%</li>
+<li><b>Conv-KV-2</b> (2025): <b>可学习卷积核</b> — 在 Conv-KV 基础上让卷积核参数可学习, 自动适配不同 KV 模式, 压缩 1/8 容量, 几乎无损</li>
 </ul>
 
 <h3 id="sec2-11">2.11 [自主挖掘] 检索增强 KV (RAG-as-KV)</h3>
@@ -715,28 +715,77 @@ KV<sub>baseline</sub> = 2 × L × S × H<sub>kv</sub> × d<sub>h</sub> × bytes 
 <p>不存全部 KV, 而是存 KV 的摘要 + 索引; 推理时按需检索. 类似 RAG 思路移植到 KV.</p>
 
 <ul>
-<li><b>RETRO</b> (DeepMind, 2021): 用 retrieval 增强 decoder, 把 KV 视为可外部检索的"记忆" — <a href="https://arxiv.org/abs/2112.04426" target="_blank">arXiv 2112.04426</a></li>
-<li><b>Memorizing Transformer</b> (2022-2025): 用 kNN 检索 KV 库 — <a href="https://arxiv.org/abs/2203.08913" target="_blank">arXiv 2203.08913</a></li>
-<li><b>CacheBlend+</b> (2025-05): 把 KV 切块, 部分重算 + 多数复用 — 16× 加速长上下文 — <a href="https://arxiv.org/abs/2405.16444" target="_blank">arXiv 2405.16444 (v1)</a></li>
-<li><b>Infinite Retrieval</b> (2025): KV 当作可流式外部存储, O(1) 检索 + O(n) decode — 实验 4M 上下文</li>
+<li><b>RETRO</b> (DeepMind, 2021): <b>Retrieval-Enhanced Transformer</b> — 训练时加 retrieval module, 把外部文档 chunk 编码后 cross-attend, 原始 KV 视为可外部检索的"记忆", 7B 模型匹配 25B</li>
+<li><b>Memorizing Transformer</b> (2022-2025): <b>kNN-LM 思路移植到 KV</b> — 维护 KV 数据库, 当前 query 与历史 KV 算 kNN, top-k 拼接到 attention, 适合超长文</li>
+<li><b>CacheBlend</b> (MBZUAI, 2024-05): <b>Selective KV Recompute</b> — RAG 场景多个 pre-computed KV 拼接, 选小部分 token 重算修正, 大部分复用. <b>TTFT 2.2-3.3× ↓</b>, throughput 2.8× ↑, 比纯 prefix cache 更通用 — <a href="https://arxiv.org/abs/2405.16444" target="_blank">arXiv 2405.16444</a></li>
+<li><b>Infinite Retrieval</b> (2025): <b>KV 流式外部存储</b> — KV 当 append-only log, 推理时按需 O(1) 检索, O(n) decode, 实验支持 4M 上下文</li>
 </ul>
 
-<h3 id="sec2-12">2.12 [自主挖掘] 自适应缓存预算 (StreamingLLM / Dynamic Window)</h3>
+<h3 id="sec2-12">2.12 [自适应预算] 按 query/任务动态调整 KV 预算</h3>
 
-<p>不是固定窗口, 而是根据当前输入动态调整 KV 预算. 代表是 <b>StreamingLLM</b> + <b>Attention Sinks</b> — 始终保留初始 4 个 token 作为"锚点", 后续按需滑窗.</p>
+<p>不是固定窗口, 而是根据<b>当前 query 或任务</b>动态调整 KV 预算. 代表: <b>StreamingLLM + Attention Sinks</b> (前 4 token 永远保留作"锚点").</p>
 
 <table class="data-table">
-<thead><tr><th>方案</th><th>机制</th><th>优势</th></tr></thead>
+<thead><tr><th>方案</th><th>发布时间</th><th>核心机制 (算法层)</th><th>优势</th></tr></thead>
 <tbody>
-<tr><td><b>StreamingLLM</b></td><td>Attention sinks + sliding window</td><td>4M context 无 OOM, perplexity 只升 0.5</td></tr>
-<tr><td><b>LM-Infinite</b></td><td>Layer-wise memory compression</td><td>~10× 长文本能力</td></tr>
-<tr><td><b>Dynamic Window</b></td><td>query 决定保留哪些 token</td><td>对 retrieval 任务友好</td></tr>
-<tr><td><b>LM-Infinite 2.0</b></td><td>层宽 lambda 衰减 + 任务感知 — 2025 增强版</td><td>~20× 长文本能力</td></tr>
-<tr><td><b>Dynamic Memory Compression</b></td><td>Anthropic 2025 — 自适应压缩历史 KV, 训练时即学会</td><td>~30× 长文</td></tr>
+<tr><td><b>StreamingLLM</b></td><td>2024</td><td><b>Attention sinks + 滑窗</b> — 始终保留初始 4 token (sinks, 永远被 attention 高分), 后续滑窗 N 个, 4M context 不 OOM, perplexity 仅升 0.5</td><td>无界长文本, 几乎无损</td></tr>
+<tr><td><b>LM-Infinite</b></td><td>2023</td><td><b>层宽 λ 衰减</b> — 不同层用不同压缩率, 浅层保长上下文, 深层压缩, 显存少 10×</td><td>~10× 长文本能力</td></tr>
+<tr><td><b>Dynamic Window</b></td><td>2024</td><td><b>query 决定保留</b> — 当前 query 算 attention, 只保留高 attention 的历史 token, retrieval 任务友好</td><td>retrieval 准确率 ↑</td></tr>
+<tr><td><b>LM-Infinite 2.0</b></td><td>2025</td><td><b>任务感知压缩率</b> — 根据下游任务 (QA / 摘要 / 代码) 选不同层宽 λ, 2025 增强版</td><td>~20× 长文本能力</td></tr>
+<tr><td><b>Dynamic Memory Compression</b></td><td>2025</td><td><b>训练时即学会压缩</b> — Anthropic 2025, 把历史 KV 当 memory, 训练时即学会自适应压缩比例, 推理时无需手工调参</td><td>~30× 长文</td></tr>
 </tbody>
 </table>
 
 <h3 id="sec2-13">2.13 [2025-2026 综合对比表] 6 大新趋势速览</h3>
+
+<details class="dex" style="margin:8px 0 16px 0">
+<summary>🧠 想理解这三大旗舰框架的"算法内核"? 展开看 PagedAttention / RadixAttention / Mooncake 详解</summary>
+<div class="dex-body">
+
+<h4 style="color:var(--accent);margin-top:12px">🔬 A. PagedAttention (vLLM) — 操作系统虚拟内存的 LLM 移植</h4>
+<p><b>核心思想</b>: 把 KV Cache 当作"用户内存", 借鉴 OS 虚拟内存的<b>分页机制</b>. 一个请求的 KV 不再必须连续存放, 而是被切成固定大小 (默认 16 token) 的<b>logical block</b>, 通过<b>block table</b>映射到物理 block.</p>
+<div class="formula">
+KV<sub>paged</sub> = Σ<sub>i=1..B</sub> block[i] · Q<sub>t</sub> = Σ<sub>i=1..B</sub> softmax(Q<sub>t</sub> · K<sub>block[i]</sub><sup>T</sup> / √d) · V<sub>block[i]</sub>
+</div>
+<div class="formula-note">关键数据结构: (1) <b>Block Table</b> — 每个请求维护 logical→physical 映射; (2) <b>Block Engine</b> — 在 GPU 上预分配物理 block 池; (3) <b>Reference Counting</b> — 多请求共享 (beam search / parallel sampling) 时复用同一 physical block</div>
+<p><b>三大收益</b>:</p>
+<ul>
+<li><b>碎片 &lt; 4%</b> (vs 之前 60-80%) — 因 block size 固定, 几乎无内部碎片</li>
+<li><b>复杂 decoding 共享</b> — beam search / parallel sampling 多个序列共享 prefix KV, 显存减少 5-10×</li>
+<li><b>动态按需分配</b> — 不需预分配最大长度, 按需增长, 长短请求混部</li>
+</ul>
+
+<h4 style="color:var(--accent);margin-top:18px">🔬 B. RadixAttention (SGLang) — Radix Tree + LRU 的 KV 索引</h4>
+<p><b>核心思想</b>: 把 KV Cache 按<b>token 序列为 key</b>建立 <b>Radix Tree</b> (基数树) 索引. 不同请求若共享任意长度前缀, 自动匹配复用. 区别于 vLLM 的"同 prefix"匹配, RadixAttention 支持<b>任意长度的 prefix 子树复用</b>.</p>
+<div class="formula">
+树节点: node[i] = (tokens, kv_ref, children[256])
+LRU 淘汰: 每次访问 touch 节点, 容量满时驱逐 LRU leaf
+</div>
+<div class="formula-note">关键操作: (1) <b>Match</b> — 新请求序列在 radix tree 找最长公共前缀; (2) <b>Insert</b> — decode 完新 token 后挂到 tree; (3) <b>Evict</b> — LRU 递归驱逐叶子; (4) <b>Cache Hit</b> — 命中前缀直接复用, 跳过 prefill</div>
+<p><b>核心特性</b>:</p>
+<ul>
+<li><b>Page size = 1 (默认)</b> — 无对齐, 任意长度 prefix 可复用</li>
+<li><b>跨多模态</b> — image token / audio token 也可作为 prefix 节点</li>
+<li><b>与 PagedAttention 正交</b> — RadixAttention 索引 logical block, PagedAttention 把 logical block 映射到 physical block</li>
+<li><b>实测收益</b> — 多轮对话 / agent / RAG 场景, prefix 命中率 40-90%, TTFT ↓ 50-80%</li>
+</ul>
+
+<h4 style="color:var(--accent);margin-top:18px">🔬 C. Mooncake (Moonshot AI) — 集群级 KV 池化 + RDMA Transfer Engine</h4>
+<p><b>核心思想</b>: KV Cache 不再是"GPU 私有", 而是<b>集群级共享资源池</b>. 用 RDMA 网络让 GPU 节点高速共享 KV, prefill 节点算完后 KV 立即通过 RDMA 传给 decode 节点.</p>
+<div class="formula">
+Mooncake 架构 = Conductor (调度) + Prefill Cluster + Decode Cluster + KVCache Pool (CPU/DRAM/SSD) + Transfer Engine (RDMA)
+</div>
+<div class="formula-note">关键组件: (1) <b>Conductor (调度器)</b> — KV-aware 调度, SLO-aware early-rejection; (2) <b>Transfer Engine</b> — 基于 RDMA 的 GPU Direct 传输, 跨节点延迟 &lt; 10μs; (3) <b>Mooncake Store</b> — 分布式 KV 池, 存 CPU/DRAM/SSD; (4) <b>PD Disaggregation</b> — Prefill / Decode 分离到不同 GPU 集群</div>
+<p><b>三大算法创新</b>:</p>
+<ul>
+<li><b>早期拒绝 (Early Rejection)</b> — Conductor 根据 KV 池容量 + SLO, 预测哪些请求会超时, 在调度前 reject, 避免全系统过载. 长文场景 525% throughput ↑ (vs 全接收策略)</li>
+<li><b>KV 预取 (Prefetch)</b> — Decode 节点在算当前 batch 时, 异步 RDMA 预取下一批请求的 KV, 隐藏网络延迟</li>
+<li><b>SLO-aware 调度</b> — 不同请求的 TTFT SLO 不同, Conductor 优先满足 SLO 紧的请求, 长文请求排后</li>
+</ul>
+<p><b>工业部署</b>: Kimi 真实工作负载 75% ↑ (更多请求), 2025-07 Kimi K2 128×H200 224k/288k tokens/s, 2025-09 SGLang HiCache 集成 Mooncake Store, 2025-12 vLLM V1 + TensorRT-LLM 都集成 Transfer Engine.</p>
+
+</div>
+</details>
 
 <p>把 2025 年 1 月 - 2026 年 7 月发布的代表性 KV Cache 优化工作做横向对比. <b>这是 12 大流派的"2026 时间切片"</b> — 每一行都不是"实验", 而是<b>已部署 / 即将部署</b>到生产环境的工程方案.</p>
 
@@ -908,16 +957,16 @@ Linear Attn: y = φ(Q) · (φ(K)<sup>T</sup> · V), 复杂度 = <span class="con
 <p>2024 末到 2026 上半年, 非 Transformer 架构在工业界从"实验性"转为"生产可用". 关键节点:</p>
 
 <table class="data-table">
-<thead><tr><th>架构</th><th>发布时间</th><th>核心机制</th><th>性能</th><th>部署方</th><tr></tr></thead>
+<thead><tr><th>架构</th><th>发布时间</th><th>核心机制 (算法层)</th><th>KV 性质</th><th>性能</th><th>部署方</th></tr></thead>
 <tbody>
-<tr><td><b>Mamba-3</b></td><td><b>2025-06</b></td><td>SSD + 复数状态空间 + Mamba-2 选择性扫描</td><td>~5× Transformer 速度, 语言建模匹配 Llama-3.2-3B</td><td>CMU + Cartesia AI</td></tr>
-<tr><td><b>RWKV-7</b> "Goose"</td><td><b>2025-03</b></td><td>WKV-7 公式 + Delta Rule + 训练稳定性修复</td><td>1.3B 模型 4× 速度, 多个语言任务 SOTA</td><td>BlinkDL + Linux 基金会</td></tr>
-<tr><td><b>Jamba-2</b></td><td><b>2025-Q3</b></td><td>Mamba-2 + Attention 1:7 混合 (前身 1:8)</td><td>256k 上下文, 比 Jamba-1.5 大 3× 速度</td><td>AI21 Labs</td></tr>
-<tr><td><b>Bamba-2</b></td><td><b>2025-09</b></td><td>IBM + CMU — Mamba-2 + 2 层 Attention, 9B 参数</td><td>推理速度 × Llama-3.1-8B, 内存 ↓ 60%</td><td>IBM-FMS</td></tr>
-<tr><td><b>RecurrentGemma-2</b></td><td>2024-2025</td><td>Google — Griffin (RNN + 局部注意) 升级</td><td>2B/9B 两版, 9B 推理快 5×</td><td>Google DeepMind</td></tr>
-<tr><td><b>Falcon-H1</b></td><td><b>2025-05</b></td><td>混合 (Transformer + Mamba), 阿联酋 TII</td><td>0.5B/1.5B/3B/7B/34B 全家族</td><td>TII Falcon</td></tr>
-<tr><td><b>Zamba-2</b></td><td><b>2025-04</b></td><td>Zyphra — Mamba + 2 个共享 Attention 层</td><td>7B 模型长文任务匹配 Llama-3-8B</td><td>Zyphra</td></tr>
-<tr><td><b>DeltaNet</b> (Microsoft)</td><td><b>2024-12</b></td><td>Delta Rule + 线性复杂度, Qwen3-Next 已采用 (GDN)</td><td>训练 5× 速度, 内存 O(n)</td><td>Microsoft Research</td></tr>
+<tr><td><b>Mamba-3</b></td><td><b>2025-06</b></td><td><b>SSD (State Space Duality) + 复数状态空间</b> — Mamba-2 选择性扫描升级, 引入 complex-valued state, 训练时即线性 O(n), 状态固定大小</td><td><b>O(1) per step</b></td><td>~5× Transformer 速度, 语言建模匹配 Llama-3.2-3B</td><td>CMU + Cartesia AI</td></tr>
+<tr><td><b>RWKV-7 "Goose"</b></td><td><b>2025-03</b></td><td><b>WKV-7 + Delta Rule + dynamic state evolution</b> — 线性 RNN 形式, 每个时间步用 delta 规则更新 state, 突破 TC⁰ 上限, 训练稳定性修复</td><td><b>O(1) per step</b></td><td>1.3B 模型 4× 速度, 多语言任务 SOTA</td><td>BlinkDL + Linux 基金会</td></tr>
+<tr><td><b>Jamba-2</b></td><td><b>2025-Q3</b></td><td><b>Mamba-2 + Attention 1:7 混合</b> (前身 1:8) — 7 层 Mamba 配 1 层 Attention, Attention 层专做长距离 recall, Mamba 做主推理</td><td>KV 仅 1/7 大</td><td>256k 上下文, 比 Jamba-1.5 快 3×</td><td>AI21 Labs</td></tr>
+<tr><td><b>Bamba-2</b></td><td><b>2025-09</b></td><td><b>IBM + CMU — Mamba-2 + 2 层 Attention</b>, 9B 参数, 全公开训练代码+数据, 注意力层只放最后 2 层</td><td>KV 极少</td><td>推理速度 ~Llama-3.1-8B, 内存 ↓ 60%</td><td>IBM-FMS</td></tr>
+<tr><td><b>RecurrentGemma-2</b></td><td>2024-2025</td><td><b>Griffin (RNN + 局部 Attention) 升级</b> — 主体 Real-Gated Linear Recurrent (RGLR), 偶有局部 sliding window attention</td><td>KV 极小</td><td>2B/9B 两版, 9B 推理快 5×</td><td>Google DeepMind</td></tr>
+<tr><td><b>Falcon-H1</b></td><td><b>2025-05</b></td><td><b>Transformer + Mamba 混合 (1:1 配比)</b> — 阿联酋 TII, 0.5B-34B 全家族, 阿拉伯语 + 英语双语优化</td><td>KV 减半</td><td>7B 模型匹配 Llama-3-8B, 34B 略超</td><td>TII Falcon</td></tr>
+<tr><td><b>Zamba-2</b></td><td><b>2025-04</b></td><td><b>Mamba + 2 个共享 Attention 层</b> — Zyphra, 共享 Attention 层在多个 block 复用, 减少 KV 计算</td><td>共享 attn KV</td><td>7B 长文匹配 Llama-3-8B</td><td>Zyphra</td></tr>
+<tr><td><b>DeltaNet (GDN)</b></td><td><b>2024-12</b></td><td><b>Delta Rule + 线性复杂度</b> — 用 delta 规则 (S_t = S_{t-1} + v_t - k_t·(S_{t-1}·k_t)) 增量更新 state, 训练 5× 速度, Qwen3-Next 已采用 (GDN=Gated DeltaNet)</td><td><b>O(1) per step</b></td><td>训练 5×, 内存 O(n)</td><td>Microsoft Research → Qwen3-Next</td></tr>
 </tbody>
 </table>
 
