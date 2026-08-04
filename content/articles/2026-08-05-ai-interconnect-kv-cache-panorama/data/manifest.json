@@ -1,26 +1,31 @@
 {
   "report_id": "2026-08-05-ai-interconnect-kv-cache-panorama",
-  "version": "1.0",
+  "version": "2.0",
   "date": "2026-08-05",
   "author": "calvin + Hermes Agent",
   "type": "comprehensive_panorama",
   "category": "洞察",
-  "title": "AI 硬件互联方案全景对比 — 从 CXL/CMS/灵衢/Google TPU 看 KV Cache 与 AI 推理训练",
-  "subtitle": "4 主方案 (CXL 3.0/3.1/3.2/4.0 + CMS 内存池 + 华为灵衢 UnifiedBus + Google TPU ICI) + 4 扩展 (NVLink-C2C/UALink/AMD Infinity Fabric + Ultra Ethernet/PCIe 6.0/7.0 + Cisco Silicon One). 141 条官方引用, 6 真实架构图, 12 SVG 可视化, 30 轮 3-agent 验证.",
+  "title": "AI 硬件互联方案全景对比 v2.0 — 从 CXL/NVIDIA CMX/灵衢/Google TPU 看 KV Cache 与 AI 推理训练 (2026)",
+  "subtitle": "v2.0 重写: 上一版错误把 \"CMS\" 配为 Samsung Compute Memory Stack, 实际应是 NVIDIA CMX (Context Memory Storage). 4 主方案 (CXL 3.0/3.1/3.2/4.0 + NVIDIA CMX/BlueField-4/Spectrum-X + 华为灵衢 UnifiedBus + Google TPU ICI) + 4 扩展 (NVLink-C2C/UALink 1.0/AMD Infinity Fabric + Ultra Ethernet/PCIe 6.0/7.0 + Cisco Silicon One). 248 条官方引用, 11 真实架构图, 15 SVG, 16 表格.",
   "tagline": "Memory Wall 4.0 — 互联协议决定 KV Cache 共享边界",
   "main_html": "index.html",
-  "sections_count": 11,
-  "h3_subsections": 30,
-  "tables_count": 12,
-  "svg_diagrams": 12,
-  "real_architecture_figures": 6,
-  "references": 141,
-  "important_correction": "用户原话 \"灵衢\" 实为华为 2025-09 UnifiedBus 协议, 不是阿里方案. 阿里实际 AI 互联是真武 PPU + ICN Switch 1.0 + 磐久 AL128 + ALS/ALink + EIC + CIPU + 灵骏 HPN.",
+  "sections_count": 12,
+  "h3_subsections": 36,
+  "tables_count": 16,
+  "svg_diagrams": 15,
+  "real_architecture_figures": 11,
+  "references": 248,
+  "important_corrections": [
+    "v1.0 错误: \"CMS\" 配为 Samsung Compute Memory Stack / CMM-D/B/H (实际应归到 CXL 内存池化硬件层)",
+    "v2.0 修正: 主方案 2 改为 NVIDIA CMX (Context Memory Storage Platform), 由 BlueField-4 DPU 驱动 + Spectrum-X 互联 + Rubin 平台",
+    "v2.0 修正: Samsung CMM-D/B/H 改为 CXL 内存池化硬件 (支撑层), 不再是主方案",
+    "v2.0 保留: 灵衢 = 华为 2025-09 UnifiedBus, 不是阿里方案"
+  ],
   "validation": "3 agent 30 轮验证 — 待审计",
   "core_deliverables": {
     "main_protocols": [
       "CXL 3.0/3.1/3.2/4.0",
-      "CMS Samsung CMM-D/B/H",
+      "NVIDIA CMX (Context Memory Storage)",
       "灵衢 UnifiedBus",
       "Google TPU ICI"
     ],
@@ -30,15 +35,25 @@
       "AMD Infinity Fabric / Ultra Ethernet",
       "PCIe 6.0/7.0 + Cisco Silicon One"
     ],
+    "cxl_memory_hardware": [
+      "Samsung CMM-D/B/H",
+      "Meta Vistara",
+      "Astera Labs Leo",
+      "MemVerge Memory Machine X",
+      "Marvell Structera S",
+      "Montage M88MX6852",
+      "XConn Apollo 2",
+      "Microsoft Azure M-series"
+    ],
     "kv_cache_relevance": [
       "CXL 内存池化: 跨节点 KV Cache 共享, ~256 ns 延迟",
-      "CMS 1TB+ 容量: 装下 200B 模型 KV Cache",
+      "NVIDIA CMX: G3.5 pod-level context memory 5x TPS 提升, 5x 能效, 200-500 μs 延迟",
       "TPU ICI 2D/3D torus: 推理时 prefix cache 共享",
       "灵衢 2.1 μs: 推理跨机柜 KV Cache 拉取"
     ],
     "ai_inference_training": [
       "训练: 主要看 all-reduce 带宽 (NVLink 900 GB/s, ICI 50 GB/s/link, InfiniBand NDR 50 GB/s)",
-      "推理: KV Cache 跨请求/跨主机共享 (CXL 内存池, 灵衢 2.1 μs, TPU prefix cache)",
+      "推理: KV Cache 跨请求/跨主机共享 (CXL 内存池, NVIDIA CMX, TPU prefix cache, 灵衢 2.1 μs)",
       "memory wall: HBM 带宽 3-8 TB/s 已超过 GDDR DRAM 通道, 互联成新瓶颈"
     ]
   }
