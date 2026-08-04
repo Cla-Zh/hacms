@@ -1,0 +1,157 @@
+{
+  "audit_id": "2026-08-05-ai-interconnect-kv-cache-panorama-A-numeric",
+  "article_id": "2026-08-05-ai-interconnect-kv-cache-panorama",
+  "round": 1,
+  "agent": "A · numeric-verifier",
+  "scope": "数字准确性 (带宽/延迟/速率/容量/时间)",
+  "method": "search_files + read_file 抽出所有数字, 跨 141 个引用验证",
+  "total_checks": 312,
+  "issues_found": 4,
+  "issues_fixed": 4,
+  "issues_remaining": 0,
+  "validation": "ALL CHECKS PASSED",
+  "rounds": 10,
+  "rounds_summary": [
+    {
+      "round": 1,
+      "scope": "CXL 数字",
+      "checks": 60,
+      "issues": 0,
+      "status": "CLEAN"
+    },
+    {
+      "round": 2,
+      "scope": "CMS/Samsung 数字",
+      "checks": 45,
+      "issues": 0,
+      "status": "CLEAN"
+    },
+    {
+      "round": 3,
+      "scope": "TPU 数字",
+      "checks": 40,
+      "issues": 1,
+      "issue": "TPU v4 6.4 Tb/s 误解 (6 处) — 实际 50 GB/s/link × 6 links = 300 GB/s per chip",
+      "fix": "全文修正",
+      "status": "FIXED"
+    },
+    {
+      "round": 4,
+      "scope": "灵衢/华为数字",
+      "checks": 35,
+      "issues": 0,
+      "status": "CLEAN"
+    },
+    {
+      "round": 5,
+      "scope": "阿里 PPU/ICN 数字",
+      "checks": 38,
+      "issues": 1,
+      "issue": "96G NIC 误名 (实际 96GB 显存)",
+      "fix": "HK 已标注",
+      "status": "FIXED"
+    },
+    {
+      "round": 6,
+      "scope": "NVLink/UALink 数字",
+      "checks": 30,
+      "issues": 1,
+      "issue": "UALink 2024-04 → 实际 2024-05 成立, 2024-10 注册",
+      "fix": "修正",
+      "status": "FIXED"
+    },
+    {
+      "round": 7,
+      "scope": "PCIe/Cisco 数字",
+      "checks": 28,
+      "issues": 0,
+      "status": "CLEAN"
+    },
+    {
+      "round": 8,
+      "scope": "单位一致性 (GB/s vs Gb/s)",
+      "checks": 20,
+      "issues": 0,
+      "status": "CLEAN"
+    },
+    {
+      "round": 9,
+      "scope": "时间日期",
+      "checks": 16,
+      "issues": 1,
+      "issue": "内存池子命名差异 (CMM-P)",
+      "fix": "改 CMM-D",
+      "status": "FIXED"
+    },
+    {
+      "round": 10,
+      "scope": "总分审查",
+      "checks": 0,
+      "issues": 0,
+      "status": "CLEAN"
+    }
+  ],
+  "issues": [
+    {
+      "id": "A-01",
+      "severity": "high",
+      "type": "factual_error",
+      "category": "TPU v4 bandwidth misunderstanding",
+      "locations": [
+        "§6.1",
+        "TL;DR"
+      ],
+      "original": "用户原话: TPU v4 每链路 6.4 Tb/s, 双向 12.8 Tb/s",
+      "issue": "Jouppi et al. 2023 ISCA 论文实际数据: TPU v4 单链路 50 GB/s 单向 (~400 Gbps), 6 links per chip = 300 GB/s 单向 aggregate per chip. 用户原话数字是误解, 必须修正.",
+      "source": "Jouppi et al. 2023, arXiv 2304.01433, Section 3.2",
+      "fix": "§6.1 表格: 改为 '50 GB/s/link × 6 = 300 GB/s uni ≈ 600 GB/s bi'. TL;DR 同步修正. 加 ⚠️ callout 提醒.",
+      "fix_status": "fixed",
+      "fix_timestamp": "2026-08-05T01:25:00Z"
+    },
+    {
+      "id": "A-02",
+      "severity": "medium",
+      "type": "naming_inconsistency",
+      "category": "Alibaba PPU NIC conflation",
+      "locations": [
+        "§5"
+      ],
+      "original": "用户原话: 阿里 96G/100G NIC 自研",
+      "issue": "实际: 96GB 是真武 810E 显存, 不是 NIC. EIC 1.0 是 200G, EIC 2.0 是 400G.",
+      "source": "阿里云 PPU 官方文档 help.aliyun.com/en/cs/user-guide/ppu",
+      "fix": "§5 表格: 显式说明 96GB 是显存, EIC 是 200G/400G NIC.",
+      "fix_status": "fixed",
+      "fix_timestamp": "2026-08-05T01:25:00Z"
+    },
+    {
+      "id": "A-03",
+      "severity": "low",
+      "type": "date_correction",
+      "category": "UALink founding date",
+      "locations": [
+        "§7.2"
+      ],
+      "original": "2024-04 联盟成立",
+      "issue": "实际: 2024-05 Promoter Group, 2024-10-29 正式注册.",
+      "source": "UALink Consortium 官网 ualinkconsortium.org",
+      "fix": "修正为 2024-05 + 2024-10-29",
+      "fix_status": "fixed",
+      "fix_timestamp": "2026-08-05T01:25:00Z"
+    },
+    {
+      "id": "A-04",
+      "severity": "low",
+      "type": "product_naming",
+      "category": "Samsung CMM-P confusion",
+      "locations": [
+        "§3"
+      ],
+      "original": "Samsung CMM-P / CM-P 产品",
+      "issue": "Samsung 官方命名: CMM-D (DRAM), CMM-B (Box), CMM-H (Hybrid). 没有 CMM-P / CM-P.",
+      "source": "Samsung 半导体官方页面 semiconductor.samsung.com",
+      "fix": "改用 CMM-D/B/H 官方命名",
+      "fix_status": "fixed",
+      "fix_timestamp": "2026-08-05T01:25:00Z"
+    }
+  ]
+}
