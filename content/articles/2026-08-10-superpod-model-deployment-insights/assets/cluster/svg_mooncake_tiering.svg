@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 460" font-family="-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif">
+<rect width="920" height="460" fill="#0a0e1a"/>
+<text x="460" y="32" text-anchor="middle" fill="#e8ecf5" font-size="20" font-weight="700">S06 · Mooncake 3 层 KV Cache Tiering (DeepSeek + Kimi K2)</text>
+<text x="460" y="54" text-anchor="middle" fill="#aab2cf" font-size="12">HBM G1 → DRAM G2 → NVMe G3 + Transfer Engine 跨节点</text>
+<!-- G1 HBM -->
+<g transform="translate(80,90)">
+<rect x="0" y="0" width="760" height="80" fill="#1c2440" stroke="#7eb6ff" stroke-width="2" rx="8"/>
+<text x="20" y="28" fill="#7eb6ff" font-size="14" font-weight="700">G1 · HBM GPU Memory</text>
+<text x="20" y="48" fill="#aab2cf" font-size="11">~80 GB/GPU, ~3 TB/s/GPU, 延迟 ~100 ns</text>
+<text x="20" y="65" fill="#e8ecf5" font-size="10">用途: hot KV blocks (active requests 当前 + 最近 token)</text>
+<rect x="500" y="20" width="240" height="50" fill="#7eb6ff" opacity="0.2" rx="4"/>
+<text x="620" y="42" text-anchor="middle" fill="#7eb6ff" font-size="11" font-weight="700">活跃请求 KV</text>
+<text x="620" y="60" text-anchor="middle" fill="#aab2cf" font-size="10">batch size × seq len × 2 (K+V)</text>
+</g>
+<g transform="translate(80,180)">
+<rect x="0" y="0" width="760" height="80" fill="#1c2440" stroke="#a78bfa" stroke-width="2" rx="8"/>
+<text x="20" y="28" fill="#a78bfa" font-size="14" font-weight="700">G2 · CPU DRAM (host memory)</text>
+<text x="20" y="48" fill="#aab2cf" font-size="11">~1-2 TB/host, ~100 GB/s/host, 延迟 ~1-10 μs</text>
+<text x="20" y="65" fill="#e8ecf5" font-size="10">用途: evicted hot blocks, prefix cache, beam search sharing</text>
+<rect x="500" y="20" width="240" height="50" fill="#a78bfa" opacity="0.2" rx="4"/>
+<text x="620" y="42" text-anchor="middle" fill="#a78bfa" font-size="11" font-weight="700">Prefix / LRU evict</text>
+<text x="620" y="60" text-anchor="middle" fill="#aab2cf" font-size="10">vLLM/SGLang host KV pool</text>
+</g>
+<g transform="translate(80,270)">
+<rect x="0" y="0" width="760" height="80" fill="#1c2440" stroke="#10b981" stroke-width="2" rx="8"/>
+<text x="20" y="28" fill="#10b981" font-size="14" font-weight="700">G3 · NVMe SSD (distributed pool)</text>
+<text x="20" y="48" fill="#aab2cf" font-size="11">~100 TB/pool, ~5 GB/s/NVMe, 延迟 ~100 μs-1 ms</text>
+<text x="20" y="65" fill="#e8ecf5" font-size="10">用途: cold prefix, long-tail cache, cross-node sharing via Transfer Engine</text>
+<rect x="500" y="20" width="240" height="50" fill="#10b981" opacity="0.2" rx="4"/>
+<text x="620" y="42" text-anchor="middle" fill="#10b981" font-size="11" font-weight="700">Cold prefix pool</text>
+<text x="620" y="60" text-anchor="middle" fill="#aab2cf" font-size="10">RDMA + 3FS file system</text>
+</g>
+<g transform="translate(80,370)">
+<text x="0" y="0" fill="#f59e0b" font-size="13" font-weight="700">Transfer Engine (Mooncake 自研, RDMA-based)</text>
+<text x="0" y="20" fill="#e8ecf5" font-size="11">• 2025-12 已被 TensorRT-LLM + vLLM v1 KV Connector 集成 (NVIDIA 生态接纳)</text>
+<text x="0" y="38" fill="#e8ecf5" font-size="11">• Kimi K2 (2025-07) Mooncake + 128 H200 + PD disagg → <tspan fill="#10b981" font-weight="700">288k tokens/s decode</tspan> (单 cluster 记录)</text>
+<text x="0" y="56" fill="#e8ecf5" font-size="11">• 跨节点 KV cache 全局共享 + early-retry + 抢占 — 通过 chunked prefill overlap 提升 long context throughput</text>
+</g>
+<text x="460" y="445" text-anchor="middle" fill="#aab2cf" font-size="10" font-style="italic">Source: Mooncake paper, arXiv:2407.00079 (FAST 2025 Best Paper) + github.com/kvcache-ai/Mooncake</text>
+</svg>

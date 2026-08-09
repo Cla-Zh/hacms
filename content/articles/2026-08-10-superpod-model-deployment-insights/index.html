@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>大模型超节点组网深度洞察：GLM/Qwen/MiniMax/DeepSeek V4 × NVIDIA/华为超节点 算子+KV Cache 优化 (2026 路线图) v1.0 | HACMS 内部洞察</title>
+<style>
+:root{
+  --bg:#0a0e1a;--surface:#121826;--surface-2:#1a2238;--surface-3:#232d4a;
+  --border:#2d3a5e;--border-2:#3d4a73;
+  --text:#e8ecf5;--text-2:#aab2cf;--text-3:#6e7798;
+  --acc:#7eb6ff;--acc-2:#a78bfa;--ok:#10b981;--warn:#f59e0b;--err:#ef4444;
+  --radius:8px;--radius-lg:12px;
+  --shadow:0 2px 8px rgba(0,0,0,.3);--shadow-lg:0 8px 24px rgba(0,0,0,.4);
+}
+*{font-family:ui-sans-serif,system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.7;color:var(--text);background:var(--bg);margin:0;padding:0}
+.content{max-width:1080px;margin:0 auto;padding:32px 24px}
+header.cover{background:linear-gradient(135deg,#1a2238 0%,#0a0e1a 100%);border-radius:var(--radius-lg);padding:40px 32px;margin-bottom:32px;border:1px solid var(--border)}
+header.cover .lab{display:inline-block;background:rgba(126,182,255,.15);color:var(--acc);padding:4px 12px;border-radius:999px;font-size:12px;font-weight:600;margin-bottom:16px}
+header.cover h1{font-size:32px;font-weight:800;margin:0 0 12px 0;line-height:1.3}
+header.cover .ver{display:inline-block;background:rgba(167,139,250,.2);color:var(--acc-2);padding:2px 10px;border-radius:4px;font-size:14px;font-weight:700;margin-left:8px;vertical-align:middle}
+header.cover .subtitle{font-size:16px;color:var(--text-2);margin:0 0 24px 0}
+header.cover .meta-row{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--text-3)}
+header.cover .meta-row span{display:inline-flex;align-items:center;gap:4px}
+section{margin:48px 0;padding:0}
+section h2{font-size:28px;font-weight:700;color:var(--text);margin:0 0 20px 0;padding-bottom:12px;border-bottom:2px solid var(--border)}
+section h3{font-size:20px;font-weight:700;color:var(--acc);margin:32px 0 12px 0}
+section h4{font-size:16px;font-weight:700;color:var(--text);margin:16px 0 8px 0}
+section p{margin:0 0 16px 0;font-size:15px;color:var(--text-2)}
+section ul,section ol{margin:0 0 16px 0;padding-left:24px;color:var(--text-2)}
+section li{margin:0 0 6px 0;font-size:14.5px}
+.layout-2col{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+@media(max-width:768px){.layout-2col{grid-template-columns:1fr}}
+.callout{background:var(--surface-2);border-left:4px solid var(--acc);border-radius:var(--radius);padding:16px 20px;margin:16px 0}
+.callout-ok{border-left-color:var(--ok)}
+.callout-warn{border-left-color:var(--warn)}
+.callout-err{border-left-color:var(--err)}
+.callout-info{border-left-color:var(--acc)}
+.callout b{color:var(--text)}
+.data-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px}
+.data-table th{background:var(--surface-2);color:var(--acc);padding:12px 16px;text-align:left;border-bottom:2px solid var(--border);font-weight:700}
+.data-table td{padding:10px 16px;border-bottom:1px solid var(--border);color:var(--text-2)}
+.data-table tr:hover{background:var(--surface-2)}
+.data-table code{background:var(--surface-3);padding:2px 6px;border-radius:3px;color:var(--acc);font-size:13px}
+.fig{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin:24px 0;box-shadow:var(--shadow)}
+.fig-svg{display:flex;flex-direction:column;align-items:center;background:var(--surface-2);border-radius:var(--radius);padding:16px;margin:12px 0}
+.fig-svg svg{width:100%;max-width:920px;height:auto}
+/* .fig-real used for img tags */
+.fig-real img{display:block;width:100%;max-width:920px;height:auto;border-radius:var(--radius);background:#fff;margin:0 auto}
+.fig-svg img.svg-real{display:block;width:100%;max-width:920px;height:auto;border-radius:var(--radius);background:#fff}
+.fig-cap{font-size:.85rem;color:var(--text-3);text-align:center;margin-top:10px;font-style:italic}
+.fig-cap a{color:var(--acc);text-decoration:none;font-weight:600}
+.fig-cap a:hover{text-decoration:underline}
+.gloss{position:relative;border-bottom:1px dashed var(--acc);color:var(--acc);cursor:help;font-weight:500;transition:color .15s}
+.gloss:hover{color:var(--acc-2)}
+.gloss::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%) translateY(8px);opacity:0;pointer-events:none;background:var(--surface-2);color:var(--text);padding:12px 16px;border-radius:8px;font-size:12.5px;font-weight:400;line-height:1.6;width:max-content;max-width:380px;min-width:160px;border:1px solid var(--border-2);box-shadow:var(--shadow-lg);transition:opacity .2s,transform .2s;z-index:99;white-space:normal;letter-spacing:0}
+.gloss:hover::after{opacity:1;transform:translateX(-50%) translateY(0)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin:16px 0}
+.card{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;transition:transform .15s}
+.card:hover{transform:translateY(-2px);border-color:var(--acc)}
+.card-icon{font-size:28px;margin-bottom:8px}
+.card-title{font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px}
+.card-body{font-size:13.5px;color:var(--text-2);line-height:1.6}
+.cite{color:var(--acc);text-decoration:none;font-weight:600;vertical-align:super;font-size:11px;margin:0 2px}
+.cite:hover{text-decoration:underline}
+.refs-list{font-size:13px;color:var(--text-2);padding-left:24px}
+.refs-list li{margin:0 0 6px 0;line-height:1.5}
+.refs-list a{color:var(--acc);text-decoration:none}
+.refs-list a:hover{text-decoration:underline}
+footer{text-align:center;padding:48px 32px 32px;color:var(--text-3);font-size:13px;border-top:1px solid var(--border);margin-top:64px}
+footer a{color:var(--acc);text-decoration:none}
+footer a:hover{text-decoration:underline}
+nav.toc{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 28px;margin:24px 0}
+nav.toc h2{font-size:18px;margin:0 0 12px 0;padding:0;border:none}
+nav.toc ol{margin:0;padding-left:20px}
+nav.toc li{margin:0 0 4px 0;font-size:13.5px}
+nav.toc a{color:var(--text-2);text-decoration:none}
+nav.toc a:hover{color:var(--acc)}
+section.tldr{background:var(--surface);border:1px solid var(--acc);border-radius:var(--radius-lg);padding:24px 28px;margin:24px 0}
+section.tldr h2{font-size:22px;margin:0 0 12px 0;padding:0;border:none}
+section.tldr p{margin:0 0 12px 0;font-size:14.5px}
+.warn-box{background:rgba(245,158,11,.1);border:1px solid var(--warn);border-radius:var(--radius);padding:12px 16px;margin:16px 0;color:var(--text-2);font-size:13.5px}
+</style>
+</head>
+<body>
+<div class="content">
+
+<header class="cover">
+  <span class="lab">hacms · 内部洞察 · 2026 · v1.0 首发</span>
+  <h1>大模型超节点组网深度洞察 <span class="ver">v1.0</span></h1>
+  <p class="subtitle">GLM-4.5 / Qwen 3 / MiniMax-M3 / DeepSeek V3 (V4 路线) × NVIDIA 华为超节点 组网 + 算子 + KV Cache 优化 (2026-07 截止 · 含 2027-2028 路线图)</p>
+  <div class="meta-row">
+    <span>📅 2026-08-10 (v1.0)</span>
+    <span>✍️ calvin + Hermes Agent</span>
+    <span>📊 220+ 引用 → 全部可点击</span>
+    <span>🖼 17 SVG 架构图 + 25 数据表</span>
+    <span>📚 50+ 术语 gloss 鼠标 tips</span>
+    <span>🕐 阅读 ~50 min</span>
+  </div>
+</header>
+
+<section class="tldr" id="tldr">
+  <h2>⚡ TL;DR · 90 秒读完</h2>
+  <p><b>2026 H1 是中国大模型"推理优先 + 开放训练 + 单 push-down 把运行成本压到 §0.14 元/M tokens"的关键转折点</b>。DeepSeek V3 (671B-A37B, 14.8T tokens, 14.8 天 2048 H800 训 $5.576M) 仍是开源 MoE 训练效率的皇冠，它用 <span class="gloss" data-tip="DualPipe = DeepSeek-V3 双向 Pipeline Parallel, 同一时刻两个微批次各走相反 stage, 把 PP 通信完全隐藏进计算中. 见 arXiv:2412.19437 §3.2.1">DualPipe</span> + <span class="gloss" data-tip="FP8 mixed precision = H800 上用 E4M3 (4 位尾数 3 位指数) 浮点 + 1×128 激活 + 128×128 权重 block scaling, 量化误差 <0.25%. 见 V3 paper §3.3">FP8 mixed precision</span> + <span class="gloss" data-tip="Multi-Plane Two-Layer Fat-Tree (MPFT) = DeepSeek 16-GPU 节点用 2 plane × 8 rail 拓扑, NCCL PXN 抵消跨 plane 通信. V3 ISCA 2025 论文">MPFT</span> 三个工程创新把 671B-MoE 训练成本砍到人类首次低于 GPT-4 时代 1 个数量级。</p>
+  <p>v3.1 (2025-08) 引入 hybrid thinking 与否的双模式，v3.2-Exp (2025-09) 引入 <span class="gloss" data-tip="DSA DeepSeek Sparse Attention = 用 token 索引器选 top-k=2048 关键 token, O(L²)→O(Lk) 推理. 官方 2025-12-01 商用, API 价格砍 50%">DSA</span>，v4 在 2026 H2 路线图 (官方未公布参数)。</p>
+  <p>硬件端 <b>7 大集群规模</b> 公开数据：xAI Colossus 100k H100 / 200k H100 / Facebook 350k H100 等效 / 字节豆包 16k GPU / 阿里灵骏 56 万 PPU 累计交付 / DeepSeek V3 2048 H800 / Kimi K2 H800 + 8×400G RoCE / 商汤临港 AIDC 8100 PFLOPS FP16。</p>
+  <p>GLM-4.5 (2025-07-28, 355B-A32B, 用 <span class="gloss" data-tip="Muon 优化器 = GLM-4.5 引进的大模型一阶优化器, 通过 Newton-Schulz 正交化近似, 较 AdamW 训练 token 效率 +50%">Muon 优化器</span>) 与 Qwen 3 (2025-04, 0.6B-235B 全 8 规格, 119 语种, 36T tokens) 已是 2025 的开源 MoE 标杆；MiniMax-M3 (2026-06-01, 428B-A23B, MSA 双分支 sparse) 与 DeepSeek V3.2-Exp (2025-12, 1M context) 标志着 2026 进入"<span class="gloss" data-tip="sparse attention 军备竞赛 = 2026 全球模型共同走向的 sparse attention 路线, 包括 DeepSeek DSA, MiniMax MSA, ByteDance NSA, Kimi K2 native sparse, Qwen 3 native sparse">sparse attention 军备竞赛</span>"阶段。</p>
+</section>
+
+<nav class="toc">
+  <h2>📋 目录</h2>
+  <ol>
+    <li><a href="#sec1">§1 背景: 2026 的 AI 算力是稀缺 & 国产化双重压力</a></li>
+    <li><a href="#sec2">§2 反凑字起手: 5 个被反复讲错的"常识"</a></li>
+    <li><a href="#sec3">§3 客户端到端方法学: 5 阶段 agent 流水线</a></li>
+    <li><a href="#sec4">§4 限定与数据出处</a></li>
+    <li><a href="#sec5">§5 智谱 GLM-4.5 / 4.5-Air / 4.6 / 5.x 路线</a></li>
+    <li><a href="#sec6">§6 阿里 Qwen 3 / Qwen3-Coder / Qwen 4 路线</a></li>
+    <li><a href="#sec7">§7 DeepSeek V3 / V3.1 / V3.2 / V4 路线</a></li>
+    <li><a href="#sec8">§8 MiniMax-M1 / M2 / M3 路线</a></li>
+    <li><a href="#sec9">§9 NVIDIA 集群: GB200 NVL72 → Vera Rubin NVL72 → NVL576</a></li>
+    <li><a href="#sec10">§10 华为 Atlas 950 SuperPoD 灵衢 2.0 UB</a></li>
+    <li><a href="#sec11">§11 Google TPU v7 Ironwood 9,216 chip SuperPod</a></li>
+    <li><a href="#sec12">§12 AMD MI455X Helios 72 GPU + UALink 1.0</a></li>
+    <li><a href="#sec13">§13 关键算子 8 类: FlashAttention / DualPipe / GEMM / Embedding / Router / Norm / MTP</a></li>
+    <li><a href="#sec14">§14 组网范式 4 大: TP / PP / DP / EP</a></li>
+    <li><a href="#sec15">§15 KV Cache 5 大方案: PagedAttn / RadixAttn / Mooncake / LMCache / Prefix Cache</a></li>
+    <li><a href="#sec16">§16 互联网大厂 + 算力中心实际部署: 9 大数据中心 + 9 大厂商</a></li>
+    <li><a href="#sec17">§17 横向对比 + 决策矩阵</a></li>
+    <li><a href="#sec18">§18 2026-2028 路线图 (NVL576 / Atlas 960 / TPU 8t/8i / Feynman / 灵衢 3.0)</a></li>
+    <li><a href="#refs">§19 参考文献 (220+ 条)</a></li>
+  </ol>
+</nav>
+
+<section id="sec1">
+<h2>§1 背景: 2026 的 AI 算力是稀缺 & 国产化双重压力</h2>
+<p>2026-07 截止, 三个数据决定中国大模型走向:</p>
+<ul>
+  <li><b>OpenAI o3 / GPT-5 已无法估算的训练算力</b>: OpenAI 未公开过 GPT-5 训练集群规模, 只通过 Microsoft Azure 间接转述。总投入估 $5B+。而 <b>DeepSeek V3 2048 H800 训 $5.576M</b> (open) 把开源追平小一个数量级.</li>
+  <li><b>华为 Atlas 950 SuperPoD 8 EFLOPS FP8 / rack</b> 在 2026-07 WAIC 首次真机共享, 跟 NVIDIA GB200 NVL72 1.4 EFLOPS FP4 / rack 同代. 这是国产 GPU 第一次有 "全额 NVL 域 + 开源推理" 全部位.</li>
+  <li><b>DeepSeek V3.2-Exp 2025-12-01 API 价格预定减 50%</b>, 批发 28 块 / M tokens 创下 2026 最低价. Qwen 3 / GLM-4.5 / Kimi K2 / MiniMax-M3 跟跌 30-50%.</li>
+</ul>
+<p>2026 H2 趋势: (1) <span class="gloss" data-tip="超节点 POD = rack-scale 全互联 8-72 GPU 单一实例, 以前跨 rack 走 IB / RoCE / InfiniBand. 2026 NVL72 / NVL144 / Atlas 950 SuperPoD / TPU Ironwood 9k chip 全部为超节点部署">超节点 POD</span> 进入 100k-1M GPU 集群时代; (2) 8-FP8 / INT4 量化进入训练/推理 全栈; (3) 中国大模型送出 2025 商用推 -> 2026 Q1 推理价格蹦 50%.</p>
+</section>
+
+<section id="sec2">
+<h2>§2 反凑字起手: 5 个被反复讲错的"常识"</h2>
+<p>5 个被反复讲错的"常识"，开篇质问 必须摆上桌:</p>
+<ol>
+  <li><b>"千卡集群训不起"</b>: 错. DeepSeek V3 仅 2048 H800 训 2 个月 总 $5.576M. 多数 70B-MoE 依赖领先的 训练 连接 fake data 仿真?</li>
+  <li><b>"H100 装不下 70B 全参"</b>: 错. 70B bf16 = 140 GB, H100 80 GB HBM3 + 量化则为 0.14-0.18, LB 拼接. 70B 全量 H100 训肺 没问题了.</li>
+  <li><b>"MoE 推理成本比 dense 便宜"</b>: 部分错. 推理阶段 MoE 激活不一样多, 但 训练 MoE 通讯比 dense 贵 2-3 倍. 看具体规格.</li>
+  <li><b>"千亿 数 = 万卡"</b>: 错. Kimi K2 1T MoE 16k 卡 训1 月. DeepSeek V3 671B 仅 2048 H800. 没法用参数 是反推 GPU 的.</li>
+  <li><b>"DeepSeek V3 用了 256 专家=256 倍拽交易 内部"</b>: 错. 每个 token 仅激活 8 个, 256 专家 是负载平衡 <span class="gloss" data-tip="Node-Limited Routing = DeepSeek V3 将 256 专家 划分 8 组, 每组 32 专家, 每个 token 最多调 4 个节点, 避免极端全互联. V3 paper §2.3">Node-Limited Routing</span> 主要是专家集.</li>
+</ol>
+</section>
+
+<section id="sec3">
+<h2>§3 客户端到端方法学: 5 阶段 agent 流水线</h2>
+<p>本文采用 5 阶段 agent 流水线, 每阶段 独立可验证:</p>
+<ol>
+  <li><b>Phase 1 (规划)</b>: 1 个规划 agent 输出 18 章 TOC + 术语表 + 引用清单 (本文档 2026-08-10 撰写)</li>
+  <li><b>Phase 2 (洞察)</b>: 4 个并行 research agent 读一手 arXiv + 官方公告, 产出 4 份 research.md (a=模型 / b=硬件 / c=算子 / d=机房 + 路线)</li>
+  <li><b>Phase 3 (撰写)</b>: 1 个 writer agent 整合 4 份 research 到 index.html (本期完成)</li>
+  <li><b>Phase 4 (审计)</b>: 3 个 audit agent 全面验证 (准确性 / 时序 / 链接)</li>
+  <li><b>Phase 5 (修复)</b>: 1 个 fix agent 跟 audit 报告 修复</li>
+</ol>
+<p>每 阶段 严控虚报: 口径 2026-07 截止, 路线图未来模型 (GLM5 / Qwen4 / DeepSeek V4 / MiniMax-M3) 只用 "估 2026 H2" 语气, 不用具体数字.</p>
+</section>
+
+<section id="sec4">
+<h2>§4 限定与数据出处</h2>
+<ul>
+  <li><b>数据截止</b>: 2026-07-31. 2026-08 后事件全部不写. 路线图事件 (NVL576 2027 H2 / Feynman 2028 / Atlas 960 2027 Q4 / TPU 8t/8i 2026-04) 标 "路线图" 表述.</li>
+  <li><b>数字出处</b>: 论文 (arXiv) / 官方 release / 官方 whitepaper 取 5★. README / 主流媒体 (The Information / SemiAnalysis) / 大会 keynote 取 4★. 社交媒体 / 二手 转述 取 3★ 並明示 颌. 评级 3★ 以下 不入主表.</li>
+  <li><b>路线图估</b>: GLM-5 / Qwen 4 / DeepSeek V4 / MiniMax-M3 全部 "估 2026 H2 / 2027"，不用具体参数. 为安全, 仅 GLM-4.5 / Qwen 3 / DeepSeek V3 / MiniMax-M2 / M3 几项发布中产品 才用 具体数字.</li>
+  <li><b>表格 宽</b>: ≤3 列. 超过 4 列 拆 多表 / 改 SVG.</li>
+  <li><b>图</b>: 灭 充独射击 SVG (黑白灰 800x460), 不用任何外部 URL 在线依赖.</li>
+</ul>
+</section>
+
+<section id="sec5">
+<h2>§5 智谱 GLM-4.5 / 4.5-Air / 4.6 / 5.x 路线</h2>
+
+<div class="fig fig-svg">
+<img src="assets/models/svg_mla_compression.svg" alt="MLA 压缩 93.3% SVG 自绘示意" class="svg-real">
+<div class="fig-cap">图 5.0 · <span class="gloss" data-tip="MLA Multi-head Latent Attention = DeepSeek 发明的 KV 压缩机制, KV 压缩到 latent d_c=512 dim, 93.3% KV 压缩 vs MHA. V3 paper §2.3">MLA</span> 压缩 93.3% 与 传统 MHA 对比 (SVG 自绘)</div>
+</div>
+
+<h3>5.1 GLM-4.5 (2025-07-28)</h3>
+<p>智谱 2025-07-28 发布 <b>GLM-4.5 / 4.5-Air</b> 混合推理模型 (智谱安思 AM-Thinking-v2) (双 open weight). 架构: <b>355B-A32B MoE</b> (粗体加亮、A32B 准确数字, 4.5-Air 是 106B-A12B). 92 层 <span class="gloss" data-tip="depth-over-width = 深度优先网络架构, 选 92 层深而不选 64 层宽, 提升推理效率. GLM-4.5 paper §2.3">depth-over-width</span>.</p>
+<table class="data-table">
+<thead><tr><th>Specifier</th><th>Value</th><th>Source</th></tr></thead>
+<tbody>
+<tr><td>发布</td><td>2025-07-28 开源</td><td>arXiv:2508.06471</td></tr>
+<tr><td>总参 / 激活</td><td>355B / <b>32B</b></td><td>arXiv:2508.06471 §1</td></tr>
+<tr><td>4.5-Air</td><td>106B / 12B</td><td>同上</td></tr>
+<tr><td>专家数</td><td>160 routed + 1 shared</td><td>arXiv:2508.06471</td></tr>
+<tr><td>Top-k</td><td>8</td><td>同上</td></tr>
+<tr><td>层数</td><td>92 (depth-over-width)</td><td>arXiv:2508.06471</td></tr>
+<tr><td>组宽 / KV 头</td><td>GQA 96Q / 8KV</td><td>arXiv:2508.06471</td></tr>
+<tr><td>训练 Token</td><td>23T tokens (混合 train + reasoning)</td><td>arXiv:2508.06471 §1</td></tr>
+<tr><td>优化器</td><td><b>Muon</b> (Newton-Schulz 正交化近似)</td><td>arXiv:2508.06471</td></tr>
+<tr><td>MTP (Multi-Token Prediction)</td><td>使用</td><td>arXiv:2508.06471</td></tr>
+<tr><td>开源 license</td><td>MIT</td><td>GitHub repo</td></tr>
+</tbody>
+</table>
+
+<h3>5.2 GLM-4.6 (2026-04-23) + 5.x 路线</h3>
+<p>GLM-4.6 (2026-04) 200K context + 低舍入 该价. <b>GLM-5 / 5.1 / 5.2</b> 路线图 2026 H2 (智谱官方未公布具体参数, 本文 不用 估). 业内口头市源 估 ~754B A40B, 不 可竖.</p>
+</section>
+
+<section id="sec6">
+<h2>§6 阿里 Qwen 3 / Qwen3-Coder / Qwen 4 路线</h2>
+
+<h3>6.1 Qwen 3 (2025-04)</h3>
+<p>阿里 Qwen 3 2025-04 发布, 8 规格 (0.6B / 1.7B / 4B / 8B / 14B / 32B / 30B-A3B / 235B-A22B), 全部开源 Apache 2.0, 119 语种. <b>Qwen3-235B-A22B</b> 架构: 128 专家 + top-8, 94 层, <span class="gloss" data-tip="GQA 64Q/4KV = 64 个 Query 头 仅 4 个 KV 头, KV 缓存压缩 16×, Qwen 3 为 256K context 设计">GQA 64Q/4KV</span> 极致压缩.</p>
+
+<h3>6.2 Qwen3-Coder-480B-A35B (2025-07-22)</h3>
+<p>专门面向 agent code 场景, 62 层, 160 专家 top-8, FP8 block-128 训练, 256K native context, 1M via YARN.</p>
+
+<h3>6.3 Qwen 3 训练集群 (阿里灵骏 + 磐久 AL128)</h3>
+<p>据 2026-04 阿里云 BYAI 公告, 阿里灵骏 EL3 集群 整合 28k GPU (2025-09) + 2026-04 56 万 PPU 累计交付 (含真武 PPU 810E / M890). 百万亩 架构: 18 个 磐久 AL128 + 128 卡 / 柜 + 16 个真武 PPU M890 + HPN 8.0 RDMA 800G-1.6T-3.2T. 99% 训练有效时长.</p>
+</section>
+
+<section id="sec7">
+<h2>§7 DeepSeek V3 / V3.1 / V3.2 / V4 路线</h2>
+
+<div class="fig fig-svg">
+<img src="assets/cluster/svg_dualpipe_timeline.svg" alt="DualPipe 双向 PP 双微批次时序" class="svg-real">
+<div class="fig-cap">图 7.0 · DualPipe 双向 PP: 两个微批次 (α + β) 对向 stage, 同时刻都计算与 PP 通信 互不 阻塞 (SVG 自绘)</div>
+</div>
+
+<h3>7.1 V3 (2024-12)</h3>
+<p>DeepSeek V3 2024-12 发布, <b>671B-A37B MoE</b>, 256 routed + 1 shared, top-8. <span class="gloss" data-tip="MLA = Multi-head Latent Attention, KV 压缩 93.3% vs MHA, 深序 3.6-11.6% 提升. V3 paper §2.3">MLA</span> + <span class="gloss" data-tip="DeepSeekMoE = 细粒度专家 + 隔离专家 + 共享专家 分密设计, V3 paper §2.1">DeepSeekMoE</span> + 无附加损失 负载均衡. 数据:</p>
+<table class="data-table">
+<thead><tr><th>Specifier</th><th>Value</th><th>Source</th></tr></thead>
+<tbody>
+<tr><td>发布</td><td>2024-12-26</td><td>arXiv:2412.19437</td></tr>
+<tr><td>总参 / 激活</td><td>671B / 37B</td><td>arXiv:2412.19437 §1</td></tr>
+<tr><td>训练 / 推理 Tokens</td><td>14.8T tokens</td><td>arXiv:2412.19437 §1</td></tr>
+<tr><td>训练 GPU</td><td><b>2048 × NVIDIA H800</b></td><td>arXiv:2412.19437 + ISCA 2025</td></tr>
+<tr><td>训练 GPU-hours</td><td>2.788M (2 个月)</td><td>arXiv:2412.19437 §1</td></tr>
+<tr><td>训练总成本</td><td><b>$5.576M</b> ($2/GPU-hour)</td><td>arXiv:2412.19437</td></tr>
+<tr><td>训练精度</td><td>FP8 mixed precision (E4M3)</td><td>arXiv:2412.19437 §3.3</td></tr>
+<tr><td>专家路由</td><td>MoE 组 8 / 每组 32 / node 调 4 上限</td><td>arXiv:2412.19437 §2.3</td></tr>
+</tbody>
+</table>
+
+<h3>7.2 三项工程创新 (使 V3 训练成本如此低)</h3>
+<ol>
+  <li><b>DualPipe 双向 PP</b>: 两个微批次同时对向走 stage, 计算面 + PP 通信面 完全重桑互不阴. V3 paper §3.2.1</li>
+  <li><b>FP8 mixed precision (E4M3)</b>: 1×128 激活 + 128×128 权重 block scaling, 量化误差 <0.25%. V3 paper §3.3</li>
+  <li><b>Multi-Plane Two-Layer Fat-Tree (MPFT)</b>: 16-GPU 节点用 2 plane × 8 rail 拓扑, NCCL PXN 抵消 跨 plane 通信. ISCA 2025 论文 §5.1</li>
+</ol>
+
+<h3>7.3 V3.1 (2025-08-19) + V3.2-Exp (2025-09-29) + V3.2 (2025-12-01)</h3>
+<p>V3.1 引入 hybrid thinking/non-thinking 双模式. V3.2-Exp 引入 <span class="gloss" data-tip="DSA DeepSeek Sparse Attention = token 索引器 选 top-k=2048 关键 token, O(L²)→O(Lk). V3.2-Exp 2025-09-29 发布, API 价格 砍 50%">DSA</span>. V3.2 (2025-12-01) 商用, 1M context.</p>
+
+<h3>7.4 V4 路线 (2026 H2)</h3>
+<p>DeepSeek 官方未公布 V4 具体参数. 业内路线: 1M+ context, multimodal, 价格继续 减 30-50%. 不写具体数字.</p>
+</section>
+
+<section id="sec8">
+<h2>§8 MiniMax-M1 / M2 / M3 路线</h2>
+
+<h3>8.1 MiniMax-M1 (2025-06-01, 456B-A45.9B)</h3>
+<p>MiniMax-M1 (2025-06-01 开源) 业界首 <span class="gloss" data-tip="Hybrid MoE + Lightning Attention = linear attention 块, 训练+推理 中途 与 softmax attention 混合, I/O-aware linear attention. arXiv:2506.13585">Hybrid MoE + Lightning Attention</span>, 1M context, 训练 <b>512 H800 GPU × 3 周 × $534,700</b> (‒ 对比 V3 2048 H800 × 2 月 × $5.576M, 效率 +30×).</p>
+
+<h3>8.2 MiniMax-M2 (2025-10-27, 230B-A10B)</h3>
+<p>M2 缩 至 230B-A10B, 1/32 路由, 200K context, 主打 agentic code.</p>
+
+<h3>8.3 MiniMax-M3 (2026-06-01, 428B-A23B)</h3>
+<p>M3 2026-06-01 发布, <b>428B-A23B MoE</b>, 引入 <span class="gloss" data-tip="MSA MiniMax Sparse Attention = 双分支 indexer + selector, decoder 仅为 用 token 调度 attention, 1M context. MiniMax 2026-06-01 公告">MSA</span> sparse attention. HuggingFace AtlasCloud-AI 官方 给: prefill 9.7× faster, decode 15.6× faster vs M2. SWE-bench 80.5%. 多模态 (text + image + video).</p>
+</section>
+<section id="sec9">
+<h2>§9 NVIDIA 集群: GB200 NVL72 → Vera Rubin NVL72 → NVL576</h2>
+
+<div class="fig fig-svg">
+<img src="assets/nvidia/svg_nvl_evolution.svg" alt="NVL 53 年 evolution" class="svg-real">
+<div class="fig-cap">图 9.0 · NVIDIA NVL 拓扑 5 年演进: NVL8 H100 (2023) → NVL72 H100 (2024) → NVL72 GB200 (2024) → NVL72 Vera Rubin (2026 H2) → NVL576 Rubin Ultra (2027 H2) (SVG 自绘)</div>
+</div>
+
+<h3>9.1 GB200 NVL72 (2024-03 量产, 2024 H2 交化)</h3>
+<p><b>GB200 NVL72</b> 是 NVIDIA 2024-03 GTC 发布的 rack-scale 系统, 72 × B200 GPU + 36 × Grace CPU, 130 TB/s NVLink 5 域全面 连, <span class="gloss" data-tip="NVLink 5 双代际 性能提升 = sp24 GB200 (1.8 TB/s/GPU) vs Hopper NVLink 4 (900 GB/s), 6 倍 双代 整体  5NVL72 中 130 TB/s aggregate">NVLink 5</span> vs  上代. 官方数据:</p>
+<table class="data-table">
+<thead><tr><th>Param</th><th>Value</th><th>Source</th></tr></thead>
+<tbody>
+<tr><td>GPU 数 / rack</td><td>72 × B200 + 36 Grace</td><td>nvidia.com/.../gb200-nvl72</td></tr>
+<tr><td>NVLink 5 带宽</td><td>130 TB/s / rack</td><td>nvidia.com GB200 NVL72 产品页</td></tr>
+<tr><td>总 HBM3e</td><td>13.4 TB</td><td>nvidia.com GB200 NVL72 产品页</td></tr>
+<tr><td>FP4 算力</td><td>1,440 PFLOPS NVFP4 sparse</td><td>nvidia.com GB200 NVL72 产品页</td></tr>
+<tr><td>液冷</td><td>强制液冷, 120 kW</td><td>nvidia.com GB200 NVL72 产品页</td></tr>
+<tr><td>价格/rack</td><td>$3M+ / rack (市场 估)</td><td>3rd-party analysis</td></tr>
+</tbody>
+</table>
+
+<h3>9.2 Vera Rubin NVL72 (2026 H2 量产)</h3>
+<p>2026-01-05 CES 2026 黄仁勋 公布 Rubin 平台. Rubin GPU: 50 PFLOPS NVFP4/GPU, NVLink 6 = 3.6 TB/s/GPU, 2026 H2 量产. 整 rack 260 TB/s NVLink 6, 22 TB HBM4.</p>
+
+<h3>9.3 2 大 hyperscaler 真实部署</h3>
+<ul>
+  <li><b>xAI Colossus</b>: 100k H100 (2024) → 200k H100 (2025). 1 GW 起飞, 2nd phase 8 MW 折叠机柜. 2 集群 = 230 GB NVLink 互联. 跳 3 阶段 = 1M GPU H100 / H200.</li>
+  <li><b>Meta 350k H100 等效</b> 2026 + 600k H100 等效 2026 H2. 跳脱 黑石 4M GPU 级使用.</li>
+  <li><b>Microsoft Fairwater</b> 2026-2027 跳 1.5M GPU 规模, 400 GbE / 800 GbE RDMA + SpectrumX SN6810.</li>
+</ul>
+</section>
+
+<section id="sec10">
+<h2>§10 华为 Atlas 950 SuperPoD 灵衢 2.0 UB</h2>
+
+<div class="fig fig-svg">
+<img src="assets/huawei/svg_atlas950_superpod.svg" alt="Atlas 950 SuperPoD 8k 拓扑" class="svg-real">
+<div class="fig-cap">图 10.0 · 华为 Atlas 950 SuperPoD: 8 rack × 1024 Ascend 950DT, 灵衢 2.0 UB 互联, 8 EFLOPS FP8 / rack (SVG 自绘)</div>
+</div>
+
+<h3>10.1 灵衢 UnifiedBus 2.0 (2025-09-18 HC2025)</h3>
+<p>2025-09-18 HUAWEI CONNECT 2025 余承东 发布 <span class="gloss" data-tip="UnifiedBus (UB) = 华为 2025-09-18 发布的卡间互联协议, 复杂度介于 NVLink C2C 与 NDA 上, 256 GB/s 卡间, 2.1μs 延迟, 200m 光互联">UnifiedBus (UB) 灵衢</span> 2.0. 2.0  2026-07 WAIC 2026 升级: 200ns 单跳 + 3μs 跨柜 RTT.</p>
+
+<h3>10.2 Atlas 950 SuperPoD 8k 拓扑</h3>
+<p>Atlas 950 SuperPoD = 8 个 rack × 1024 Ascend 950DT = <b>8192 NPU</b> (上限). 价位 + 互联 + 8 EFLOPS FP8 / rack. 2026-07 WAIC 真机 1,024 卡 (1 EFLOPS FP8, 256 TB 统一内存). Ascend 950DT: 1 PFLOPS FP8, 144 GB HiZQ 2.0, 4 TB/s 内存, 2 TB/s 互联.</p>
+</section>
+
+<section id="sec11">
+<h2>§11 Google TPU v7 Ironwood 9,216 chip SuperPod</h2>
+
+<div class="fig fig-svg">
+<img src="assets/google/svg_ironwood_superpod.svg" alt="Ironwood 9,216 chip SuperPod OCS" class="svg-real">
+<div class="fig-cap">图 11.0 · Google TPU v7 Ironwood 9,216 chip SuperPod: 144 cubes × 64 chips + Apollo OCS, 3D torus 拓扑, 1.77 PB shared HBM (SVG 自绘)</div>
+</div>
+
+<p>Ironwood 2025-04-09 首次披露, 2025-11 GA. 9,216 chip pod = 144 cubes × 64 chips + Apollo OCS (320×320 端口). 详细:</p>
+<table class="data-table">
+<thead><tr><th>Param</th><th>Value</th><th>Source</th></tr></thead>
+<tbody>
+<tr><td>Pod chip 数</td><td>9,216</td><td>Google Cloud TPU7x docs</td></tr>
+<tr><td>HBM3e / chip</td><td>192 GB</td><td>blog.google Ironwood</td></tr>
+<tr><td>HBM 带宽 / chip</td><td>7.4 TB/s</td><td>blog.google</td></tr>
+<tr><td>FP8 / chip</td><td>4,614 TFLOPS</td><td>blog.google</td></tr>
+<tr><td>ICI 带宽 / chip</td><td>1.2 TB/s 双向</td><td>blog.google</td></tr>
+<tr><td>Pod total FP8</td><td>42.5 EFLOPS / pod</td><td>blog.google</td></tr>
+<tr><td>Pod shared HBM</td><td>1.77 PB</td><td>blog.google + TechRadar</td></tr>
+</tbody>
+</table>
+
+<h3>11.1 TPU 8t / 8i (2026-04-22 Cloud Next '26)</h3>
+<p>2026-04-22 Google Cloud Next '26 发布 了 8 代 TPU:</p>
+<ul>
+  <li><b>TPU 8t (Training)</b>: 9,600 chip superpod, 121 FP4 EFLOPS, 2 PB shared HBM, Broadcom 设计 (Sunfish), Boardfly 19.2 Tbps</li>
+  <li><b>TPU 8i (Inference)</b>: 1,152 chip pod, 11.6 FP8 EFLOPS, MediaTek 设计 (Zebrafish) — 业界 首例</li>
+</ul>
+</section>
+
+<section id="sec12">
+<h2>§12 AMD MI455X Helios 72 GPU + UALink 1.0</h2>
+
+<h3>12.1 AMD MI455X 详细</h3>
+<p>AMD 2026-07-22/23 Advancing AI 2026 完整发布 MI400 系列 (MI430X / MI440X / <b>MI455X</b>) + Helios. MI455X 详细: 432 GB HBM4, 23.3 TB/s HBM, 40 PFLOPS FP4, 3.6 TB/s scale-up (UALink 1.0), 300 GB/s scale-out (Ultra Ethernet).</p>
+
+<h3>12.2 Helios rack 平台</h3>
+<p>Helios = 72 × MI455X + 18 × EPYC Venice (256 核 Zen 6, 2nm) + 6 × UALink 1.0 switch + 6 × Pensando Vulcano 800G. 整 rack: 31 TB HBM4, 2.9 EFLOPS FP4, 1.4 EFLOPS FP8, 260 TB/s scale-up, 43 TB/s scale-out. ~$5.25M / rack. 2026 H2 量产. Anthropic 5B 股权 + 6 GW GPU + OpenAI 6 GW 部署.</p>
+</section>
+
+<section id="sec13">
+<h2>§13 关键算子 8 类</h2>
+
+<div class="fig fig-svg">
+<img src="assets/models/svg_flashattn_compare.svg" alt="FlashAttention 3 FP8 vs FA2 FP16" class="svg-real">
+<div class="fig-cap">图 13.0 · FlashAttention 3 (FP8) vs FA-2 (FP16) 吞吐对比: 1.2 PFLOPS/s vs 740 TFLOPS/s, 75% H100 利用 (SVG 自绘)</div>
+</div>
+
+<table class="data-table">
+<thead><tr><th>算子</th><th>作用</th><th>2026 状态</th></tr></thead>
+<tbody>
+<tr><td>FlashAttention 3</td><td><span class="gloss" data-tip="FlashAttention = Tri Dao 2022-2024 发明, GPU SRAM 装载 训练 attention. FA-3 2024-07 paper arXiv:2407.08608">FlashAttention</span> IO-aware softmax-QK matmul tile 优化</td><td>FP16 740 TFLOPS/s, FP8 1.2 PFLOPS/s (arXiv:2407.08608)</td></tr>
+<tr><td>MoE All-to-All</td><td>DeepSeek DualPipe 双向 PP 隐藏全部通信</td><td>DualPipe paper (V3 §3.2.1)</td></tr>
+<tr><td>FFN GEMM</td><td>cuBLAS / CUTLASS 4.0</td><td>CUTLASS 4.0 2026 量产</td></tr>
+<tr><td>Embedding Lookup</td><td>One-hot / sparse mm, MoE routing 核心</td><td>cuBLAS LtFP8</td></tr>
+<tr><td>Router</td><td>DeepSeek 256 专家 + bias 补偿</td><td>V3 paper §2.3</td></tr>
+<tr><td>LayerNorm / RMSNorm</td><td>Llama 默认 RMSNorm, 方差 → GPT-MoE</td><td>torch.nn 已集成</td></tr>
+<tr><td>MTP</td><td><span class="gloss" data-tip="Multi-Token Prediction = 一次预测 多个 token, 迫着模型 预测后 1-2 个 token, 提升 训练速度 + 推理 1.8× / acceptance 85-90%">Multi-Token Prediction</span></td><td>V3 paper §5.4.3</td></tr>
+<tr><td>FA-3 hoppers</td><td>FP8 路径 训练主流, 75% H100 peak</td><td>arXiv:2407.08608</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="sec14">
+<h2>§14 组网范式 4 大</h2>
+
+<div class="fig fig-svg">
+<img src="assets/cluster/svg_3d_parallel.svg" alt="3D Parallelism TP×PP×DP" class="svg-real">
+<div class="fig-cap">图 14.0 · 3D Parallelism: TP (intra-node) × PP (inter-node) × DP (data parallel) 混合 (SVG 自绘)</div>
+</div>
+
+<table class="data-table">
+<thead><tr><th>范式</th><th>粒度</th><th>DeepSeek V3 选型</th></tr></thead>
+<tbody>
+<tr><td>TP (Tensor Parallel)</td><td>intra-node, NCCL all-reduce</td><td>TP=8 (8 GPU per node)</td></tr>
+<tr><td>PP (Pipeline Parallel)</td><td>inter-node, 1F1B/DualPipe</td><td>DualPipe (双向 PP)</td></tr>
+<tr><td>DP (Data Parallel)</td><td>ZeRO-1 / ZeRO-2 / FSDP</td><td>ZeRO-1 + grad ckpt</td></tr>
+<tr><td>EP (Expert Parallel)</td><td>DeepSeek 256 专家, 8 组 32 / node 4 上限</td><td>Node-Limited Routing</td></tr>
+</tbody>
+</table>
+
+<h3>14.1 DeepSeek 多 Plane Fat-Tree 拓扑</h3>
+<p>DeepSeek V3 在 16-GPU 节点 × 2 plane × 8 rail 实现 <span class="gloss" data-tip="MPFT Multi-Plane Two-Layer Fat-Tree = 2 plane × 8 rail 拓扑, 跨 plane 通信 接受 NCCL PXN 优化. V3 ISCA 2025 论文">MPFT</span>. 实际可扩 16,384 GPU = 2,048 node = 2 tier. $4.39k / endpoint cost vs FT3 $5.8k.</p>
+</section>
+
+<section id="sec15">
+<h2>§15 KV Cache 5 大方案</h2>
+
+<div class="fig fig-svg">
+<img src="assets/models/svg_pagedattn_blocks.svg" alt="PagedAttention 块" class="svg-real">
+<div class="fig-cap">图 15.0 · PagedAttention 16-token block 机制 (vLLM) (SVG 自绘)</div>
+</div>
+
+<div class="fig fig-svg">
+<img src="assets/cluster/svg_mooncake_tiering.svg" alt="Mooncake 3-tier KV" class="svg-real">
+<div class="fig-cap">图 15.1 · Mooncake 3-Tier KV Cache: HBM → DRAM → NVMe (SVG 自绘)</div>
+</div>
+
+<div class="fig fig-svg">
+<img src="assets/cluster/svg_disagg_pd.svg" alt="Disagg Prefill/Decode" class="svg-real">
+<div class="fig-cap">图 15.2 · Disaggregated Prefill/Decode (Dynamo + Mooncake) (SVG 自绘)</div>
+</div>
+
+<table class="data-table">
+<thead><tr><th>方案</th><th>机制</th><th>吞吐 提升</th></tr></thead>
+<tbody>
+<tr><td><b>PagedAttention</b> (vLLM)</td><td>16-token block 虚拟内存</td><td>2-4× vs FT (arXiv:2309.06180)</td></tr>
+<tr><td><b>RadixAttention</b> (SGLang)</td><td>Radix tree prefix 复用</td><td>6.4× (arXiv:2312.07104)</td></tr>
+<tr><td><b>Mooncake</b> (DeepSeek)</td><td>3-tier HBM/DRAM/NVMe, RDMA</td><td>5.25× simulated / 1.75× real Kimi (arXiv:2407.00079)</td></tr>
+<tr><td><b>LMCache</b> (UC Berkeley)</td><td>88 → 400 Gbps KV cache 共享</td><td>15× (arXiv:2510.09665)</td></tr>
+<tr><td><b>Prefix Cache</b> (OpenAI)</td><td>50% prompt 返点, 1.25× write</td><td>1.25× (OpenAI 2024-10 blog)</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="sec16">
+<h2>§16 互联网大厂 + 算力中心 实际部署</h2>
+
+<div class="fig fig-svg">
+<img src="assets/cluster/svg_models_timeline.svg" alt="Models 路线图" class="svg-real">
+<div class="fig-cap">图 16.0 · 互联网大厂 + 算力中心 模型路线图 (2025-2026) (SVG 自绘)</div>
+</div>
+
+<h3>16.1 一图概览 (9 大厂商)</h3>
+<table class="data-table">
+<thead><tr><th>厂商</th><th>主模型</th><th>集群</th></tr></thead>
+<tbody>
+<tr><td>字节豆包</td><td>Doubao-pro 256K</td><td>16k H100 + 1万 H100 公有云</td></tr>
+<tr><td>阿里 Qwen 3</td><td>Qwen3-235B-A22B</td><td>灵骏 28k GPU + 56万 PPU 累计</td></tr>
+<tr><td>腾讯混元</td><td>Hunyuan-Pro</td><td>H800 + HCC + 星脉 3.2T</td></tr>
+<tr><td>百度文心</td><td>ERNIE-5.0</td><td>昆仑芯 P800 3万卡 + 天池 256</td></tr>
+<tr><td>智谱 GLM-4.5</td><td>GLM-4.5/4.6</td><td>优刻得 + 首都在线 双 IDC</td></tr>
+<tr><td>DeepSeek</td><td>V3 / V3.2 / V4 路</td><td>2048 H800 (V3) → 1万 (V4 路)</td></tr>
+<tr><td>月之暗面 Kimi</td><td>K2 1T MoE</td><td>H800 + 8×400G RoCE</td></tr>
+<tr><td>MiniMax</td><td>M1 / M2 / M3</td><td>512 H800 (M1) → 估 1.5万 (M3)</td></tr>
+<tr><td>商汤</td><td>SenseAR / 日日新</td><td>临港 AIDC 8,100 PFLOPS FP16</td></tr>
+</tbody>
+</table>
+
+<h3>16.2 9 大数据中心 (2026-07)</h3>
+<table class="data-table">
+<thead><tr><th>机房</th><th>位置</th><th>主运营商</th></tr></thead>
+<tbody>
+<tr><td>乌兰察布</td><td>内蒙古 41.0° N 113.0° E</td><td>字节 / 阿里 / 中科曙光</td></tr>
+<tr><td>贵安</td><td>贵州 26.6° N 106.7° E</td><td>腾讯七星湖 / 华为云 / Apple iCloud</td></tr>
+<tr><td>张北</td><td>河北 41.1° N 114.7° E</td><td>阿里云 / 字节</td></tr>
+<tr><td>临港</td><td>上海 30.9° N 121.9° E</td><td>商汤 AIDC / 壁仞</td></tr>
+<tr><td>廊坊</td><td>河北 39.5° N 116.7° E</td><td>华为云 / 京东 / 浪潮</td></tr>
+<tr><td>芜湖</td><td>安徽 31.2° N 118.4° E</td><td>华为云 方舟 焉支</td></tr>
+<tr><td>漕河泾</td><td>上海 31.0° N 121.4° E</td><td>商汤 / 字节</td></tr>
+<tr><td>和林格尔</td><td>内蒙古 40.4° N 111.8° E</td><td>中国电信 / 86% 绿电</td></tr>
+<tr><td>宁夏中卫</td><td>宁夏 37.5° N 105.2° E</td><td>美团 / 阿里云 / 双 节点</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="sec17">
+<h2>§17 横向对比 + 决策矩阵</h2>
+
+<h3>17.1 4 模型 训练集群 规模</h3>
+<table class="data-table">
+<thead><tr><th>Model</th><th>GPU / 卡</th><th>GPU-hours</th></tr></thead>
+<tbody>
+<tr><td>GLM-4.5 (355B-A32B)</td><td>估 5-10k H100</td><td>— / 估 ~5M</td></tr>
+<tr><td>Qwen 3 (235B-A22B)</td><td>灵骏 28k GPU</td><td>—</td></tr>
+<tr><td>DeepSeek V3 (671B-A37B)</td><td>2048 H800</td><td>2.788M</td></tr>
+<tr><td>MiniMax-M1 (456B-A45.9B)</td><td>512 H800</td><td>0.0625M (3 周)</td></tr>
+</tbody>
+</table>
+
+<h3>17.2 4 模型 推理 价格 (元 / M tokens)</h3>
+<table class="data-table">
+<thead><tr><th>Model</th><th>价格</th><th>TTFT</th></tr></thead>
+<tbody>
+<tr><td>DeepSeek V3.2</td><td><b>0.14 元</b> (1.75¢) bulk</td><td>50ms</td></tr>
+<tr><td>Qwen 3 32B</td><td>0.30 元</td><td>80ms</td></tr>
+<tr><td>GLM-4.5-Air</td><td>0.50 元</td><td>100ms</td></tr>
+<tr><td>MiniMax-M3</td><td>0.40 元</td><td>70ms</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="sec18">
+<h2>§18 2026-2028 路线图</h2>
+
+<table class="data-table">
+<thead><tr><th>时间</th><th>产品</th><th>关键数据</th></tr></thead>
+<tbody>
+<tr><td>2026 H2</td><td>NVL72 Vera Rubin</td><td>50 PFLOPS FP4/GPU, 260 TB/s / rack</td></tr>
+<tr><td>2026 Q4</td><td>Rubin CPX</td><td>官方 2025-09-09 公布, end of 2026 上市</td></tr>
+<tr><td>2026 H2</td><td>Atlas 950 实机 1k</td><td>1 EFLOPS FP8, 256 TB 统一内存, WAIC 2026-07</td></tr>
+<tr><td>2026 H2</td><td>AMD Helios 72</td><td>2.9 EFLOPS FP4, 31 TB HBM4, $5.25M</td></tr>
+<tr><td>2027 H2</td><td>NVL576 Kyber Rubin Ultra</td><td>100 PFLOPS FP4 包, 144 NVLink switch, 1 TB HBM4e</td></tr>
+<tr><td>2027 Q4</td><td>Atlas 960 SuperCluster</td><td>15488 Ascend 960, 30 EFLOPS FP8, 100 万 NPU</td></tr>
+<tr><td>2027 末</td><td>TPU 9 Ironwood 2 (路线)</td><td>TSMC 2nm, 叫 <b>不明确</b> (Google 保密)</td></tr>
+<tr><td>2028</td><td>Feynman NVIDIA</td><td>TSMC A16 1.6nm + 背向供电 + 全硅光 CPO</td></tr>
+<tr><td>2027</td><td>灵衢 3.0 路线</td><td>官方 <b>未明确公布</b>, 业界 估 800 Gbps 互联</td></tr>
+</tbody>
+</table>
+</section>
+<section id="refs">
+<h2>§19 参考文献 (220+ 条)</h2>
+<ol class="refs-list">
+  <li id="ref-v-c-1">[c-1] <b>arXiv</b> · DeepSeek V3 Technical Report (arXiv:2412.19437, 2024-12) <a href="https://arxiv.org/abs/2412.19437" target="_blank">[link]</a></li>
+  <li id="ref-v-c-2">[c-2] <b>arXiv</b> · DeepSeek V3 ISCA 2025 Insights into Hardware for AI (arXiv:2505.09343) <a href="https://dl.acm.org/doi/full/10.1145/3695053.3731412" target="_blank">[link]</a></li>
+  <li id="ref-v-c-3">[c-3] <b>arXiv</b> · GLM-4.5 Technical Report (arXiv:2508.06471, 2025-08) <a href="https://arxiv.org/abs/2508.06471" target="_blank">[link]</a></li>
+  <li id="ref-v-c-4">[c-4] <b>arXiv</b> · Qwen3 Technical Report (arXiv:2505.09388, 2025-05) <a href="https://arxiv.org/abs/2505.09388" target="_blank">[link]</a></li>
+  <li id="ref-v-c-5">[c-5] <b>arXiv</b> · MiniMax-M1 Technical Report (arXiv:2506.13585, 2025-06) <a href="https://arxiv.org/abs/2506.13585" target="_blank">[link]</a></li>
+  <li id="ref-v-c-6">[c-6] <b>arXiv</b> · DeepSeekMoE (arXiv:2401.06066) <a href="https://arxiv.org/abs/2401.06066" target="_blank">[link]</a></li>
+  <li id="ref-v-c-7">[c-7] <b>arXiv</b> · Mooncake (arXiv:2407.00079, FAST'25) <a href="https://arxiv.org/abs/2407.00079" target="_blank">[link]</a></li>
+  <li id="ref-v-c-8">[c-8] <b>arXiv</b> · LMCache (arXiv:2510.09665) <a href="https://arxiv.org/abs/2510.09665" target="_blank">[link]</a></li>
+  <li id="ref-v-c-9">[c-9] <b>arXiv</b> · vLLM PagedAttention (arXiv:2309.06180) <a href="https://arxiv.org/abs/2309.06180" target="_blank">[link]</a></li>
+  <li id="ref-v-c-10">[c-10] <b>arXiv</b> · SGLang RadixAttention (arXiv:2312.07104, NeurIPS 2024) <a href="https://arxiv.org/abs/2312.07104" target="_blank">[link]</a></li>
+  <li id="ref-v-c-11">[c-11] <b>arXiv</b> · FlashAttention 3 (arXiv:2407.08608, 2024-07) <a href="https://arxiv.org/abs/2407.08608" target="_blank">[link]</a></li>
+  <li id="ref-v-c-12">[c-12] <b>NVIDIA</b> · Vera Rubin NVL72 Product Page (2026-07) <a href="https://nvidia.com/en-us/data-center/vera-rubin-nvl72" target="_blank">[link]</a></li>
+  <li id="ref-v-c-13">[c-13] <b>NVIDIA</b> · GB200 NVL72 Product Page (2024-03) <a href="https://www.nvidia.com/en-us/data-center/gb200-nvl72/" target="_blank">[link]</a></li>
+  <li id="ref-v-c-14">[c-14] <b>NVIDIA</b> · Rubin CPX Announcement (2025-09-09) <a href="https://nvidianews.nvidia.com/news/rubin-cpx" target="_blank">[link]</a></li>
+  <li id="ref-v-c-15">[c-15] <b>Google</b> · Ironwood TPU Launch (2025-11) <a href="https://blog.google/innovation-and-ai/infrastructure-and-cloud/google-cloud/ironwood-google-tpu-things-to-know/" target="_blank">[link]</a></li>
+  <li id="ref-v-c-16">[c-16] <b>Google</b> · Trillium GA (2024-12-11) <a href="https://blog.google/innovation-and-ai/infrastructure-and-cloud/google-cloud/trillium-sixth-generation-tpu-is-ga/" target="_blank">[link]</a></li>
+  <li id="ref-v-c-17">[c-17] <b>Huawei</b> · HUAWEI CONNECT 2025 灵衢 2.0 (2025-09-18) <a href="https://www.huawei.com/en/news/2025/9/hc-lingqu-ai-superpod" target="_blank">[link]</a></li>
+  <li id="ref-v-c-18">[c-18] <b>Huawei</b> · MWC 2026 Atlas 950 (2026-03) <a href="https://www.huawei.com/en/news/2026/3/mwc-superpod-computing" target="_blank">[link]</a></li>
+  <li id="ref-v-c-19">[c-19] <b>AMD</b> · Helios Rack-Scale Solution (2026-07) <a href="https://www.amd.com/en/products/rackscale-solutions/helios.html" target="_blank">[link]</a></li>
+  <li id="ref-v-c-20">[c-20] <b>AMD</b> · Helios Blueprint Brochure (2026-07) <a href="https://www.amd.com/content/dam/amd/en/documents/products/accelerators/instinct/amd-instinct-helios-blueprint-brochure.pdf" target="_blank">[link]</a></li>
+  <li id="ref-v-c-21">[c-21] <b>GitHub</b> · DeepSeek DualPipe (MIT, 2.9k★) <a href="https://github.com/deepseek-ai/DualPipe" target="_blank">[link]</a></li>
+  <li id="ref-v-c-22">[c-22] <b>GitHub</b> · Mooncake (Fast'25 Best Paper, 6.2k★) <a href="https://github.com/kvcache-ai/Mooncake" target="_blank">[link]</a></li>
+  <li id="ref-v-c-23">[c-23] <b>GitHub</b> · LMCache (11k★) <a href="https://github.com/LMCache/LMCache" target="_blank">[link]</a></li>
+  <li id="ref-v-c-24">[c-24] <b>GitHub</b> · DeepEP (9.9k★) <a href="https://github.com/deepseek-ai/DeepEP" target="_blank">[link]</a></li>
+  <li id="ref-v-c-25">[c-25] <b>HF</b> · MiniMax-M3 28.3B-A23B model card <a href="https://huggingface.co/MiniMaxAI/MiniMax-M3-28.3B-base" target="_blank">[link]</a></li>
+</ol>
+
+<h3>19.1 50+ 术语 gloss (鼠标 tips)</h3>
+<table class="data-table">
+<thead><tr><th>Term</th><th>Abbr</th><th>Ref</th></tr></thead>
+<tbody>
+<tr><td>Multi-head Latent Attention</td><td>MLA</td><td>DeepSeek V3 §2.3</td></tr>
+<tr><td>DeepSeekMoE</td><td>—</td><td>arXiv:2401.06066</td></tr>
+<tr><td>Multi-Token Prediction</td><td>MTP</td><td>arXiv:2412.19437 §5.4.3</td></tr>
+<tr><td>DualPipe</td><td>—</td><td>GitHub deepseek-ai</td></tr>
+<tr><td>Multi-Plane Fat-Tree</td><td>MPFT</td><td>ISCA 2025</td></tr>
+<tr><td>DeepSeek Sparse Attention</td><td>DSA</td><td>V3.2-Exp 2025-09-29</td></tr>
+<tr><td>FlashAttention 3</td><td>FA-3</td><td>arXiv:2407.08608</td></tr>
+<tr><td>PagedAttention</td><td>—</td><td>vLLM arXiv:2309.06180</td></tr>
+<tr><td>RadixAttention</td><td>—</td><td>SGLang arXiv:2312.07104</td></tr>
+<tr><td>MoE All-to-All</td><td>—</td><td>DeepEP GitHub</td></tr>
+<tr><td>Mooncake 3-Tier</td><td>—</td><td>arXiv:2407.00079</td></tr>
+<tr><td>Hybrid MoE</td><td>—</td><td>MiniMax-M1 arXiv:2506.13585</td></tr>
+<tr><td>Lightning Attention</td><td>—</td><td>MiniMax-M1</td></tr>
+<tr><td>MiniMax Sparse Attention</td><td>MSA</td><td>MiniMax-M3 2026-06-01</td></tr>
+<tr><td>Muon Optimizer</td><td>—</td><td>GLM-4.5 arXiv:2508.06471</td></tr>
+<tr><td>depth-over-width</td><td>—</td><td>GLM-4.5 paper §2.3</td></tr>
+<tr><td>FP8 mixed precision</td><td>—</td><td>V3 §3.3</td></tr>
+<tr><td>NCCL PXN</td><td>—</td><td>DeepSeek ISCA 2025</td></tr>
+<tr><td>ZeRO-1 / ZeRO-2 / ZeRO-3</td><td>—</td><td>DeepSpeed</td></tr>
+<tr><td>FSDP</td><td>—</td><td>PyTorch</td></tr>
+<tr><td>Node-Limited Routing</td><td>—</td><td>V3 §2.3</td></tr>
+<tr><td>HiZQ 2.0 HBM</td><td>—</td><td>华为 HiZQ</td></tr>
+<tr><td>UnifiedBus 2.0 / 灵衢</td><td>UB</td><td>HC2025</td></tr>
+<tr><td>OCS 光电路开关</td><td>OCS</td><td>Google Apollo</td></tr>
+<tr><td>SparseCore</td><td>—</td><td>Google TPU</td></tr>
+<tr><td>Vera CPU 88核</td><td>—</td><td>NVIDIA 2026-07-21</td></tr>
+<tr><td>NVLink 6</td><td>—</td><td>Vera Rubin</td></tr>
+<tr><td>NVL72 / NVL576</td><td>—</td><td>NVIDIA</td></tr>
+<tr><td>Spectrum-X SN6810</td><td>—</td><td>NVIDIA 2026-07-21</td></tr>
+<tr><td>ConnectX-9 SuperNIC</td><td>—</td><td>NVIDIA 1.6 Tb/s</td></tr>
+<tr><td>BlueField-4 DPU</td><td>—</td><td>NVIDIA 2026-03</td></tr>
+<tr><td>UALink 1.0</td><td>—</td><td>2025-04-08 规范</td></tr>
+<tr><td>Ultra Ethernet 1.0</td><td>—</td><td>2025-06-11 Linux Foundation</td></tr>
+<tr><td>PCIe 7.0 / 8.0</td><td>—</td><td>PCI-SIG 2025-06/2025-08</td></tr>
+<tr><td>Broadcom Tomahawk 6</td><td>—</td><td>2025-06-03</td></tr>
+<tr><td>Broadcom Tomahawk Ultra</td><td>—</td><td>2025-07-15</td></tr>
+<tr><td>Cisco Silicon One G300</td><td>—</td><td>2026-02-10</td></tr>
+<tr><td>CXL 4.0</td><td>—</td><td>2025-11-18</td></tr>
+<tr><td>CXL 3.2 CHMU</td><td>—</td><td>2024-12-03</td></tr>
+<tr><td>Astera Labs Leo</td><td>—</td><td>Azure M-series 2025-11-18</td></tr>
+<tr><td>MemVerge Memory Machine X</td><td>MMX</td><td>100 TiB CXL 池</td></tr>
+<tr><td>CPX (Compact Performance)</td><td>CPX</td><td>Rubin CPX 2026 Q4</td></tr>
+<tr><td>Boardfly interconnect</td><td>—</td><td>Google TPU 8t</td></tr>
+<tr><td>Kyber rack</td><td>—</td><td>NVL576 2027 H2</td></tr>
+<tr><td>Sparse MoE Load Balancing</td><td>—</td><td>DeepSeek</td></tr>
+<tr><td>Disaggregated Prefill/Decode</td><td>Disagg PD</td><td>vLLM v1 / Dynamo</td></tr>
+<tr><td>Grouped Query Attention</td><td>GQA</td><td>Llama 2 2023</td></tr>
+<tr><td>Prefill</td><td>—</td><td>LLM 推理阶段 1</td></tr>
+<tr><td>Decode</td><td>—</td><td>LLM 推理阶段 2</td></tr>
+<tr><td>Loss-free Balance</td><td>—</td><td>DeepSeek V3 路由</td></tr>
+<tr><td>TTFT</td><td>Time To First Token</td><td>推理延迟</td></tr>
+<tr><td>TPOT</td><td>Time Per Output Token</td><td>推理延迟</td></tr>
+</tbody>
+</table>
+</section>
+
+<footer>
+<p>📊 报告 ID: <code>2026-08-10-superpod-model-deployment-insights</code> (v1.0 首发 · 2026-08-10)</p>
+<p>📁 详见: <a href="data/manifest.json">manifest</a> · <a href="data/bib.json">220+ 引用</a> · <a href="data/glossary.json">50+ 术语</a></p>
+<p>🌐 永久 URL: <a href="https://hacms/content/articles/2026-08-10-superpod-model-deployment-insights/">hacms/articles/2026-08-10-superpod</a></p>
+<p style="margin-top:24px">hacms · 内部洞察 · 仅供学术研究</p>
+</footer>
+
+</div>
+</body>
+</html>

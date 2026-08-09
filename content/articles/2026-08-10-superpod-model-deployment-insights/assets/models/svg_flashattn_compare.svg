@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 460" font-family="-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif">
+<rect width="920" height="460" fill="#0a0e1a"/>
+<text x="460" y="32" text-anchor="middle" fill="#e8ecf5" font-size="20" font-weight="700">S14 · FlashAttention-2 vs 3 性能对比 (H100 实测)</text>
+<text x="460" y="54" text-anchor="middle" fill="#aab2cf" font-size="12">来源: arXiv:2407.08608 (Tri Dao et al., 2024-07) + arXiv:2307.08691 (FA-2)</text>
+<g transform="translate(80,90)">
+<rect x="0" y="0" width="760" height="270" fill="#141a2e" stroke="#2a3556" rx="6"/>
+<line x1="60" y1="240" x2="740" y2="240" stroke="#3d4a73" stroke-width="1"/>
+<line x1="60" y1="40" x2="60" y2="240" stroke="#3d4a73" stroke-width="1"/>
+<g font-size="9" fill="#aab2cf" text-anchor="end">
+<text x="55" y="50">1600</text>
+<text x="55" y="90">1200</text>
+<text x="55" y="130">800</text>
+<text x="55" y="170">400</text>
+<text x="55" y="240">0</text>
+</g>
+<text x="20" y="140" fill="#aab2cf" font-size="10" transform="rotate(-90, 20, 140)">TFLOPS/s (FP16 估算)</text>
+<!-- Reference (cuDNN) -->
+<rect x="100" y="170" width="80" height="70" fill="#3d4a73"/>
+<text x="140" y="190" text-anchor="middle" fill="#e8ecf5" font-size="10">Reference</text>
+<text x="140" y="206" text-anchor="middle" fill="#aab2cf" font-size="9">300 TFLOPS</text>
+<text x="140" y="258" text-anchor="middle" fill="#aab2cf" font-size="9">cuDNN baseline</text>
+<!-- FA-2 -->
+<rect x="220" y="120" width="80" height="120" fill="#7eb6ff" opacity="0.8"/>
+<text x="260" y="140" text-anchor="middle" fill="#0a0e1a" font-size="10" font-weight="700">FA-2</text>
+<text x="260" y="156" text-anchor="middle" fill="#0a0e1a" font-size="9">~550 TFLOPS</text>
+<text x="260" y="258" text-anchor="middle" fill="#aab2cf" font-size="9">35% peak</text>
+<!-- FA-3 FP16 -->
+<rect x="340" y="60" width="80" height="180" fill="#a78bfa"/>
+<text x="380" y="80" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">FA-3 FP16</text>
+<text x="380" y="96" text-anchor="middle" fill="#fff" font-size="9">740 TFLOPS</text>
+<text x="380" y="258" text-anchor="middle" fill="#aab2cf" font-size="9">75% peak (2× 提速)</text>
+<!-- FA-3 FP8 -->
+<rect x="460" y="10" width="80" height="230" fill="#f59e0b"/>
+<text x="500" y="30" text-anchor="middle" fill="#0a0e1a" font-size="10" font-weight="700">FA-3 FP8</text>
+<text x="500" y="46" text-anchor="middle" fill="#0a0e1a" font-size="9">1.2 PFLOPS</text>
+<text x="500" y="258" text-anchor="middle" fill="#aab2cf" font-size="9">75% peak FP8</text>
+<!-- H100 peak (theoretical) -->
+<rect x="580" y="0" width="80" height="240" fill="#ef4444" opacity="0.4" stroke="#ef4444"/>
+<text x="620" y="20" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">H100 peak</text>
+<text x="620" y="36" text-anchor="middle" fill="#fff" font-size="9">1.6 PFLOPS FP8</text>
+<text x="620" y="258" text-anchor="middle" fill="#aab2cf" font-size="9">理论上限</text>
+</g>
+<g transform="translate(60,380)">
+<text x="0" y="0" fill="#a78bfa" font-size="13" font-weight="700">FA-3 三个新招 (源自论文 §3)</text>
+<text x="0" y="22" fill="#e8ecf5" font-size="11">• <tspan fill="#7eb6ff" font-weight="700">warp-specialization + pingpong scheduling</tspan>: producer 切 TMA 搬数, consumer 切 WGMMA 算 GEMM, 串行 → 完全 overlap</text>
+<text x="0" y="40" fill="#e8ecf5" font-size="11">• <tspan fill="#7eb6ff" font-weight="700">GEMM-softmax 2-stage pipeline</tspan>: H100 FP16 utilization 35% → 75% (740 TFLOPS/s)</text>
+<text x="0" y="58" fill="#e8ecf5" font-size="11">• <tspan fill="#7eb6ff" font-weight="700">FP8 block quantization + incoherent processing</tspan>: 1×128/128×128 tile + Hadamard 旋转, 误差比 baseline FP8 low 2.6×</text>
+</g>
+<text x="460" y="450" text-anchor="middle" fill="#aab2cf" font-size="10" font-style="italic">所有 4 模型 (GLM/Qwen/DeepSeek/MiniMax) 均用 FA-3 训练; GLM-5/Qwen-4 1M-4M context 必配 FA-3 + Ring Attention</text>
+</svg>

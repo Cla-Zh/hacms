@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 460" font-family="-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif">
+<rect width="920" height="460" fill="#0a0e1a"/>
+<text x="460" y="32" text-anchor="middle" fill="#e8ecf5" font-size="20" font-weight="700">S20 · 推理 Disaggregated Prefill/Decode (PD 分离)</text>
+<text x="460" y="54" text-anchor="middle" fill="#aab2cf" font-size="12">prefill (算力密集) 与 decode (显存带宽密集) 独立调度, Mooncake/DistServe/Splitwise</text>
+<g transform="translate(60,90)">
+<text x="0" y="0" fill="#7eb6ff" font-size="13" font-weight="700">传统架构 (colocated)</text>
+<rect x="0" y="20" width="800" height="80" fill="#1c2440" stroke="#3d4a73" rx="4"/>
+<g transform="translate(20,30)">
+<rect x="0" y="0" width="180" height="60" fill="#3d4a73" opacity="0.4"/>
+<text x="90" y="20" text-anchor="middle" fill="#e8ecf5" font-size="10">GPU 0</text>
+<text x="90" y="40" text-anchor="middle" fill="#aab2cf" font-size="9">prefill + decode</text>
+<text x="90" y="55" text-anchor="middle" fill="#aab2cf" font-size="8">混合 (互相干扰)</text>
+<rect x="190" y="0" width="180" height="60" fill="#3d4a73" opacity="0.4"/>
+<text x="280" y="20" text-anchor="middle" fill="#e8ecf5" font-size="10">GPU 1</text>
+<text x="280" y="40" text-anchor="middle" fill="#aab2cf" font-size="9">prefill + decode</text>
+<rect x="380" y="0" width="180" height="60" fill="#3d4a73" opacity="0.4"/>
+<text x="470" y="20" text-anchor="middle" fill="#e8ecf5" font-size="10">GPU 2</text>
+<text x="470" y="40" text-anchor="middle" fill="#aab2cf" font-size="9">prefill + decode</text>
+<rect x="570" y="0" width="180" height="60" fill="#3d4a73" opacity="0.4"/>
+<text x="660" y="20" text-anchor="middle" fill="#e8ecf5" font-size="10">GPU 3</text>
+<text x="660" y="40" text-anchor="middle" fill="#aab2cf" font-size="9">prefill + decode</text>
+</g>
+<text x="0" y="120" fill="#aab2cf" font-size="11">→ 优: 简单; <tspan fill="#ef4444" font-weight="700">劣: prefill 长 prompt 阻塞 decode, GPU 利用率 ~70%</tspan></text>
+</g>
+<g transform="translate(60,230)">
+<text x="0" y="0" fill="#10b981" font-size="13" font-weight="700">Disaggregated 架构 (PD 分离, Mooncake/DistServe/Splitwise)</text>
+<rect x="0" y="20" width="800" height="80" fill="#1c2440" stroke="#10b981" stroke-width="2" rx="4"/>
+<g transform="translate(20,30)">
+<rect x="0" y="0" width="280" height="60" fill="#7eb6ff" opacity="0.6"/>
+<text x="140" y="22" text-anchor="middle" fill="#0a0e1a" font-size="11" font-weight="700">Prefill Node (×2)</text>
+<text x="140" y="40" text-anchor="middle" fill="#0a0e1a" font-size="9">H100/H200 算力密集</text>
+<text x="140" y="55" text-anchor="middle" fill="#0a0e1a" font-size="8">chunked prefill + 大 batch</text>
+<rect x="290" y="0" width="40" height="60" fill="#10b981" opacity="0.6"/>
+<text x="310" y="42" text-anchor="middle" fill="#fff" font-size="9">→</text>
+<text x="310" y="55" text-anchor="middle" fill="#fff" font-size="8">KV</text>
+<rect x="340" y="0" width="40" height="60" fill="#a78bfa" opacity="0.6"/>
+<text x="360" y="42" text-anchor="middle" fill="#fff" font-size="9">→</text>
+<text x="360" y="55" text-anchor="middle" fill="#fff" font-size="8">RDMA</text>
+<rect x="390" y="0" width="360" height="60" fill="#10b981" opacity="0.6"/>
+<text x="570" y="22" text-anchor="middle" fill="#0a0e1a" font-size="11" font-weight="700">Decode Node (×4)</text>
+<text x="570" y="40" text-anchor="middle" fill="#0a0e1a" font-size="9">H100/H200 显存带宽密集</text>
+<text x="570" y="55" text-anchor="middle" fill="#0a0e1a" font-size="8">continuous batching + 1 token 1 step</text>
+</g>
+<text x="0" y="120" fill="#aab2cf" font-size="11">→ 优: 独立调度, GPU 利用率 95%+; <tspan fill="#10b981" font-weight="700">Long context throughput 10× 提升 (Mooncake 验证)</tspan></text>
+</g>
+<g transform="translate(60,380)">
+<text x="0" y="0" fill="#f59e0b" font-size="13" font-weight="700">3 大 PD 分离系统</text>
+<text x="0" y="22" fill="#e8ecf5" font-size="11">• <tspan fill="#7eb6ff" font-weight="700">DistServe</tspan> (Microsoft, OSDI 2024) — 首次提出 disagg, 1.5-2× 提速</text>
+<text x="0" y="40" fill="#e8ecf5" font-size="11">• <tspan fill="#7eb6ff" font-weight="700">Splitwise</tspan> (Microsoft, ISCA 2024) — prefill/decode/coding 3-way split</text>
+<text x="0" y="58" fill="#e8ecf5" font-size="11">• <tspan fill="#7eb6ff" font-weight="700">Mooncake</tspan> (DeepSeek, FAST 2025) — 3 tier HBM/DRAM/NVMe + Transfer Engine, Kimi K2 288k tok/s decode</text>
+</g>
+<text x="460" y="450" text-anchor="middle" fill="#aab2cf" font-size="10" font-style="italic">SGLang/vLLM/TRT-LLM 已支持 PD 分离; NVIDIA Dynamo + DOCA Memos 深度集成</text>
+</svg>
