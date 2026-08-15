@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 460" font-family="-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif">
+<rect width="920" height="460" fill="#0a0e1a"/>
+<text x="460" y="32" text-anchor="middle" fill="#e8ecf5" font-size="20" font-weight="700">S16 · PagedAttention block table — 像 OS 虚拟页管理 KV cache</text>
+<text x="460" y="54" text-anchor="middle" fill="#aab2cf" font-size="12">来源: Kwon et al., SOSP 2023, arXiv:2309.06180 (vLLM)</text>
+<g transform="translate(60,90)">
+<text x="0" y="0" fill="#7eb6ff" font-size="13" font-weight="700">Logical KV blocks (per sequence)</text>
+<g transform="translate(0,15)">
+<rect x="0" y="0" width="60" height="40" fill="#1c2440" stroke="#7eb6ff"/>
+<text x="30" y="18" text-anchor="middle" fill="#e8ecf5" font-size="9">Block 0</text>
+<text x="30" y="32" text-anchor="middle" fill="#aab2cf" font-size="8">16 token</text>
+<rect x="60" y="0" width="60" height="40" fill="#1c2440" stroke="#7eb6ff"/>
+<text x="90" y="18" text-anchor="middle" fill="#e8ecf5" font-size="9">Block 1</text>
+<text x="90" y="32" text-anchor="middle" fill="#aab2cf" font-size="8">16 token</text>
+<rect x="120" y="0" width="60" height="40" fill="#1c2440" stroke="#7eb6ff"/>
+<text x="150" y="18" text-anchor="middle" fill="#e8ecf5" font-size="9">Block 2</text>
+<text x="150" y="32" text-anchor="middle" fill="#aab2cf" font-size="8">16 token</text>
+<rect x="180" y="0" width="60" height="40" fill="#1c2440" stroke="#7eb6ff"/>
+<text x="210" y="18" text-anchor="middle" fill="#e8ecf5" font-size="9">Block 3</text>
+<text x="210" y="32" text-anchor="middle" fill="#aab2cf" font-size="8">16 token</text>
+<rect x="240" y="0" width="60" height="40" fill="#1c2440" stroke="#7eb6ff"/>
+<text x="270" y="18" text-anchor="middle" fill="#e8ecf5" font-size="9">Block 4</text>
+<text x="270" y="32" text-anchor="middle" fill="#aab2cf" font-size="8">16 token</text>
+<rect x="300" y="0" width="60" height="40" fill="#1c2440" stroke="#7eb6ff"/>
+<text x="330" y="18" text-anchor="middle" fill="#e8ecf5" font-size="9">Block 5</text>
+<text x="330" y="32" text-anchor="middle" fill="#aab2cf" font-size="8">16 token</text>
+</g>
+<text x="0" y="75" fill="#aab2cf" font-size="10">→ Block table 维护 logical → physical 映射 (类似 OS 页表)</text>
+</g>
+<g transform="translate(60,200)">
+<text x="0" y="0" fill="#a78bfa" font-size="13" font-weight="700">Physical KV blocks (GPU HBM pool)</text>
+<g transform="translate(0,15)">
+<rect x="0" y="0" width="48" height="36" fill="#3d4a73" opacity="0.5"/>
+<text x="24" y="22" text-anchor="middle" fill="#aab2cf" font-size="9">free</text>
+<rect x="52" y="0" width="48" height="36" fill="#a78bfa"/>
+<text x="76" y="22" text-anchor="middle" fill="#fff" font-size="9">seq A #0</text>
+<rect x="104" y="0" width="48" height="36" fill="#a78bfa"/>
+<text x="128" y="22" text-anchor="middle" fill="#fff" font-size="9">seq A #1</text>
+<rect x="156" y="0" width="48" height="36" fill="#7eb6ff"/>
+<text x="180" y="22" text-anchor="middle" fill="#0a0e1a" font-size="9">seq B #0</text>
+<rect x="208" y="0" width="48" height="36" fill="#7eb6ff"/>
+<text x="232" y="22" text-anchor="middle" fill="#0a0e1a" font-size="9">seq B #1</text>
+<rect x="260" y="0" width="48" height="36" fill="#f59e0b"/>
+<text x="284" y="22" text-anchor="middle" fill="#0a0e1a" font-size="9">seq A #2</text>
+<rect x="312" y="0" width="48" height="36" fill="#3d4a73" opacity="0.5"/>
+<text x="336" y="22" text-anchor="middle" fill="#aab2cf" font-size="9">free</text>
+<rect x="364" y="0" width="48" height="36" fill="#10b981"/>
+<text x="388" y="22" text-anchor="middle" fill="#0a0e1a" font-size="9">shared</text>
+<rect x="416" y="0" width="48" height="36" fill="#10b981"/>
+<text x="440" y="22" text-anchor="middle" fill="#0a0e1a" font-size="9">shared</text>
+<rect x="468" y="0" width="48" height="36" fill="#3d4a73" opacity="0.5"/>
+<text x="492" y="22" text-anchor="middle" fill="#aab2cf" font-size="9">free</text>
+</g>
+<text x="0" y="65" fill="#aab2cf" font-size="10">→ 物理上不连续, 但 block table 映射让 logical 视图连续</text>
+<text x="0" y="80" fill="#aab2cf" font-size="10">→ beam search / parallel sample 共享 prefix block (copy-on-write)</text>
+<text x="0" y="95" fill="#aab2cf" font-size="10">→ 跨请求 system prompt / 多轮 prefix 也可共享</text>
+</g>
+<g transform="translate(60,340)">
+<text x="0" y="0" fill="#10b981" font-size="13" font-weight="700">实测收益 (vLLM paper §6)</text>
+<text x="0" y="22" fill="#e8ecf5" font-size="11">• Internal + external fragmentation → <tspan fill="#10b981" font-weight="700">近零</tspan> (固定 block 大小)</text>
+<text x="0" y="40" fill="#e8ecf5" font-size="11">• 浪费率: 60-80% (传统连续分配) → <tspan fill="#10b981" font-weight="700">&lt;4%</tspan> (PagedAttn) → <tspan fill="#10b981" font-weight="700">&lt;1%</tspan> (vLLM v0.6+)</text>
+<text x="0" y="58" fill="#e8ecf5" font-size="11">• Throughput vs FasterTransformer: <tspan fill="#10b981" font-weight="700">2-4×</tspan> (长序列更明显)</text>
+<text x="0" y="76" fill="#e8ecf5" font-size="11">• Kernel 开销: 引入 block table lookup, 比 FT kernel 慢 20-26%, 但端到端胜出</text>
+</g>
+<text x="460" y="445" text-anchor="middle" fill="#aab2cf" font-size="10" font-style="italic">SGLang 在 vLLM PagedAttention 之上叠加 RadixAttention (radix tree) 索引 — 互补不重叠</text>
+</svg>
