@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 460" font-family="ui-sans-serif,system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">
+<rect width="800" height="460" fill="#fff"/>
+<text x="400" y="28" text-anchor="middle" font-size="17" font-weight="700" fill="#0a0a0a">5× TPS 数学：cache hit 时序图（VAST Forward 2026 实测）</text>
+<text x="400" y="46" text-anchor="middle" font-size="11" fill="#525252">GPU 等待 KV Cache 重算 vs 从 CMX 拉取的端到端时间 · 60-130% 性能提升来源</text>
+
+<!-- 坐标轴 -->
+<g>
+  <line x1="80" y1="380" x2="760" y2="380" stroke="#0a0a0a" stroke-width="1"/>
+  <line x1="80" y1="80" x2="80" y2="380" stroke="#0a0a0a" stroke-width="1"/>
+  <text x="20" y="240" text-anchor="middle" font-size="11" font-weight="700" fill="#0a0a0a" transform="rotate(-90 20 240)">GPU 利用率</text>
+  <text x="420" y="420" text-anchor="middle" font-size="11" font-weight="700" fill="#0a0a0a">时间（秒）</text>
+
+  <!-- X 刻度 -->
+  <g font-size="9" fill="#525252">
+    <line x1="80" y1="380" x2="80" y2="385" stroke="#525252"/>
+    <text x="80" y="400" text-anchor="middle">0</text>
+    <line x1="180" y1="380" x2="180" y2="385" stroke="#525252"/>
+    <text x="180" y="400" text-anchor="middle">3</text>
+    <line x1="380" y1="380" x2="380" y2="385" stroke="#525252"/>
+    <text x="380" y="400" text-anchor="middle">20</text>
+    <line x1="580" y1="380" x2="580" y2="385" stroke="#525252"/>
+    <text x="580" y="400" text-anchor="middle">50</text>
+    <line x1="730" y1="380" x2="730" y2="385" stroke="#525252"/>
+    <text x="730" y="400" text-anchor="middle">68s</text>
+  </g>
+
+  <!-- Y 刻度 -->
+  <g font-size="9" fill="#525252">
+    <line x1="75" y1="380" x2="80" y2="380" stroke="#525252"/>
+    <text x="70" y="384" text-anchor="end">0</text>
+    <line x1="75" y1="320" x2="80" y2="320" stroke="#525252"/>
+    <text x="70" y="324" text-anchor="end">20</text>
+    <line x1="75" y1="260" x2="80" y2="260" stroke="#525252"/>
+    <text x="70" y="264" text-anchor="end">40</text>
+    <line x1="75" y1="200" x2="80" y2="200" stroke="#525252"/>
+    <text x="70" y="204" text-anchor="end">60</text>
+    <line x1="75" y1="140" x2="80" y2="140" stroke="#525252"/>
+    <text x="70" y="144" text-anchor="end">80</text>
+    <line x1="75" y1="80" x2="80" y2="80" stroke="#525252"/>
+    <text x="70" y="84" text-anchor="end">100%</text>
+  </g>
+</g>
+
+<!-- 场景 A: 无 CMX（cache miss → G4 SSD 重算） -->
+<g>
+  <text x="100" y="68" font-size="11" font-weight="700" fill="#0a0a0a">A. 无 CMX（cache miss → G4 SSD 重算）</text>
+  <!-- T=0-3s: GPU 闲置等 KV -->
+  <rect x="80" y="350" width="100" height="30" fill="#a3a3a3" stroke="#0a0a0a" stroke-width="0.7"/>
+  <text x="130" y="370" text-anchor="middle" font-size="9" fill="#0a0a0a">请求</text>
+  <!-- T=3s-65s: GPU 闲置等重算 -->
+  <rect x="180" y="350" width="500" height="30" fill="#d4d4d8" stroke="#0a0a0a" stroke-width="0.7"/>
+  <text x="430" y="370" text-anchor="middle" font-size="10" font-weight="700" fill="#0a0a0a">GPU 闲置 62s（KV 重算）</text>
+  <!-- T=65-68s: GPU 才开始干活 -->
+  <rect x="680" y="100" width="50" height="280" fill="#0a0a0a" stroke="#0a0a0a" stroke-width="0.7"/>
+  <text x="705" y="370" text-anchor="middle" font-size="9" fill="#fff">生 token</text>
+  <text x="705" y="92" text-anchor="middle" font-size="9" font-weight="700" fill="#0a0a0a">3s</text>
+</g>
+
+<!-- 场景 B: 有 CMX（cache hit → 3s 拉取） -->
+<g>
+  <text x="100" y="220" font-size="11" font-weight="700" fill="#0a0a0a">B. 有 CMX（cache hit → 3s 拉取）</text>
+  <!-- T=0-3s: GPU 闲置等 KV -->
+  <rect x="80" y="190" width="100" height="30" fill="#a3a3a3" stroke="#0a0a0a" stroke-width="0.7"/>
+  <text x="130" y="210" text-anchor="middle" font-size="9" fill="#0a0a0a">请求</text>
+  <!-- T=3s: GPU 开始干活 -->
+  <rect x="180" y="100" width="550" height="120" fill="#0a0a0a" stroke="#0a0a0a" stroke-width="0.7"/>
+  <text x="455" y="170" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">GPU 立即生成 KV (3s 拉取到 HBM)</text>
+  <text x="455" y="115" text-anchor="middle" font-size="9" fill="#fff">65s 提速到 3s · 22× 加速</text>
+</g>
+
+<!-- 标签 -->
+<g font-size="9" fill="#525252">
+  <text x="100" y="320" text-anchor="middle">请求进入</text>
+  <text x="430" y="320" text-anchor="middle" font-weight="700" fill="#0a0a0a">GPU 闲等 22× 差距 ⇣</text>
+  <text x="430" y="270" text-anchor="middle" font-weight="700" fill="#0a0a0a">CMX 拉取 KV 速度 ⇡</text>
+</g>
+
+<!-- 底部 -->
+<text x="400" y="445" text-anchor="middle" font-size="10" font-weight="700" fill="#0a0a0a">端到端差距 22× → 单 GPU 5× TPS · 守恒来源：cache hit 触发的 60s 释放</text>
+</svg>
