@@ -767,7 +767,9 @@
     dom.readerTitle.textContent = '';
     dom.readerMeta.innerHTML = '';
     dom.readerAttach.innerHTML = '';
-    dom.contentIframe.src = '';
+    // BUG 修复: src 改为 about:blank 立即停止加载并清空内容,
+    // 避免用户快速点开/关闭时旧文章内容在 iframe 内残留闪现
+    dom.contentIframe.src = 'about:blank';
 
     const noticeEl = dom.noHtmlNotice.querySelector('.notice-inner');
     if (noticeEl) {
@@ -785,6 +787,12 @@
     document.title = '肥嘟嘟的炼金工厂 · 调研报告与白皮书';
     setOpenGraphMeta(null);
     STATE.mode = 'HOME';
+
+    // BUG 修复: closeReader 之前如果通过 hash 路由打开过文章,
+    // STATE.filtered 仍是 STATE.articles 的全拷贝 (含 QA, 55 篇).
+    // 这里重新跑一次 applyFilters, 让 STATE.filtered 重新过滤 QA,
+    // 同时保证 hero/grid 计数与顶部 tab "调研报告 51" 一致.
+    applyFilters();
     window.location.hash = '';
   }
 
@@ -1087,7 +1095,9 @@ async function init() {
       const id = hash.replace('#article/', '');
       const article = STATE.articles.find(a => a.id === id);
       if (article) {
-        renderArticleList();
+        // BUG 修复: 先 applyFilters 过滤 QA, 再 renderArticleList,
+        // 保证 closeReader 返回主页时 hero/grid 已经是过滤后的 51 篇
+        applyFilters();
         openReader(article);
         // 后台构建搜索索引 (不阻塞)
         buildSearchIndex();
