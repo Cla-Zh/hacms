@@ -5,143 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>vLLM 近两年 Bug 修复主干 (深度总结) · 智慧问答 #4</title>
 <link rel="stylesheet" href="../qa-style.css">
-<style>
-/* 本地补充样式 */
-.qa-summary-box {
-  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
-  border-left: 4px solid #2563eb;
-  padding: 1.5rem 2rem;
-  margin: 2rem 0;
-  border-radius: 0 8px 8px 0;
-}
-.qa-summary-box h3 {
-  color: #1e40af;
-  margin: 0 0 0.75rem 0;
-  font-size: 1.1rem;
-}
-.qa-summary-box ul {
-  margin: 0;
-  padding-left: 1.25rem;
-  color: #1f2937;
-  line-height: 1.8;
-}
-.qa-class-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 1.5rem 0;
-  font-size: 0.92rem;
-}
-.qa-class-table th,
-.qa-class-table td {
-  border: 1px solid #e2e8f0;
-  padding: 0.6rem 0.9rem;
-  text-align: left;
-}
-.qa-class-table th {
-  background: #1e293b;
-  color: white;
-  font-weight: 600;
-}
-.qa-class-table tr:nth-child(even) td { background: #f8fafc; }
-.qa-class-table .count { font-weight: 700; color: #1e40af; text-align: right; }
-.qa-class-table .pct { color: #64748b; text-align: right; }
-
-.qa-pr-deep {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 1.5rem 2rem;
-  margin: 2rem 0;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-}
-.qa-pr-deep h4 {
-  margin: 0 0 0.5rem 0;
-  color: #0f172a;
-  font-size: 1.1rem;
-}
-.qa-pr-deep .pr-meta {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin: 0.5rem 0 1rem 0;
-  font-size: 0.85rem;
-  color: #475569;
-}
-.qa-pr-deep .pr-meta span {
-  background: #f1f5f9;
-  padding: 0.2rem 0.6rem;
-  border-radius: 4px;
-}
-.qa-pr-deep pre {
-  background: #0f172a;
-  color: #e2e8f0;
-  padding: 1rem;
-  border-radius: 6px;
-  overflow-x: auto;
-  font-size: 0.8rem;
-  line-height: 1.5;
-  margin: 0.75rem 0;
-}
-.qa-pr-deep pre .add { color: #86efac; }
-.qa-pr-deep pre .del { color: #fca5a5; }
-.qa-pr-deep pre .comment { color: #94a3b8; font-style: italic; }
-
-.qa-quote {
-  background: #fef9c3;
-  border-left: 3px solid #eab308;
-  padding: 0.75rem 1.25rem;
-  margin: 1rem 0;
-  font-size: 0.92rem;
-  border-radius: 0 4px 4px 0;
-}
-
-.qa-ssd-highlight {
-  background: linear-gradient(90deg, #fef3c7 0%, transparent 100%);
-  border-left: 4px solid #f59e0b;
-  padding: 1rem 1.5rem;
-  margin: 1.5rem 0;
-  border-radius: 0 6px 6px 0;
-}
-
-.qa-arch-diagram {
-  background: #0f172a;
-  color: #e2e8f0;
-  padding: 1.5rem;
-  border-radius: 8px;
-  font-family: 'Menlo', 'Monaco', monospace;
-  font-size: 0.78rem;
-  line-height: 1.4;
-  overflow-x: auto;
-  margin: 1.5rem 0;
-  white-space: pre;
-}
-
-.qa-bug-pattern {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.75rem;
-  margin: 0.75rem 0;
-  padding: 0.75rem;
-  background: #f8fafc;
-  border-radius: 6px;
-}
-.qa-bug-pattern .pattern-tag {
-  background: #dc2626;
-  color: white;
-  padding: 0.25rem 0.6rem;
-  border-radius: 4px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  align-self: start;
-  white-space: nowrap;
-}
-.qa-bug-pattern .pattern-text {
-  color: #1f2937;
-  line-height: 1.6;
-}
-</style>
 </head>
-<body>
+<body class="qa-page-body">
 
 <nav class="qa-toc">
   <div class="qa-toc-inner">
@@ -174,10 +39,10 @@
 </header>
 
 <section id="sec-overview">
-<h2>1 · 一句话: 答案</h2>
+<h2 class="qa-section-title">1 · 一句话: 答案</h2>
 
 <div class="qa-summary-box">
-  <h3>🎯 直接回答你的问题</h3>
+  <h3 class="qa-insight-title">🎯 直接回答你的问题</h3>
   <ul>
     <li><strong>vLLM 近两年的小修 Bug</strong>主要集中在<strong>8 大物理子系统</strong>: 并行/分布式 (16.9%)、Frontend/API 兼容 (16.7%)、模型架构特定 (13.4%)、Kernel (FusedMoE/Attention) (12.9%)、Attention/KV Cache (12.9%)、量化 (12.7%)、ROCm/AMD (10.5%)、KV Offload + Spec Decode + VLM 等长尾。</li>
     <li><strong>真正「小修 Bug」的本质</strong>是「<strong>代码改 1~10 行,测试改 50~500 行</strong>」 — 这反映了 vLLM 已进入<strong>成熟阶段</strong>,架构稳定,补丁多为「修正配置默认值 / 跨子系统兼容性 / 边界条件缺失」,而不是「核心算法错了」。</li>
@@ -192,9 +57,9 @@
 </section>
 
 <section id="sec-landscape">
-<h2>2 · 22 个月 / 1972 个 Bug PR 全景</h2>
+<h2 class="qa-section-title">2 · 22 个月 / 1972 个 Bug PR 全景</h2>
 
-<h3>2.1 时间分布: 爆发期是 2026 Q1</h3>
+<h3 class="qa-insight-title">2.1 时间分布: 爆发期是 2026 Q1</h3>
 <table class="qa-class-table">
   <thead>
     <tr><th>月份</th><th class="count">Bug PR</th><th>趋势 / 备注</th></tr>
@@ -220,7 +85,7 @@
   <li><strong>多平台扩展</strong>:ROCm (AMD MI300/MI355)、XPU (Intel)、TPU、CPU (AMX/AVX-512) 五大后端并立,每个 (架构 × 后端) 组合都是 bug 源。</li>
 </ol>
 
-<h3>2.2 真正的「小修 Bug」占比</h3>
+<h3 class="qa-insight-title">2.2 真正的「小修 Bug」占比</h3>
 <p>从 PR 文件 diff 统计看:</p>
 <ul>
   <li><strong>~38%</strong> 的 PR 代码改动 ≤ 30 行 (含测试),典型是「跨子系统兼容性 guard」</li>
@@ -233,7 +98,7 @@
 </section>
 
 <section id="sec-eight-buckets">
-<h2>3 · 八大类: 物理聚类 (1972 PR → 8 大桶)</h2>
+<h2 class="qa-section-title">3 · 八大类: 物理聚类 (1972 PR → 8 大桶)</h2>
 
 <p>按 <strong>「触发 bug 的物理子系统」</strong> 而不是「标题关键词」聚类。 由于一个 PR 可能跨多个物理子系统 (例如 #49071 同时涉及 KV Offload + EAGLE Spec Decode),本表按「主要触发子系统」分类,合计 PR 数 <strong>允许略大于 1972</strong> (实际去重后独立 PR 为 1972)。下表是分类主表。</p>
 
@@ -307,7 +172,7 @@
 </section>
 
 <section id="sec-pattern">
-<h2>4 · 共同模式: 「小修 Bug」到底在修什么?</h2>
+<h2 class="qa-section-title">4 · 共同模式: 「小修 Bug」到底在修什么?</h2>
 
 <p>把 1972 个 PR 的标题 + body 拆解后,我归纳出 <strong>5 种最常见的「小修 Bug」模式</strong>:</p>
 
@@ -345,9 +210,9 @@
 </section>
 
 <section id="sec-ssd">
-<h2>5 · SSD / 多级存储子专题</h2>
+<h2 class="qa-section-title">5 · SSD / 多级存储子专题</h2>
 
-<h3>5.1 关键澄清: 「SSD」在 vLLM 里有两种含义</h3>
+<h3 class="qa-insight-title">5.1 关键澄清: 「SSD」在 vLLM 里有两种含义</h3>
 
 <div class="qa-ssd-highlight">
   <p><strong>⚠️ 重要</strong>: 在 vLLM 仓库里,「SSD」一词会让人误解。我把它分成两个完全不同的概念:</p>
@@ -358,7 +223,7 @@
   <p><strong>本文后续「SSD」专指第二种</strong>,即<strong>物理 SSD 设备在 KV offload 场景下的使用</strong>。如果你问的是 Mamba SSD kernel 的 bug,那是另一篇文章 (我也写过: #21783 / #25995 / #37501 等)。</p>
 </div>
 
-<h3>5.2 vLLM KV Offload 架构 (三级存储)</h3>
+<h3 class="qa-insight-title">5.2 vLLM KV Offload 架构 (三级存储)</h3>
 
 <p>vLLM v1 引入了 <code class="inline">vllm/v1/kv_offload/</code> 子系统,核心抽象 (来自 <code class="inline">base.py</code>):</p>
 
@@ -393,7 +258,7 @@
 
 <p>这套架构的<strong>关键设计决策</strong>是 <strong>tier 之间的 lookup 协议</strong>:一个 Tier 在 lookup 时返回 <code>LookupResult.{MISS, HIT, HIT_PENDING, RETRY}</code>, 由 OffloadingManager 统一调度。 这让上层代码不需要知道 KV block 具体在 GPU / CPU / SSD 哪一层。</p>
 
-<h3>5.3 与 SSD 相关的 5 类「小修 Bug」</h3>
+<h3 class="qa-insight-title">5.3 与 SSD 相关的 5 类「小修 Bug」</h3>
 
 <p>把 98 个 KV offload bug PR + 208 个 ROCm bug PR + 251 个量化 bug PR 交叉分析后,我发现 SSD 相关 bug 集中在 <strong>5 个具体场景</strong>:</p>
 
@@ -414,9 +279,9 @@
 </section>
 
 <section id="sec-ssd-deep">
-<h2>6 · SSD 重点 PR 深度分析 (7 个)</h2>
+<h2 class="qa-section-title">6 · SSD 重点 PR 深度分析 (7 个)</h2>
 
-<h3>6.1 PR #36461 —「删 5 行 assert,让路 CPU offload」</h3>
+<h3 class="qa-insight-title">6.1 PR #36461 —「删 5 行 assert,让路 CPU offload」</h3>
 
 <div class="qa-pr-deep">
   <h4>🔧 [Bugfix] Fix cpu-offload-gb assertion with non-default block sizes</h4>
@@ -457,7 +322,7 @@
   </div>
 </div>
 
-<h3>6.2 PR #49071 —「3 行修复:EAGLE 模式硬编码 False」</h3>
+<h3 class="qa-insight-title">6.2 PR #49071 —「3 行修复:EAGLE 模式硬编码 False」</h3>
 
 <div class="qa-pr-deep">
   <h4>🔧 [Bugfix][KV Offload] Propagate EAGLE mode to SimpleCPU coordinator</h4>
@@ -501,7 +366,7 @@
   </div>
 </div>
 
-<h3>6.3 PR #49226 —「4 行 guard:per-token-head quant 不能 offload」</h3>
+<h3 class="qa-insight-title">6.3 PR #49226 —「4 行 guard:per-token-head quant 不能 offload」</h3>
 
 <div class="qa-pr-deep">
   <h4>🔧 [Bugfix][KVConnector] Disable cross-layer KV blocks for per-token-head quant</h4>
@@ -540,7 +405,7 @@
   </div>
 </div>
 
-<h3>6.4 PR #46379 —「1 行真 bugfix + 47 行测试:cuMemcpyBatchAsync 默认流」</h3>
+<h3 class="qa-insight-title">6.4 PR #46379 —「1 行真 bugfix + 47 行测试:cuMemcpyBatchAsync 默认流」</h3>
 
 <div class="qa-pr-deep">
   <h4>🔧 [Bugfix][KV Offload] Fix swap_blocks_batch on the default stream</h4>
@@ -584,7 +449,7 @@
   </div>
 </div>
 
-<h3>6.5 PR #44592 —「4 行:prefix cache 跳过读取时不能 offload」</h3>
+<h3 class="qa-insight-title">6.5 PR #44592 —「4 行:prefix cache 跳过读取时不能 offload」</h3>
 
 <div class="qa-pr-deep">
   <h4>🔧 [Bugfix] OffloadingConnector: respect skip_reading_prefix_cache flag</h4>
@@ -627,7 +492,7 @@
   </div>
 </div>
 
-<h3>6.6 PR #50301 —「启用 single-copy MLA 布局,减 SSD 流量」</h3>
+<h3 class="qa-insight-title">6.6 PR #50301 —「启用 single-copy MLA 布局,减 SSD 流量」</h3>
 
 <div class="qa-pr-deep">
   <h4>🔧 [KV Offload] Enable single-copy MLA layout for CPUOffloadingSpec</h4>
@@ -670,7 +535,7 @@ kv_bytes_per_block = config.worker_kv_bytes_per_block * num_copies</pre>
   </div>
 </div>
 
-<h3>6.7 PR #49328 —「failed-load livelock:lookup 标为 miss」</h3>
+<h3 class="qa-insight-title">6.7 PR #49328 —「failed-load livelock:lookup 标为 miss」</h3>
 
 <div class="qa-pr-deep">
   <h4>🔧 [KV Offload] Fix failed-load livelock by marking the lookup verdict as a miss</h4>
@@ -710,11 +575,11 @@ kv_bytes_per_block = config.worker_kv_bytes_per_block * num_copies</pre>
 </section>
 
 <section id="sec-non-ssd-deep">
-<h2>7 · 非 SSD 重要 PR 深度分析 (5 个)</h2>
+<h2 class="qa-section-title">7 · 非 SSD 重要 PR 深度分析 (5 个)</h2>
 
 <p>SSD 是重点,但 1972 个 PR 里 95% 与 SSD 无关。下面挑 5 个对「理解 vLLM 整体 bug 形态」最重要的非 SSD PR 做代码层分析。</p>
 
-<h3>7.1 PR #14910 —「MLA + TP=1 重复初始化 cuda context」</h3>
+<h3 class="qa-insight-title">7.1 PR #14910 —「MLA + TP=1 重复初始化 cuda context」</h3>
 
 <div class="qa-pr-deep">
   <h4>🔧 [BugFix] Fix MLA + V1 + TP==1 causing reinitialization of cuda context</h4>
@@ -737,7 +602,7 @@ kv_bytes_per_block = config.worker_kv_bytes_per_block * num_copies</pre>
   </div>
 </div>
 
-<h3>7.2 PR #14237 —「DeepSeek MTP + TP1 + CUDA graph 形状错位」</h3>
+<h3 class="qa-insight-title">7.2 PR #14237 —「DeepSeek MTP + TP1 + CUDA graph 形状错位」</h3>
 
 <div class="qa-pr-deep">
   <h4>🔧 [Bugfix] Fix DeepSeek MTP crash when using TP1ModelRunner with CUDA graph due to shape mismatch</h4>
@@ -761,7 +626,7 @@ kv_bytes_per_block = config.worker_kv_bytes_per_block * num_copies</pre>
   </div>
 </div>
 
-<h3>7.3 PR #52796 —「FlashInfer prefill LSE 归一化」</h3>
+<h3 class="qa-insight-title">7.3 PR #52796 —「FlashInfer prefill LSE 归一化」</h3>
 
 <div class="qa-pr-deep">
   <h4>🔧 [Bugfix][Attention] Normalize FlashInfer prefill LSE before merging</h4>
@@ -785,7 +650,7 @@ kv_bytes_per_block = config.worker_kv_bytes_per_block * num_copies</pre>
   </div>
 </div>
 
-<h3>7.4 PR #51108 —「hybrid prefix cache 隐藏状态提取」</h3>
+<h3 class="qa-insight-title">7.4 PR #51108 —「hybrid prefix cache 隐藏状态提取」</h3>
 
 <div class="qa-pr-deep">
   <h4>🔧 [BugFix][KV Cache] Fix hybrid prefix caching with hidden-state extraction</h4>
@@ -811,7 +676,7 @@ kv_bytes_per_block = config.worker_kv_bytes_per_block * num_copies</pre>
   </div>
 </div>
 
-<h3>7.5 PR #51749 —「Generalize KV block zeroing to AttentionSpec」</h3>
+<h3 class="qa-insight-title">7.5 PR #51749 —「Generalize KV block zeroing to AttentionSpec」</h3>
 
 <div class="qa-pr-deep">
   <h4>🔧 [Bugfix] Generalize KV block zeroing to AttentionSpec</h4>
@@ -837,9 +702,9 @@ kv_bytes_per_block = config.worker_kv_bytes_per_block * num_copies</pre>
 </section>
 
 <section id="sec-adaptation">
-<h2>8 · 适配矩阵: vLLM 如何跨平台适配 SSD/Offload</h2>
+<h2 class="qa-section-title">8 · 适配矩阵: vLLM 如何跨平台适配 SSD/Offload</h2>
 
-<h3>8.1 跨平台「同一个 KV offload」的 4 个分支</h3>
+<h3 class="qa-insight-title">8.1 跨平台「同一个 KV offload」的 4 个分支</h3>
 
 <p>从 KV Offload 相关 PR 抽取的<strong>适配矩阵</strong>:</p>
 
@@ -881,7 +746,7 @@ kv_bytes_per_block = config.worker_kv_bytes_per_block * num_copies</pre>
   </tbody>
 </table>
 
-<h3>8.2 跨模型架构「同一个 KV cache」的 3 个分支</h3>
+<h3 class="qa-insight-title">8.2 跨模型架构「同一个 KV cache」的 3 个分支</h3>
 
 <table class="qa-class-table">
   <thead>
@@ -915,27 +780,27 @@ kv_bytes_per_block = config.worker_kv_bytes_per_block * num_copies</pre>
 </section>
 
 <section id="sec-root-cause">
-<h2>9 · 根因分析: 为什么「一行修复」特别多?</h2>
+<h2 class="qa-section-title">9 · 根因分析: 为什么「一行修复」特别多?</h2>
 
 <p>从 1972 个 PR 看,vLLM 的「一行修复」PR 占比 ~22% (~430 个)。这不是代码质量问题,而是<strong>系统架构成熟度的标志</strong>。从软件工程角度归纳 5 个根因:</p>
 
-<h3>9.1 跨子系统的「隐式假设」互相破坏</h3>
+<h3 class="qa-insight-title">9.1 跨子系统的「隐式假设」互相破坏</h3>
 <p>vLLM 有 ~15 个独立子系统 (scheduler / kv cache / attention backend / offload / spec decode / quantization / moe / multimodal / ...),每个子系统有<strong>自己的假设</strong>。新加一个子系统时,作者可能忘了其他子系统的假设,造成冲突。</p>
 <p><strong>例</strong>: #49226 中 per-token-head quant 假设「KV buffer per-layer contiguous」,OffloadingConnector 假设「cross-layer KV 拼接」,两个假设冲突。修复: 加 4 行 guard 显式声明「per-token-head quant 不允许 cross-layer」。</p>
 
-<h3>9.2 配置默认值与硬编码常量漂移</h3>
+<h3 class="qa-insight-title">9.2 配置默认值与硬编码常量漂移</h3>
 <p>vLLM 早期版本用硬编码 (例: <code>use_eagle=False</code>),后续版本加了配置系统,但硬编码没同步更新。bug 在「配置 + 硬编码」冲突时浮现。</p>
 <p><strong>例</strong>: #49071 修复了 <code>use_eagle</code> 从硬编码改为从 <code>vllm_config.speculative_config</code> 读。3 行。</p>
 
-<h3>9.3 第三方库的「silent 行为变化」</h3>
+<h3 class="qa-insight-title">9.3 第三方库的「silent 行为变化」</h3>
 <p>vLLM 依赖 PyTorch / CUDA / FlashInfer / ROCm / Transformers 等 ~30 个第三方库。这些库的行为会随版本变化 (有时是「bug 修复」反而打破 vLLM 假设)。</p>
 <p><strong>例</strong>: #52796 中 FlashInfer 新版本改变了 prefill LSE 输出语义,vLLM 之前的合并公式不再正确。23 行修复。</p>
 
-<h3>9.4 新模型的「快速适配」代码中残留 TODO</h3>
+<h3 class="qa-insight-title">9.4 新模型的「快速适配」代码中残留 TODO</h3>
 <p>vLLM 接入新模型 (DeepSeek V3、GLM-5、Kimi K3) 时,通常 1~2 周完成,代码含大量 TODO。后续 PR 逐一 cleanup。</p>
 <p><strong>例</strong>: #49071 diff 中删除了一行 <code># TODO (yifan): maybe need to enable kv_cache_events and metrics_collector here.</code>,这就是典型「适配期 TODO 清理」。</p>
 
-<h3>9.5 「跨进程 / 跨流」的边界 case 遗漏</h3>
+<h3 class="qa-insight-title">9.5 「跨进程 / 跨流」的边界 case 遗漏</h3>
 <p>vLLM v1 大量使用 stream / event / NCCL / MoE all-to-all,这些分布式原语对边界 case 极敏感。</p>
 <p><strong>例</strong>: #46379 中 <code>cuMemcpyBatchAsync</code> 在 legacy default stream 上崩溃,这种「CUDA stream 边界」bug 在新 CUDA API 上层出不穷。</p>
 
@@ -943,9 +808,9 @@ kv_bytes_per_block = config.worker_kv_bytes_per_block * num_copies</pre>
 </section>
 
 <section id="sec-future">
-<h2>10 · 趋势与启示</h2>
+<h2 class="qa-section-title">10 · 趋势与启示</h2>
 
-<h3>10.1 SSD / KV Offload 是 vLLM 当前最活跃方向</h3>
+<h3 class="qa-insight-title">10.1 SSD / KV Offload 是 vLLM 当前最活跃方向</h3>
 <p>从 PR 时间分布看,2025-11 ~ 2026-08 期间,<strong>KV offload 子系统从 0 → 5% 占比</strong>,且仍在加速。主要新特性:</p>
 <ul>
   <li>multi-tier offload (CPU + SSD + remote)</li>
@@ -955,16 +820,16 @@ kv_bytes_per_block = config.worker_kv_bytes_per_block * num_copies</pre>
   <li>TieringOffloadingSpec (跨 CPU + SSD 调度, #46216)</li>
 </ul>
 
-<h3>10.2 Spec Decode 生态扩张</h3>
+<h3 class="qa-insight-title">10.2 Spec Decode 生态扩张</h3>
 <p>2025 年 EAGLE-3 一枝独秀,2026 年 vLLM 已经支持 EAGLE-3 / MTP / DFlash / DSpark / ReC2 等多种 spec decode 算法。<strong>每种算法跟 KV cache / SSD offload 都有特定交互</strong>,所以 #51108 / #44243 / #51177 / #53212 等 hybrid 模型 bug 频发。</p>
 
-<h3>10.3 量化格式碎片化</h3>
+<h3 class="qa-insight-title">10.3 量化格式碎片化</h3>
 <p>2026 年主流量化格式: FP8 (per-tensor / per-row / per-token-head) / INT4 (GPTQ / AWQ / bnb) / MXFP4 / NVFP4 / TurboQuant 2-bit。每种格式 × 每种 attention backend 都要组合测试,bug 数 × 10。</p>
 
-<h3>10.4 多平台扩张但 ROCm 仍滞后</h3>
+<h3 class="qa-insight-title">10.4 多平台扩张但 ROCm 仍滞后</h3>
 <p>ROCm 占 bug PR 10.5%,但 ROCm 用户只占 vLLM 的 ~15%。 说明 ROCm 上 bug 密度更高,<strong>生态成熟度低于 CUDA</strong>。这一趋势在 2026 年下半年会继续,因为 AMD MI355X / MI400 即将上市。</p>
 
-<h3>10.5 给 LLM 推理引擎作者的启示</h3>
+<h3 class="qa-insight-title">10.5 给 LLM 推理引擎作者的启示</h3>
 <ol>
   <li><strong>每加一个 flag,记得在所有子系统同步</strong>。</li>
   <li><strong>每加一个组合,先写跨子系统集成测试</strong>,再实现。</li>
@@ -975,7 +840,7 @@ kv_bytes_per_block = config.worker_kv_bytes_per_block * num_copies</pre>
 </section>
 
 <section id="sec-references">
-<h2>11 · 引用</h2>
+<h2 class="qa-section-title">11 · 引用</h2>
 <ol>
   <li><strong>Dao, T., & Gu, A. (2024). <a href="https://arxiv.org/abs/2405.21060">"Transformers are SSMs: Generalized Models and Efficient Algorithms through Structured State Space Duality"</a>. arXiv:2405.21060, ICML 2024 (Mamba SSD 算法起源)</li>
   <li>DeepSeek-AI. (2024). <a href="https://arxiv.org/abs/2405.04434">"DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model"</a>. arXiv:2405.04434 (MLA 架构起源)</li>
@@ -991,11 +856,11 @@ kv_bytes_per_block = config.worker_kv_bytes_per_block * num_copies</pre>
 </section>
 
 <section id="sec-pr-list">
-<h2>12 · 重点 PR 索引 (附录)</h2>
+<h2 class="qa-section-title">12 · 重点 PR 索引 (附录)</h2>
 
 <p>以下 22 个 PR 是本文深度分析的来源,按主题分组:</p>
 
-<h3>12.1 SSD / 多级存储相关 (7 个)</h3>
+<h3 class="qa-insight-title">12.1 SSD / 多级存储相关 (7 个)</h3>
 <table class="qa-class-table">
   <thead>
     <tr><th>PR</th><th>标题</th><th>改动</th><th>核心模式</th></tr>
@@ -1011,7 +876,7 @@ kv_bytes_per_block = config.worker_kv_bytes_per_block * num_copies</pre>
   </tbody>
 </table>
 
-<h3>12.2 非 SSD 重要 PR (5 个)</h3>
+<h3 class="qa-insight-title">12.2 非 SSD 重要 PR (5 个)</h3>
 <table class="qa-class-table">
   <thead>
     <tr><th>PR</th><th>标题</th><th>改动</th><th>核心模式</th></tr>
@@ -1025,7 +890,7 @@ kv_bytes_per_block = config.worker_kv_bytes_per_block * num_copies</pre>
   </tbody>
 </table>
 
-<h3>12.3 其余 SSD 相关 PR (10 个,辅助参考)</h3>
+<h3 class="qa-insight-title">12.3 其余 SSD 相关 PR (10 个,辅助参考)</h3>
 <table class="qa-class-table">
   <thead>
     <tr><th>PR</th><th>标题</th><th>主题</th></tr>
@@ -1044,7 +909,7 @@ kv_bytes_per_block = config.worker_kv_bytes_per_block * num_copies</pre>
   </tbody>
 </table>
 
-<h3>12.4 数据来源说明</h3>
+<h3 class="qa-insight-title">12.4 数据来源说明</h3>
 <p>本文基于 <strong>1972 个 vLLM <code>bug</code> 标签 merged PR</strong> (2024-11 ~ 2026-08, 22 个月),通过 GitHub Search API 按 8 个季度窗口分页拉取去重。聚类用关键词匹配 + 标题/label 二次确认。 文中所有 PR 链接均为 vllm-project/vllm 仓库 PR,可在 GitHub 直接验证。</p>
 
 <p>本版取代 2026-08-21 写的 v1.0 Q4 (<code class="inline">2026-q4-vllm-bugfixes-2024-2026</code>, 193 PR · 34 桶版)。</p>
