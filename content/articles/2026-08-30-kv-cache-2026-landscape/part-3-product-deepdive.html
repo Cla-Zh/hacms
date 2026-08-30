@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第 3 部分 · 产品技术深度 · KV Cache 经济学</title>
+  <link rel="stylesheet" href="../qa/qa-style.css">
+  <style>
+    body { background:#fff; color:#1a1a1a; }
+    .container { max-width:920px; margin:0 auto; padding:32px; font-size:15px; line-height:1.75; }
+    .container h1 { font-size:30px; font-weight:700; margin:0 0 8px; }
+    .container h2 { font-size:22px; font-weight:700; margin:36px 0 12px; border-bottom:1px solid #e0e0e0; padding-bottom:8px; }
+    .container h3 { font-size:17px; font-weight:700; margin:24px 0 8px; color:#1a1a1a; }
+    .lead { color:#5a5a5a; font-size:16px; margin:0 0 24px; line-height:1.6; }
+    .meta { font-size:12px; color:#888; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:24px; }
+    a { color:#1a1a1a; text-decoration:underline; text-decoration-color:#bbb; }
+    a:hover { text-decoration-color:#1a1a1a; }
+    .ref { font-size:12px; color:#888; }
+    code { background:#f5f5f5; padding:1px 6px; font-size:13px; font-family:ui-monospace,Menlo,monospace; }
+    pre { background:#f5f5f5; padding:12px; font-size:12px; overflow-x:auto; border-left:3px solid #1a1a1a; }
+    table { border-collapse:collapse; width:100%; margin:16px 0; font-size:13px; }
+    th, td { border:1px solid #e0e0e0; padding:8px 12px; text-align:left; }
+    th { background:#f5f5f5; font-weight:600; }
+    blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid #8b3a3a; background:#fafafa; font-style:italic; color:#2c2c2c; }
+    blockquote .src { display:block; margin-top:6px; font-style:normal; font-size:12px; color:#888; }
+    .term { background:#f0f0f0; padding:1px 4px; font-size:13px; border-bottom:1px dotted #888; }
+    footer { max-width:920px; margin:48px auto 32px; padding:0 32px; border-top:1px solid #e0e0e0; font-size:12px; color:#888; }
+    ul, ol { padding-left:22px; margin:8px 0; }
+    li { margin:4px 0; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="meta">第 3 部分 · 5 部分中的 ③ · v1.0 · 2026-08-30</div>
+  <h1>产品技术深度:vLLM / SGLang / Mooncake / LMCache 全栈拆解</h1>
+  <p class="lead">
+    八大开源项目构成了 KV cache 推理的工程栈:vLLM (PagedAttention 起家)、SGLang (RadixAttention + HiCache)、Mooncake (Transfer Engine 分布式)、LMCache (cache-centric serving)、LMDeploy (InternLM 出品)、TensorRT-LLM (NVIDIA)、LightLLM、FlashInfer。本章逐个拆解核心架构与最新演进。
+  </p>
+
+  <h2>3.1 vLLM · PagedAttention 路线与 KV-Connector 抽象</h2>
+
+  <p>
+    <span class="term">vLLM</span> 由 UC Berkeley Sky Computing Lab 的 Woosuk Kwon 等人发起,2023 年开源。原始论文 <strong>arXiv:2309.06180, SOSP 2023</strong>,标题《Efficient Memory Management for Large Language Model Serving with PagedAttention》。
+    <a href="https://github.com/vllm-project/vllm" target="_blank">[来源: vLLM GitHub]</a>
+  </p>
+
+  <p>
+    <strong>核心架构演进</strong>:
+  </p>
+  <ol>
+    <li><strong>v0.1 - v0.3 (2023-2024)</strong>:PagedAttention 落地,block size 16 token,实现 2-4× throughput 提升</li>
+    <li><strong>v0.4 - v0.5 (2024)</strong>:Prefix caching 1.0,连续批处理优化,异步输出</li>
+    <li><strong>v0.6 (2024-Q4)</strong>:Speculative decoding,Chunked prefill,MoE 支持</li>
+    <li><strong>v0.7 (2025-Q1)</strong>:Multi-LoRA,Tool calling</li>
+    <li><strong>v1.0 (2025-01-27)</strong>:<strong>KV-Connector API 抽象</strong>,把 KV cache 传输从内部实现变成可插拔 backend;xPyD (Prefill/Decode disaggregation) 集成 Mooncake Transfer Engine</li>
+  </ol>
+
+  <p>
+    <strong>KV-Connector 抽象</strong>(v1 引入)是 vLLM 最重要的架构决策:它让 KV cache 复用从「单实例内部」变成「跨实例 / 跨机 / 跨数据中心」。Mooncake Transfer Engine 在 2025-12-19 集成进 vLLM v1,作为 default remote KV-Connector backend。
+    <a href="https://docs.vllm.ai/" target="_blank">[来源: vLLM v1 docs]</a>
+  </p>
+
+  <h3>3.1.1 vLLM Ascend NPU 后端</h3>
+  <p>
+    <span class="term">vLLM-Ascend</span>(<a href="https://docs.vllm.ai/projects/ascend/" target="_blank">docs.vllm.ai/projects/ascend</a>)是 vLLM 在华为昇腾 NPU 上的官方后端,2025-08-18 集成 Mooncake Transfer Engine,支持在 NPU 集群上做 PD 分离 + KV cache 跨机共享。
+  </p>
+
+  <h2>3.2 SGLang · RadixAttention + HiCache 三级存储 + EPD</h2>
+
+  <p>
+    <span class="term">SGLang</span>(<a href="https://github.com/sgl-project/sglang" target="_blank">github.com/sgl-project/sglang</a>)由 Stanford LMSYS 的 Lianmin Zheng 等人发起。原始论文 <strong>arXiv:2312.07104, NeurIPS 2024</strong>,2024-01-17 LMSYS Blog 发布。
+    <a href="https://www.lmsys.org/blog/2024-01-17-sglang/" target="_blank">[来源: LMSYS Blog, SGLang with RadixAttention]</a>
+  </p>
+
+  <p>
+    <strong>核心特性</strong>:
+  </p>
+  <ul>
+    <li><strong>RadixAttention</strong>:Radix Tree 自动前缀匹配,LRU eviction,eviction 递归叶节点。在 Llama-7B / Mixtral-8x7B 上 up to 5× throughput</li>
+    <li><strong>HiCache</strong>(2025-09-10):三级存储 Device/Host/Remote,扩展 RadixAttention 到多层缓存</li>
+    <li><strong>EPD</strong>(Encode-Prefill-Decode, 2025-12-23 / 2026-01-12 blog):多模态分离,处理视觉 token 时与文本 prefill/decode 解耦</li>
+    <li><strong>Large-scale EP</strong>(2025-05-05):DeepSeek 96 H100 PD 分离部署指南</li>
+    <li><strong>Kimi K2 部署</strong>(2025-07-20):128 H200 GPU,224k prefill / 288k decode tokens/s</li>
+  </ul>
+
+  <h3>3.2.1 SGLang 与 Mooncake 集成时间线</h3>
+  <ul>
+    <li>2025-04-10:Mooncake Transfer Engine 集成</li>
+    <li>2025-05-05:DeepSeek PD 分离 96 H100 部署指南</li>
+    <li>2025-07-20:Kimi K2 128 H200 PD 分离 + 大规模 EP</li>
+    <li>2025-09-10:HiCache 三级存储(Device/Host/Remote),作为 Mooncake Store 的 hierarchical backend</li>
+  </ul>
+
+  <h2>3.3 Mooncake Kimi Serving · Transfer Engine + Store + P2P</h2>
+
+  <p>
+    <span class="term">Mooncake</span> 由 Moonshot AI + 清华大学 Ruoyu Qin 等人开发,2024-11-28 Transfer Engine 开源,论文 <strong>arXiv:2407.00079, FAST 2025 Best Paper</strong>。
+    <a href="https://arxiv.org/abs/2407.00079" target="_blank">[来源: arXiv:2407.00079]</a>
+    <a href="https://github.com/vectie/mooncake" target="_blank">[来源: github.com/vectie/mooncake (v0.3.4)]</a>
+  </p>
+
+  <p>
+    <strong>三大核心组件</strong>:
+  </p>
+  <ol>
+    <li><strong>Transfer Engine</strong>:基于 RDMA over Converged Ethernet (RoCE) + GPUDirect RDMA 的高性能数据传输,4×200Gbps RoCE 达到 <strong>87 GB/s</strong>。支持 11+ 传输协议(RDMA / TCP / NVMe-oF / CXL / NVLink / EFA / Ascend)。最新版本(v0.3.4)加入 UCL-MPComm (Tencent Astral Network Team 2026-08-24)。</li>
+    <li><strong>Mooncake Store</strong>:分布式 KVCache 池,基于 Transfer Engine,Count-Min Sketch frequency admission,SSD/file-backed offloading,disk replica 持久化。</li>
+    <li><strong>Mooncake EP (Elastic Expert Parallelism)</strong>:MoE 模型专家并行,支持 Kimi K2 的 1T 参数跨数千 GPU 训练。</li>
+    <li><strong>P2P Store (checkpoint-engine)</strong>:分布式 checkpoint 同步,2025-09-10 开源,用于 Kimi K1.5/K2 训练(1T 参数,数千 GPU ~20s 同步)。</li>
+  </ol>
+
+  <h3>3.3.1 Mooncake Conductor(私有调度器)</h3>
+  <p>
+    Mooncake 的「调度器」(Conductor / Scheduler)是<strong>专有的,不公开</strong>。核心算法:
+  </p>
+  <pre><code>for each prefill instance p:
+    best_TTFT = +∞
+    for each pending request R:
+        if R has prefix in remote cache:
+            prefix_len = best_len
+            T_transfer = EstimateKVCacheTransferTime(transfer_len)
+        else:
+            prefix_len = instance.prefix_len
+            T_transfer = 0
+        T_queue = EstimatePrefillQueueTime(instance)
+        T_prefill = EstimatePrefillExecutionTime(R, prefix_len)
+        TTFT = T_transfer + T_queue + T_prefill
+        if TTFT &lt; best_TTFT: update(p, TTFT)
+    if TTFT &gt; TTFT_SLO: reject(R)  // early rejection
+</code></pre>
+
+  <h3>3.3.2 Mooncake PyTorch Ecosystem 成员</h3>
+  <p>
+    2026-02 加入 PyTorch Ecosystem,标志其从「Moonshot 自家平台」升级为「PyTorch 核心基础设施」。TorchSpec 使用 Mooncake 解耦推理与训练的 speculative decoding。
+  </p>
+
+  <h2>3.4 LMCache × Mooncake · Cache-Centric Serving</h2>
+
+  <p>
+    <span class="term">LMCache</span>(<a href="https://github.com/LMCache/LMCache" target="_blank">github.com/LMCache/LMCache</a>)是 UC Berkeley Sky Lab 出品的 cache-centric serving 库,与 vLLM 深度集成。
+  </p>
+
+  <h3>3.4.1 LMCache 核心机制</h3>
+  <p>
+    LMCache 把 KV cache 视为「分布式系统中的第一公民」:
+  </p>
+  <ul>
+    <li><strong>LMCache remote connector</strong>:把 KV cache 存到 GPU↔CPU↔SSD↔NVMe 多层</li>
+    <li><strong>PD-disagg 共享</strong>:Prefill 实例把 KV 推给 Decode 实例,跨机跨节点复用</li>
+    <li><strong>2025-04-22</strong>:LMCache 官方支持 Mooncake Store 作为 remote connector
+      <a href="https://blog.lmcache.ai/2025-04-22-tencent/" target="_blank">[来源: LMCache Blog, Tencent integration]</a>
+    </li>
+    <li><strong>2025-05-08</strong>:LMCache × Mooncake 联合宣布 cache-centric serving</li>
+  </ul>
+
+  <h2>3.5 NVIDIA TensorRT-LLM · Inflight Batching + KV cache Reuse</h2>
+
+  <p>
+    <span class="term">TensorRT-LLM</span>(<a href="https://github.com/NVIDIA/TensorRT-LLM" target="_blank">github.com/NVIDIA/TensorRT-LLM</a>)是 NVIDIA 官方的高性能 LLM 推理引擎,在 Hopper / Blackwell GPU 上深度优化。
+  </p>
+
+  <p>
+    <strong>KV cache 核心特性</strong>:
+  </p>
+  <ol>
+    <li><strong>Inflight-batching scheduler</strong>:动态 batch 调整,保证 GPU 持续利用</li>
+    <li><strong>KV cache reuse</strong>(2024-11-08):Early reuse + Flexible block + Priority eviction,5× TTFT 加速</li>
+    <li><strong>Multi-GPU Multi-Node</strong>:Tensor Parallelism + Pipeline Parallelism + Expert Parallelism</li>
+    <li><strong>Speculative decoding</strong>:Medusa / Eagle / Draft model 多策略</li>
+    <li><strong>KV cache event API</strong>:Block store / remove / update 事件广播,支持 KV-aware routing</li>
+    <li><strong>Host memory offload</strong>:Grace-Hopper 架构下把冷 block 卸载到 CPU 内存</li>
+  </ol>
+  <p class="ref">
+    <a href="https://nvidia.github.io/TensorRT-LLM/advanced/kv-cache-reuse.html" target="_blank">[来源: TensorRT-LLM KV cache reuse docs]</a>
+  </p>
+
+  <h2>3.6 LMDeploy · InternLM 出品</h2>
+  <p>
+    <span class="term">LMDeploy</span>(<a href="https://github.com/InternLM/lmdeploy" target="_blank">github.com/InternLM/lmdeploy</a>)由上海 AI Lab / InternLM 团队出品,2025-06-20 成为 Mooncake PD 分离的官方 backend 之一。专注于 TurboMind 引擎 + 高吞吐量化部署。
+  </p>
+
+  <h2>3.7 LightLLM · ModelTC 出品</h2>
+  <p>
+    <span class="term">LightLLM</span>(<a href="https://github.com/ModelTC/lightllm" target="_blank">github.com/ModelTC/lightllm</a>)是早期 vLLM 替代方案之一,使用 async + token-wise 调度。2025-2026 仍在活跃维护,但社区影响力下降。
+  </p>
+
+  <h2>3.8 FlashInfer · 高性能 Attention Kernel</h2>
+  <p>
+    <span class="term">FlashInfer</span>(<a href="https://github.com/flashinfer-ai/flashinfer" target="_blank">github.com/flashinfer-ai/flashinfer</a>)是 UCSD / CMU 的高性能 attention / GEMM kernel 库。SGLang、vLLM、TensorRT-LLM 都集成了它的 kernel。StreamingLLM / KIVI 等压缩算法通常与 FlashInfer kernel 配合使用。
+  </p>
+
+  <h2>3.9 xLLM · 京东出品</h2>
+  <p>
+    <span class="term">xLLM</span>(<a href="https://github.com/jd-opensource/xllm" target="_blank">github.com/jd-opensource/xllm</a>)是京东 2026 高性能推理引擎,2025-08-23 集成 Mooncake,做混合 KV cache 全局管理 + 智能 offload + prefetch。
+  </p>
+
+  <h2>3.10 NIXL · NVIDIA Inference Transfer Library</h2>
+  <p>
+    <span class="term">NIXL</span>(<a href="https://github.com/ai-dynamo/nixl" target="_blank">github.com/ai-dynamo/nixl</a>)是 NVIDIA Dynamo 项目的 transfer library,2025-05-09 官方支持 Mooncake Transfer Engine 作为 backend plugin,补齐 NVIDIA 生态与 Moonshot 生态的桥梁。
+  </p>
+
+  <h2>3.11 八大开源项目对比</h2>
+  <table>
+    <thead><tr><th>项目</th><th>起源</th><th>核心 KV cache 技术</th><th>2025-2026 关键演进</th></tr></thead>
+    <tbody>
+      <tr><td>vLLM</td><td>UC Berkeley Sky</td><td>PagedAttention + KV-Connector</td><td>v1.0 (2025-01-27) 引入 KV-Connector,xPyD 集成 Mooncake</td></tr>
+      <tr><td>SGLang</td><td>Stanford LMSYS</td><td>RadixAttention + HiCache</td><td>HiCache 三级存储 (2025-09-10) + EPD 多模态分离 (2026-01-12)</td></tr>
+      <tr><td>Mooncake</td><td>Moonshot AI + 清华</td><td>Transfer Engine + Store + P2P</td><td>PyTorch Ecosystem 成员 (2026-02) + UCL-MPComm (2026-08-24)</td></tr>
+      <tr><td>LMCache</td><td>UC Berkeley</td><td>Cache-centric serving</td><td>Mooncake remote connector (2025-04-22)</td></tr>
+      <tr><td>TensorRT-LLM</td><td>NVIDIA</td><td>Inflight batching + KV reuse</td><td>5× TTFT (2024-11-08) + priority eviction + event API</td></tr>
+      <tr><td>LMDeploy</td><td>InternLM / 上海 AI Lab</td><td>TurboMind 引擎</td><td>Mooncake backend (2025-06-20)</td></tr>
+      <tr><td>LightLLM</td><td>ModelTC</td><td>Async token-wise 调度</td><td>持续维护但影响力下降</td></tr>
+      <tr><td>FlashInfer</td><td>UCSD / CMU</td><td>Attention / GEMM kernel</td><td>vLLM / SGLang / TensorRT-LLM 集成 kernel</td></tr>
+    </tbody>
+  </table>
+
+  <h2>3.12 概念速查</h2>
+  <table>
+    <thead><tr><th>术语</th><th>释义</th></tr></thead>
+    <tbody>
+      <tr><td>PagedAttention</td><td>vLLM 论文,OS 虚拟内存思想移植到 KV cache</td></tr>
+      <tr><td>RadixAttention</td><td>SGLang,Radix Tree 自动前缀匹配 + LRU eviction</td></tr>
+      <tr><td>HiCache</td><td>SGLang 三级存储(Device GPU / Host CPU / Remote)</td></tr>
+      <tr><td>Transfer Engine</td><td>Mooncake RDMA 传输核心,87 GB/s @ 4×200Gbps RoCE</td></tr>
+      <tr><td>Mooncake Store</td><td>分布式 KVCache 池,基于 Transfer Engine</td></tr>
+      <tr><td>checkpoint-engine</td><td>Mooncake P2P Store 开源版,分布式 checkpoint 同步</td></tr>
+      <tr><td>KV-Connector</td><td>vLLM v1 抽象,KV 传输可插拔 backend</td></tr>
+      <tr><td>xPyD</td><td>vLLM 的 Prefill/Decode disaggregation 实现</td></tr>
+      <tr><td>Inflight-batching</td><td>动态 batch 调度,GPU 持续利用</td></tr>
+      <tr><td>TurboMind</td><td>LMDeploy 的推理引擎</td></tr>
+    </tbody>
+  </table>
+
+  <p class="ref">
+    本章引用源 URL 全部收录于 <a href="data/bibliography.json" target="_blank">data/bibliography.json</a>。
+  </p>
+
+</div>
+
+<footer>
+  <strong>第 3 部分 / 共 5 部分</strong> · v1.0 · 2026-08-30 起草 ·
+  作者:Hermes (主 agent + 4 审计 subagent)
+  <br>
+  <a href="index.html">← 返回主页</a> · <a href="part-2-players-landscape.html">← 第 2 章</a> · <a href="part-4-business-model.html">第 4 章 →</a>
+</footer>
+
+</body>
+</html>

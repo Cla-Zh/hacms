@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第 1 部分 · 技术概览 · KV Cache 经济学</title>
+  <link rel="stylesheet" href="../qa/qa-style.css">
+  <style>
+    body { background:#fff; color:#1a1a1a; }
+    .container { max-width:920px; margin:0 auto; padding:32px; font-size:15px; line-height:1.75; }
+    .container h1 { font-size:30px; font-weight:700; margin:0 0 8px; }
+    .container h2 { font-size:22px; font-weight:700; margin:36px 0 12px; border-bottom:1px solid #e0e0e0; padding-bottom:8px; }
+    .container h3 { font-size:17px; font-weight:700; margin:24px 0 8px; color:#1a1a1a; }
+    .lead { color:#5a5a5a; font-size:16px; margin:0 0 24px; line-height:1.6; }
+    .meta { font-size:12px; color:#888; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:24px; }
+    a { color:#1a1a1a; text-decoration:underline; text-decoration-color:#bbb; }
+    a:hover { text-decoration-color:#1a1a1a; }
+    .ref { font-size:12px; color:#888; }
+    code { background:#f5f5f5; padding:1px 6px; font-size:13px; font-family:ui-monospace,Menlo,monospace; }
+    table { border-collapse:collapse; width:100%; margin:16px 0; font-size:13px; }
+    th, td { border:1px solid #e0e0e0; padding:8px 12px; text-align:left; }
+    th { background:#f5f5f5; font-weight:600; }
+    blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid #8b3a3a; background:#fafafa; font-style:italic; color:#2c2c2c; }
+    blockquote .src { display:block; margin-top:6px; font-style:normal; font-size:12px; color:#888; }
+    .term { background:#f0f0f0; padding:1px 4px; font-size:13px; border-bottom:1px dotted #888; }
+    footer { max-width:920px; margin:48px auto 32px; padding:0 32px; border-top:1px solid #e0e0e0; font-size:12px; color:#888; }
+    pre { background:#f5f5f5; padding:12px; font-size:12px; overflow-x:auto; border-left:3px solid #1a1a1a; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="meta">第 1 部分 · 5 部分中的 ① · v1.0 · 2026-08-30</div>
+  <h1>技术概览:从 Prefix Caching 到 MoE 路由的 KV Cache 七层演进</h1>
+  <p class="lead">
+    KV cache 不再是「推理加速的可选项」,而是 LLM 商业模型的底层经济学。本章从 PagedAttention 出发,逐层剖析 KV cache 七层技术栈:GQA/MQA/MLA 压缩、Prefix/Context/Semantic Cache 三种产品形态、PD 分离、KV-Connector 抽象、量化与淘汰策略。所有数据点均有 arXiv/GitHub/官方博客锚点。
+  </p>
+
+  <h2>1.1 KV Cache 基础与原理</h2>
+
+  <p>
+    <span class="term">KV cache</span>(Key-Value cache)是 Transformer 推理的中间状态:每生成一个 token,模型需要缓存前面所有 token 的 Key 和 Value 张量,以避免在自回归解码时重复计算 Self-Attention。
+    公式上,每生成 1 个新 token 需新增 KV 字节 = <code>L × l × d × n × 2 × 2</code>,其中 L 是层数、l 是序列长度、d 是 head 维度、最后两个 2 是 K/V 各一份 × 2 bytes(FP16)。
+  </p>
+
+  <p>
+    以 Llama-3-70B 为例(80 层、8 KV 组 GQA、head_dim 128,FP16),单请求 8K 上下文 KV cache ≈ <strong>40GB</strong>;128K 上下文则高达 <strong>640GB</strong>。
+    <strong>HBM (High Bandwidth Memory, 高带宽内存)</strong> 紧缺、长上下文成本爆炸的根本原因 —— KV cache 直接卡住了 batch size 和 sequence length。
+    <a href="https://developer.nvidia.com/blog/5x-faster-time-to-first-token-with-nvidia-tensorrt-llm-kv-cache-early-reuse/" target="_blank">[来源: NVIDIA Developer Blog, 2024-11-08]</a>
+  </p>
+
+  <blockquote>
+    「KV cache 是 LLM 推理的 Memory Wall —— 算法本身只需 O(n) 计算,但 KV cache 是 O(n²) 内存占用。」
+    <span class="src">— Gholami et al., AI and Memory Wall, 2021,<a href="https://arxiv.org/abs/2003.08990" target="_blank">arxiv.org/abs/2003.08990</a></span>
+  </blockquote>
+
+  <h2>1.2 Prefix Caching 与 PagedAttention(vLLM 范式)</h2>
+
+  <p>
+    <strong>Prefix Caching</strong> 的核心思想:相同前缀的请求可共享 KV cache,避免重复计算。这是 vLLM PagedAttention 的灵魂。
+  </p>
+
+  <p>
+    <span class="term">PagedAttention</span> 由 UC Berkeley Sky Computing Lab 的 Woosuk Kwon 等人在 <strong>SOSP 2023</strong> 上发表,论文 arXiv:2309.06180 (提交 2023-09-12)。核心创新是把操作系统虚拟内存的「逻辑页 ↔ 物理页」映射思想搬到 KV cache 上 —— 逻辑 KV 块(连续 token 索引)按需映射到非连续的物理 GPU 内存块,块大小通常 16 token。
+    <a href="https://arxiv.org/abs/2309.06180" target="_blank">[来源: arXiv:2309.06180, 2023-09-12]</a>
+  </p>
+
+  <p>
+    vLLM PagedAttention 相对 FasterTransformer/Orca 实现了 <strong>2-4× throughput 提升</strong>(论文 §7 实验数据),彻底解决了 KV cache 内部碎片化问题。
+    <a href="https://github.com/vllm-project/vllm" target="_blank">[来源: vLLM GitHub README]</a>
+  </p>
+
+  <h3>1.2.1 RadixAttention (SGLang 范式)</h3>
+  <p>
+    SGLang 由 LMSYS 的 Lianmin Zheng 等人在 <strong>NeurIPS 2024</strong> 上发表,论文 arXiv:2312.07104 (v1 2023-12-12, v2 2024-06-06)。
+    <span class="term">RadixAttention</span> 用 Radix Tree(基数树)做 KV cache 自动复用 —— 任何共享前缀(包括 system prompt、function definitions、few-shot examples)的请求都能 hit。
+    在 Llama-7B / Mixtral-8x7B 上实现 <strong>up to 5× throughput</strong> 提升(vs Guidance 和 vLLM)。
+    <a href="https://arxiv.org/abs/2312.07104" target="_blank">[来源: arXiv:2312.07104, NeurIPS 2024]</a>
+    <a href="https://www.lmsys.org/blog/2024-01-17-sglang/" target="_blank">[来源: LMSYS Blog, 2024-01-17]</a>
+  </p>
+
+  <h2>1.3 Prefix / Context / Semantic Cache 三种产品形态</h2>
+
+  <p>
+    到 2026 年,主流厂商都形成了「显式 vs 自动」「客户端 vs 服务端」「KV 复用 vs 语义命中」的产品矩阵:
+  </p>
+
+  <table>
+    <thead><tr><th>厂商</th><th>类型</th><th>TTL 选项</th><th>Cache Read 折扣</th><th>Cache Write 溢价</th><th>最低 prefix</th></tr></thead>
+    <tbody>
+      <tr><td>Anthropic</td><td>显式 (cache_control)</td><td>5 min / 1 hour</td><td>0.1× (90% off)</td><td>1.25× / 2×</td><td>1024 token</td></tr>
+      <tr><td>OpenAI</td><td>自动 (≥1024 token)</td><td>5-10 min (隐式)</td><td>0.1× (2026 mid 起)</td><td>无</td><td>1024 token</td></tr>
+      <tr><td>Google Vertex</td><td>显式 + 隐式 (默认开启)</td><td>1 hour default / 自定义</td><td>0.1× (90% off)</td><td>无</td><td>2048 token</td></tr>
+      <tr><td>AWS Bedrock (Claude)</td><td>显式</td><td>5 min / 1 hour</td><td>0.1×</td><td>1.25× / 2×</td><td>1024 / 4096</td></tr>
+    </tbody>
+  </table>
+
+  <h3>1.3.1 Anthropic Prompt Caching 时间线</h3>
+  <p>
+    - <strong>2024-08-14</strong>: Public beta 上线,首发 Claude 3.5 Sonnet + Claude 3 Haiku,采用 cache_control 显式 breakpoint,最多 4 个 checkpoint。
+    <a href="https://www.anthropic.com/news/prompt-caching" target="_blank">[来源: Anthropic News, 2024-08-14]</a><br>
+    - <strong>2024-12-17</strong>: Anthropic API 正式 GA。<br>
+    - <strong>2025-04</strong>: AWS Bedrock 全面 GA prompt caching。<br>
+    - <strong>2025-08</strong>: 1-hour TTL 引入,Write premium 2× 输入价。<br>
+    - <strong>2026-01</strong>: AWS Bedrock 支持 1-hour TTL 跨所有 Claude 4.5 模型。<br>
+    - <strong>2026-02</strong>: Amazon Bedrock 支持 Opus 4.5 / Sonnet 4.5 / Haiku 4.5,Min token 提升到 4,096,1-hour TTL 跨 Claude 4.5 系列。<br>
+    <a href="https://aws.amazon.com/about-aws/whats-new/2026/01/amazon-bedrock-one-hour-duration-prompt-caching/" target="_blank">[来源: AWS What's New, 2026-01]</a>
+  </p>
+
+  <h3>1.3.2 OpenAI Prompt Caching</h3>
+  <p>
+    OpenAI 在 <strong>2024-10-01</strong> 上线自动 prompt caching,首发 GPT-4o / GPT-4o mini / o1-preview / o1-mini。
+    自动检测 ≥1024 token 共享前缀,以 128 token 增量匹配。原始折扣 <strong>50% off</strong>;2026 mid 起提升到 <strong>90% off</strong>(与 Anthropic 看齐)。
+    无 write premium,无 opt-in,只是用 prompt_token_details.cached_tokens 字段报告。
+    <a href="https://openai.com/index/api-prompt-caching/" target="_blank">[来源: OpenAI Blog, 2024-10-01]</a>
+  </p>
+
+  <h3>1.3.3 Google Vertex AI Context Caching</h3>
+  <p>
+    Google 在 2024 年发布 Vertex AI Context Caching,2025-05-08 为 Gemini 2.5 加入零设置隐式缓存,所有 GCP 项目默认开启。
+    缓存 read <strong>0.1×</strong>(90% off),有 TTL 时长收费,默认 1-hour。
+    最小缓存 2,048 token,最大可至 Gemini 2.5 Pro 的 1M token context window。
+    <a href="https://cloud.google.com/blog/products/ai-machine-learning/vertex-ai-context-caching" target="_blank">[来源: Google Cloud Blog]</a>
+  </p>
+
+  <h2>1.4 MoE (Mixture of Experts) 时代的 KV Cache:MLA / GQA / MQA 压缩</h2>
+
+  <p>
+    MoE (Mixture of Experts) 模型 671B 参数只激活 37B,看似 KV cache 减少,但仍有大量挑战。DeepSeek 系列用 MLA 把 KV cache 压缩到极致。
+  </p>
+
+  <h3>1.4.1 MLA (Multi-head Latent Attention)</h3>
+  <p>
+    MLA 由 DeepSeek-V2 提出(arXiv:2405.04434, 2024-05-07 v1,DeepSeek-AI)。核心是把 K 和 V 联合压缩到一个低秩 latent vector <code>c^{KV} ∈ R^{d_c}</code>,缓存只需存 c^{KV} 而非完整的 K/V 张量。
+    关键创新:用解耦的 RoPE-encoded keys 处理位置信息,避免破坏 MLA 的压缩率。
+  </p>
+
+  <p>
+    <strong>关键数字</strong>(arXiv:2405.04434 abstract):
+  </p>
+  <ul>
+    <li>DeepSeek-V2 总参 236B / 激活 21B / 128K 上下文</li>
+    <li>相比 DeepSeek 67B:<strong>训练成本节省 42.5%</strong></li>
+    <li>相比 DeepSeek 67B:<strong>KV cache 减少 93.3%</strong></li>
+    <li>最大生成 throughput 提升至 5.76×</li>
+    <li>FP8 部署 + KV cache 6-bit 量化(平均)</li>
+  </ul>
+  <p class="ref">
+    <a href="https://arxiv.org/abs/2405.04434" target="_blank">[来源: arXiv:2405.04434, 2024-05-07]</a>
+  </p>
+
+  <h3>1.4.2 DeepSeek-V3 与 MLA 大规模化</h3>
+  <p>
+    DeepSeek-V3 (arXiv:2412.19437, v1 2024-12-27) 把 MLA 推到 <strong>671B 总参 / 37B 激活</strong>。完整 14.8T tokens 训练,只需 <strong>2.788M H800 GPU hours</strong>(约 $5.6M H800 成本)。
+    <a href="https://arxiv.org/abs/2412.19437" target="_blank">[来源: arXiv:2412.19437, 2024-12-27]</a>
+  </p>
+
+  <h3>1.4.3 GQA / MQA 对比</h3>
+  <p>
+    三种 KV 压缩方式对比(根据 2026 digitalapplied 总结):
+  </p>
+  <ul>
+    <li><strong>MQA</strong>(Multi-Query Attention):1 个 KV head 共享给所有 Q head,~32× 压缩,质量损失 1-3 点。Mistral 早期使用,2026 年基本被淘汰。</li>
+    <li><strong>GQA</strong>(Grouped-Query Attention):1 个 KV head per N 个 Q head,Llama 3 / Mistral / Qwen 默认,~4-8× 压缩,质量损失 <0.5 点。2024-2026 默认。</li>
+    <li><strong>MLA</strong>(Multi-head Latent Attention):低秩投影 + RoPE 解耦,7-14× 压缩,质量损失 <0.2 点。DeepSeek V2/V3 独家。</li>
+  </ul>
+  <p class="ref">
+    <a href="https://www.digitalapplied.com/blog/kv-cache-optimization-techniques-2026-engineering-guide" target="_blank">[来源: digitalapplied, 2026 KV Cache Optimization Guide]</a>
+  </p>
+
+  <h2>1.5 PD 分离 / 分布式 KV 池 / 跨机 Cache 共享</h2>
+
+  <p>
+    2025-2026 年最重要的架构演进是 <span class="term">Prefill-Decode disaggregation</span>(PD 分离)。Pre-compute(prefill)和 autoregressive decoding 对硬件资源的需求完全不同 —— prefill 是 compute-bound,decode 是 memory-bound。把它们跑在同一卡上互相干扰。
+  </p>
+
+  <h3>1.5.1 Mooncake:KVCache-centric Disaggregated Architecture</h3>
+  <p>
+    <strong>Mooncake</strong> 由 Moonshot AI + 清华的 Ruoyu Qin 等人在 FAST 2025 获得 <strong>Best Paper Award</strong>(2025-02-25)。
+    论文 arXiv:2407.00079,核心思想:KV cache 是分布式系统中最珍贵的中间状态,围绕它设计调度、存储、传输。
+  </p>
+
+  <p>
+    <strong>关键数字</strong>(来自 FAST 2025 paper):
+  </p>
+  <ul>
+    <li>Kimi 生产部署每日 <strong>100B+ tokens</strong></li>
+    <li>在 A800 集群上请求处理能力 +<strong>115%</strong></li>
+    <li>在 H800 集群上请求处理能力 +<strong>107%</strong></li>
+    <li>Transfer Engine 在 4×200Gbps RoCE 达到 <strong>87 GB/s</strong></li>
+    <li>相比 baseline 最大吞吐量提升 <strong>498%</strong></li>
+  </ul>
+  <p class="ref">
+    <a href="https://arxiv.org/abs/2407.00079" target="_blank">[来源: arXiv:2407.00079, FAST 2025 Best Paper]</a>
+  </p>
+
+  <h3>1.5.2 Mooncake 集成时间线(2024-2026)</h3>
+  <p>
+    - <strong>2024-11-28</strong>: Transfer Engine 开源(github.com/kvcache-ai/Mooncake)<br>
+    - <strong>2025-03-07</strong>: Mooncake Store 开源,分布式 KV cache based on Transfer Engine<br>
+    - <strong>2025-04-10</strong>: SGLang 支持 Mooncake Transfer Engine<br>
+    - <strong>2025-04-22</strong>: LMCache 官方支持 Mooncake Store 作为 remote connector<br>
+    - <strong>2025-05-05</strong>: SGLang 发布 DeepSeek PD 分离在 96 H100 的部署指南<br>
+    - <strong>2025-05-08</strong>: LMCache × Mooncake 联合宣布 cache-centric serving<br>
+    - <strong>2025-05-09</strong>: NIXL 官方支持 Mooncake Transfer Engine backend<br>
+    - <strong>2025-06-20</strong>: Mooncake 成为 LMDeploy PD 分离 backend<br>
+    - <strong>2025-07-20</strong>: Mooncake 驱动 Kimi K2 部署在 128 H200,实现 <strong>224k tokens/sec prefill / 288k tokens/sec decode</strong><br>
+    - <strong>2025-08-18</strong>: vLLM-Ascend NPU 后端集成 Mooncake Transfer Engine<br>
+    - <strong>2025-08-23</strong>: 京东 xLLM 集成 Mooncake,做混合 KV cache 管理<br>
+    - <strong>2025-09-10</strong>: SGLang HiCache 三级存储(Device/Host/Remote)<br>
+    - <strong>2025-09-10</strong>: checkpoint-engine 开源(Kimi K2 1T 参数,数千 GPU ~20s 同步)<br>
+    - <strong>2026-08-24</strong>: Mooncake 支持 UCL-MPComm(Tencent Astral Network Team)
+  </p>
+  <p class="ref">
+    <a href="https://github.com/vectie/mooncake" target="_blank">[来源: github.com/vectie/mooncake - Updates timeline]</a>
+  </p>
+
+  <h3>1.5.3 vLLM × Mooncake KV-Connector</h3>
+  <p>
+    vLLM 在 v1 中引入 KV-Connector 抽象,把 KV cache 传输从内部实现变成可插拔 backend。Mooncake Store 作为 KV-Connector backend 在 2025-12-19 集成进 vLLM v1,支持 xPyD (Prefill/Decode disaggregation)。
+    <a href="https://docs.vllm.ai/" target="_blank">[来源: vLLM Docs]</a>
+  </p>
+
+  <h2>1.6 量化 / 稀疏 / 淘汰策略</h2>
+
+  <h3>1.6.1 KV 量化(INT4 / INT8 / FP8)</h3>
+  <p>
+    - <strong>FP8 KV cache</strong>: 内存减半,精度损失 <1%。2026 主流默认。<br>
+    - <strong>INT8 KV cache</strong>: 内存减 4×,长上下文检索损失 1.5-3 点(NIAH-2 multi-needle)。<br>
+    - <strong>2-bit KV cache</strong>(KIVI): 内存减 8×,但只在实验环境,生产未普及。
+  </p>
+  <p class="ref">
+    KIVI 论文:<a href="https://arxiv.org/abs/2402.03550" target="_blank">arXiv:2402.03550</a>
+  </p>
+
+  <h3>1.6.2 Attention Sink / StreamingLLM</h3>
+  <p>
+    <strong>StreamingLLM</strong>(arXiv:2309.17453, ICLR 2024, MIT HAN Lab, Guangxuan Xiao 等)发现一个反直觉现象:无论输入多长,模型都强烈 attention 到序列最初的几个 token —— 这些「attention sink」token 即使无语义也必须保留。
+  </p>
+
+  <p>
+    <strong>关键数字</strong>:
+  </p>
+  <ul>
+    <li>支持 Llama-2 / MPT / Falcon / Pythia <strong>4 million tokens</strong> 无限长度生成</li>
+    <li>相比 sliding window recomputation baseline 速度提升 <strong>22.2×</strong></li>
+    <li>被 NVIDIA TensorRT-LLM / Intel Extension / HuggingFace Transformers / MLC LLM 集成</li>
+  </ul>
+  <p class="ref">
+    <a href="https://arxiv.org/abs/2309.17453" target="_blank">[来源: arXiv:2309.17453, ICLR 2024]</a>
+    <a href="https://github.com/mit-han-lab/streaming-llm" target="_blank">[来源: github.com/mit-han-lab/streaming-llm]</a>
+  </p>
+
+  <h3>1.6.3 H2O / SnapKV</h3>
+  <p>
+    - <strong>H2O Heavy-Hitter</strong>(arXiv:2306.14048): 用累计 attention 权重识别「heavy hitter」token,淘汰低权重 token。<br>
+    - <strong>SnapKV</strong>(arXiv:2404.14469): 通过观察层间 attention pattern 压缩 KV,适合长上下文 RAG。<br>
+    <a href="https://arxiv.org/abs/2306.14048" target="_blank">[H2O: arXiv:2306.14048]</a>
+    <a href="https://arxiv.org/abs/2404.14469" target="_blank">[SnapKV: arXiv:2404.14469]</a>
+  </p>
+
+  <h2>1.7 NVIDIA TensorRT-LLM KV Cache Reuse</h2>
+
+  <p>
+    <strong>NVIDIA TensorRT-LLM</strong> 在 2024-11-08 发布 <strong>TensorRT-LLM KV cache reuse 优化</strong>,实现 <strong>5× TTFT (Time To First Token) 加速</strong>。
+    <a href="https://developer.nvidia.com/blog/5x-faster-time-to-first-token-with-nvidia-tensorrt-llm-kv-cache-early-reuse/" target="_blank">[来源: NVIDIA Developer Blog, 2024-11-08]</a>
+  </p>
+
+  <p>
+    三大核心机制:
+  </p>
+  <ol>
+    <li><strong>Early KV cache reuse</strong>: 用户请求突发时,系统 prompt KV 边生成边共享,延迟 5× ↓</li>
+    <li><strong>Flexible block sizing</strong>: 块大小从 64 token 到 2 token 可调,LLAM70B H100 测试 7% TTFT 加速</li>
+    <li><strong>Priority-based eviction</strong>: 智能追踪依赖节点,eviction 命中率 ~20% 提升</li>
+  </ol>
+  <p class="ref">
+    <a href="https://nvidia.github.io/TensorRT-LLM/advanced/kv-cache-reuse.html" target="_blank">[来源: TensorRT-LLM KV cache reuse docs]</a>
+    <a href="https://developer.nvidia.com/blog/introducing-new-kv-cache-reuse-optimizations-in-nvidia-tensorrt-llm/" target="_blank">[来源: NVIDIA Blog, KV cache reuse optimizations]</a>
+  </p>
+
+  <h2>1.8 概念速查</h2>
+  <table>
+    <thead><tr><th>术语</th><th>释义</th></tr></thead>
+    <tbody>
+      <tr><td>KV cache</td><td>自回归解码时缓存的 K/V 张量,避免重算 attention</td></tr>
+      <tr><td>PagedAttention</td><td>vLLM 论文,逻辑页 ↔ 物理页的 KV 块管理,SOSP 2023</td></tr>
+      <tr><td>RadixAttention</td><td>SGLang,Radix Tree 自动前缀复用,NeurIPS 2024</td></tr>
+      <tr><td>MLA</td><td>Multi-head Latent Attention,低秩压缩 KV,DeepSeek V2/V3 独家</td></tr>
+      <tr><td>GQA</td><td>Grouped-Query Attention,Llama 3 默认</td></tr>
+      <tr><td>MQA</td><td>Multi-Query Attention,32× 压缩但质量损失大</td></tr>
+      <tr><td>PD-disagg</td><td>Prefill-Decode disaggregation,资源解耦</td></tr>
+      <tr><td>KV-Connector</td><td>vLLM v1 抽象,KV cache 传输可插拔 backend</td></tr>
+      <tr><td>HiCache</td><td>SGLang 三级存储 Device/Host/Remote</td></tr>
+      <tr><td>Attention Sink</td><td>序列最初 token,必须保留以维持 attention 分布</td></tr>
+      <tr><td>Heavy Hitter</td><td>H2O 论文,累积 attention 高的 token,优先保留</td></tr>
+      <tr><td>cache_control</td><td>Anthropic 显式 cache breakpoint,最多 4 个</td></tr>
+      <tr><td>TTFT</td><td>Time To First Token,首 token 延迟</td></tr>
+    </tbody>
+  </table>
+
+  <p class="ref">
+    本章引用源 URL 全部收录于 <a href="data/bibliography.json" target="_blank">data/bibliography.json</a>;
+    概念定义收录于 <a href="data/glossary.json" target="_blank">data/glossary.json</a>。
+  </p>
+
+</div>
+
+<footer>
+  <strong>第 1 部分 / 共 5 部分</strong> · v1.0 · 2026-08-30 起草 ·
+  作者:Hermes (主 agent + 4 审计 subagent)
+  <br>
+  <a href="index.html">← 返回主页</a> · <a href="part-2-players-landscape.html">下一章:玩家版图 →</a>
+</footer>
+
+</body>
+</html>

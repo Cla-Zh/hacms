@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第 4 部分 · 商业与盈利 · KV Cache 经济学</title>
+  <link rel="stylesheet" href="../qa/qa-style.css">
+  <style>
+    body { background:#fff; color:#1a1a1a; }
+    .container { max-width:920px; margin:0 auto; padding:32px; font-size:15px; line-height:1.75; }
+    .container h1 { font-size:30px; font-weight:700; margin:0 0 8px; }
+    .container h2 { font-size:22px; font-weight:700; margin:36px 0 12px; border-bottom:1px solid #e0e0e0; padding-bottom:8px; }
+    .container h3 { font-size:17px; font-weight:700; margin:24px 0 8px; color:#1a1a1a; }
+    .lead { color:#5a5a5a; font-size:16px; margin:0 0 24px; line-height:1.6; }
+    .meta { font-size:12px; color:#888; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:24px; }
+    a { color:#1a1a1a; text-decoration:underline; text-decoration-color:#bbb; }
+    a:hover { text-decoration-color:#1a1a1a; }
+    .ref { font-size:12px; color:#888; }
+    code { background:#f5f5f5; padding:1px 6px; font-size:13px; font-family:ui-monospace,Menlo,monospace; }
+    table { border-collapse:collapse; width:100%; margin:16px 0; font-size:13px; }
+    th, td { border:1px solid #e0e0e0; padding:8px 12px; text-align:left; }
+    th { background:#f5f5f5; font-weight:600; }
+    blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid #8b3a3a; background:#fafafa; font-style:italic; color:#2c2c2c; }
+    blockquote .src { display:block; margin-top:6px; font-style:normal; font-size:12px; color:#888; }
+    .term { background:#f0f0f0; padding:1px 4px; font-size:13px; border-bottom:1px dotted #888; }
+    footer { max-width:920px; margin:48px auto 32px; padding:0 32px; border-top:1px solid #e0e0e0; font-size:12px; color:#888; }
+    ul, ol { padding-left:22px; margin:8px 0; }
+    li { margin:4px 0; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="meta">第 4 部分 · 5 部分中的 ④ · v1.0 · 2026-08-30</div>
+  <h1>商业与盈利:Token 经济学、SLA 计费、硬件联动、融资版图</h1>
+  <p class="lead">
+    KV cache 不仅是技术命题,更是商业模型的核心。本章剖析四层经济账:Token 级别(per-token × cache reuse 系数)、模型级别(MoE 激活参数计费)、硬件级别(HBM vs SSD 的 10-20× 价格差)、公司级别(ARR / 估值 / 融资)。
+  </p>
+
+  <h2>4.1 Token 经济学:Cache Hit vs Cache Miss 成本拆解</h2>
+
+  <p>
+    2026 年,主流厂商的定价系数趋于一致:
+  </p>
+
+  <table>
+    <thead><tr><th>厂商</th><th>Cache Read 折扣</th><th>Cache Write 5-min</th><th>Cache Write 1-hour</th><th>最低 prefix</th><th>最小粒度</th></tr></thead>
+    <tbody>
+      <tr><td>Anthropic</td><td>0.1× (90% off)</td><td>1.25×</td><td>2×</td><td>1024 token (Claude 4.5 起 4096)</td><td>128 token</td></tr>
+      <tr><td>OpenAI</td><td>0.1× (90% off)</td><td>无 write premium</td><td>不公开 TTL</td><td>1024 token</td><td>128 token</td></tr>
+      <tr><td>Google Vertex</td><td>0.1× (90% off)</td><td>无(标准输入价)</td><td>不公开</td><td>2048 token</td><td>1 hour default TTL</td></tr>
+      <tr><td>AWS Bedrock Claude</td><td>0.1×</td><td>1.25×</td><td>2×</td><td>1024 / 4096</td><td>—</td></tr>
+      <tr><td>DeepSeek API</td><td>无显式 cache 折扣</td><td>—</td><td>—</td><td>—</td><td>价格仅为 GPT-4o 的 1/10</td></tr>
+    </tbody>
+  </table>
+
+  <h3>4.1.1 经济学案例:10000 token prefix 复用 10 次</h3>
+  <p>
+    Anthropic 公开数据:10000 token prefix 复用 10 次(1 次 write + 9 次 read):
+  </p>
+  <ul>
+    <li>无缓存总成本:10 × 10000 × $3/M input = <strong>$0.30</strong></li>
+    <li>缓存模式(5-min write 1.25× + read 0.1×):
+      <code>(1 × 10000 × 1.25 + 9 × 10000 × 0.1) × $3/M = (12500 + 9000) × $3/M = $0.0645</strong></li>
+    <li>节省比例:<strong>78.5%</strong>(复用率越高,节省越大)</li>
+  </ul>
+  <p class="ref">
+    <a href="https://www.anthropic.com/news/prompt-caching" target="_blank">[来源: Anthropic Prompt Caching, savings example]</a>
+  </p>
+
+  <h2>4.2 推理服务定价:per-token × cache reuse 系数</h2>
+
+  <h3>4.2.1 模型 API 价格对比(2026 Q3)</h3>
+  <table>
+    <thead><tr><th>模型</th><th>输入 $/M</th><th>输出 $/M</th><th>Cache Read $/M</th><th>激活参</th></tr></thead>
+    <tbody>
+      <tr><td>DeepSeek-V3</td><td>$0.27</td><td>$1.10</td><td>无显式 cache</td><td>37B</td></tr>
+      <tr><td>GPT-5.4</td><td>$2.50</td><td>$15.00</td><td>$0.25</td><td>—</td></tr>
+      <tr><td>Claude Opus 4.5</td><td>$15.00</td><td>$75.00</td><td>$1.50</td><td>—</td></tr>
+      <tr><td>Gemini 2.5 Pro</td><td>$1.25-$2.50</td><td>$10-$15</td><td>$0.125-$0.25</td><td>—</td></tr>
+      <tr><td>Kimi K2</td><td>$0.15</td><td>$2.50</td><td>(待定)</td><td>~32B(1T 总参)</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4.3 硬件层联动:HBM 紧缺 × SSD 替代 × SanDisk FMS 2026</h2>
+
+  <p>
+    KV cache 推动了「HBM ↔ SSD ↔ NVMe」分层存储的标准化。SanDisk 在 FMS 2026(2026-08-13)给出革命性预测:
+  </p>
+
+  <blockquote>
+    「KV cache 将占 AI 数据中心 NAND 工作负载的 <strong>35%</strong>,到 2030 年。这意味着 75-100 EB NAND 增量需求 by 2027,翻倍 by 2028。」
+    <span class="src">— SanDisk FMS 2026 presentation, 转引自 cryptobriefing.com, 2026-08-13</span>
+  </blockquote>
+
+  <h3>4.3.1 HBM vs SSD 价格差距</h3>
+  <p>
+    <strong>HBM (High Bandwidth Memory, SK Hynix / Samsung / Micron 主导)</strong> 的 $/GB 是 NAND flash SSD 的 <strong>10-20 倍</strong>。在 KV cache 主导的 AI 推理场景:
+  </p>
+  <ul>
+    <li>热 KV(HBM):首 token 延迟 <10ms</li>
+    <li>温 KV(Host DDR):prefill 跨节点复用,延迟 ~100μs</li>
+    <li>冷 KV(NVMe SSD):peer-to-peer 跨数据中心,延迟 ~1ms</li>
+    <li>历史 KV(对象存储 S3):审计/回溯,延迟 ~100ms</li>
+  </ul>
+
+  <h3>4.3.2 SanDisk 硬件路线图</h3>
+  <ul>
+    <li><strong>2026 FMS 展示</strong>:PCIe Gen5 + BiCS10 QLC 256TB 容量 SSD(单盘 256TB)</li>
+    <li><strong>2027-2028 路线</strong>:BiCS11 + PLC(五层单元)推向 512TB / 1PB 单盘</li>
+    <li>Enterprise SSD 市场 CAGR ~35% 至 2030(KV cache 是核心驱动力)</li>
+  </ul>
+  <p class="ref">
+    <a href="https://cryptobriefing.com/sandisk-kv-cache-nand-ai-data-centers/" target="_blank">[来源: cryptobriefing, SanDisk FMS 2026 KV cache prediction]</a>
+  </p>
+
+  <h2>4.4 开源与商业的飞轮:Moonshot 的模型+平台打法</h2>
+
+  <h3>4.4.1 Moonshot AI ARR 估算</h3>
+  <p>
+    根据公开报告(siliconvalleyinvestclub 2026-08-03 + Bloomberg 2025),Moonshot AI ARR 2026 跨过 <strong>$200M</strong> 门槛:
+  </p>
+  <ul>
+    <li>2024-Q4:Kimi 月活用户 36M+,ARR 估算 $30-50M</li>
+    <li>2025-Q4:Kimi K2 / K2.5 / K2.6 上线,OpenRouter 上第 2 高使用量 LLM</li>
+    <li>2026-Q1:K3 (2.8T MoE, 1M context, 2026-07-16 发布)进入 Artificial Analysis 前 4 名</li>
+    <li>2026-Q2:ARR 跨过 $200M</li>
+  </ul>
+  <p class="ref">
+    <a href="https://siliconvalleyinvestclub.com/2026/08/03/moonshot-ai-raises-3-5-billion-at-a-35-billion-valuation/" target="_blank">[来源: siliconvalleyinvestclub, 2026-08-03]</a>
+  </p>
+
+  <h3>4.4.2 Moonshot 估值轨迹</h3>
+  <ul>
+    <li>2024-02:估值 $2.5B(Series B 阿里领投)</li>
+    <li>2024-08:估值 $3.3B(Series B extension)</li>
+    <li>2025-01:估值 $4.3B(Series C IDG 领投 $150M)</li>
+    <li>2025-02:估值 $10B(新轮首批 $700M)</li>
+    <li>2026-Q2:估值 $20B</li>
+    <li>2026-07:估值 <strong>$35B</strong>(新一轮 $3.5B,National AI Industry Investment Fund 领投 + 阿里腾讯美团中国移动)</li>
+  </ul>
+
+  <h3>4.4.3 Kimi K3 2026-07-16 发布</h3>
+  <p>
+    Kimi K3(<a href="https://www.kimi.ai/blog/kimi-k3" target="_blank">kimi.ai/blog/kimi-k3</a>):2.8T 参数 MoE,1M token context,排名 Artificial Analysis 全球第 4,首个进入 frontier pack 的中国模型。
+  </p>
+
+  <h2>4.5 投融资版图:2024-2026 关键轮次</h2>
+
+  <table>
+    <thead><tr><th>公司</th><th>轮次</th><th>金额</th><th>估值</th><th>时间</th><th>领投</th></tr></thead>
+    <tbody>
+      <tr><td>Moonshot AI</td><td>Series B</td><td>$1B</td><td>$2.5B</td><td>2024-02</td><td>阿里</td></tr>
+      <tr><td>Moonshot AI</td><td>Series B Ext</td><td>$300M</td><td>$3.3B</td><td>2024-08</td><td>腾讯</td></tr>
+      <tr><td>Moonshot AI</td><td>Series C</td><td>$500M</td><td>$4.3B</td><td>2025-01</td><td>IDG Capital</td></tr>
+      <tr><td>Moonshot AI</td><td>新轮</td><td>$700M+</td><td>$10B</td><td>2025-02</td><td>阿里腾讯 5Y</td></tr>
+      <tr><td>Moonshot AI</td><td>后续轮</td><td>$3.9B</td><td>$20B</td><td>2026-Q1-Q2</td><td>美团 Long-Z</td></tr>
+      <tr><td>Moonshot AI</td><td>新一轮</td><td>$3.5B</td><td>$35B</td><td>2026-07</td><td>国家 AI 产业基金</td></tr>
+      <tr><td>Anyscale</td><td>Series C</td><td>$100M</td><td>$1B</td><td>2021</td><td>Andreessen Horowitz</td></tr>
+      <tr><td>Fireworks AI</td><td>Series C</td><td>—</td><td>~$4B</td><td>2025</td><td>—</td></tr>
+      <tr><td>Modal Labs</td><td>Series C</td><td>—</td><td>~$1.5B</td><td>2025-04</td><td>—</td></tr>
+      <tr><td>Together AI</td><td>Series B</td><td>$106M</td><td>~$1.2B</td><td>2024-02</td><td>Andreessen Horowitz</td></tr>
+      <tr><td>DeepSeek</td><td>(未融资)</td><td>—</td><td>—</td><td>—</td><td>母公司 High-Flyer 自筹</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4.6 中国国家 AI 产业投资基金</h2>
+  <p>
+    中国国务院于 <strong>2025-01 成立国家人工智能产业投资基金</strong>,规模约 <strong>$8.8B</strong>(60+ 亿人民币)。这是国家级的 AI 基础设施投资基金,主要投资于 AI 芯片、模型层、应用层。
+    2026-07 主导 Moonshot AI 新一轮 $3.5B 融资。
+  </p>
+
+  <h2>4.7 概念速查</h2>
+  <table>
+    <thead><tr><th>术语</th><th>释义</th></tr></thead>
+    <tbody>
+      <tr><td>ARR</td><td>Annual Recurring Revenue,年度经常性收入</td></tr>
+      <tr><td>Token-per-dollar</td><td>每美元可购买的 token 数,衡量模型经济性</td></tr>
+      <tr><td>cache_creation_input_tokens</td><td>Anthropic API 报告的写入 cache token 数</td></tr>
+      <tr><td>cache_read_input_tokens</td><td>Anthropic API 报告的从 cache 读取的 token 数</td></tr>
+      <tr><td>HBM</td><td>High Bandwidth Memory,SK Hynix / Samsung / Micron 主导</td></tr>
+      <tr><td>NAND</td><td>NAND flash SSD 存储,SanDisk / Samsung / Kioxia / Micron 主导</td></tr>
+      <tr><td>BiCS</td><td>Bit Cost Scaling,Toshiba 主导的 3D NAND 工艺</td></tr>
+      <tr><td>QLC</td><td>Quad-Level Cell,4 bits/cell NAND</td></tr>
+      <tr><td>PLC</td><td>Penta-Level Cell,5 bits/cell,SanDisk 路线图</td></tr>
+      <tr><td>SCU</td><td>Security Compute Unit,Microsoft Security Copilot 计费单位</td></tr>
+    </tbody>
+  </table>
+
+  <p class="ref">
+    本章引用源 URL 全部收录于 <a href="data/bibliography.json" target="_blank">data/bibliography.json</a>。
+  </p>
+
+</div>
+
+<footer>
+  <strong>第 4 部分 / 共 5 部分</strong> · v1.0 · 2026-08-30 起草 ·
+  作者:Hermes (主 agent + 4 审计 subagent)
+  <br>
+  <a href="index.html">← 返回主页</a> · <a href="part-3-product-deepdive.html">← 第 3 章</a> · <a href="part-5-risks-future.html">第 5 章 →</a>
+</footer>
+
+</body>
+</html>

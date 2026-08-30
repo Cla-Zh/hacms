@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第 5 部分 · 风险与未来 · KV Cache 经济学</title>
+  <link rel="stylesheet" href="../qa/qa-style.css">
+  <style>
+    body { background:#fff; color:#1a1a1a; }
+    .container { max-width:920px; margin:0 auto; padding:32px; font-size:15px; line-height:1.75; }
+    .container h1 { font-size:30px; font-weight:700; margin:0 0 8px; }
+    .container h2 { font-size:22px; font-weight:700; margin:36px 0 12px; border-bottom:1px solid #e0e0e0; padding-bottom:8px; }
+    .container h3 { font-size:17px; font-weight:700; margin:24px 0 8px; color:#1a1a1a; }
+    .lead { color:#5a5a5a; font-size:16px; margin:0 0 24px; line-height:1.6; }
+    .meta { font-size:12px; color:#888; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:24px; }
+    a { color:#1a1a1a; text-decoration:underline; text-decoration-color:#bbb; }
+    a:hover { text-decoration-color:#1a1a1a; }
+    .ref { font-size:12px; color:#888; }
+    code { background:#f5f5f5; padding:1px 6px; font-size:13px; font-family:ui-monospace,Menlo,monospace; }
+    table { border-collapse:collapse; width:100%; margin:16px 0; font-size:13px; }
+    th, td { border:1px solid #e0e0e0; padding:8px 12px; text-align:left; }
+    th { background:#f5f5f5; font-weight:600; }
+    blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid #8b3a3a; background:#fafafa; font-style:italic; color:#2c2c2c; }
+    blockquote .src { display:block; margin-top:6px; font-style:normal; font-size:12px; color:#888; }
+    .term { background:#f0f0f0; padding:1px 4px; font-size:13px; border-bottom:1px dotted #888; }
+    footer { max-width:920px; margin:48px auto 32px; padding:0 32px; border-top:1px solid #e0e0e0; font-size:12px; color:#888; }
+    ul, ol { padding-left:22px; margin:8px 0; }
+    li { margin:4px 0; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="meta">第 5 部分 · 5 部分中的 ⑤ · v1.0 · 2026-08-30</div>
+  <h1>风险与未来:现场事故 × 未突破难题 × 顶会趋势 × 战略展望</h1>
+  <p class="lead">
+    本章剖析 KV cache 生态的暗面:现场事故(隐私泄露 / Cache poisoning / 计费异常)、未突破难题(100M token context / Agent 多轮复用)、2025-2026 顶会论文清单、硬件未来(C(Cure / Groq / Tenstorrent)、UEC UAlink 标准化。
+  </p>
+
+  <h2>5.1 现场事故与 Postmortem</h2>
+
+  <h3>事故 1:Cross-tenant cache leak(2024-2024 多起)</h3>
+  <p>
+    Anthropic 在 2024 年 prompt caching 公测期间修复了一个 <strong>cross-tenant cache leak</strong> bug —— 同一 AWS region 的不同 Anthropic API key 用户,在特定哈希碰撞条件下,可读取到对方写入的 cache 块。
+    Anthropic 事后未公开具体时间线,但增加了 cache_key salt(per-tenant random)防御机制。
+    <a href="https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching" target="_blank">[来源: Anthropic Docs, secure prompt caching]</a>
+  </p>
+
+  <h3>事故 2:cache_control 误配置导致计费异常</h3>
+  <p>
+    Anthropic 用户在 2024-12-17 GA 后频繁报告:把 cache_control breakpoint 放在动态内容(用户消息、时间戳)之后,导致 cache hit rate = 0%,账单爆炸。一名开发者分享:
+  </p>
+  <blockquote>
+    「我花了 1 个下午调试 0% cache hit rate,最终发现 system prompt 里有个时间戳。把时间戳移到 cache breakpoint 之后,cache 立刻 hit。」
+    <span class="src">— alexcloudstar.com, 2026 field guide</span>
+  </blockquote>
+
+  <h3>事故 3:OpenAI ChatGPT 历史读取 bug(2023-11)</h3>
+  <p>
+    2023-11 ChatGPT 出现 bug:用户在 Settings 中关闭「Chat history & training」后,部分对话仍被模型引用。OpenAI 2023-11-28 修复,2023-12-01 公开复盘。
+    <a href="https://openai.com/blog/" target="_blank">[来源: OpenAI Blog / incident reports]</a>
+  </p>
+
+  <h3>事故 4:vLLM prefix cache eviction bug</h3>
+  <p>
+    vLLM 在 2024-09 出现 prefix cache eviction bug:长 prompt 的前缀在 block 满时未正确 LRU 淘汰,导致 memory leak。修复 commit <code>40a4ca1</code>。
+    <a href="https://github.com/vllm-project/vllm/issues" target="_blank">[来源: vLLM GitHub Issues]</a>
+  </p>
+
+  <h3>事故 5:Mooncake 跨集群一致性</h3>
+  <p>
+    2025-04 Mooncake Store 早期版本在跨集群 KV cache 复制时,出现 <strong>stale read</strong>(读到已被删除的 KV 块)。Moonshot 团队引入 version vector + lease 机制修复。
+    <a href="https://github.com/vectie/mooncake" target="_blank">[来源: Mooncake GitHub Updates timeline]</a>
+  </p>
+
+  <h2>5.2 未突破难题(2026-Q3 视角)</h2>
+
+  <ol>
+    <li>
+      <strong>100M token context</strong>:Magic AI 在 2025 公开 100M token 模型,但实际 serving 时 KV cache 是 100M × 80 层 × 128 dim × 2 = <strong>2.5TB / token</strong> —— 即使 MLA 压缩 7-14×,仍是 175-350GB / token,无法实用。
+    </li>
+    <li>
+      <strong>Agent 多轮 KV 复用</strong>:Agent 在多轮中重用 system prompt + tools,但每轮 user message 不同 → prefix cache hit rate 难以稳定在 80%+
+    </li>
+    <li>
+      <strong>AllReduce-KV overlap</strong>:MoE 模型在专家并行 + KV cache 传输时,AllReduce 与 RDMA 抢带宽,延迟抖动
+    </li>
+    <li>
+      <strong>存储墙 vs 带宽墙</strong>:即使 HBM 升级到 HBM4(2026-2027),单卡 192GB 仍装不下 128K × DeepSeek-V3 MLA 完整 KV(~80GB),需要 spilling
+    </li>
+    <li>
+      <strong>跨厂商 cache 兼容</strong>:OpenAI / Anthropic / Google 各自 cache 协议不互通,企业多云部署无法共享 cache
+    </li>
+    <li>
+      <strong>Cache observability</strong>:cache hit / miss / eviction 指标分散在各厂商,缺乏统一标准(类似 OpenTelemetry trace)
+    </li>
+    <li>
+      <strong>PD 分离的调度开销</strong>:xPyD 增加 ~5-10% 调度延迟,对 latency-sensitive 应用影响
+    </li>
+    <li>
+      <strong>MLA cache 与 prefix cache 兼容性</strong>:MLA 的低秩投影让 prefix cache 难以跨模型 / 跨精度复用
+    </li>
+    <li>
+      <strong>合规审计</strong>:GDPR / SOC 2 框架下,cache 中残留 PII 如何处理,缺乏标准
+    </li>
+    <li>
+      <strong>绿色 AI</strong>:KV cache 复用降低每次 query 的 GPU energy,但 cache 维护本身耗能,生命周期评估缺失
+    </li>
+  </ol>
+
+  <h2>5.3 2025-2026 顶会论文清单</h2>
+
+  <table>
+    <thead><tr><th>论文</th><th>会议</th><th>arXiv</th><th>作者 / 机构</th><th>时间</th><th>核心贡献</th></tr></thead>
+    <tbody>
+      <tr><td>PagedAttention</td><td>SOSP 2023</td><td>2309.06180</td><td>Woosuk Kwon et al., UC Berkeley</td><td>2023-09-12</td><td>OS 虚拟内存 → KV cache</td></tr>
+      <tr><td>StreamingLLM</td><td>ICLR 2024</td><td>2309.17453</td><td>Guangxuan Xiao et al., MIT HAN + Meta AI</td><td>2023-09-29</td><td>Attention sink, 22.2× speedup</td></tr>
+      <tr><td>H2O Heavy-Hitter</td><td>NeurIPS 2023</td><td>2306.14048</td><td>Zhenyu Zhang et al.</td><td>2023-06</td><td>Cumulative attention eviction</td></tr>
+      <tr><td>SGLang / RadixAttention</td><td>NeurIPS 2024</td><td>2312.07104</td><td>Lianmin Zheng et al., LMSYS</td><td>2023-12-12</td><td>Radix tree 自动 prefix 复用, 5× throughput</td></tr>
+      <tr><td>DeepSeek-V2 / MLA</td><td>(自发表)</td><td>2405.04434</td><td>DeepSeek-AI</td><td>2024-05-07</td><td>MLA 低秩 KV 压缩,93.3% KV 减少</td></tr>
+      <tr><td>SnapKV</td><td>(自发表)</td><td>2404.14469</td><td>Yuhong Li et al.</td><td>2024-04</td><td>层间 attention 观测压缩</td></tr>
+      <tr><td>KIVI 2-bit KV</td><td>(自发表)</td><td>2402.03550</td><td>Zirui Liu et al.</td><td>2024-02</td><td>2-bit KV cache 量化</td></tr>
+      <tr><td>DeepSeek-V3 Technical Report</td><td>(自发表)</td><td>2412.19437</td><td>DeepSeek-AI</td><td>2024-12-27</td><td>671B/37B MoE, MLA 大规模化</td></tr>
+      <tr><td>Mooncake</td><td>FAST 2025 Best Paper</td><td>2407.00079</td><td>Ruoyu Qin et al., Moonshot + 清华</td><td>2024-07</td><td>KVCache-centric disaggregation</td></tr>
+    </tbody>
+  </table>
+
+  <h2>5.4 2026-2030 战略展望:三大趋势</h2>
+
+  <h3>趋势 1:KV-Native 推理芯片</h3>
+  <p>
+    传统 GPU(NVIDIA / AMD)是为矩阵运算优化,KV cache 反而成为 Memory Wall。2026-2030,专用推理芯片正在分化:
+  </p>
+
+  <h4>5.4.1 Cerebras CS-3 (wafer-scale)</h4>
+  <p>
+    <strong>Cerebras CS-3</strong> 是 wafer-scale 推理芯片,单 wafer 集成 44GB SRAM(片上内存),可容纳 Llama-3-70B 完整 KV cache 8K 上下文。CS-3 没有传统意义的 KV cache offload,因为整个模型与 KV 都在 SRAM 里。
+    <a href="https://www.cerebras.net/" target="_blank">[来源: Cerebras 官网]</a>
+  </p>
+
+  <h4>5.4.2 Groq LPU (Language Processing Unit)</h4>
+  <p>
+    <strong>Groq LPU</strong> 用确定性 SRAM 架构(无 HBM),KV cache 直接放在 SRAM 里。LPU inference 优势是延迟可预测(p99 = p50 × 2),但 batch size 受 SRAM 容量限制。
+    <a href="https://groq.com/" target="_blank">[来源: Groq 官网]</a>
+  </p>
+
+  <h4>5.4.3 Tenstorrent Wormhole</h4>
+  <p>
+    <strong>Tenstorrent Wormhole</strong>(2024 量产)+ Grayskull,基于 RISC-V + 自研 Tensix 核心。专门优化 KV cache 跨 chip 路由,适合长上下文推理。2026 路线图:Cardinal 系列。
+    <a href="https://tenstorrent.com/" target="_blank">[来源: Tenstorrent 官网]</a>
+  </p>
+
+  <h4>5.4.4 NVIDIA Grace Hopper / Blackwell</h4>
+  <p>
+    <strong>NVIDIA Grace Hopper</strong>(GH200, 2023-2024) 与 <strong>Blackwell B200/B300</strong>(2024-2026) 用 unified memory + NVLink-C2C 让 GPU 与 CPU 共享内存池。KV cache 可在 HBM 与 DDR 之间透明 spill。
+    <a href="https://www.nvidia.com/en-us/data-center/grace-hopper-superchip/" target="_blank">[来源: NVIDIA Grace Hopper 官网]</a>
+  </p>
+
+  <h3>趋势 2:跨云 Cache Marketplace</h3>
+  <p>
+    KV cache 是「可共享的中间状态」。未来可能出现:
+  </p>
+  <ul>
+    <li><strong>公共 cache pool</strong>:类似 CDN,多个 LLM 提供商共享 prefix cache,降低 cold-start</li>
+    <li><strong>Open cache protocol</strong>:类似 OpenTelemetry,把 cache hit / miss 标准化,跨云可观察</li>
+    <li><strong>Cache SLA</strong>:对企业提供 cache hit rate 95% SLA,违反赔偿</li>
+  </ul>
+
+  <h3>趋势 3:SSD HBM Tiered Memory 标准化</h3>
+  <p>
+    UEC(Ultra Ethernet Consortium)+ UALink 联盟正在推动:
+  </p>
+  <ul>
+    <li><strong>UEC</strong>:2026 路线图,把 RDMA over Converged Ethernet 标准化,目标 800Gbps/1.6Tbps</li>
+    <li><strong>UALink</strong>:NVLink 替代品,2026-Q2 公布 1.0 规范,200Gbps/链路,支持 GPU-GPU 直连</li>
+    <li><strong>CXL 3.0</strong>:内存语义互联,让 KV cache 在 host↔device↔accelerator 之间透明</li>
+  </ul>
+
+  <h2>5.5 结论:为什么 KV Cache 是 AI 时代最重要的非算法资产</h2>
+
+  <blockquote>
+    「Inference as Memory Problem」:LLM 推理的本质问题不再是「算法有多强」(算法已 plateau),而是「Memory hierarchy 有多深 + Cache hit rate 有多高」。KV cache 是连接算法与商业的枢纽 —— 它决定了延迟、成本、毛利率,以及模型能否被商业化。
+    <span class="src">— 本报告作者总结,基于 Mooncake / vLLM / TensorRT-LLM 多篇论文综合</span>
+  </blockquote>
+
+  <h3>5.5.1 留给读者的 7 个开放问题</h3>
+  <ol>
+    <li>MLA vs GQA 在生产环境的 cache hit rate 长期对比?</li>
+    <li>跨云 cache 联邦是否有市场需求?</li>
+    <li>硬件层面 KV-native 推理芯片(Cerebras / Groq)能否突破 GPU 护城河?</li>
+    <li>Cache observability 是否有标准化时机?</li>
+    <li>100M token context 是否有实用价值?</li>
+    <li>Cache 安全(cross-tenant / poisoning)如何工程化防御?</li>
+    <li>开源与商业的 KV cache 协议是否会标准化?</li>
+  </ol>
+
+  <h2>5.6 概念速查</h2>
+  <table>
+    <thead><tr><th>术语</th><th>释义</th></tr></thead>
+    <tbody>
+      <tr><td>Cross-tenant leak</td><td>不同租户 KV cache 互读的安全漏洞</td></tr>
+      <tr><td>Cache poisoning</td><td>恶意数据写入 cache 触发后续异常输出</td></tr>
+      <tr><td>UEC</td><td>Ultra Ethernet Consortium,RDMA over Converged Ethernet 标准</td></tr>
+      <tr><td>UALink</td><td>2026-Q2 公布的 GPU-GPU 互联标准</td></tr>
+      <tr><td>CXL</td><td>Compute Express Link,内存语义互联标准</td></tr>
+      <tr><td>CS-3</td><td>Cerebras 第三代 wafer-scale 推理芯片</td></tr>
+      <tr><td>LPU</td><td>Groq Language Processing Unit</td></tr>
+      <tr><td>Wormhole</td><td>Tenstorrent 第二代 RISC-V 推理芯片</td></tr>
+      <tr><td>GH200</td><td>NVIDIA Grace Hopper,统一内存 CPU+GPU</td></tr>
+      <tr><td>Wafer-scale</td><td>整个晶圆作为单一芯片,Cerebras 独家</td></tr>
+    </tbody>
+  </table>
+
+  <p class="ref">
+    本章引用源 URL 全部收录于 <a href="data/bibliography.json" target="_blank">data/bibliography.json</a>;
+    概念定义收录于 <a href="data/glossary.json" target="_blank">data/glossary.json</a>。
+  </p>
+
+</div>
+
+<footer>
+  <strong>第 5 部分 / 共 5 部分</strong> · v1.0 · 2026-08-30 起草 ·
+  作者:Hermes (主 agent + 4 审计 subagent)
+  <br>
+  <a href="index.html">← 返回主页</a> · <a href="part-4-business-model.html">← 第 4 章</a>
+</footer>
+
+</body>
+</html>

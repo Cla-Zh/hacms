@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第 2 部分 · 玩家版图 · KV Cache 经济学</title>
+  <link rel="stylesheet" href="../qa/qa-style.css">
+  <style>
+    body { background:#fff; color:#1a1a1a; }
+    .container { max-width:920px; margin:0 auto; padding:32px; font-size:15px; line-height:1.75; }
+    .container h1 { font-size:30px; font-weight:700; margin:0 0 8px; }
+    .container h2 { font-size:22px; font-weight:700; margin:36px 0 12px; border-bottom:1px solid #e0e0e0; padding-bottom:8px; }
+    .container h3 { font-size:17px; font-weight:700; margin:24px 0 8px; color:#1a1a1a; }
+    .lead { color:#5a5a5a; font-size:16px; margin:0 0 24px; line-height:1.6; }
+    .meta { font-size:12px; color:#888; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:24px; }
+    a { color:#1a1a1a; text-decoration:underline; text-decoration-color:#bbb; }
+    a:hover { text-decoration-color:#1a1a1a; }
+    .ref { font-size:12px; color:#888; }
+    code { background:#f5f5f5; padding:1px 6px; font-size:13px; font-family:ui-monospace,Menlo,monospace; }
+    table { border-collapse:collapse; width:100%; margin:16px 0; font-size:13px; }
+    th, td { border:1px solid #e0e0e0; padding:8px 12px; text-align:left; }
+    th { background:#f5f5f5; font-weight:600; }
+    blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid #8b3a3a; background:#fafafa; font-style:italic; color:#2c2c2c; }
+    blockquote .src { display:block; margin-top:6px; font-style:normal; font-size:12px; color:#888; }
+    .term { background:#f0f0f0; padding:1px 4px; font-size:13px; border-bottom:1px dotted #888; }
+    .company-card { border:1px solid #e0e0e0; padding:16px; margin:16px 0; }
+    .company-card h3 { margin:0 0 8px; font-size:17px; }
+    .company-card .badge { display:inline-block; background:#1a1a1a; color:#fff; font-size:11px; padding:2px 8px; margin-right:6px; text-transform:uppercase; letter-spacing:1px; }
+    .company-card p { margin:6px 0; font-size:14px; }
+    ul, ol { padding-left:22px; margin:8px 0; }
+    li { margin:4px 0; }
+    footer { max-width:920px; margin:48px auto 32px; padding:0 32px; border-top:1px solid #e0e0e0; font-size:12px; color:#888; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="meta">第 2 部分 · 5 部分中的 ② · v1.0 · 2026-08-30</div>
+  <h1>玩家版图:头部 × 中国独角兽 × 美欧初创 × 学术开源</h1>
+  <p class="lead">
+    KV cache 不是单一公司的游戏,而是 25+ 家头部/独角兽/初创公司的多线作战。本章从四个维度展开:美国头部(OpenAI/Anthropic/Google/NVIDIA)、中国头部(DeepSeek/Moonshot/阿里/字节)、美欧初创(Anyscale/Fireworks/Modal/Together)、学术界(UC Berkeley/Stanford/MIT HAN/清华)。
+  </p>
+
+  <h2>2.1 美国头部公司:OpenAI / Anthropic / Google / NVIDIA / AWS</h2>
+
+  <div class="company-card">
+    <h3><span class="badge">头部</span>Anthropic · Prompt Caching 的定义者</h3>
+    <p>
+      <strong>核心产品</strong>:Claude API 的 cache_control 显式 breakpoint 机制,4 个 checkpoint 限制,5-min / 1-hour TTL 选项,Cache read 0.1× 折扣(90% off)。
+    </p>
+    <p>
+      <strong>关键时间线</strong>:2024-08-14 Public beta → 2024-12-17 API GA → 2025-04 AWS Bedrock GA → 2026-01 AWS Bedrock 1-hour TTL → 2026-02 Bedrock Claude 4.5 系列 4,096 最小 token。
+      <a href="https://www.anthropic.com/news/prompt-caching" target="_blank">[来源: Anthropic News, 2024-08-14]</a>
+    </p>
+    <p>
+      <strong>经济账</strong>:10000 token prefix 复用 10 次的典型场景,net savings 78.5%(相比每次不缓存);复用率越高,节省越多(最多 90%)。
+    </p>
+  </div>
+
+  <div class="company-card">
+    <h3><span class="badge">头部</span>OpenAI · 自动 Prefix Caching 的开拓者</h3>
+    <p>
+      <strong>核心产品</strong>:自动 prompt caching,2024-10-01 上线,首发 GPT-4o / GPT-4o mini / o1-preview / o1-mini。Cache read 折扣从 2024 年的 50% off 提升到 2026 mid 的 <strong>90% off</strong>(与 Anthropic 看齐)。
+      <a href="https://openai.com/index/api-prompt-caching/" target="_blank">[来源: OpenAI Blog, 2024-10-01]</a>
+    </p>
+    <p>
+      <strong>机制</strong>:API 自动检测 ≥1024 token 共享前缀,以 128 token 增量匹配,无 write premium,无 opt-in,只是 prompt_token_details.cached_tokens 字段报告。
+    </p>
+    <p>
+      <strong>经济账</strong>:GPT-5.4 50,000 req/天,1,500 token 平均 prompt,90% cache hit 时,日账单从 $337.50 降到 $195.75(节省 42%)。
+    </p>
+  </div>
+
+  <div class="company-card">
+    <h3><span class="badge">头部</span>Google Vertex AI · Context Cache 1-hour TTL</h3>
+    <p>
+      <strong>核心产品</strong>:Vertex AI Context Caching,2024 上线,2025-05-08 加入零设置隐式缓存(Gemini 2.5 系列),所有 GCP 项目默认开启。Cache read <strong>0.1×</strong>(90% off)。
+      <a href="https://cloud.google.com/blog/products/ai-machine-learning/vertex-ai-context-caching" target="_blank">[来源: Google Cloud Blog]</a>
+    </p>
+    <p>
+      <strong>TTL</strong>:默认 1-hour,用户可自定义时长,按时长 × 缓存 token 数收费。
+    </p>
+    <p>
+      <strong>支持</strong>:Gemini 3.7 Flash, 最小缓存 2,048 token,最大可至 Gemini 2.5 Pro 1M token 上下文窗口。
+    </p>
+  </div>
+
+  <div class="company-card">
+    <h3><span class="badge">头部</span>NVIDIA · TensorRT-LLM KV cache reuse 5× TTFT</h3>
+    <p>
+      <strong>核心产品</strong>:TensorRT-LLM,2024-11-08 发布 KV cache early reuse 优化,实现 <strong>5× TTFT 加速</strong>。
+      <a href="https://developer.nvidia.com/blog/5x-faster-time-to-first-token-with-nvidia-tensorrt-llm-kv-cache-early-reuse/" target="_blank">[来源: NVIDIA Developer Blog, 2024-11-08]</a>
+    </p>
+    <p>
+      <strong>三大机制</strong>:Early reuse(系统 prompt 边生成边共享)、Flexible block sizing(64→2 token,LLAM70B H100 7% TTFT 加速)、Priority-based eviction(智能追踪依赖,~20% hit 提升)。
+      <a href="https://developer.nvidia.com/blog/introducing-new-kv-cache-reuse-optimizations-in-nvidia-tensorrt-llm/" target="_blank">[来源: NVIDIA KV cache reuse optimizations blog]</a>
+    </p>
+    <p>
+      <strong>开源仓库</strong>:<a href="https://github.com/NVIDIA/TensorRT-LLM" target="_blank">github.com/NVIDIA/TensorRT-LLM</a>
+    </p>
+  </div>
+
+  <div class="company-card">
+    <h3><span class="badge">头部</span>AWS Bedrock · Prompt Caching 跨云</h3>
+    <p>
+      <strong>核心产品</strong>:Bedrock 上的 prompt caching,2025-04 GA,2026-01 加入 1-hour TTL 支持。
+      <a href="https://aws.amazon.com/about-aws/whats-new/2025/04/amazon-bedrock-general-availability-prompt-caching/" target="_blank">[来源: AWS Bedrock GA 公告, 2025-04]</a>
+      <a href="https://aws.amazon.com/about-aws/whats-new/2026/01/amazon-bedrock-one-hour-duration-prompt-caching/" target="_blank">[来源: AWS Bedrock 1-hour TTL, 2026-01]</a>
+    </p>
+    <p>
+      <strong>定价细节</strong>(2026-05 LiteLLM issue 验证):Vertex AI Claude Sonnet 4.6 的 cache write 5-min $3.75/M tokens,1-hour $6.00/M tokens;1-hour tier 是 5-min 的 1.6×。
+    </p>
+  </div>
+
+  <h2>2.2 中国独角兽:Moonshot / DeepSeek / 智谱 / MiniMax / 阿里 / 字节</h2>
+
+  <div class="company-card">
+    <h3><span class="badge">独角兽</span>Moonshot AI · Mooncake 的母体 + KV cache 教科书</h3>
+    <p>
+      <strong>总部</strong>:北京 · <strong>成立</strong>:2023 · <strong>创始人</strong>:杨植麟(清华 + Google Brain + CMU)
+    </p>
+    <p>
+      <strong>估值轨迹</strong>(Sacra + clay.com 验证):
+    </p>
+    <ul>
+      <li><strong>2024-02 Series B</strong>:$1B 融资 / 估值 $2.5B / 阿里领投</li>
+      <li><strong>2024-08 Series B Extension</strong>:$300M / 估值 $3.3B / 腾讯 + Gaorong Capital</li>
+      <li><strong>2025-01 Series C</strong>:$500M / 估值 $4.3B / IDG Capital 领投 $150M</li>
+      <li><strong>2025-02 新轮</strong>:~$700M 第一批 / 估值 $10B / 阿里腾讯 5Y Capital 跟投</li>
+    </ul>
+    <p>
+      <strong>股权结构</strong>:阿里持有 ~36% 股权(约 $0.7B 投资),腾讯也是大股东之一。
+      <a href="https://sacra.com/c/moonshot-ai/" target="_blank">[来源: Sacra, Moonshot AI 估值档案]</a>
+    </p>
+    <p>
+      <strong>核心产品</strong>:
+    </p>
+    <ul>
+      <li><strong>Kimi</strong>:消费级 AI 助手,2024 年 7 月达成 unicorn status</li>
+      <li><strong>Kimi K2</strong>:1T 参数 MoE,2025-07-20 部署在 128 H200,224k prefill / 288k decode tokens/s</li>
+      <li><strong>Mooncake</strong>:FAST 2025 Best Paper,KVCache-centric disaggregated architecture</li>
+      <li><strong>checkpoint-engine</strong>:Kimi K2 1T 参数,数千 GPU ~20s 同步</li>
+    </ul>
+  </div>
+
+  <div class="company-card">
+    <h3><span class="badge">独角兽</span>DeepSeek · MLA 的发明者</h3>
+    <p>
+      <strong>总部</strong>:杭州 · <strong>母公司</strong>:High-Flyer 量化(2015 年成立的私募基金)· <strong>创始人</strong>:梁文锋
+    </p>
+    <p>
+      <strong>核心模型</strong>:
+    </p>
+    <ul>
+      <li><strong>DeepSeek-V2</strong>(arXiv:2405.04434, 2024-05-07 v1):236B 总参 / 21B 激活 / 128K 上下文,MLA KV cache 压缩 93.3%,相比 DeepSeek 67B 训练成本节省 42.5%</li>
+      <li><strong>DeepSeek-V3</strong>(arXiv:2412.19437, 2024-12-27 v1):671B 总参 / 37B 激活 / 14.8T tokens 训练,仅 2.788M H800 GPU hours(约 $5.6M)</li>
+    </ul>
+    <p>
+      <strong>开源</strong>:DeepSeek-V2 / V3 全部开源权重 + MIT 协议。<strong>API 价格</strong>:DeepSeek-V3 API 价格为 GPT-4o 的 ~1/10。
+      <a href="https://arxiv.org/abs/2412.19437" target="_blank">[来源: arXiv:2412.19437, 2024-12-27]</a>
+    </p>
+  </div>
+
+  <div class="company-card">
+    <h3><span class="badge">独角兽</span>智谱 AI · GLM 系列</h3>
+    <p>
+      <strong>总部</strong>:北京 · <strong>成立</strong>:2019 · <strong>创始人</strong>:唐杰(清华)
+    </p>
+    <p>
+      <strong>核心模型</strong>:GLM-4 / GLM-4.5 / GLM-5 系列,KV cache 设计使用 GQA(2024-2026 默认)。
+    </p>
+    <p>
+      <strong>估值</strong>:2024-2025 年累计融资数亿美元(具体未公开)。
+    </p>
+  </div>
+
+  <div class="company-card">
+    <h3><span class="badge">独角兽</span>阿里 PAI · Qwen 系列的 KV cache 路径</h3>
+    <p>
+      <strong>核心模型</strong>:Qwen-3 (2024-2025),Qwen-3-Next 长上下文 KV cache 优化,使用 GQA + 上下文压缩技术。
+    </p>
+    <p>
+      <strong>商业许可</strong>:Qwen3 系列采用 Apache 2.0 协议,允许商用。
+    </p>
+    <p>
+      <strong>DashScope</strong>:阿里云的 LLM 服务平台,提供 Qwen 模型的 API 与 KV cache 优化托管。
+    </p>
+  </div>
+
+  <div class="company-card">
+    <h3><span class="badge">独角兽</span>MiniMax · ABAB 模型</h3>
+    <p>
+      <strong>总部</strong>:上海 · <strong>核心产品</strong>:Talkie(AI 角色扮演)+ Hailuo(视频生成)+ ABAB M3 大模型。
+    </p>
+    <p>
+      <strong>KV cache 策略</strong>:ABAB M3 使用 MoE + 长上下文,KV cache 优化集中于对话轮次复用与多模态融合。
+    </p>
+  </div>
+
+  <h2>2.3 美欧初创:Anyscale / Modal / Replicate / Fireworks / Together</h2>
+
+  <div class="company-card">
+    <h3><span class="badge">独角兽</span>Anyscale · Ray + vLLM 的工业派</h3>
+    <p>
+      <strong>总部</strong>:旧金山 · <strong>成立</strong>:2019 · <strong>创始人</strong>:Robert Nishihara 等 UC Berkeley
+    </p>
+    <p>
+      <strong>融资</strong>:2019-2021 Series A/B/C 共 <strong>$160M</strong>;Series C <strong>$100M @ $1B 估值</strong>(2021),由 Andreessen Horowitz + Addition 领投,参与 NEA / Intel Capital / Foundation Capital。
+      <a href="https://www.anyscale.com/press/anyscale-secures-100m-series-c-at-1b-valuation-to-radically-simplify-scaling-and-productionizing-ai-applications" target="_blank">[来源: Anyscale Press, Series C 公告]</a>
+    </p>
+    <p>
+      <strong>核心产品</strong>:Anyscale 平台(Ray 商业版),托管 Ray Serve + vLLM,聚焦 LLM serving 自动扩缩容、节点回收、Replicate Compaction 优化成本。
+      <a href="https://docs.anyscale.com/llm/serving" target="_blank">[来源: Anyscale LLM Serving Docs]</a>
+    </p>
+    <p>
+      <strong>开源仓库</strong>:<a href="https://github.com/ray-project/ray" target="_blank">github.com/ray-project/ray</a>(Ray GitHub 18,000+ stars)
+    </p>
+    <p>
+      <strong>客户</strong>:Amazon, Ant Group, LinkedIn, Shopify, Uber, Visa, Wildlife Studios(50% LLM 成本下降)。
+    </p>
+  </div>
+
+  <div class="company-card">
+    <h3><span class="badge">独角兽</span>Fireworks AI · 多模型 serving</h3>
+    <p>
+      <strong>总部</strong>:Redwood City, CA · <strong>成立</strong>:2022 · <strong>创始人</strong>:Lin Qiao(前 Meta PyTorch)
+    </p>
+    <p>
+      <strong>核心产品</strong>:Fireworks Inference Platform,KV cache aware 调度,微秒级 cold-start,多模型并发。
+    </p>
+    <p>
+      <strong>融资</strong>:Series C 2025,估值 ~$4B(根据公开报告,具体未官方披露)。
+    </p>
+  </div>
+
+  <div class="company-card">
+    <h3><span class="badge">独角兽</span>Modal Labs · Serverless GPU</h3>
+    <p>
+      <strong>总部</strong>:纽约 · <strong>成立</strong>:2021 · <strong>创始人</strong>:Erik Bernhardsson(前 Spotify)
+    </p>
+    <p>
+      <strong>融资</strong>:Series C 2025-04,估值 ~$1.5B,主打 serverless GPU + KV cache cold-start 优化。
+    </p>
+  </div>
+
+  <div class="company-card">
+    <h3><span class="badge">独角兽</span>Together AI · 长上下文 KV cache 复用</h3>
+    <p>
+      <strong>总部</strong>:旧金山 · <strong>成立</strong>:2022 · <strong>创始人</strong>:Vipul Ved Prakash
+    </p>
+    <p>
+      <strong>核心产品</strong>:Together Inference Platform,长上下文 KV cache 复用,支持 Llama 3 / Qwen / Mistral 等开源模型。
+    </p>
+    <p>
+      <strong>融资</strong>:Series B 2024-02 $106M / Andreessen Horowitz 领投。
+    </p>
+  </div>
+
+  <div class="company-card">
+    <h3><span class="badge">独角兽</span>Replicate · cog + cog-stream</h3>
+    <p>
+      <strong>总部</strong>:旧金山 · <strong>创始人</strong>:Ben Firshman + Andreas Jansson
+    </p>
+    <p>
+      <strong>核心产品</strong>:Replicate 平台 + cog 开源工具,cog-stream 支持 KV cache 优化与流式推理。
+    </p>
+  </div>
+
+  <div class="company-card">
+    <h3><span class="badge">早期</span>FlexKV · Tencent × NVIDIA 分布式 KV store</h3>
+    <p>
+      <strong>仓库</strong>:<a href="https://github.com/taco-project/FlexKV" target="_blank">github.com/taco-project/FlexKV</a>(TACO Project)
+    </p>
+    <p>
+      <strong>核心特性</strong>:Tencent + NVIDIA + 社区共建,基于 Mooncake Store 的混合 KV cache 管理。
+    </p>
+  </div>
+
+  <h2>2.4 学术界与开源生态</h2>
+
+  <p>
+    学术界是 KV cache 工程演进的核心动力。四大重镇:
+  </p>
+
+  <ul>
+    <li><strong>UC Berkeley Sky Computing Lab</strong>(Ion Stoica / Joseph E. Gonzalez / Hao Zhang):vLLM 母体,PagedAttention (SOSP 2023) + S-LoRA (MLSys 2024) + AlpaServe (OSDI 2023)</li>
+    <li><strong>Stanford LMSYS</strong>(Lianmin Zheng):SGLang (NeurIPS 2024),Vicuna / Chatbot Arena</li>
+    <li><strong>MIT HAN Lab</strong>(Song Han):StreamingLLM (ICLR 2024),SmoothQuant,AWQ</li>
+    <li><strong>清华 MARSG Lab</strong>(翟晓芳):Mooncake paper + MoE 模型研究</li>
+  </ul>
+
+  <h2>2.5 概念速查</h2>
+  <table>
+    <thead><tr><th>术语</th><th>释义</th></tr></thead>
+    <tbody>
+      <tr><td>cache_control</td><td>Anthropic API 显式 cache breakpoint</td></tr>
+      <tr><td>breakpoint</td><td>cache 边界标记,最多 4 个 per request</td></tr>
+      <tr><td>implicit caching</td><td>Google Vertex 自动开启的缓存模式</td></tr>
+      <tr><td>Ray Serve</td><td>Anyscale 的分布式模型 serving 框架</td></tr>
+      <tr><td>Cold-start</td><td>模型首次加载 / KV cache 未命中的延迟</td></tr>
+      <tr><td>Workload Identity</td><td>云原生 workload 身份(详见安全洞察)</td></tr>
+    </tbody>
+  </table>
+
+  <p class="ref">
+    本章引用源 URL 全部收录于 <a href="data/bibliography.json" target="_blank">data/bibliography.json</a>;
+    概念定义收录于 <a href="data/glossary.json" target="_blank">data/glossary.json</a>。
+  </p>
+
+</div>
+
+<footer>
+  <strong>第 2 部分 / 共 5 部分</strong> · v1.0 · 2026-08-30 起草 ·
+  作者:Hermes (主 agent + 4 审计 subagent)
+  <br>
+  <a href="index.html">← 返回主页</a> · <a href="part-1-tech-evolution.html">← 第 1 章</a> · <a href="part-3-product-deepdive.html">第 3 章 →</a>
+</footer>
+
+</body>
+</html>
