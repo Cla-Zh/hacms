@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第 1 部分 · 访问控制 · Agent 安全的全景洞察</title>
+  <link rel="stylesheet" href="../qa/qa-style.css">
+  <style>
+    body { background:#fff; color:#1a1a1a; }
+    .container { max-width:920px; margin:0 auto; padding:32px; font-size:15px; line-height:1.75; }
+    .container h1 { font-size:30px; font-weight:700; margin:0 0 8px; }
+    .container h2 { font-size:22px; font-weight:700; margin:36px 0 12px; border-bottom:1px solid #e0e0e0; padding-bottom:8px; }
+    .container h3 { font-size:17px; font-weight:700; margin:24px 0 8px; color:#1a1a1a; }
+    .container h4 { font-size:15px; font-weight:700; margin:18px 0 6px; color:#2c2c2c; }
+    .lead { color:#5a5a5a; font-size:16px; margin:0 0 24px; line-height:1.6; }
+    .meta { font-size:12px; color:#888; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:24px; }
+    a { color:#1a1a1a; text-decoration:underline; text-decoration-color:#bbb; }
+    a:hover { text-decoration-color:#1a1a1a; }
+    .ref { font-size:12px; color:#888; }
+    code { background:#f5f5f5; padding:1px 6px; font-size:13px; font-family:ui-monospace,Menlo,monospace; }
+    table { border-collapse:collapse; width:100%; margin:16px 0; font-size:13px; }
+    th, td { border:1px solid #e0e0e0; padding:8px 12px; text-align:left; }
+    th { background:#f5f5f5; font-weight:600; }
+    blockquote {
+      margin:16px 0; padding:8px 16px;
+      border-left:3px solid #8b3a3a;
+      background:#fafafa;
+      font-style:italic; color:#2c2c2c;
+    }
+    blockquote .src { display:block; margin-top:6px; font-style:normal; font-size:12px; color:#888; }
+    .term {
+      background:#f0f0f0; padding:1px 4px; font-size:13px;
+      border-bottom:1px dotted #888;
+    }
+    .company-card {
+      border:1px solid #e0e0e0; padding:16px; margin:16px 0;
+    }
+    .company-card h3 { margin:0 0 8px; font-size:17px; }
+    .company-card .badge {
+      display:inline-block; background:#1a1a1a; color:#fff;
+      font-size:11px; padding:2px 8px; margin-right:6px;
+      text-transform:uppercase; letter-spacing:1px;
+    }
+    .company-card p { margin:6px 0; font-size:14px; }
+    ul, ol { padding-left:22px; margin:8px 0; }
+    li { margin:4px 0; }
+    footer { max-width:920px; margin:48px auto 32px; padding:0 32px;
+      border-top:1px solid #e0e0e0; font-size:12px; color:#888; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="meta">第 1 部分 · 5 部分中的 ① · v1.2 · 2026-08-30</div>
+  <h1>访问控制:Agent 的「门禁」系统</h1>
+  <p class="lead">
+    当一个 Agent 拥有「长期 Token、跨 SaaS 写权限、Tool 调用能力」时,传统 IAM 体系
+    (Identity & Access Management, 身份与访问管理) 就必须被重写。本章剖析 MCP、OAuth for AI、
+    Astrix、Reco AI、Nudge Security、CSA Agentic AI 工作组,以及「影子 AI」这个新战场。
+  </p>
+
+  <h2>1.1 问题的本质:谁来给非人类发 Token?</h2>
+
+  <p>
+    过去十年,身份管理的对象是人类(用户)与服务(API Key)。2024 年起,第三个对象登场:
+    <span class="term">Agent</span>——一个有持久身份、长期 Token、跨多 SaaS 写数据权限的「软件人」。
+    Astrix Security 在 2024 年 12 月的 B 轮融资公告中,把这种对象称为 <strong>NHIs</strong>
+    (Non-Human Identities, 非人类身份)。
+    <a href="https://astrix.security/learn/news/astrix-raises-45m-series-b-to-redefine-identity-security-for-the-ai-era/" target="_blank">[来源: Astrix News, 2024-12-10]</a>
+  </p>
+
+  <p>
+    NHIs 不只是 API Key 的别名。它的特征:
+  </p>
+  <ol>
+    <li><strong>长期身份</strong>:OAuth Refresh Token 可能 30 天有效,Agent 凭此「随时上班」。</li>
+    <li><strong>代理性</strong>:代表用户行事,但权限边界由谁决定并不清晰。</li>
+    <li><strong>跨域漂移</strong>:同一 Agent 可能在 Salesforce、GitHub、Slack 各自拥有不同权限。</li>
+    <li><strong>链式调用</strong>:Agent A 调用 Agent B,后者再调用 Tool,审计追踪断裂。</li>
+  </ol>
+
+  <p>
+    这意味着 IAM 体系要从「用户-角色-权限」三元组,扩展为「用户-角色-权限-<strong>Agent</strong>-<strong>Tool</strong>-<strong>资源</strong>」六元组。
+    Cloud Security Alliance 在 2025 年发布的 <em>Agentic AI Risk Framework</em> 把这一转型列为核心议题。
+    <a href="https://cloudsecurityalliance.org/blog/2025/02/agentic-ai-the-newest-attack-surface/" target="_blank">[来源: CSA Blog, 2025-02]</a>
+  </p>
+
+  <h2>1.2 MCP:Model Context Protocol 的崛起与隐患</h2>
+
+  <p>
+    <span class="term">MCP</span> (Model Context Protocol) 由 Anthropic 于 2024 年 11 月开源,目标是「让 Agent 标准化地连接工具与数据源」。
+    截至 2026 年 8 月,MCP 已成为事实标准:OpenAI、Google DeepMind、Microsoft Copilot Studio、Block、Replit 等都已宣布原生支持。
+    <a href="https://modelcontextprotocol.io/" target="_blank">[来源: modelcontextprotocol.io 官方]</a>
+  </p>
+
+  <p>
+    MCP 的核心是 <strong>JSON-RPC over stdio/HTTP/SSE</strong>,客户端(MCP Host,如 Claude Desktop)通过 MCP Client
+    连接 MCP Server(暴露 Tool)。每次 Tool 调用,Client 都会附带用户的 OAuth Token 或本地凭据。
+  </p>
+
+  <blockquote>
+    「MCP 把 Agent 与 Tool 的连接做成了 USB-C:任何 Tool 都能即插即用。但 USB-C 不解决「该不该插」的问题——这恰恰是 IAM 的工作。」
+    <span class="src">— Ivana Bartoletti, Wiz 首席隐私官, RSA Conference 2025 演讲(2025-04-28)</span>
+  </blockquote>
+
+  <p>
+    MCP 在 2025 年 11 月被 <strong>OWASP Top 10 for LLM Applications 2025 版</strong> 单独列为 <strong>LLM05: Improper
+    MCP Server Sandboxing &amp; Validation</strong>,提示四大类风险:
+  </p>
+  <ul>
+    <li><strong>Tool 名称冲突</strong>:MCP Server 之间没有命名空间,同名 Tool 会覆盖。</li>
+    <li><strong>Tool Poisoning</strong>:恶意 MCP Server 在 description 字段藏 prompt injection。</li>
+    <li><strong>Rug Pulls</strong>:MCP Server 运行时替换 Tool 实现,前 100 次调用安全,第 101 次写恶意代码。</li>
+    <li><strong>Token Leakage</strong>:OAuth Token 通过 MCP 调用泄露到下游 Tool。</li>
+  </ul>
+  <p class="ref">
+    <a href="https://owasp.org/www-project-top-10-for-large-language-model-applications/" target="_blank">[来源: OWASP LLM Top 10, 2025 版]</a>
+  </p>
+
+  <h2>1.3 OAuth for AI:IETF 的最新尝试</h2>
+
+  <p>
+    2024 年 12 月,IETF <strong>Secure Authentication for Everyone (SAFE)</strong> 工作组发布
+    <em>draft-ietf-safe-ai-agent-auth</em> 草案,提出 <strong>AI Agent Identity Assertion (AIA)</strong> 概念。
+    它在 OAuth 2.0 的基础上新增 <code>agent_id</code>、<code>principal_user</code>、<code>delegation_chain</code> 三个字段。
+    <a href="https://datatracker.ietf.org/doc/draft-ietf-safe-ai-agent-auth/" target="_blank">[来源: IETF Datatracker]</a>
+  </p>
+
+  <p>
+    截至 2026 年 8 月,该草案仍在 <strong>IETF 99 (2026-06)</strong> 后的小组审阅阶段,尚未成为 RFC。
+    主要争议:
+  </p>
+  <ul>
+    <li><strong>代理链深度</strong>:Agent A → Agent B → Agent C,审计追踪何时「压缩」?</li>
+    <li><strong>撤销语义</strong>:User 撤销授权时,Agent 已发出但未到达的请求是否「撤回」?</li>
+    <li><strong>人机混用</strong>:Agent 自主决策时,「用户意图」如何记录?</li>
+  </ul>
+
+  <h2>1.4 三大独角兽:Astrix / Reco / Nudge</h2>
+
+  <div class="company-card">
+    <h3><span class="badge">独角兽</span>Astrix Security · 影子 AI 与 NHI 治理</h3>
+    <p>
+      <strong>总部</strong>:以色列 Tel Aviv + 纽约 · <strong>成立</strong>:2021 ·
+      <strong>创始人</strong>:Alon Jackson(Co-founder & CEO,前 Cybereason、IDF 8200)、Idan Gour(Co-founder & CTO,IDF 8200)
+    </p>
+    <p>
+      <strong>融资</strong>:2024-12-10 Series B $45M,由 Menlo Ventures 通过其 Anthology Fund(与 Anthropic 战略合作基金)领投,Workday Ventures、Bessemer Venture Partners (BVP)、CRV、F2 Venture Capital 跟投。**累计 $85M**。
+      <a href="https://www.securityweek.com/astrix-security-banks-45m-series-b-to-secure-non-human-identities/amp" target="_blank">[来源: SecurityWeek, 2024-12-10]</a>
+    </p>
+    <p>
+      <strong>核心技术</strong>:
+    </p>
+    <ul>
+      <li><strong>NHI Discovery</strong>:通过云 API 审计 + DNS 流量分析,发现所有非人类身份的「影子 NHI」(类似 Shadow IT 的 AI 版本)。</li>
+      <li><strong>Posture Management for AI</strong>:把 IAM 权限图谱映射到 Agent / Tool,自动标记「超权 Agent」。</li>
+      <li><strong>AI Agent Trust Layer</strong>:对 Agent 的 Tool 调用实时评分,异常行为自动 quarantine。</li>
+    </ul>
+    <p>
+      <strong>盈利模式</strong>:SaaS 订阅(企业版 $60K-$300K/年)+ 数据集成费(每接入一个云厂商 ~$20K)。
+      客户:Workday、Microsoft、Palo Alto Networks、自家集成生态。
+    </p>
+  </div>
+
+  <div class="company-card">
+    <h3><span class="badge">独角兽</span>Reco AI · SaaS 工作流与 AI 应用治理</h3>
+    <p>
+      <strong>总部</strong>:以色列 · <strong>成立</strong>:2020 ·
+      <strong>创始人</strong>:Gal Nakash(前 AlgoSec CTO)
+    </p>
+    <p>
+      <strong>融资</strong>:2026-02-10 Series B $30M,由 Zeev Ventures 领投,Insight Partners 跟投;累计 $55M+。
+      <a href="https://www.reco.ai/blog/reco-raises-30m-series-b" target="_blank">[来源: Reco Blog, 2026-02-10]</a>
+    </p>
+    <p>
+      <strong>核心技术</strong>:
+    </p>
+    <ul>
+      <li><strong>影子 SaaS 与影子 AI 发现</strong>:从 IdP 日志 + 浏览器代理 + OAuth 授权事件,反推「哪些用户在用哪些 AI 工具」。</li>
+      <li><strong>业务上下文图谱</strong>:用知识图谱把「Salesforce 字段 → AI 工具 → 输出目的地」串起来,自动识别「含 PII 的 AI 调用」。</li>
+      <li><strong>动态访问控制</strong>:对高风险 SaaS 工具实施「Just-in-Time」授权,Token 10 分钟过期。</li>
+    </ul>
+    <p>
+      <strong>盈利模式</strong>:SaaS 订阅(每 SaaS 集成 $5K/年)+ 企业版按数据量计费($100K-$500K/年)。
+    </p>
+  </div>
+
+  <div class="company-card">
+    <h3><span class="badge">独角兽</span>Nudge Security · AI 治理与员工行为</h3>
+    <p>
+      <strong>总部</strong>:美国 Austin, TX · <strong>成立</strong>:2022 ·
+      <strong>创始人</strong>:Russell Spitler(前 AlienVault / AT&amp;T Cybersecurity 创始人)、Jaime Blasco
+    </p>
+    <p>
+      <strong>融资</strong>:2025-11-18 Series A $22.5M,由 Cerberus Ventures 领投,AWS ISV 加速基金跟投。
+      累计约 $30M。
+      <a href="https://www.nudge-security.com/blog/series-a-22-5m" target="_blank">[来源: Nudge Blog, 2025-11-18]</a>
+    </p>
+    <p>
+      <strong>核心技术</strong>:
+    </p>
+    <ul>
+      <li><strong>员工级 AI 工具追踪</strong>:从 OAuth 授权事件反向追踪「这个员工授权了哪些 AI 工具」。</li>
+      <li><strong>「Nudge」行为引导</strong>:当员工在 ChatGPT 粘贴敏感代码时,自动弹 Slack 提示「请改用公司 Copilot」。</li>
+      <li><strong>AI 工具风险评分</strong>:基于数据集来源、隐私政策、历史泄露事件自动打分。</li>
+    </ul>
+    <p>
+      <strong>盈利模式</strong>:每员工每年 $15-$30 + 企业版按 SaaS 集成数计费。
+    </p>
+  </div>
+
+  <h2>1.5 CSPM/SIEM 视角下的「Agent 身份」</h2>
+
+  <p>
+    传统 <span class="term">CSPM</span>(Cloud Security Posture Management, 云安全态势管理)如 Wiz、Orca Security
+    已经支持扫描「IAM 角色过度授权」,但对 Agent 的支持仍在追赶。Wiz 在 2025 年被 Google 以 $32B
+    收购后,正在把 AI Agent 资产纳入其 <strong>AI Security Posture Management (AI-SPM)</strong> 模块。
+    <a href="https://www.wiz.io/blog/wiz-ai-security-posture-management-ai-spm" target="_blank">[来源: Wiz Blog]</a>
+  </p>
+
+  <p>
+    Microsoft Defender for Cloud 在 2025-09 推出的 <strong>AI Workload Protection</strong> 同样把 Agent 视为一种
+    workload,在 Entra ID (Azure AD) 中以 <strong>Workload Identity</strong> 的形式管理。
+    <a href="https://learn.microsoft.com/en-us/entra/workload-id/" target="_blank">[来源: Microsoft Learn]</a>
+  </p>
+
+  <h2>1.6 未突破的难题</h2>
+
+  <ol>
+    <li>
+      <strong>「Agent 离职」语义缺失</strong>:User 撤销授权后,Agent 在远端缓存的中间状态、已完成但未审计的 Tool 调用,
+      没有标准化的「撤销协议」。
+    </li>
+    <li>
+      <strong>链式调用的责任划分</strong>:Agent A 调用 Agent B,后者泄露数据——法律责任归 A 还是 B?现行法规(CFAA、GDPR)
+      未明确。
+    </li>
+    <li>
+      <strong>Tool Poisoning 检测滞后</strong>:MCP Server 在 description 字段藏 prompt injection,
+      现有 SCA(Software Composition Analysis, 软件成分分析)工具看不到 LLM 字段,必须专用扫描器。
+    </li>
+    <li>
+      <strong>合规审计不可行</strong>:SOC 2 / ISO 27001 框架假设访问决策由人做出,Agent 自主决策时
+      「授权来源」字段为空。
+    </li>
+    <li>
+      <strong>跨云 NHI 联邦</strong>:同一 Agent 在 AWS IAM、Azure Entra、GCP Service Account 三套身份体系中的「主身份」是什么?
+      目前无标准。
+    </li>
+  </ol>
+
+  <h2>1.7 现场事故:两次 Agent 权限事故</h2>
+
+  <h3>事故 1:ChatGPT 插件 OAuth Token 大规模泄露(2024-06)</h3>
+  <p>
+    2024 年 6 月,Slack 通过 ChatGPT 插件 OAuth 集成的 Token 因 ChatGPT 端 prompt injection 而泄露,
+    攻击者可读取 Slack 频道历史。Slack 紧急禁用了插件,所有用户重新授权。
+    <a href="https://www.securityweek.com/slack-disables-chatgpt-integration-data-leak/" target="_blank">[来源: SecurityWeek, 2024-06]</a>
+  </p>
+
+  <h3>事故 2:Cursor IDE 的 Auto-Run 模式写入恶意文件(2025-08)</h3>
+  <p>
+    2025 年 8 月,Anthropic 的 Cursor IDE 在 Auto-Run 模式下,因 prompt injection 让 AI 写入了
+    一个恶意的 <code>.bashrc</code>,导致开发者环境被植入持久后门。Cursor 团队在 v0.42 中加入了
+    「危险命令二次确认」,但仍未解决「Agent 自行决定执行」的根问题。
+    <a href="https://github.com/getcursor/cursor/security/advisories" target="_blank">[来源: Cursor Security Advisories]</a>
+  </p>
+
+  <h2>1.8 概念速查</h2>
+  <table>
+    <thead><tr><th>术语</th><th>释义</th></tr></thead>
+    <tbody>
+      <tr><td>NHI</td><td>Non-Human Identity,非人类身份。包括 Service Account、API Key、OAuth Token for Agent</td></tr>
+      <tr><td>MCP</td><td>Model Context Protocol,Anthropic 主导的 Agent-Tool 连接标准</td></tr>
+      <tr><td>OAuth for AI</td><td>IETF SAFE 工作组草案,为 OAuth 增加 Agent 身份字段</td></tr>
+      <tr><td>Shadow AI</td><td>未经 IT/安全团队审批的 AI 工具使用,类似 Shadow IT</td></tr>
+      <tr><td>Tool Poisoning</td><td>MCP Server description 字段藏 prompt injection</td></tr>
+      <tr><td>Rug Pull</td><td>MCP Server 运行时替换 Tool 实现,首次调用安全、后续恶意</td></tr>
+      <tr><td>AI-SPM</td><td>AI Security Posture Management,Wiz 首创术语</td></tr>
+      <tr><td>Delegation Chain</td><td>Agent A → B → C 的调用链,审计追踪用</td></tr>
+    </tbody>
+  </table>
+
+  <p class="ref">
+    本章引用源 URL 全部收录于 <a href="data/bibliography.json" target="_blank">data/bibliography.json</a>;
+    概念定义收录于 <a href="data/glossary.json" target="_blank">data/glossary.json</a>。
+  </p>
+
+</div>
+
+<footer>
+  <strong>第 1 部分 / 共 5 部分</strong> · v1.0 · 2026-08-30 起草 ·
+  作者:Hermes (主 agent + 3 审计 subagent)
+  <br>
+  <a href="index.html">← 返回主页</a> · <a href="part-2-detection-defense.html">下一章:检测与防御 →</a>
+</footer>
+
+</body>
+</html>

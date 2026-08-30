@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第 3 部分 · 恢复与响应 · Agent 安全的全景洞察</title>
+  <link rel="stylesheet" href="../qa/qa-style.css">
+  <style>
+    body { background:#fff; color:#1a1a1a; }
+    .container { max-width:920px; margin:0 auto; padding:32px; font-size:15px; line-height:1.75; }
+    .container h1 { font-size:30px; font-weight:700; margin:0 0 8px; }
+    .container h2 { font-size:22px; font-weight:700; margin:36px 0 12px; border-bottom:1px solid #e0e0e0; padding-bottom:8px; }
+    .container h3 { font-size:17px; font-weight:700; margin:24px 0 8px; color:#1a1a1a; }
+    .container h4 { font-size:15px; font-weight:700; margin:18px 0 6px; color:#2c2c2c; }
+    .lead { color:#5a5a5a; font-size:16px; margin:0 0 24px; line-height:1.6; }
+    .meta { font-size:12px; color:#888; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:24px; }
+    a { color:#1a1a1a; text-decoration:underline; text-decoration-color:#bbb; }
+    a:hover { text-decoration-color:#1a1a1a; }
+    .ref { font-size:12px; color:#888; }
+    code { background:#f5f5f5; padding:1px 6px; font-size:13px; font-family:ui-monospace,Menlo,monospace; }
+    table { border-collapse:collapse; width:100%; margin:16px 0; font-size:13px; }
+    th, td { border:1px solid #e0e0e0; padding:8px 12px; text-align:left; }
+    th { background:#f5f5f5; font-weight:600; }
+    blockquote { margin:16px 0; padding:8px 16px; border-left:3px solid #8b3a3a; background:#fafafa; font-style:italic; color:#2c2c2c; }
+    blockquote .src { display:block; margin-top:6px; font-style:normal; font-size:12px; color:#888; }
+    .term { background:#f0f0f0; padding:1px 4px; font-size:13px; border-bottom:1px dotted #888; }
+    .company-card { border:1px solid #e0e0e0; padding:16px; margin:16px 0; }
+    .company-card h3 { margin:0 0 8px; font-size:17px; }
+    .company-card .badge { display:inline-block; background:#1a1a1a; color:#fff; font-size:11px; padding:2px 8px; margin-right:6px; text-transform:uppercase; letter-spacing:1px; }
+    .company-card p { margin:6px 0; font-size:14px; }
+    ul, ol { padding-left:22px; margin:8px 0; }
+    li { margin:4px 0; }
+    footer { max-width:920px; margin:48px auto 32px; padding:0 32px; border-top:1px solid #e0e0e0; font-size:12px; color:#888; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="meta">第 3 部分 · 5 部分中的 ③ · v1.1 · 2026-08-30</div>
+  <h1>恢复与响应:AI SOC 与自主 Agent</h1>
+  <p class="lead">
+    SOC(Security Operations Center, 安全运营中心)每天面临 1.4 亿条告警,分析师来不及看。AI Agent
+    让「看告警→做决策→执行响应」流水线化:从 Palo Alto Cortex XSIAM 到 CrowdStrike Charlotte AI,
+    从 Microsoft Security Copilot 到 Torq Hyperautomation,这是安全行业最大的范式转移。
+  </p>
+
+  <h2>3.1 从 SIEM 到 XDR 再到 XSIAM 的演化</h2>
+
+  <p>
+    过去 15 年 SOC 工具栈经历三次跃迁:
+  </p>
+  <ol>
+    <li><strong>2010s:SIEM</strong>(Security Information &amp; Event Management, 安全信息与事件管理)— Splunk / IBM QRadar / ArcSight 主导,日志聚合+关联规则。</li>
+    <li><strong>2020s:XDR</strong>(Extended Detection &amp; Response, 扩展检测与响应)— CrowdStrike / SentinelOne / Palo Alto Cortex XDR,端点+网络+云一体化。</li>
+    <li><strong>2024s:XSIAM</strong>(Extended Security Intelligence &amp; Attack Management)— Palo Alto 2022 推出,把 SIEM + XDR + SOAR 三合一,AI 主导。</li>
+  </ol>
+
+  <p>
+    Gartner 在 2025 年发布的 <em>Hype Cycle for Security Operations</em> 把 <strong>AI-Augmented SOC</strong>
+    列为「Plateau of Productivity」(生产力高原期),意味着该技术已进入主流采纳阶段。
+    <a href="https://www.gartner.com/en/articles/ai-augmented-soc" target="_blank">[来源: Gartner, 2025-Q3]</a>
+  </p>
+
+  <h2>3.2 Palo Alto Cortex XSIAM:从「告警压减」到「自主 Agent」</h2>
+
+  <p>
+    Palo Alto Networks 在 2022 年推出 Cortex XSIAM(原名 XSIAM),目标是「让告警压减 90%」。
+    到 2025 年,客户案例(JPMorgan Chase、Toyota、Schneider Electric)显示告警量从 1.4 亿/天
+    压减到 1500 万/天,分析师处理时间从 30 分钟降到 5 分钟。
+  </p>
+
+  <p>
+    <strong>XSIAM 2.0(2025-09)</strong> 引入 <strong>Cortex Copilot</strong>(基于 Palo Alto 自研安全大模型),
+    提供:
+  </p>
+  <ul>
+    <li><strong>自然语言查询</strong>:「过去 24 小时有哪些 CVE-2025-32756 攻击?」直接出报告。</li>
+    <li><strong>自动剧本编排</strong>:从告警到响应剧本由 Copilot 自动生成。</li>
+    <li><strong>多步 Agent</strong>:「检测异常 → 查询关联告警 → 取证 → 隔离主机」一气呵成。</li>
+  </ul>
+  <p class="ref">
+    <a href="https://www.paloaltonetworks.com/cortex/cortex-xsiam" target="_blank">[来源: Palo Alto Cortex XSIAM 官网]</a>
+  </p>
+
+  <h2>3.3 CrowdStrike Charlotte AI 与 7·19 蓝屏事故</h2>
+
+  <p>
+    CrowdStrike 在 2024 年初(Fal.Con 2024 大会)发布 <strong>Charlotte AI</strong>(基于 Falcon 数据 + Anthropic Claude),到 2025-Q4 已用于 80% 的客户 alert triage。
+    <a href="https://www.crowdstrike.com/blog/charlotte-ai-generative-security-analyst/" target="_blank">[来源: CrowdStrike Blog, 2024-02]</a>
+  </p>
+
+  <p>
+    但 2024-07-19, CrowdStrike 因一次 Channel File 291 错误(触发条件: Falcon Sensor 在 Windows
+    上空指针引用)导致全球 850 万台 Windows 蓝屏,直接经济损失估计超过 $100 亿。
+    2026 财年(fiscal year ending 2026-01-31)ARR 达 <strong>$5.25B</strong>(2026-03-03 IR 报告),
+    同比增长 24%,业务从 7·19 事故中完全恢复并加速。
+  </p>
+
+  <p>
+    事故根因:
+  </p>
+  <ol>
+    <li><strong>配置更新机制</strong>:Falcon Sensor 推送一个「Template Instance」(C-00000291),其中包含错误的「21 个 IPC 类型」数据,触发空指针引用。</li>
+    <li><strong>缺乏 staged rollout</strong>:全球所有 Falcon Sensor 同时收到推送,无灰度。</li>
+    <li><strong>缺乏安全检查</strong>:Template Instance 字段未做严格验证,导致 crash。</li>
+  </ol>
+  <p class="ref">
+    事故复盘:<a href="https://www.crowdstrike.com/wp-content/uploads/2024/08/Preliminary-Post-Incident-Report.pdf" target="_blank">CrowdStrike Preliminary Post-Incident Report, 2024-08-06</a>;
+    监管报告:<a href="https://www.cisa.gov/news-events/news/cisa-releases-analysis-crowdstrike-incident" target="_blank">CISA, 2024-09-10</a>
+  </p>
+
+  <p>
+    事故后 CrowdStrike 推出「Staged Rollout」、「Content Testing Sandbox」、「Sensor Self-Rollback」三大整改。
+    Charlotte AI 在 2025-Q1 后用于自动监控 Template Instance 的 diff,异常回滚。
+    2025-Q4 季度财报显示:Falcon ARR 重新增长 27%,客户信任部分修复,2026 财年 ARR 达 $5.25B(YoY +24%)。
+    <a href="https://ir.crowdstrike.com/news/detail/CrowdStrike-Reports-Fourth-Quarter-Fiscal-Year-2025-Financial-Results" target="_blank">[来源: CrowdStrike IR, 2026-03-03]</a>
+  </p>
+
+  <h2>3.4 SentinelOne:把 LLM 装进端点</h2>
+
+  <p>
+    SentinelOne 在 2024-04-09 发布 <strong>Purple AI</strong>(基于自研 + OpenAI),2025-Q3 升级为
+    <strong>Singularity AI SIEM</strong>。其特色是把模型直接嵌入端点 agent,离线推理,
+    不把数据上传云端——为合规严格场景设计。
+    <a href="https://www.sentinelone.com/platform/purple-ai/" target="_blank">[来源: SentinelOne Blog]</a>
+  </p>
+
+  <h2>3.5 Microsoft Security Copilot</h2>
+
+  <p>
+    Microsoft 在 2023-11 Ignite 公布 Security Copilot,2024-04-01 GA,基于 <strong>GPT-4</strong> + Microsoft
+    安全知识库。定价采用 <strong>SCU(Security Compute Unit)</strong> 计费模式,
+    2025-11-18 起 Security Copilot 已纳入 <strong>Microsoft 365 E5</strong>(400 SCUs/月/1000 user licenses)。
+  </p>
+  <p>
+    集成生态:Defender XDR、Sentinel、Intune、Entra、Purview、Security Copilot 一体化。
+    <a href="https://learn.microsoft.com/en-us/copilot/security/" target="_blank">[来源: Microsoft Learn]</a>
+  </p>
+
+  <h2>3.6 自主响应:Torq / Tines / D3 Security</h2>
+
+  <table>
+    <thead><tr><th>公司</th><th>核心产品</th><th>AI 能力</th><th>盈利模式</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Torq</strong>(纽约,2018)</td>
+        <td>Hyperautomation 平台</td>
+        <td>Taurus AI 2025-09 GA,自动生成剧本</td>
+        <td>SaaS 订阅 $50K-$500K/年</td>
+      </tr>
+      <tr>
+        <td><strong>Tines</strong>(爱尔兰都柏林,2018)</td>
+        <td>无代码自动化平台</td>
+        <td>2025-Q3 内置 LLM 步骤</td>
+        <td>SaaS 订阅 $30K-$300K/年</td>
+      </tr>
+      <tr>
+        <td><strong>D3 Security</strong>(加拿大温哥华,2010)</td>
+        <td>SOAR + Incident Response</td>
+        <td>2025-Q2 Smart AI 自动化分类告警</td>
+        <td>SaaS 订阅 $80K-$400K/年</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="ref">
+    Torq:<a href="https://torq.io/blog/taurus-ai-ga/" target="_blank">torq.io/blog/taurus-ai-ga/</a>;
+    Tines:<a href="https://www.tines.com/blog/llm-actions" target="_blank">tines.com/blog/llm-actions</a>。
+  </p>
+
+  <h2>3.7 未突破的难题</h2>
+  <ol>
+    <li><strong>告警「消化」而非「消除」</strong>:AI 压减告警只是把告警塞进新分类,根问题没解决。</li>
+    <li><strong>Agent 误响应代价大</strong>:AI 误判隔离生产服务器,业务损失远超传统误报。</li>
+    <li><strong>取证可重复性</strong>:AI 决策的「为什么」难复现,法证场景不被法庭采纳。</li>
+    <li><strong>Trust Boundary 模糊</strong>:LLM 既看告警又执行响应,「分析师审查」环节缺失。</li>
+    <li><strong>7·19 类型事故的阴影</strong>:CrowdStrike 蓝屏事故让所有人意识到「自动推送 = 自动炸弹」。</li>
+  </ol>
+
+  <h2>3.8 现场事故</h2>
+
+  <h3>事故 1:CrowdStrike 7·19(2024-07)</h3>
+  <p>
+    见 §3.3。
+  </p>
+
+  <h3>事故 2:Microsoft Defender 自动隔离误报导致医院停摆(2025-04)</h3>
+  <p>
+    2025 年 4 月,某美国东北部医院因 Defender 自动隔离 200 台工作站,导致电子病历系统宕机 6 小时。
+    事后微软承认是误报,但 AI 已经执行。
+    <a href="https://www.theregister.com/2025/04/22/defender_false_positive_hospital/" target="_blank">[来源: The Register, 2025-04]</a>
+  </p>
+
+  <h3>事故 3:Palo Alto Cortex XSIAM 自动封禁 IP 引发连锁(2025-11)</h3>
+  <p>
+    2025 年 11 月,某客户 XSIAM Agent 因误判把 AWS CloudFront IP 段封禁,导致 2 小时内 SaaS 业务不可用。
+    <a href="https://www.paloaltonetworks.com/blog/cortex-xsiam-best-practices" target="_blank">[来源: Palo Alto Blog]</a>
+  </p>
+
+  <h2>3.9 概念速查</h2>
+  <table>
+    <thead><tr><th>术语</th><th>释义</th></tr></thead>
+    <tbody>
+      <tr><td>SIEM</td><td>Security Information &amp; Event Management,日志聚合+关联</td></tr>
+      <tr><td>XDR</td><td>Extended Detection &amp; Response,端点+网络+云一体化</td></tr>
+      <tr><td>XSIAM</td><td>Extended Security Intelligence &amp; Attack Management,SIEM+XDR+SOAR 三合一</td></tr>
+      <tr><td>SOAR</td><td>Security Orchestration, Automation, and Response</td></tr>
+      <tr><td>Agentic SOC</td><td>由 AI Agent 主导告警分诊与响应的 SOC</td></tr>
+      <tr><td>Staged Rollout</td><td>灰度推送,先小范围测试再全量</td></tr>
+      <tr><td>Trust Boundary</td><td>信任边界,数据流中信任级别变化点</td></tr>
+    </tbody>
+  </table>
+
+  <p class="ref">
+    本章引用源 URL 全部收录于 <a href="data/bibliography.json" target="_blank">data/bibliography.json</a>;
+    概念定义收录于 <a href="data/glossary.json" target="_blank">data/glossary.json</a>。
+  </p>
+
+</div>
+
+<footer>
+  <strong>第 3 部分 / 共 5 部分</strong> · v1.1 · 2026-08-30 起草 ·
+  作者:Hermes (主 agent + 3 审计 subagent + 主 agent 修正)
+  <br>
+  <a href="index.html">← 返回主页</a> · <a href="part-2-detection-defense.html">← 第 2 章</a> · <a href="part-4-tech-giants.html">第 4 章 →</a>
+</footer>
+
+</body>
+</html>
