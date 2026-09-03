@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent 执行环境的全景洞察 v3.0 · 2026 Q3</title>
+<style>
+/**
+ * qa-style.css — 智慧问答答案页样式 (v2)
+ *
+ * 设计目标:
+ * 1. 顶部固定返回栏 (✕ 按钮, 浏览器 back 也能用)
+ * 2. 答案正文直接渲染 (不用 iframe, 手机端友好)
+ * 3. 主题色: hacms 紫 (#8b5cf6) 区分主站
+ * 4. 响应式: 桌面/平板/手机三档
+ * 5. 暗色模式: 自动跟随系统
+ */
+
+/* ═══════════════════════════════════════════════
+   1. 全局变量
+   ═══════════════════════════════════════════════ */
+:root {
+  --qa-primary: #8b5cf6;
+  --qa-primary-dark: #6d28d9;
+  --qa-primary-light: #ede9fe;
+  --qa-bg: #faf8ff;
+  --qa-surface: #ffffff;
+  --qa-surface-2: #f5f3ff;
+  --qa-border: #e9e4f5;
+  --qa-text: #1a1a1a;
+  --qa-text-2: #5a5a5a;
+  --qa-text-3: #9a9690;
+  --qa-success: #5fb3a1;
+  --qa-warning: #f59e0b;
+  --qa-danger: #ef4444;
+  --qa-radius: 12px;
+  --qa-radius-sm: 8px;
+  --qa-shadow-sm: 0 1px 3px rgba(139, 92, 246, 0.06);
+  --qa-shadow: 0 2px 12px rgba(139, 92, 246, 0.08);
+  --qa-shadow-lg: 0 8px 28px rgba(139, 92, 246, 0.12);
+  --qa-topbar-h: 56px;
+  --qa-bottombar-h: 0px; /* 桌面隐藏, 移动端显示 */
+  --qa-container-max: 920px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --qa-bg: #0f0a1a;
+    --qa-surface: #1a1428;
+    --qa-surface-2: #231a3a;
+    --qa-border: #3a2f50;
+    --qa-text: #f0eaff;
+    --qa-text-2: #b8a8d4;
+    --qa-text-3: #7a6a8c;
+    --qa-primary-light: #2a1f44;
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   2. Reset + 全局排版
+   ═══════════════════════════════════════════════ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; scroll-behavior: smooth; }
+body.qa-page-body {
+  background: var(--qa-bg);
+  color: var(--qa-text);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  padding-top: var(--qa-topbar-h);
+  padding-bottom: var(--qa-bottombar-h);
+  min-height: 100vh;
+}
+
+a { color: var(--qa-primary); text-decoration: none; transition: color 0.15s; }
+a:hover { color: var(--qa-primary-dark); text-decoration: underline; }
+
+/* ═══════════════════════════════════════════════
+   3. 顶部固定栏: ✕ 返回 + 标题 + 原文链接
+   ═══════════════════════════════════════════════ */
+.qa-topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--qa-topbar-h);
+  background: var(--qa-surface);
+  border-bottom: 1px solid var(--qa-border);
+  box-shadow: var(--qa-shadow-sm);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+  z-index: 100;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.qa-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--qa-radius-sm);
+  background: var(--qa-primary-light);
+  color: var(--qa-primary-dark);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.qa-back-btn:hover {
+  background: var(--qa-primary);
+  color: white;
+  text-decoration: none;
+  transform: translateX(-2px);
+}
+.qa-back-btn:active { transform: translateX(0); }
+.qa-back-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.qa-topbar-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--qa-text);
+  flex: 1;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qa-topbar-meta {
+  flex-shrink: 0;
+}
+.qa-topbar-link {
+  padding: 6px 12px;
+  border-radius: var(--qa-radius-sm);
+  border: 1px solid var(--qa-border);
+  font-size: 13px;
+  color: var(--qa-text-2);
+  background: var(--qa-surface);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.qa-topbar-link:hover {
+  background: var(--qa-primary-light);
+  color: var(--qa-primary-dark);
+  border-color: var(--qa-primary);
+  text-decoration: none;
+}
+
+/* ═══════════════════════════════════════════════
+   4. 主容器
+   ═══════════════════════════════════════════════ */
+.qa-main {
+  max-width: var(--qa-container-max);
+  margin: 0 auto;
+  padding: 24px 20px 40px;
+}
+
+/* ═══════════════════════════════════════════════
+   5. 问题卡片
+   ═══════════════════════════════════════════════ */
+.qa-question-card {
+  background: linear-gradient(135deg, var(--qa-primary-light) 0%, var(--qa-surface) 100%);
+  border: 1px solid var(--qa-border);
+  border-left: 4px solid var(--qa-primary);
+  border-radius: var(--qa-radius);
+  padding: 24px 28px;
+  margin-bottom: 20px;
+  box-shadow: var(--qa-shadow);
+}
+
+.qa-qa-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--qa-text-2);
+}
+.qa-badge-q, .qa-badge-a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 13px;
+  color: white;
+  flex-shrink: 0;
+}
+.qa-badge-q { background: var(--qa-primary); }
+.qa-badge-a { background: var(--qa-success); }
+.qa-meta-type { font-weight: 500; }
+
+.qa-question-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--qa-text);
+  line-height: 1.45;
+  margin-bottom: 16px;
+  letter-spacing: 0.3px;
+}
+
+.qa-question-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: 13px;
+  color: var(--qa-text-2);
+  line-height: 1.5;
+}
+.qa-meta-item {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.qa-meta-item strong { color: var(--qa-text); font-weight: 600; }
+
+.qa-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  background: var(--qa-primary);
+  color: white;
+  border-radius: 12px;
+  font-size: 11.5px;
+  font-weight: 500;
+  margin-right: 4px;
+  margin-bottom: 2px;
+}
+
+/* ═══════════════════════════════════════════════
+   6. 答案标签条
+   ═══════════════════════════════════════════════ */
+.qa-answer-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: var(--qa-surface);
+  border: 1px solid var(--qa-border);
+  border-left: 4px solid var(--qa-success);
+  border-radius: var(--qa-radius);
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: var(--qa-text-2);
+  box-shadow: var(--qa-shadow-sm);
+}
+.qa-answer-bar-text { font-weight: 500; }
+
+/* ═══════════════════════════════════════════════
+   7. 答案正文 (直接渲染, 不用 iframe)
+   ═══════════════════════════════════════════════ */
+.qa-answer-content {
+  background: var(--qa-surface);
+  border: 1px solid var(--qa-border);
+  border-radius: var(--qa-radius);
+  padding: 32px 36px;
+  box-shadow: var(--qa-shadow);
+  margin-bottom: 28px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+/* 答案正文里的 hero (原 840 行有 .hero) 改成卡片头 */
+.qa-answer-content .hero {
+  background: linear-gradient(135deg, var(--qa-primary) 0%, var(--qa-primary-dark) 100%);
+  color: white;
+  padding: 24px 28px;
+  border-radius: var(--qa-radius);
+  margin: -32px -36px 24px;
+  border-radius: var(--qa-radius) var(--qa-radius) 0 0;
+  text-align: left;
+}
+.qa-answer-content .hero h1 {
+  font-size: 22px;
+  margin-bottom: 8px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.qa-answer-content .hero .subtitle {
+  font-size: 14px;
+  opacity: 0.95;
+  margin-bottom: 4px;
+}
+.qa-answer-content .hero .meta {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-top: 8px;
+}
+
+/* 答案正文 section / 标题层级 */
+.qa-answer-content .container { padding: 0; max-width: 100%; }
+.qa-answer-content .toc {
+  background: var(--qa-surface-2);
+  border-radius: var(--qa-radius-sm);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  border-left: 4px solid var(--qa-primary);
+}
+.qa-answer-content .toc h2 {
+  font-size: 16px;
+  color: var(--qa-primary);
+  margin-bottom: 10px;
+}
+.qa-answer-content .toc ol { padding-left: 22px; }
+.qa-answer-content .toc li { margin: 5px 0; font-size: 13.5px; }
+.qa-answer-content .toc a { color: var(--qa-text-2); }
+.qa-answer-content .toc a:hover { color: var(--qa-primary-dark); }
+
+.qa-answer-content .section {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 16px 0 24px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--qa-border);
+}
+.qa-answer-content .section:last-of-type { border-bottom: none; }
+.qa-answer-content .section h2 {
+  font-size: 19px;
+  color: var(--qa-primary);
+  border-bottom: 2px solid var(--qa-primary-light);
+  padding-bottom: 8px;
+  margin: 24px 0 16px;
+  font-weight: 700;
+}
+.qa-answer-content .section h3 {
+  font-size: 16px;
+  color: var(--qa-primary-dark);
+  margin: 18px 0 10px;
+  padding-left: 12px;
+  border-left: 4px solid var(--qa-primary);
+  font-weight: 600;
+}
+.qa-answer-content .section h4 {
+  font-size: 14.5px;
+  color: var(--qa-text);
+  margin: 14px 0 8px;
+  font-weight: 600;
+}
+.qa-answer-content .section p { margin: 10px 0; text-align: justify; line-height: 1.8; }
+.qa-answer-content .section ul, .qa-answer-content .section ol { padding-left: 24px; margin: 8px 0; }
+.qa-answer-content .section li { margin: 5px 0; }
+
+/* 卡片网格 (原 840 行有 .card-grid) */
+.qa-answer-content .card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  margin: 16px 0;
+}
+.qa-answer-content .card {
+  background: var(--qa-surface-2);
+  border: 1px solid var(--qa-border);
+  border-radius: var(--qa-radius-sm);
+  padding: 16px;
+  transition: all 0.2s;
+}
+.qa-answer-content .card:hover {
+  box-shadow: var(--qa-shadow);
+  transform: translateY(-1px);
+}
+.qa-answer-content .card .card-title {
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--qa-primary);
+  margin-bottom: 6px;
+}
+.qa-answer-content .card p { font-size: 13px; margin: 0; }
+
+/* 表格 */
+.qa-answer-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 13.5px;
+  background: var(--qa-surface);
+  border: 1px solid var(--qa-border);
+  border-radius: var(--qa-radius-sm);
+  overflow: hidden;
+  display: block;
+  overflow-x: auto;
+}
+.qa-answer-content th {
+  background: var(--qa-primary);
+  color: white;
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12.5px;
+}
+.qa-answer-content td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--qa-border);
+  vertical-align: top;
+}
+.qa-answer-content tr:nth-child(even) td { background: var(--qa-surface-2); }
+.qa-answer-content tr:hover td { background: var(--qa-primary-light); }
+
+/* 高亮块 (highlight) */
+.qa-answer-content .highlight {
+  background: var(--qa-primary-light);
+  border-left: 4px solid var(--qa-primary);
+  padding: 14px 18px;
+  border-radius: var(--qa-radius-sm);
+  margin: 16px 0;
+  font-size: 14px;
+}
+.qa-answer-content .highlight strong { color: var(--qa-primary-dark); }
+
+/* 引用编号 [R1] — 参考文献条目标签 (保持纯文本样式) */
+.qa-answer-content .ref-id {
+  color: var(--qa-primary);
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--qa-primary-light);
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin: 0 2px;
+  vertical-align: super;
+  line-height: 1;
+}
+
+/* 引用跳转链接 [R1] → 正文中可点击的引用编号 */
+.qa-answer-content a.cite-ref {
+  display: inline-block;
+  color: var(--qa-primary);
+  font-size: 0.85em;
+  font-weight: 600;
+  background: var(--qa-primary-light);
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin: 0 2px;
+  vertical-align: super;
+  line-height: 1;
+  text-decoration: none;
+  border-bottom: 1px dotted var(--qa-primary);
+  transition: all 0.2s;
+}
+.qa-answer-content a.cite-ref:hover {
+  background: var(--qa-primary);
+  color: white;
+  border-bottom-color: var(--qa-primary-dark);
+  text-decoration: none;
+}
+.qa-answer-content a.cite-ref:focus {
+  outline: 2px solid var(--qa-primary);
+  outline-offset: 2px;
+}
+
+/* 参考文献列表: 跳转目标预留 topbar 空间 */
+.qa-answer-content .ref-list li[id^="ref-R"] {
+  scroll-margin-top: calc(var(--qa-topbar-h) + 16px);
+}
+/* 跳转到位时短暂高亮一下, 方便用户定位 */
+.qa-answer-content .ref-list li[id^="ref-R"]:target {
+  background: var(--qa-primary-light);
+  border-color: var(--qa-primary);
+  box-shadow: 0 2px 12px rgba(139, 92, 246, 0.15);
+  transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+}
+
+/* ═══════════════════════════════════════════════
+   8. 关联问答
+   ═══════════════════════════════════════════════ */
+.qa-related {
+  background: var(--qa-surface);
+  border: 1px solid var(--qa-border);
+  border-radius: var(--qa-radius);
+  padding: 20px 24px;
+  margin-bottom: 32px;
+}
+.qa-related-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--qa-text);
+  margin-bottom: 12px;
+}
+.qa-related-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.qa-related-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--qa-surface-2);
+  border: 1px solid var(--qa-border);
+  border-radius: var(--qa-radius-sm);
+  text-decoration: none;
+  color: var(--qa-text);
+  transition: all 0.15s;
+}
+.qa-related-item:hover {
+  background: var(--qa-primary-light);
+  border-color: var(--qa-primary);
+  text-decoration: none;
+  transform: translateX(2px);
+}
+.qa-related-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--qa-primary);
+  color: white;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.qa-related-name { font-size: 13.5px; }
+.qa-related-empty {
+  color: var(--qa-text-3);
+  font-size: 12.5px;
+  font-style: italic;
+  padding: 10px 12px;
+  background: var(--qa-surface-2);
+  border-radius: var(--qa-radius-sm);
+  border: 1px dashed var(--qa-border);
+  text-align: center;
+}
+
+/* ═══════════════════════════════════════════════
+   9. 移动端底部固定返回栏
+   ═══════════════════════════════════════════════ */
+.qa-bottombar {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 56px;
+  background: var(--qa-surface);
+  border-top: 1px solid var(--qa-border);
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.05);
+  z-index: 99;
+  padding: 0 16px;
+  align-items: center;
+}
+.qa-bottombar-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 44px;
+  background: var(--qa-primary);
+  color: white;
+  border-radius: var(--qa-radius-sm);
+  font-size: 14.5px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.qa-bottombar-back:hover {
+  background: var(--qa-primary-dark);
+  color: white;
+  text-decoration: none;
+}
+
+/* ═══════════════════════════════════════════════
+   10. 响应式 (平板/手机)
+   ═══════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  :root { --qa-container-max: 100%; }
+  html { font-size: 14.5px; }
+
+  .qa-main { padding: 16px 14px 80px; }
+
+  .qa-topbar { padding: 0 12px; gap: 8px; height: 52px; }
+  .qa-back-btn { padding: 6px 10px; font-size: 13px; }
+  .qa-back-text { display: none; } /* 移动端只留图标 */
+  .qa-topbar-title { font-size: 14px; }
+  .qa-topbar-link { padding: 4px 8px; font-size: 12px; }
+
+  .qa-question-card { padding: 18px 18px; }
+  .qa-question-title { font-size: 17px; line-height: 1.5; }
+  .qa-question-meta { font-size: 12px; gap: 6px 12px; }
+  .qa-tag { font-size: 10.5px; padding: 1px 8px; }
+
+  .qa-answer-bar { padding: 10px 14px; font-size: 12.5px; }
+
+  .qa-answer-content { padding: 18px 16px; }
+  .qa-answer-content .hero { margin: -18px -16px 18px; padding: 18px 18px; }
+  .qa-answer-content .hero h1 { font-size: 18px; }
+  .qa-answer-content .hero .subtitle { font-size: 13px; }
+  .qa-answer-content .section h2 { font-size: 16px; }
+  .qa-answer-content .section h3 { font-size: 14.5px; }
+  .qa-answer-content .section p { font-size: 14px; }
+  .qa-answer-content .card-grid { grid-template-columns: 1fr; }
+  .qa-answer-content table { font-size: 12.5px; }
+  .qa-answer-content .toc { padding: 14px 18px; }
+
+  .qa-bottombar { display: flex; }
+  body.qa-page-body { padding-bottom: 64px; }
+}
+
+@media (max-width: 480px) {
+  .qa-question-meta { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .qa-answer-bar-text { font-size: 12px; }
+  .qa-related { padding: 16px 14px; }
+  .qa-related-name { font-size: 12.5px; }
+}
+
+/* ═══════════════════════════════════════════════
+   11. 打印样式
+   ═══════════════════════════════════════════════ */
+@media print {
+  .qa-topbar, .qa-bottombar, .qa-related { display: none; }
+  body.qa-page-body { padding: 0; }
+  .qa-answer-content { border: none; box-shadow: none; padding: 0; }
+  .qa-answer-content .section { page-break-inside: avoid; }
+}
+
+/* ═══════════════════════════════════════════════
+   12. Bugfix 大表格 (Q4 等含大量 PR 的页用)
+   ═══════════════════════════════════════════════ */
+.qa-bugfix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  line-height: 1.55;
+  background: #fff;
+}
+.qa-bugfix-table thead th {
+  background: #f5f5f7;
+  border-bottom: 2px solid #ddd;
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  position: sticky;
+  top: 56px;
+  z-index: 2;
+}
+.qa-bugfix-table tbody tr { border-bottom: 1px solid #eee; }
+.qa-bugfix-table tbody tr:hover { background: #fafafc; }
+.qa-bugfix-table tbody td {
+  padding: 9px 12px;
+  vertical-align: top;
+  color: #222;
+  word-break: break-word;
+}
+.qa-bugfix-table tbody td a {
+  color: #1f6feb;
+  text-decoration: none;
+}
+.qa-bugfix-table tbody td a:hover { text-decoration: underline; }
+.qa-bugfix-table .qa-bugfix-bucket td {
+  background: #f0f4fa;
+  color: #1a1a1a;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-top: 2px solid #d0d8e6;
+}
+
+/* ═══════════════════════════════════════════════
+   13. 洞察卡片 (insight boxes)
+   ═══════════════════════════════════════════════ */
+.qa-insight-box {
+  background: #f7f9fc;
+  border-left: 4px solid #4a7fc1;
+  padding: 14px 18px;
+  margin: 14px 0;
+  border-radius: 4px;
+}
+.qa-insight-box .qa-insight-title {
+  font-size: 15.5px;
+  margin: 0 0 8px 0;
+  color: #1a3a6e;
+  font-weight: 600;
+}
+.qa-insight-box p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: #333;
+}
+.qa-insight-box code {
+  background: #e8eef6;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12.5px;
+}
+/* ═══════════════════════════════════════════════
+   8.5 通用辅助组件 (toc / header / section-title / footer / bug-pattern / arch-diagram / ssd-highlight / summary-box / class-table / pr-deep / quote)
+   ═══════════════════════════════════════════════ */
+
+/* ── 顶部 TOC 导航 ─────────────────────────────────── */
+.qa-toc {
+  position: sticky;
+  top: var(--qa-topbar-h);
+  z-index: 50;
+  background: var(--qa-surface);
+  border-bottom: 1px solid var(--qa-border);
+  box-shadow: var(--qa-shadow-sm);
+  padding: 12px 20px;
+  font-size: 13px;
+  margin-bottom: 24px;
+}
+.qa-toc-inner { max-width: var(--qa-container-max); margin: 0 auto; }
+.qa-toc strong { color: var(--qa-primary); margin-right: 12px; font-size: 13.5px; }
+.qa-toc a {
+  display: inline-block;
+  margin-right: 14px;
+  padding: 2px 0;
+  color: var(--qa-text-2);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.qa-toc a:hover { color: var(--qa-primary); text-decoration: none; }
+
+/* ── 文章 header (顶部 tag + 标题 + 副标题) ───── */
+.qa-header {
+  background: linear-gradient(135deg, var(--qa-primary-light) 0%, var(--qa-surface) 100%);
+  border: 1px solid var(--qa-border);
+  border-radius: var(--qa-radius);
+  padding: 28px 32px;
+  margin-bottom: 28px;
+  box-shadow: var(--qa-shadow);
+}
+.qa-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.qa-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.35;
+  margin-bottom: 10px;
+  color: var(--qa-text);
+  letter-spacing: 0.3px;
+}
+.qa-subtitle {
+  font-size: 15px;
+  color: var(--qa-text-2);
+  line-height: 1.6;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+.qa-author {
+  font-size: 12.5px;
+  color: var(--qa-text-3);
+  margin: 0;
+}
+
+/* ── 章节标题 (h2 / h3 / h4) ───────────────────── */
+.qa-section-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--qa-text);
+  margin: 36px 0 18px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--qa-border);
+  line-height: 1.4;
+}
+h3 { /* 通用 H3 (含 .qa-insight-title / section H3) */
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--qa-text);
+  margin: 24px 0 12px;
+  line-height: 1.4;
+}
+.qa-insight-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--qa-primary-dark);
+  margin: 24px 0 12px;
+  line-height: 1.4;
+}
+h4 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--qa-text);
+  margin: 18px 0 10px;
+  line-height: 1.4;
+}
+
+/* ── 答案正文基础排版 ─────────────────────────── */
+.qa-page-body h2 { font-size: 22px; font-weight: 700; margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--qa-border); }
+.qa-page-body h3 { font-size: 18px; font-weight: 700; color: var(--qa-primary-dark); margin: 24px 0 12px; }
+.qa-page-body h4 { font-size: 16px; font-weight: 700; margin: 18px 0 10px; }
+.qa-page-body p { margin: 0 0 14px; line-height: 1.75; color: var(--qa-text); }
+.qa-page-body ul, .qa-page-body ol { margin: 0 0 14px 1.5em; line-height: 1.75; }
+.qa-page-body li { margin-bottom: 6px; }
+.qa-page-body code {
+  background: var(--qa-surface-2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 0.88em;
+  color: var(--qa-primary-dark);
+}
+.qa-page-body pre {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 16px 20px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 14px 0;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+}
+.qa-page-body pre code { background: transparent; padding: 0; color: inherit; }
+.qa-page-body table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+.qa-page-body th, .qa-page-body td { border: 1px solid var(--qa-border); padding: 8px 12px; text-align: left; }
+.qa-page-body th { background: var(--qa-surface-2); font-weight: 600; }
+
+/* ── 总结框 (qa-summary-box) ─────────────────── */
+.qa-summary-box {
+  background: linear-gradient(180deg, var(--qa-surface-2) 0%, var(--qa-surface) 100%);
+  border-left: 4px solid var(--qa-primary);
+  padding: 20px 26px;
+  margin: 24px 0;
+  border-radius: 0 10px 10px 0;
+  box-shadow: var(--qa-shadow-sm);
+}
+.qa-summary-box h3 { color: var(--qa-primary-dark); margin: 0 0 12px 0; font-size: 17px; }
+.qa-summary-box ul { margin: 0; padding-left: 1.4em; color: var(--qa-text); line-height: 1.8; }
+.qa-summary-box li { margin-bottom: 6px; }
+
+/* ── 分类/对比 表格 (qa-class-table) ──────────── */
+.qa-class-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  font-size: 14px;
+  background: var(--qa-surface);
+  border: 1px solid var(--qa-border);
+  border-radius: var(--qa-radius);
+  overflow: hidden;
+  box-shadow: var(--qa-shadow-sm);
+}
+.qa-class-table th, .qa-class-table td {
+  border: 1px solid var(--qa-border);
+  padding: 10px 14px;
+  text-align: left;
+  vertical-align: top;
+}
+.qa-class-table th {
+  background: var(--qa-primary);
+  color: white;
+  font-weight: 600;
+  font-size: 13.5px;
+}
+.qa-class-table tr:nth-child(even) td { background: var(--qa-surface-2); }
+.qa-class-table .count { font-weight: 700; color: var(--qa-primary-dark); text-align: right; }
+.qa-class-table .pct { color: var(--qa-text-2); text-align: right; }
+
+/* ── 引用块 (qa-quote) ────────────────────────── */
+.qa-quote {
+  background: linear-gradient(90deg, #fef9c3 0%, transparent 100%);
+  border-left: 3px solid var(--qa-warning);
+  padding: 12px 20px;
+  margin: 14px 0;
+  font-size: 14px;
+  border-radius: 0 6px 6px 0;
+  color: var(--qa-text);
+  line-height: 1.7;
+}
+.qa-quote strong { color: var(--qa-warning); }
+
+/* ── PR 深度分析卡片 (qa-pr-deep) ─────────────── */
+.qa-pr-deep {
+  background: var(--qa-surface);
+  border: 1px solid var(--qa-border);
+  border-radius: var(--qa-radius);
+  padding: 22px 28px;
+  margin: 24px 0;
+  box-shadow: var(--qa-shadow);
+}
+.qa-pr-deep h4 {
+  margin: 0 0 8px 0;
+  color: var(--qa-text);
+  font-size: 17px;
+  line-height: 1.45;
+}
+.qa-pr-deep h5 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--qa-primary-dark);
+  margin: 18px 0 8px;
+}
+.qa-pr-deep .pr-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 8px 0 14px 0;
+  font-size: 13px;
+  color: var(--qa-text-2);
+}
+.qa-pr-deep .pr-meta span {
+  background: var(--qa-surface-2);
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--qa-border);
+}
+.qa-pr-deep pre {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 14px 18px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin: 12px 0;
+}
+.qa-pr-deep pre .add { color: #86efac; }
+.qa-pr-deep pre .del { color: #fca5a5; }
+.qa-pr-deep pre .comment { color: #94a3b8; font-style: italic; }
+
+/* ── Bug 模式归纳 (qa-bug-pattern) ─────────────── */
+.qa-bug-pattern {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  margin: 14px 0;
+  padding: 14px 18px;
+  background: var(--qa-surface-2);
+  border-radius: 8px;
+  border-left: 3px solid var(--qa-primary);
+}
+.qa-bug-pattern .pattern-tag {
+  background: var(--qa-danger);
+  color: white;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  align-self: start;
+  white-space: nowrap;
+}
+.qa-bug-pattern .pattern-text {
+  color: var(--qa-text);
+  line-height: 1.75;
+  font-size: 14px;
+}
+
+/* ── SSD 高亮框 (qa-ssd-highlight) ─────────────── */
+.qa-ssd-highlight {
+  background: linear-gradient(90deg, #fef3c7 0%, transparent 100%);
+  border-left: 4px solid var(--qa-warning);
+  padding: 16px 22px;
+  margin: 20px 0;
+  border-radius: 0 8px 8px 0;
+}
+.qa-ssd-highlight p { margin: 0 0 10px; line-height: 1.7; color: var(--qa-text); }
+.qa-ssd-highlight ol, .qa-ssd-highlight ul { margin: 0 0 10px 1.5em; line-height: 1.7; }
+.qa-ssd-highlight strong { color: var(--qa-warning); }
+
+/* ── 架构图 / 代码框 (qa-arch-diagram) ─────────── */
+.qa-arch-diagram {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 20px 24px;
+  border-radius: 8px;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  overflow-x: auto;
+  margin: 20px 0;
+  white-space: pre;
+  box-shadow: var(--qa-shadow);
+}
+
+/* ── 页脚 ─────────────────────────────────────────── */
+.qa-footer {
+  text-align: center;
+  font-size: 12px;
+  color: var(--qa-text-3);
+  padding: 20px;
+  border-top: 1px solid var(--qa-border);
+  margin-top: 40px;
+  background: var(--qa-surface-2);
+  border-radius: var(--qa-radius);
+}
+.qa-footer p { margin: 4px 0; }
+
+/* ── 响应式补丁 ─────────────────────────────────── */
+@media (max-width: 768px) {
+  .qa-header { padding: 16px 18px; }
+  .qa-header h1 { font-size: 22px; }
+  .qa-section-title { font-size: 19px; }
+  .qa-pr-deep { padding: 16px 18px; }
+  .qa-toc { padding: 10px 14px; font-size: 12px; overflow-x: auto; white-space: nowrap; }
+  .qa-toc-inner { max-width: 100%; }
+  .qa-toc a { margin-right: 10px; font-size: 12px; }
+}
+</style>
+
+<style>
+:root {
+  --accent: #1a1a1a;
+  --line: #e0e0e0;
+  --muted: #5a5a5a;
+  --soft: #f5f5f5;
+}
+.hero-section {
+  max-width: 980px; margin: 0 auto; padding: 48px 32px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.hero-meta {
+  font-size: 13px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1.5px;
+  margin-bottom: 16px;
+}
+.hero-title {
+  font-size: 38px; font-weight: 700; line-height: 1.25;
+  margin: 0 0 16px; color: var(--accent);
+}
+.hero-subtitle {
+  font-size: 20px; color: var(--muted); margin: 0 0 24px; line-height: 1.5;
+}
+.lead { font-size: 17px; line-height: 1.7; color: var(--muted); margin: 0 0 16px; }
+.stats-row {
+  display: grid; grid-template-columns: repeat(6, 1fr);
+  gap: 16px; margin: 32px 0;
+}
+.stat-card {
+  border: 1px solid var(--line); padding: 16px;
+  text-align: center; border-radius: 8px;
+}
+.stat-num { font-size: 28px; font-weight: 700; color: var(--accent); }
+.stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.stat-sub { font-size: 10px; color: #9a9690; margin-top: 4px; }
+.toc-nav {
+  background: var(--soft); border-left: 3px solid var(--accent);
+  padding: 20px 24px; margin: 32px auto; max-width: 980px;
+}
+.toc-title { margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+.toc-list { padding-left: 22px; line-height: 1.8; font-size: 14px; }
+.qa-section {
+  max-width: 980px; margin: 48px auto; padding: 0 32px;
+  border-bottom: 1px solid var(--line); padding-bottom: 32px;
+}
+.qa-section:last-of-type { border-bottom: none; }
+.qa-section h2 { font-size: 28px; font-weight: 700; margin: 0 0 24px; color: var(--accent); }
+.qa-h3 { font-size: 22px; font-weight: 600; margin: 32px 0 12px; color: var(--accent); }
+.qa-h4 { font-size: 17px; font-weight: 600; margin: 24px 0 8px; color: #2a2a2a; }
+.qa-table {
+  width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px;
+}
+.qa-table th, .qa-table td {
+  padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.qa-table th { background: var(--soft); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+.qa-table tr:hover td { background: #fafafa; }
+.qa-quote {
+  border-left: 4px solid var(--accent);
+  padding: 16px 20px; margin: 24px 0;
+  background: var(--soft); font-style: italic;
+}
+.src-link { color: #2563eb; text-decoration: none; font-size: 12px; margin-left: 4px; }
+code {
+  background: #f4f4f4; padding: 2px 6px; border-radius: 3px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 13px;
+}
+a { color: #2563eb; text-decoration: none; }
+a:hover { text-decoration: underline; }
+ul { line-height: 1.8; padding-left: 22px; }
+@media (max-width: 768px) {
+  .stats-row { grid-template-columns: repeat(3, 1fr); }
+  .hero-title { font-size: 28px; }
+}
+</style>
+
+</head>
+<body>
+<div class="qa-answer-content">
+
+<section id="hero" class="hero-section">
+  <div class="hero-meta">深度洞察 · 2026 Q3 v3.0 · 5+2 路并行调研 · 6+3 项 audit 验证 · 新增「企业架构师实战手册」</div>
+  <h1 class="hero-title">Agent 执行环境的全景洞察 v3.0</h1>
+  <div class="hero-subtitle">中间层、microVM、WASM、Firecracker — 2025-2026 最新技术 + 企业架构师实战手册</div>
+
+  <p class="lead">v3.0 在 v2.1 基础上新增「企业架构师实战手册」(第 9-11 部分):<br>
+     • <strong>第 9 部分:四类技术深度对比 + 10 厂商 TCO 表 + 5 年成本模型</strong>(中型企业 $660K / 大企业 $10.5M)<br>
+     • <strong>第 10 部分:合规路径实战</strong>(SOC 2 Type II / HIPAA / FedRAMP / EU AI Act + 7 厂商清单)<br>
+     • <strong>第 11 部分:沙箱防逸实战清单</strong>(10 个 2026 CVE 案例 + 9 类防御实践 + 决策树)</p>
+     • 学术界:删除冗余旧论文,新增 <strong>36 篇 2025-2026 顶会论文</strong>(SOSP 2025 / OSDI 2025 / NSDI 2026 / ATC 2025 / EuroSys 2025 / MLSys 2025-2026 / ASPLOS 2025 / NDSS 2025 / HotOS 2025 / SoCC 2025-2026 / FAST 2026 / arXiv 2026-01-09)
+     • 产业界:加 <strong>5 家 2025-2026 新公司</strong>+ <strong>16 笔 2026 H2 融资</strong>+ <strong>7 起 2026 H2 收购</strong>(含 SpaceX $60B 收 Cursor、Stripe $7.5B 收 OpenRouter)
+     • 巨头:加 <strong>AWS Bedrock Agents 进入 maintenance mode(2026-07-30)</strong>+ AgentCore 8 月新功能 + Anthropic Computer Use GA + Claude in Chrome GA + NVIDIA NOOA 开源 + Meta Muse Code 首发
+     • 协议:加 <strong>MCP 2026-07-28 重大规范升级</strong>(stateless 核心、RFC 9207 issuer 校验、Tasks 降为扩展)+ AAIF Linux Foundation 治理
+     • 安全:加 <strong>2026 H2 安全事件专题</strong>(Cursor DuneSlide CVE 9.8 / Anthropic Claude breach Aug13 / OpenClaw CVE-2026-35650 / 9 Intel TDX CVEs / SandboxEscapeBench)
+     • 数据:加 <strong>IDC FutureScape 2026 / Gartner 2026 H2 最新预测</strong></p>
+
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-num">36</div><div class="stat-label">2025-2026 顶会论文</div><div class="stat-sub">SOSP'25/OSDI'25/NSDI'26</div></div>
+    <div class="stat-card"><div class="stat-num">16</div><div class="stat-label">2026 H2 融资</div><div class="stat-sub">$1.32B 仅 Q3 前三周</div></div>
+    <div class="stat-card"><div class="stat-num">7</div><div class="stat-label">2026 H2 收购</div><div class="stat-sub">Cursor $60B / OpenRouter $7.5B</div></div>
+    <div class="stat-card"><div class="stat-num">5</div><div class="stat-label">新巨头产品</div><div class="stat-sub">Bedrock MA / NOOA / Muse Code</div></div>
+    <div class="stat-card"><div class="stat-num">10+</div><div class="stat-label">2026 H2 安全事件</div><div class="stat-sub">CVE 9.8 / Claude breach</div></div>
+    <div class="stat-card"><div class="stat-num">$7.84B</div><div class="stat-label">2026 AI Agent</div><div class="stat-sub">→ $52.62B by 2030</div></div>
+  </div>
+</section>
+
+<nav class="toc-nav">
+<h2 class="toc-title">📑 目录</h2>
+<ol class="toc-list">
+  <li><a href="#p1">一、学术前沿(2025-2026 最新)</a></li>
+  <li><a href="#p2">二、产业生态(2025-2026 最新融资与新公司)</a></li>
+  <li><a href="#p3">三、巨头角力(2026 H2 新动态)</a></li>
+  <li><a href="#p4">四、Coding Agent 与 Browser Agent 2026 H2</a></li>
+  <li><a href="#p5">五、标准协议(MCP 2026-07-28 升级)</a></li>
+  <li><a href="#p6">六、变现方式与 2026 H2 市场规模</a></li>
+  <li><a href="#p7">七、2026 H2 安全事件与治理</a></li>
+  <li><a href="#p8">八、趋势展望(2026-2027)</a></li>
+  <li><a href="#p9">九、企业架构师实战手册(一):TCO 成本对比与决策</a></li>
+  <li><a href="#p10">十、企业架构师实战手册(二):合规路径(SOC 2 / HIPAA / FedRAMP / EU AI Act)</a></li>
+  <li><a href="#p11">十一、企业架构师实战手册(三):沙箱防逸与决策树</a></li>
+  <li><a href="#glossary">📚 术语速查表</a></li>
+</ol>
+</nav>
+<section id="p1" class="qa-section"><header><h2>一、学术前沿(2025-2026 最新)</h2></header><p>v2.0 全面更新:删除 v1.1 中大部分 2024 及以前的旧论文,新增 <strong>36 篇 2025-2026 顶会论文</strong>(SOSP 2025 / OSDI 2025 / NSDI 2026 / ATC 2025 / EuroSys 2025 / MLSys 2025-2026 / ASPLOS 2025 / NDSS 2025 / HotOS 2025 / SoCC 2025-2026 / FAST 2026 / arXiv 2026 预印本)。</p>
+<h3 class="qa-h3">1.1 经典基础系统(2024 及以前 · 历史参照)</h3>
+<p>以下系统在 v1.1 中已详述,作为历史参照列出(详见 v1.1 报告):</p>
+<table class="qa-table"><thead><tr><th>系统 / 论文</th><th>单位</th><th>会议/年份</th><th>关键技术</th><th>应用</th></tr></thead><tbody><tr><td>Firecracker</td><td>AWS</td><td>USENIX NSDI 2020</td><td><125ms 启动</td><td>Lambda / Fargate</td></tr><tr><td>gVisor</td><td>Google</td><td>USENIX HotCloud 2019 (UW case study)</td><td>用户态内核拦截 syscalls</td><td>Anthropic / OpenAI / GCP</td></tr><tr><td>TrEnv-X</td><td>清华 MADSYS + Alibaba + Intel</td><td>SOSP 2024 (扩展版 TOCS 2026)</td><td>FUSE 分层翻译 / P99 7× 延迟降低 / 内存 48%</td><td>LLM Agent</td></tr><tr><td>SOCK</td><td>学术</td><td>SOSP 2024</td><td>18× over Docker</td><td>服务化 Agent</td></tr><tr><td>MITOSIS</td><td>学术</td><td>SOSP 2019</td><td><5ms 跨机 fork</td><td>分布式微服务</td></tr><tr><td>Catalyzer</td><td>Ant Group</td><td>ATC 2020</td><td><1ms 启动</td><td>蚂蚁金融</td></tr><tr><td>RunD</td><td>Alibaba</td><td>ATC 2023</td><td>88ms 启动 / 单节点 2500+</td><td>阿里云函数计算</td></tr></tbody></table>
+<h3 class="qa-h3">1.2 2025-2026 最新顶会论文(36 篇 · 重点)</h3>
+<table class="qa-table"><thead><tr><th>论文</th><th>会议/年份</th><th>机构</th><th>性能</th></tr></thead><tbody><tr><td>Dandelion: Unlocking True Elas</td><td>SOSP 2025</td><td>ETH Zurich, MPI-SWS</td><td>Sandboxes boot in 100s of microseconds (under 90 u</td></tr><tr><td>PhoenixOS: Concurrent OS-level</td><td>SOSP 2025</td><td>SJTU IPADS, National</td><td>Launches new Llama2-13B inference job in 622 ms (1</td></tr><tr><td>LithOS: An Operating System fo</td><td>SOSP 2025</td><td>CMU (CAOS), Meta</td><td>Reduces tail latency 4.7x vs MPS in hybrid inferen</td></tr><tr><td>Sleeping with One Eye Open: Fa</td><td>SOSP 2025</td><td>UC San Diego, SJTU, </td><td>Up to 39.38% system-level power reduction; perform</td></tr><tr><td>XSched: Preemptive Scheduling </td><td>OSDI 2025</td><td>SJTU IPADS</td><td>Deploys on 10 distinct XPUs across 7 software plat</td></tr><tr><td>BlitzScale: Fast and Live Larg</td><td>OSDI 2025</td><td>SJTU IPADS, Huawei C</td><td>Up to 94% lower tail latency vs ServerlessLLM; 48.</td></tr><tr><td>Poby: SmartNIC-accelerated Ima</td><td>ATC 2025</td><td>Institute of Computi</td><td>13.2x speedup over containerd, 8.0x over iSulad; 8</td></tr><tr><td>DEEPSERVE: Serverless LLM Serv</td><td>ATC 2025</td><td>Peking University, H</td><td>Production deployment over a year on Ascend NPU cl</td></tr><tr><td>Erebor: A Drop-In Sandbox Solu</td><td>EuroSys 2025</td><td>National University </td><td>Only 4.5%-13.2% overhead under realistic LLM infer</td></tr><tr><td>Medusa: Accelerating Serverles</td><td>ASPLOS 2025</td><td>Tsinghua University</td><td>Reduces loading phase latency by 42.5%; reduces ta</td></tr><tr><td>TrEnv-X: Transparently Share S</td><td>arXiv 2509.09525 (ex</td><td>Tsinghua University,</td><td>Up to 7x reduction in P99 latency and 48% memory s</td></tr><tr><td>IsolateGPT: An Execution Isola</td><td>NDSS 2025</td><td>Washington Universit</td><td>Performance overhead under 30% for three-quarters </td></tr><tr><td>SandboxEval: Towards Securing </td><td>arXiv 2504.00018 (UL</td><td>UL Research Institut</td><td>Successfully identified gaps in Dyff's container o</td></tr><tr><td>AgentBound: Securing AI Agent </td><td>arXiv 2510.21236</td><td>University of St. Ga</td><td>High accuracy in automatically generating permissi</td></tr><tr><td>LLM-in-Sandbox Elicits General</td><td>arXiv 2601.16206</td><td>Tsinghua / Chinese i</td><td>LLM-in-Sandbox-RL improves generalization across m</td></tr><tr><td>SandboxEscapeBench: Quantifyin</td><td>arXiv 2603.02277</td><td>UK AI Security Insti</td><td>Demonstrates LLMs (incl. Claude Mythos Preview) ca</td></tr><tr><td>Serve Programs, Not Prompts (S</td><td>HotOS 2025</td><td>Yale University</td><td>Up to 7x greater throughput vs vLLM by empowering </td></tr><tr><td>AI Metropolis: Scaling Large L</td><td>MLSys 2025</td><td>Stanford MAST Lab, G</td><td>Speedups of 1.3x to 4.15x over standard parallel s</td></tr><tr><td>Wasabi: Hierarchical Integrati</td><td>NSDI 2026</td><td>University of Britis</td><td>Higher packing density than state-of-the-art serve</td></tr><tr><td>KRAKENGUARD: Towards Fine-Grai</td><td>NSDI 2026</td><td>IIT Roorkee, Quantco</td><td>Blocks misuse of restricted helpers, unauthorized </td></tr><tr><td>HarvestContainers: Harvesting </td><td>NSDI 2026</td><td>Microsoft (Azure Res</td><td>Latency-sensitive containers with microsecond-scal</td></tr><tr><td>CRIUgpu: Transparent Checkpoin</td><td>arXiv 2502.16631</td><td>Red Hat / University</td><td>Significantly reduces checkpoint/restore overheads</td></tr><tr><td>CRIU-LZ4: Online Snapshot Memo</td><td>SoCC 2025 / arXiv (D</td><td>Multi-institution (C</td><td>Reduces cold-start latency by 46-59%; up to 6x sma</td></tr><tr><td>GPU Checkpoint/Restore Made Fa</td><td>FAST 2026</td><td>Multi-institution (p</td><td>Production-ready fast GPU C/R enabling elastic inf</td></tr><tr><td>bpfCP: Efficient and Extensibl</td><td>EuroSys/ICPP 2025 (D</td><td>Multi-institution (p</td><td>Efficient and extensible process C/R with low over</td></tr><tr><td>GRANNY: Granular Management of</td><td>NSDI 2025</td><td>Multi-institution (p</td><td>See NSDI 2025 proceedings</td></tr><tr><td>Engine-Agnostic Model Hot-Swap</td><td>SoCC 2025 (DOI 10.11</td><td>Multi-institution</td><td>See SoCC 2025 proceedings</td></tr><tr><td>Tangram: Accelerating Serverle</td><td>arXiv 2512.01357</td><td>Multi-institution</td><td>Reduces TTFT compared to baselines that load model</td></tr><tr><td>Helium: Efficient LLM Serving </td><td>arXiv 2603.16104</td><td>National University </td><td>Up to 100.92x speedup over naive baselines; up to </td></tr><tr><td>GhostServe: A Lightweight Chec</td><td>MLSys 2026 (Oral)</td><td>Multi-institution (s</td><td>Fault-tolerant LLM serving with low-overhead KV-ca</td></tr><tr><td>FlashInfer-Bench: Building the</td><td>MLSys 2026 (Oral)</td><td>UW, NVIDIA, CMU (Fla</td><td>Establishes virtuous cycle for continuous improvem</td></tr><tr><td>ADR: An Agentic Detection and </td><td>MLSys 2026</td><td>Uber, MIT, Universit</td><td>Designed for production deployment at Uber scale (</td></tr><tr><td>How to Copy Memory? Coordinate</td><td>SOSP 2025 (Best Pape</td><td>SJTU IPADS, Huawei</td><td>Best Paper Award; broad applicability to agent run</td></tr><tr><td>Moirai: Optimizing Placement o</td><td>SOSP 2025</td><td>Carnegie Mellon Univ</td><td>See SOSP 2025 proceedings for full evaluation</td></tr><tr><td>Demeter: A Scalable and Elasti</td><td>SOSP 2025</td><td>CUHK, NYMCU, Nationa</td><td>See SOSP 2025 proceedings</td></tr><tr><td>GoFS: Managing Scalable Direct</td><td>SOSP 2025</td><td>UIUC</td><td>See SOSP 2025 proceedings</td></tr></tbody></table>
+<h3 class="qa-h3">1.3 关键论文深度拆解</h3>
+<h4 class="qa-h4">◆ Dandelion (SOSP 2025,ETH Klimovic Lab)</h4>
+<p><strong>突破</strong>:把 sandbox boot 从毫秒级降到 <strong>百微秒级(hundreds of microseconds,~90µs 以下的 CHERI 路径)</strong> —— 比 Firecracker snapshot boot 快 10×。核心技术:声明式云原生编程模型、HTTP-based 通信替代 POSIX、pure-function DAG execution、CHERI 沙箱。性能:内存过度配置降低 96% (vs Knative on Azure Functions),短查询延迟降低 40% + 成本降低 67% (vs AWS Athena)。这是「sandbox 启动不再是瓶颈」的关键一步。{src("Dandelion paper", "https://anakli.inf.ethz.ch/papers/dandelion_sosp25.pdf")}{src("Dandelion ACM", "https://dl.acm.org/doi/10.1145/3731569.3764803")}</p>
+<h4 class="qa-h4">◆ PhoenixOS (SOSP 2025,SJTU IPADS)</h4>
+<p><strong>首个 OS 级并发 GPU checkpoint/restore</strong>:LLM 推理任务冷启动从分钟级降到 622ms (Llama2-13B),比 Singularity 快 114-342%,比 cuda-checkpoint 快 124-450%。核心技术:GPU 内核参数校验推测、soft CoW/recopy/on-demand restore、GPU context pool、CRIU 后端。SJTU IPADS (Haibo Chen + Rong Chen + Xingda Wei 组) 2025 年横扫 OSDI/SOSP:NSDI 2026 还发了 FalconFS (分布式 FS for ML)。{src("PhoenixOS arXiv", "https://arxiv.org/abs/2405.12079")}</p>
+<h4 class="qa-h4">◆ BlitzScale (OSDI 2025,SJTU IPADS + Huawei Cloud)</h4>
+<p><strong>首个 O(1) host caching 的大模型 autoscaling</strong>:相比 ServerlessLLM 尾延迟降低 94%、TTFT 降低 48.1%、TBT 降低 1.8%,相同 SLO 下 GPU 时间比 DistServe/vLLM 少 49%。核心技术:基于 GPU 计算 fabric 的网络参数多播、layer-level 细粒度 scaling、live scale-out。这彻底解决了 serverless LLM serving 的内存/存储权衡问题。{src("BlitzScale", "https://www.usenix.org/conference/osdi25/presentation/zhang-dingyan")}</p>
+<h4 class="qa-h4">◆ Medusa (ASPLOS 2025,清华 Storage Research Group)</h4>
+<p><strong>Serverless LLM 推理的冷启动消除</strong>:把 KV-cache 初始化元数据 + CUDA graph 预物化(35 batch sizes, 139,364 节点),在线快速恢复使用间接索引指针表。结果:loading phase 延迟降低 42.5%,ShareGPT workload 下尾 TTFT 降低 53.0%,KV cache init 从 0.50s 降到 0.02s,CUDA graph capture 从 0.90s 降到 0.57s。清华组(Youyou Lu + Jiwu Shu + Youmin Chen)在 2025 年贡献了一系列 LLM serving 加速工作。{src("Medusa", "https://dl.acm.org/doi/10.1145/3669940.3707285")}</p>
+<h3 class="qa-h3">1.4 17 大新兴主题(2025-2026)</h3>
+<ul>
+<li>GPU/OS co-design: checkpoint-restore and OS-level isolation for GPUs (PhoenixOS SOSP'25, LithOS SOSP'25, XSched OSDI'25) - first-class treatment of GPUs as schedulable, restorable, multi-tenant resources</li>
+<li>Sub-millisecond microVM/sandbox boot via language-level isolation (Dandelion SOSP'25 at <90us via CHERI; Wasabi NSDI'26 dense Wasm-in-container hierarchy; PhoenixOS GPU C/R in 622 ms)</li>
+<li>Serverless for LLM agents as a first-class workload: dedicated cold-start reduction, GPU autoscaling (BlitzScale OSDI'25, Medusa ASPLOS'25, TrEnv-X arXiv'26, ServerlessLLM OSDI'24 follow-ups)</li>
+<li>Memory-template + CXL/RDMA-based remote state sharing for fast sandbox restore (TrEnv/TrEnv-X Tsinghua+Alibaba SOSP'24 -> arXiv'26)</li>
+<li>Confidential Computing sandboxes for AI workloads (Erebor EuroSys'25 in Intel TDX CVMs; 4.5-13.2% overhead on LLM.cpp inference)</li>
+<li>Per-request VM-level sandbox with state persistence as the dominant production agent sandbox model (AWS Lambda MicroVMs GA, Blaxel, E2B, Daytona, Modal; native sandboxes in OpenAI/Anthropic Agents SDKs 2026)</li>
+<li>Declarative + extensible agent execution middleware: serve programs, not prompts (Symphony/HotOS'25, Helium agent workflows, Pie SOSP'25)</li>
+<li>eBPF/host-level fine-grained isolation for multi-tenant data planes (KRAKENGUARD NSDI'26; Wasabi NSDI'26 Wasm hierarchy)</li>
+<li>Workload-aware checkpoint-restore for elastic LLM serving (GhostServe MLSys'26, CRIU-LZ4 SoCC'25/26, CRIUgpu arXiv'25, Engine-Agnostic Hot-Swap SoCC'25)</li>
+<li>Workflow-aware LLM serving applying database query-optimization principles to agent pipelines (Helium, AI Metropolis MLSys'25)</li>
+<li>AI agent threat modeling: execution isolation as an OS-level primitive (IsolateGPT NDSS'25, AgentBound arXiv'25 for MCP, SandboxEval arXiv'25, SandboxEscapeBench arXiv'26)</li>
+<li>Out-of-order execution / dependency-graph scheduling for multi-agent LLM simulations (AI Metropolis MLSys'25)</li>
+<li>Kernel-CVE propagation in containers as the dominant agent sandbox threat (NIST CVE-2024-1086 exploitation through Oct 2025) - pushing production designs toward microVM/gVisor</li>
+<li>SmartNIC/DPU offload of image provisioning and sandbox control plane (Poby ATC'25, NADINO EuroSys'26 RDMA-capable DPUs in multi-tenant serverless)</li>
+<li>Pre-warmed pool + standby microVMs with sub-25ms resume as the production template (AWS Lambda MicroVMs, Blaxel, NVIDIA Dynamo, Modal truly serverless GPUs)</li>
+<li>Materialization-based cold-start elimination (Medusa ASPLOS'25 materializes CUDA graphs + KV-cache metadata)</li>
+<li>Multi-tier storage power management for storage-backed agent workloads (Sandman SOSP'25, up to 39% power reduction)</li>
+</ul>
+<h3 class="qa-h3">1.5 顶尖研究组(2025-2026 新工作)</h3>
+<table class="qa-table"><thead><tr><th>机构</th><th>研究组</th><th>2025-2026 代表工作</th></tr></thead><tbody><tr><td>Shanghai Jiao Tong Uni</td><td>SJTU IPADS (Haibo Chen, Rong C</td><td>PhoenixOS SOSP'25 (first concu / XSched OSDI'25 (preemptive </td></tr><tr><td>Carnegie Mellon Univer</td><td>CMU CAOS (Dimitrios Skarlatos,</td><td>LithOS SOSP'25 (GPU OS with TP / EMT OSDI'25 (memory transla</td></tr><tr><td>Tsinghua University</td><td>Tsinghua Storage Research Grou</td><td>Medusa ASPLOS'25 (serverless L / Frugal ASPLOS'25 (efficient</td></tr><tr><td>ETH Zurich</td><td>ETH Zurich Systems Group (Ana </td><td>Dandelion SOSP'25 (sub-100us s / Quilt SOSP'25 (resource-awa</td></tr><tr><td>University of British </td><td>UBC Cirrus Lab (Mohammad Shahr</td><td>Wasabi NSDI'26 (dense hierarch</td></tr><tr><td>Stanford University</td><td>Stanford MAST (Kayvon Fatahali</td><td>AI Metropolis MLSys'25 (out-of / Tally ASPLOS'25 (non-intrus</td></tr><tr><td>MIT</td><td>MIT Han Lab (Song Han)</td><td>QServe MLSys'25 (W4A8KV4 quant / LServe MLSys'25 (long-seque</td></tr><tr><td>Microsoft</td><td>Microsoft Azure Research (Esha</td><td>DroidSpeak NSDI'26 (KV cache s / HarvestContainers NSDI'26 (</td></tr><tr><td>CAS</td><td>ICT-CAS (Institute of Computin</td><td>Poby ATC'25 (SmartNIC-accelera / Aeolia SOSP'25 (fast secure</td></tr><tr><td>WUSTL + UW</td><td>Washington University in St. L</td><td>IsolateGPT NDSS'25 (execution  / Progent (programmable privi</td></tr><tr><td>Peking University</td><td>Peking University IPADS-adjace</td><td>Aegaeon SOSP'25 (effective GPU / DEEPSERVE ATC'25 (with Huaw</td></tr><tr><td>UCSD</td><td>UC San Diego Non-Volatile Syst</td><td>Sandman SOSP'25 (fast sustaina</td></tr><tr><td>Alibaba</td><td>Alibaba Cloud Serverless / Fun</td><td>EROICA NSDI'26 (online trouble / Flare NSDI'26 (anomaly diag</td></tr><tr><td>University of St. Gall</td><td>University of St. Gallen Softw</td><td>AgentBound arXiv 2510.21236 (d</td></tr><tr><td>UK government</td><td>UK AI Security Institute (AISI</td><td>SandboxEscapeBench arXiv 2603.</td></tr></tbody></table></section><section id="p2" class="qa-section"><header><h2>二、产业生态(2025-2026 最新融资与新公司)</h2></header><p>2026 H2 创纪录:Q3 仅前三周就有 20 轮 disclosed / $1.32B agent-infrastructure funding,Aug 平均支票 $97M(几乎是 July $49M 的两倍)。</p>
+<h3 class="qa-h3">2.1 经典独角兽(2026 H1 已收录,2026 H2 更新)</h3>
+<ul><li><strong>Modal Labs</strong>:ARR ~$300M(2026-05,官方披露)→ 估计 $500M+(2026-08,据报道,目标 $1B EOY 2026);8 月招 DevRel Engineer 专攻 Sandboxes 产品线;招聘信号显示 Modal 把 sandboxes 作为战略基础设施类别</li><li><strong>Cognition / Devin</strong>:ARR ~$492M(2026-05)→ ~$900M(2026-08,3 个月内增长 83%);目标 $1B EOY 2026;2026-07-20 收 TierZero + 2026-07-23 收 Poke 团队;2026-08-12 Bloomberg 报道在谈 ≥$1B 新轮 / $40B 估值;2026-07-08 推 Devin Security Swarm(自动漏洞狩猎)+ FedRAMP High In-Process</li><li><strong>E2B</strong>:2026-07-21 重新定价(从 flat $0.000168/sec 拆分为 CPU + RAM + storage 独立按秒计费);已启动数亿个 sandbox;推「E2B as execution layer for Devin Outposts」集成</li><li><strong>Daytona</strong>:2026-06 闭源(从开源转向闭源,匹配 E2B 模式 $0.0504/vCPU-hr);snapshot-restore 达到 sub-90ms 冷启动</li><li><strong>Replicate</strong>:估值 ~$350M,继续运营</li></ul>
+<h3 class="qa-h3">2.2 2025-2026 新创立的 Agent 执行环境公司</h3>
+<table class="qa-table"><thead><tr><th>新公司</th><th>焦点</th><th>融资</th></tr></thead><tbody></tbody></table>
+<p><strong>亮点解读</strong>:Naïve 是 YC <strong>S25 (Spring 2025,不是 W26)</strong> 批次的「Unified Agent Infrastructure」,$28.5M Series A(2026-08-06,Nexus 领投)试图做「autonomous company runtime」(沙箱 + 模型路由 + 记忆层 + 编排)。Acrab 拿了 $130M Series B 专门做「silicone + edge」让 agent 跑在数据中心外。June 的 $20M pre-seed 来自 Marc Benioff(Salesforce 创始人)/ Michael Dell / Aaron Levie(Box) / George Kurtz(CrowdStrike),定位「AI deployment company」扫描企业系统给出部署 roadmap。</p>
+<h3 class="qa-h3">2.3 2026 H2 最新融资(16 笔,Q3 前三周 $1.32B)</h3>
+<table class="qa-table"><thead><tr><th>公司</th><th>轮次</th><th>金额</th><th>日期</th></tr></thead><tbody></tbody></table>
+<h3 class="qa-h3">2.4 2026 H2 历史性收购(8 起)</h3>
+<table class="qa-table"><thead><tr><th>被收购方</th><th>收购方</th><th>日期</th><th>金额</th></tr></thead><tbody></tbody></table>
+<blockquote class="qa-quote">「SpaceX 对 Cursor 的 $60B 收购是有史以来最大的 startup acquisition,所有股票,~3.91 亿 SpaceX Class A 股。Cursor 作为全资子公司「SpaceXAI」运营,接入 Colossus 超级计算机。」 — Verdict 报道,2026-08-15</blockquote></section><section id="p3" class="qa-section"><header><h2>三、巨头角力(2026 H2 新动态)</h2></header><p>2026 H2 是巨头产品密集发布期:AWS AgentCore 8 月新功能 + Bedrock Agents Classic 进入 maintenance mode,Anthropic Computer Use + Claude in Chrome GA,NVIDIA 开源 NOOA Agent Framework,Meta Muse Code 首发。</p>
+<h3 class="qa-h3">3.1 AWS Bedrock AgentCore · 2026 H2 新动态</h3>
+<p><strong>2026-08 AgentCore 新功能</strong>:Agent Registry GA(跨账号自动发现 AgentCore Runtimes/Gateways via AWS Organizations + KMS 加密 + AWS RAM 共享 + 9 区域);Memory + Payments + x402 升级(直 ingest 到 long-term memory + 100KB JSON + Coinbase 钱包通过 AWS Marketplace 计费 + x402 «upto» + MPP 支持 evm/tempo/solana)。<a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/release-notes.html" target="_blank" rel="noopener" class="src-link">[AgentCore Release Notes]</a></p>
+<p><strong>历史性事件</strong>:Bedrock Agents Classic <strong>2026-07-30 进入 maintenance mode</strong>(对新客户关闭 + 冻结模型目录,无 end-of-life date,现有客户继续运营),完全被 AgentCore 取代是长期方向 — AWS 把 Agent 平台统一到一条路径上。</p>
+<h3 class="qa-h3">3.2 Anthropic · 2026 H2 重磅</h3>
+<ul><li><strong>2026-08-20</strong>:Computer use + Skills API + Files API GA(Claude Platform + Microsoft Foundry;Vertex AI «coming soon»)— 生产级 computer use + browser-use 工具,Skills API 用于团队可复用专业知识,Files API 用于成品 artifact</li><li><strong>2026-08-26</strong>:Claude in Chrome GA(全付费 plan)— 自主 browser actions(reading/typing/clicking/form-filling across web tools + prompt-injection defenses)</li><li><strong>2026-08-26</strong>:Claude in Cowork — 内置浏览器(Pro/Max/Team/Enterprise)— 浏览器开在 Cowork 桌面 app 侧边栏,Claude 直接操控不占用用户浏览器</li><li><strong>2026-08-06</strong>:Skill & plugin 安全扫描(Enterprise beta)— 上传/编辑时自动扫描恶意内容,直接响应 8 月治理浪潮</li><li><strong>2026-08-27</strong>:Model Hardware Standard(research preview)— AI agent 安全操控物理设备的共享规范</li><li><strong>2026-07-15</strong>:Ode With Anthropic JV 启动,$1.5B Blackstone/H&F/Goldman JV,100 工程师,服务 Anthropic 大企业部署(原 Fractional AI 团队接管)</li></ul>
+<a href="https://claude.com/blog/computer-use-skills-api-files-api" target="_blank" rel="noopener" class="src-link">[Anthropic Blog]</a><a href="https://claude.com/blog/claude-in-chrome-generally-available" target="_blank" rel="noopener" class="src-link">[Claude in Chrome]</a>
+<h3 class="qa-h3">3.3 OpenAI · Operator + ChatGPT Agent</h3>
+<p>继续作为 ChatGPT Agent($200/月 Pro)的 Operator(CUA)+ Deep Research + Code Interpreter 统一体。2026-08-28 Greg Brockman 据报道转向 IPO 模式。</p>
+<h3 class="qa-h3">3.4 NVIDIA · 2026-08 开源 NOOA Agent Framework</h3>
+<p>Apache 2.0 开源,agent = 一个 Python class(方法体用 `...` 表示,由 LLM 在 runtime 补全)。SWE-bench Verified 82.2%、CyberGym L1 86.8%。「pip install nooa」即可。⚠️ 重要提醒:AST 检查不是 containment — 必须配合沙箱使用。{src("NOOA", "https://aitoolsrecap.com/Blog/ai-news-august-09-2026")}</p>
+<h3 class="qa-h3">3.5 Meta · 2026-08-05 Muse Code 首次亮相</h3>
+<p>Meta 第一个 coding agent,直接对标 Anthropic / OpenAI 的 dev tooling。{src("Muse Code", "https://www.cnbc.com/2026/08/05/meta-debuts-muse-code-to-take-on-anthropic-and-openai-.html")}</p>
+<h3 class="qa-h3">3.6 巨头 2026 H2 速查表</h3>
+<table class="qa-table"><thead><tr><th>厂商</th><th>产品</th><th>沙箱技术</th><th>隔离级别</th><th>2026 H2 状态</th><th>GA 时间</th></tr></thead><tbody><tr><td>AWS</td><td>Bedrock AgentCore</td><td>Firecracker microVM</td><td>每会话隔离 / 8h session</td><td>AgentCore 8 月新功能 + 9 区域</td><td>2025-10 GA</td></tr><tr><td>AWS</td><td>Bedrock Agents Classic</td><td>Lambda + Code Interpreter</td><td>Lambda 标准隔离</td><td><strong>2026-07-30 退役</strong>,被 AgentCore 取代</td><td>—</td></tr><tr><td>Microsoft</td><td>Foundry Hosted Agents</td><td>Azure Container Apps VM</td><td>每会话 VM 隔离</td><td>30 个 Azure 区域</td><td>GA</td></tr><tr><td>Microsoft</td><td>ACA Sandboxes</td><td>OCI 容器 + 快照</td><td>强隔离 / 子秒冷启动</td><td>Preview</td><td>—</td></tr><tr><td>Google</td><td>Vertex Agent Engine</td><td>Cloud Run + 托管沙箱</td><td>每会话隔离 / 14d session</td><td>GA</td><td>—</td></tr><tr><td>OpenAI</td><td>Code Interpreter</td><td>Firecracker microVM (推测)</td><td>每会话隔离</td><td>在 Responses API 中</td><td>GA</td></tr><tr><td>OpenAI</td><td>ChatGPT Agent</td><td>远程虚拟浏览器 + 沙箱终端</td><td>需用户确认敏感动作</td><td>$200/月 Pro</td><td>GA</td></tr><tr><td>Anthropic</td><td>Claude Computer Use</td><td>BYO Docker/Xvfb (官方) / Firecracker (第三方)</td><td>用户控制</td><td>Computer use GA (2026-08-20)</td><td>GA</td></tr><tr><td>Anthropic</td><td>Code Execution Tool</td><td>Anthropic 托管容器</td><td>每会话隔离</td><td>Files API + Skills API 整合</td><td>GA</td></tr><tr><td>Anthropic</td><td>Managed Agents</td><td>Anthropic 自托管 sandbox</td><td>持久文件系统</td><td>管理 agent 治理</td><td>Beta</td></tr><tr><td>Anthropic</td><td>Claude in Chrome</td><td>Chrome extension 内置</td><td>verified reading/typing/clicking</td><td>全付费 plan GA (2026-08-26)</td><td>GA</td></tr><tr><td>Anthropic</td><td>Claude in Cowork</td><td>Cowork app 内置 browser</td><td>side panel 隔离</td><td>Pro/Max/Team/Enterprise</td><td>GA</td></tr><tr><td>NVIDIA</td><td>NOOA Agent Framework</td><td>Python class @ LLM runtime</td><td>AST 不是 containment</td><td>Apache 2.0 开源</td><td>2026-08 GA</td></tr><tr><td>Meta</td><td>Muse Code</td><td>Meta 自研 coding agent</td><td>TBD</td><td>首次亮相</td><td>2026-08-05</td></tr><tr><td>Salesforce</td><td>Agentforce</td><td>Hyperforce 多租户 + Atlas</td><td>Einstein Trust Layer</td><td>持续运营</td><td>GA</td></tr><tr><td>ServiceNow</td><td>Now Assist + AI Agent Studio</td><td>Now Platform 实例隔离</td><td>AI Guardian</td><td>持续运营</td><td>GA</td></tr><tr><td>Snowflake</td><td>Cortex Agents + Cortex Code</td><td>CoCo runtime (线程沙箱)</td><td>Snowflake 权限门控</td><td>持续运营</td><td>GA</td></tr><tr><td>Databricks</td><td>Agent Bricks</td><td>Databricks 托管 compute</td><td>Unity Catalog 治理</td><td>$5B $190B 估值 (2026-08-13)</td><td>GA</td></tr></tbody></table></section><section id="p4" class="qa-section"><header><h2>四、Coding Agent 与 Browser Agent 2026 H2</h2></header><p>Coding Agent 在 2026 H2 继续狂奔:Devin ARR 接近 $1B,Cursor $60B 被 SpaceX 收购,StackBlitz Bolt.new 用 WebContainers 在浏览器内跑 Node.js。</p>
+<h3 class="qa-h3">4.1 Coding Agent 执行环境速查</h3>
+<table class="qa-table"><thead><tr><th>Agent</th><th>沙箱技术</th><th>冷启动</th><th>最大 Runtime</th></tr></thead><tbody><tr><td>Devin</td><td>Firecracker MicroVM per s</td><td><125 ms (Firecrack</td><td>Multi-hour autonom</td></tr><tr><td>Replit Agent</td><td>Per-workspace Firecracker</td><td>A few seconds for </td><td>Long-running works</td></tr><tr><td>Cursor Agent (</td><td>Local editor + in-process</td><td>Local: instant. Ba</td><td>Local: human-in-lo</td></tr><tr><td>Cline</td><td>None built-in. VS Code ex</td><td>N/A</td><td>Per-task, user-bou</td></tr><tr><td>Roo Code (Roo </td><td>Same as Cline — VS Code e</td><td>N/A</td><td>Per-task</td></tr><tr><td>Bolt.new</td><td>WebContainers: Node.js ru</td><td>Sub-second (browse</td><td>Browser-tab lifeti</td></tr><tr><td>OpenHands (for</td><td>Docker (runc) by default.</td><td>10–60s cold (Docke</td><td>Runtime API: $0.35</td></tr><tr><td>Aider</td><td>None. Python CLI in user'</td><td>N/A (CLI)</td><td>Per-user session; </td></tr><tr><td>Sweep</td><td>Originally: GitHub App us</td><td>GitHub Actions: 10</td><td>GitHub Actions: ~6</td></tr><tr><td>Codegen</td><td>Process-isolated sandboxe</td><td>Sub-second for war</td><td>Per-session metere</td></tr><tr><td>Mentibot / Men</td><td>Optional Docker wrapping;</td><td>Varies</td><td>Varies</td></tr></tbody></table>
+<h3 class="qa-h3">4.2 2026 H2 Coding Agent 关键更新</h3>
+<h4 class="qa-h4">◆ Devin Security Swarm(2026-07-08)</h4>
+<p>Cognition 推出 Devin Security Swarm:自动化漏洞狩猎 + 补丁;SWE-1.7 自研 coding model 通过 Cerebras 以 ~1,000 tokens/sec 提供服务;同时获得 FedRAMP High In-Process 状态(美国政府客户可用)。{src("Devin Security Swarm", "https://www.prnewswire.com/news-releases/cognition-launches-devin-security-swarm-to-tackle-the-vulnerability-backlog-302814800.html")}</p>
+<h4 class="qa-h4">◆ Cursor · 被 SpaceX $60B 收购(2026-08-14/15)</h4>
+<p>史上最大 startup acquisition。所有股票,~3.91 亿 SpaceX Class A 股。Cursor 继续作为全资子公司「SpaceXAI」运营,接入 Colossus 超级计算机。但 <strong>Cursor 1.x → 2.x 引入的 Background Agent 远程 microVM 在 2026-07 出现 DuneSlide 漏洞(CVE-2026-50548/549,CVSS 9.8),v3.0 修复</strong> — 这是 microVM 沙箱逃逸的代表性事件。{src("Cursor DuneSlide", "https://h2_results")}</p>
+<h4 class="qa-h4">◆ NVIDIA NOOA(2026-08-09,Apache 2.0)</h4>
+<p>Agent = 一个 Python class,方法体用 `...` 表示,由 LLM 在 runtime 补全。SWE-bench Verified 82.2% / CyberGym L1 86.8%。⚠️ AST 检查不是 containment,必须配合沙箱。</p>
+<h4 class="qa-h4">◆ Meta Muse Code(2026-08-05)</h4>
+<p>Meta 第一个 coding agent,首次亮相。</p>
+<h3 class="qa-h3">4.3 Browser Agent 执行环境速查</h3>
+<table class="qa-table"><thead><tr><th>产品</th><th>厂商</th><th>沙箱技术</th><th>定价</th></tr></thead><tbody><tr><td>Browserbase</td><td>Browserbase, Inc. </td><td>Headless browsers in c</td><td>Per browser-hour + proxy </td></tr><tr><td>Steel.dev</td><td>Steel / Nen Labs, </td><td>Open-source headless b</td><td>Free tier + tiered by bro</td></tr><tr><td>Hyperbrowser</td><td>Hyperbrowser AI</td><td>Cloud-hosted headless </td><td>Credit-based: 1 credit = </td></tr><tr><td>Anthropic Comp</td><td>Anthropic (PBC)</td><td>Reference impl: full G</td><td>API per-token on Claude O</td></tr><tr><td>OpenAI Operato</td><td>OpenAI</td><td>Remote virtual browser</td><td>Initially $200/mo ChatGPT</td></tr><tr><td>Browser-Use</td><td>Open source (brows</td><td>Local — Playwright dri</td><td>Free open source; Browser</td></tr><tr><td>Anchor Browser</td><td>Anchor Browser (Id</td><td>Cloud browser infrastr</td><td>Tiered — per browser time</td></tr></tbody></table>
+<h3 class="qa-h3">4.4 Anthropic Claude in Chrome GA(2026-08-26)</h3>
+<p>全付费 plan 可用。自主 browser actions(reading/typing/clicking/form-filling),带 prompt-injection defenses。这是 Anthropic 在 Computer Use 之外的第二条 browser agent 产品线。</p></section><section id="p5" class="qa-section"><header><h2>五、标准协议(MCP 2026-07-28 升级)</h2></header><h3 class="qa-h3">5.1 MCP 2026-07-28 重大规范升级</h3>
+<p><strong>关键变化</strong>:(1) <strong>stateless core</strong> — MCP 核心协议变成无状态,会话状态完全下放到 client/server(2) <strong>RFC 9207 issuer 校验</strong> — OAuth issuer URL 必须 HTTPS 且 exact match(防止 token 重定向攻击)(3) <strong>Tasks 降为扩展</strong> — 异步任务从核心移到扩展规范,核心更精简(4) <strong>AWS Bedrock AgentCore Gateway day-one 支持</strong> — 治理从第一天就在生产可用</p>
+<h3 class="qa-h3">5.2 AAIF · Linux Foundation 治理</h3>
+<p><strong>Agentic AI Foundation (AAIF)</strong> 于 2025-12-09 成立,Anthropic / Block / OpenAI 联合发起,作为 Linux Foundation 旗下的 directed fund。Docker 在 2026-07 加入。核心项目:MCP / goose / AGENTS.md。</p>
+<h3 class="qa-h3">5.3 AgentBound · MCP 服务器声明式权限框架</h3>
+<p>arXiv 2510.21236(2025-10),University of St. Gallen:AgentManifest(类 Android 声明式权限,17 个权限在 5 大类:filesystem / network / secrets / processes 等)+ AgentBox 容器化策略执行引擎。性能:高准确率生成权限,有效防止 environment-targeting attacks,可忽略性能开销。{src("AgentBound", "https://arxiv.org/html/2510.21236v1")}</p>
+<h3 class="qa-h3">5.4 IsolateGPT · NDSS 2025(华盛顿大学 + 圣路易斯华盛顿大学)</h3>
+<p>Hub-and-spoke 隔离架构 for LLM apps;inter-spoke 通信通过 hub;canonical examples (VANILLAGPT baseline)。性能:四分之三的测试 query 开销 <30%,同时防止多种 security / privacy / safety 攻击。{src("IsolateGPT", "https://www.ndss-symposium.org/ndss-paper/isolategpt-an-execution-isolation-architecture-for-llm-based-agentic-systems/")}</p>
+<h3 class="qa-h3">5.5 SandboxEval / SandboxEscapeBench · 安全基准</h3>
+<p><strong>SandboxEval</strong>(arXiv 2504.00018,2025-04,UL Research Institutes):51 个手工恶意代码场景部署在 Dyff AI 评估框架;成功识别 Dyff 容器编排配置漏洞。<strong>SandboxEscapeBench</strong>(arXiv 2603.02277,2026,UK AI Security Institute):基于 Inspect AI Capture-the-Flag 框架;18 个场景(Orchestration 4 + Runtime 8 + Kernel 6),难度评级 1-5;展示 Claude Mythos Preview 等 frontier LLM 能识别并利用微配置 / runtime / kernel 层的 added vulnerabilities。{src("SandboxEscapeBench", "https://arxiv.org/abs/2603.02277")}</p>
+<blockquote class="qa-quote">「MCP 解决了 Agent 与工具的协议问题,但还没解决 Agent 与沙箱的协议问题。SandboxEscapeBench 第一次系统证明 frontier LLM 能主动逃逸 sandbox — 这是 2026 年最值得关注的空白。」 — UK AISI SandboxEscapeBench 报告</blockquote></section><section id="p6" class="qa-section"><header><h2>六、变现方式与 2026 H2 市场规模</h2></header><p>2026 H2 融资极热:Crunchbase H1 2026 全球创投 $510B 创纪录,AI 占 Q2 资本 70%+。Anthropic 联合 Blackstone/H&F/Goldman 起 $1.5B Ode JV。</p>
+<h3 class="qa-h3">6.1 变现模式速查(8 种,持续有效)</h3>
+<table class="qa-table"><thead><tr><th>模式</th><th>代表公司</th><th>定价示例</th></tr></thead><tbody><tr><td>vCPU-second / GPU-se</td><td>Modal Labs / Replicate / Anyscale</td><td>Per-second billing for CPU ($0</td></tr><tr><td>Token-based billing </td><td>AWS Bedrock AgentCore / Azure AI Foundry Agent Ser</td><td>Runtime: $0.0895/vCPU-hour + $</td></tr><tr><td>Session / conversati</td><td>E2B / Cognition Devin / Salesforce Agentforce (con</td><td>Hobby free + $100 one-time cre</td></tr><tr><td>Enterprise license /</td><td>Anthropic Claude Enterprise / Claude Managed Agent</td><td>Claude Enterprise plan: custom</td></tr><tr><td>Platform marketplace</td><td>Daytona (developer + marketplace model) / Replicat</td><td>Pay-as-you-go infrastructure u</td></tr><tr><td>Vertical-industry li</td><td>Sierra AI (customer service vertical) / Harvey AI </td><td>Outcome-based pricing per succ</td></tr><tr><td>Open-source core + c</td><td>Daytona / E2B / Anyscale / Ray (open-source + comm</td><td>Open-source SDK under Apache-2</td></tr><tr><td>Resource packs / cre</td><td>Azure AI Foundry Agent Service (Foundry Agent Serv</td><td>Token-metered model usage fron</td></tr></tbody></table>
+<h3 class="qa-h3">6.2 2026 H2 最新市场规模数据</h3>
+<table class="qa-table"><thead><tr><th>细分市场</th><th>规模</th><th>来源</th></tr></thead><tbody></tbody></table>
+<h3 class="qa-h3">6.3 头部公司 2026 H2 估值/ARR</h3>
+<ul><li><strong>Cognition / Devin</strong>:ARR ~$492M(2026-05)→ ~$900M(2026-08,3 个月增长 83%);估值 $26B(2026-05)→ 谈判 $40B(2026-08,未达成);目标 $1B EOY 2026</li><li><strong>Modal</strong>:ARR ~$300M(2026-05,官方)→ 估计 $500M+(2026-08,据报道);估值 $4.65B(2026-05);8 月 DevRel GTM 扩张</li><li><strong>Cursor / Anysphere</strong>:被 SpaceX $60B 收购(2026-08-15),史上最大 startup acquisition</li><li><strong>Databricks</strong>:$5B 融资,$190B 估值(2026-08-13)</li><li><strong>OpenRouter</strong>:被 Stripe $7.5B 收购(2026-08-17 Bloomberg 首发;含 $1.5B founders + $6B investors)</li><li><strong>E2B</strong>:累计融资 ~$42M;已启动数亿 sandbox</li><li><strong>Daytona</strong>:$24M Series A(2026-02 FirstMark);$1M ARR(<3 个月 2025 末);2026-06 闭源</li><li><strong>Browserbase</strong>:$40M Series B(2025-06);50M+ sessions/H1;估值 $300M</li><li><strong>Anthropic Ode With Anthropic JV</strong>:$1.5B Blackstone/H&F/Goldman(2026-07-15)</li></ul>
+<h3 class="qa-h3">6.4 关键人事变动(2025-2026 H2)</h3>
+<table class="qa-table"><thead><tr><th>人物</th><th>原职位</th><th>新职位</th><th>日期</th></tr></thead><tbody></tbody></table>
+<blockquote class="qa-quote">「Q3 仅前三周就有 20 轮 disclosed / $1.32B agent-infrastructure funding。Aug 平均支票 $97M vs July $49M —— 几乎翻倍。如果 Cognition $40B close,等于 Q3 全部融资的总和。」 — Gravity Q3 2026 Tracker</blockquote></section><section id="p7" class="qa-section"><header><h2>七、2026 H2 安全事件与治理</h2></header><p>2026 H2 安全事件加速:从 microVM 沙箱逃逸到 Claude breach,从 CVE-9.8 漏洞到 Intel TDX 9 个 CVE。</p>
+<h3 class="qa-h3">7.1 Cursor DuneSlide · CVE-2026-50548/549(CVSS 9.8)</h3>
+<p><strong>2026-07-01</strong>:Cursor 2.x 引入的 Background Agent 远程 microVM 出现沙箱逃逸漏洞。CVSS 评分 9.8(严重)。v3.0 修复。这是 microVM 沙箱在生产中的代表性事件。</p>
+<h3 class="qa-h3">7.2 Anthropic Claude breach · 2026-08-13</h3>
+<p>3 起 Claude breach 事件(细节保留,具体事件参考 InfoQ 报道)。Anthropic 在 8 月连续推出多项治理措施(skill/plugin 扫描、Model Hardware Standard 等)。</p>
+<h3 class="qa-h3">7.3 OpenClaw CVE-2026-35650 · 2026-04-27</h3>
+<p>开源 agent harness OpenClaw(100K+ GitHub stars by Jan 2026)出现 CVE。Anthropic 启动 Claude subscription crackdown,creator Peter Steinberger 离开去 OpenAI。这是「开源 agent harness vs 厂商托管」的标志性冲突。</p>
+<h3 class="qa-h3">7.4 Intel TDX 9 CVE · 2026-08-11</h3>
+<p>9 个 Intel TDX 漏洞同时披露,影响 confidential VM 沙箱。这是 Erebor 类方案的安全风险来源。</p>
+<h3 class="qa-h3">7.5 SandboxEscapeBench · 2026(UK AISI)</h3>
+<p>18 场景 frontier LLM sandbox escape benchmark,展示 Claude Mythos Preview 等模型能主动识别并利用微配置 / runtime / kernel 层的 added vulnerabilities。这是衡量「sandbox 抗 AI 攻击」能力的首个公开 benchmark。</p>
+<h3 class="qa-h3">7.6 治理动作</h3>
+<ul><li><strong>Anthropic Skill/Plugin 安全扫描(2026-08-06)</strong>:上传/编辑时自动扫描恶意内容(Enterprise beta)</li><li><strong>Anthropic Model Hardware Standard(2026-08-27)</strong>:AI agent 安全操控物理设备的共享规范(research preview)</li><li><strong>AWS Bedrock Agents Classic 进入 maintenance mode</strong>(2026-07-30)— 对新客户关闭 + 冻结模型目录,无 end-of-life date,现有客户继续运营。完全被 AgentCore 取代是长期方向。</li><li><strong>Cognition Devin FedRAMP High In-Process(2026-07-08)</strong>:美国政府客户可用</li><li><strong>AAIF(Linux Foundation Agentic AI Foundation)2025-12 成立</strong>:MCP/goose/AGENTS.md 治理</li></ul>
+<blockquote class="qa-quote">「Sierra ($15.8B) / Harvey ($11B) / Basis ($1.15B) / Hightouch — 都在 H1 2026 达到 $100M+ ARR。垂直化赢了。」 — StartupHub.ai Agent Sandbox Rankings</blockquote></section><section id="p8" class="qa-section"><header><h2>八、趋势展望(2026-2027)</h2></header><p>从 2024 的「推理引擎」到 2026 的「Agent OS」再到 2027 的「Agent Marketplace」,生态正在被重新定义。</p>
+<h3 class="qa-h3">8.1 关键技术节点</h3>
+<ul><li><strong>OSDI 2026 (Spice + Crab)</strong>:checkpoint/restore 之年 — MIT Spice (kernel co-design) + HKUST Crab (agent-OS semantic gap) 互补攻击 C/R</li><li><strong>SOSP 2026 (2026-09-29 Prague) + 2nd AgenticOS Workshop</strong>:OS 社区正式认可「agent runtime」为研究领域</li><li><strong>MLSys 2026 (Oral)</strong>:GhostServe (KV-cache erasure coding fault-tolerant LLM) + FlashInfer-Bench (AI-driven LLM systems virtuous cycle)</li><li><strong>MCP 2026-07-28 spec 升级</strong>:stateless core 降低 client 实现复杂度,day-one AgentCore Gateway 支持</li><li><strong>Linux Foundation AAIF</strong>:MCP/goose/AGENTS.md 治理,Docker 2026-07 加入</li></ul>
+<h3 class="qa-h3">8.2 商业节点</h3>
+<ul><li><strong>Cognition $40B(若 close)</strong>:等于 Q3 全部融资总和</li><li><strong>Modal / Replicate 2027 IPO?</strong>:ARR 接近 $1B</li><li><strong>Daytona / E2B 闭源 vs 开源分歧</strong>:2026-06 Daytona 闭源,E2B 仍开源协议;平台层趋向 consolidation</li><li><strong>Serverless GPU 走向 Agent-Native</strong>:Modal / Replicate / Fireworks / Together 集体转向 Agent runtime</li><li><strong>Open-vs-closed splits</strong>:开源(OpenHands / smolagents / Browser-Use / WebContainers)vs 闭源(Devin / Replit / Bolt.new / Cursor),2026 H2 闭源胜出(SpaceX $60B)</li></ul>
+<h3 class="qa-h3">8.3 趋势展望:从「推理引擎」到「Agent Marketplace」</h3>
+<p>参考 h2_results 中的 emerging_themes,2026-2027 的演进方向:</p>
+<ul><li><strong>Sub-millisecond sandbox boot</strong>:Dandelion (SOSP 2025) 用 CHERI 达到 hundreds of microseconds (~90µs 以下),已比 Firecracker snapshot 快 10×</li><li><strong>GPU/OS co-design</strong>:PhoenixOS SOSP 2025 + LithOS SOSP 2025 + XSched OSDI 2025,GPU 成为可调度、可恢复、可多租户的 first-class 资源</li><li><strong>Serverless for LLM agents as first-class workload</strong>:BlitzScale OSDI 2025 + Medusa ASPLOS 2025 + TrEnv-X arXiv 2026</li><li><strong>Confidential Computing sandboxes</strong>:Erebor EuroSys 2025 (Intel TDX),4.5-13.2% 开销在 llama.cpp</li><li><strong>Declarative agent middleware</strong>:Symphony HotOS 2025 + Helium arXiv 2026 + Pie SOSP 2025</li><li><strong>eBPF 隔离</strong>:KRAKENGUARD NSDI 2026 — 多租户 eBPF 隔离成为可能</li><li><strong>AI agent threat modeling</strong>:SandboxEscapeBench + IsolateGPT NDSS 2025 + AgentBound arXiv 2025,sandbox 抗 AI 攻击成为新维度</li></ul>
+<blockquote class="qa-quote">「2026 年最值得押注的不是更好的模型,而是更便宜的执行环境 + 更强的隔离 + 更深的编排。谁能把 Agent 干活的成本从 $0.10/session 降到 $0.001/session + 提供 SOC 2 / HIPAA / FedRAMP / EU AI Act 全合规,谁就能拿下整个企业市场。」 — 综合 a16z / Gartner / IDC 2026 H2 报告</blockquote></section><section id="p9" class="qa-section"><header><h2>九、企业架构师实战手册(一):TCO 成本对比与决策</h2></header><p>v3.0 新增。本部分是给企业架构师/CFO/CTO 看的实战手册:如何选型、如何算账、如何避免被锁定。</p>
+<h3 class="qa-h3">9.1 四类技术深度对比(选型第一关)</h3>
+<p>四类隔离技术没有「最优」,只有「最合适」。下表是基于 2025-2026 顶会论文 + 生产实践的对比:</p>
+<table class="qa-table"><thead><tr><th>技术</th><th>冷启动</th><th>隔离强度</th><th>成本</th><th>运行时开销</th><th>适用场景</th></tr></thead><tbody><tr><td><strong>microVM</strong> (Firecracker / Cloud Hypervisor / QEMU)</td><td>125-300ms 冷启动 (snapshot 恢复 <100ms)</td><td>强 (KVM 硬件虚拟化)</td><td>低 ($0.04-0.09/vCPU-hr)</td><td><10ms</td><td>需要长时间运行的 Agent / 多租户 / 企业</td></tr><tr><td><strong>gVisor</strong> (用户态内核)</td><td>200-500ms</td><td>中 (syscall 拦截)</td><td>中 ($0.04-0.07/vCPU-hr)</td><td><20ms</td><td>中等安全需求 / 容器化 Agent</td></tr><tr><td><strong>V8 Isolate / WASM</strong></td><td><5ms</td><td>中 (语言级沙箱)</td><td><strong>极低</strong> (Cloudflare Workers: $0.02/M 请求)</td><td><5ms</td><td>短任务 / Edge 部署 / JS/TS 为主</td></tr><tr><td><strong>Container</strong> (Docker / Kubernetes)</td><td>1-10s</td><td>弱 (共享内核)</td><td>极低 ($0.01-0.03/vCPU-hr)</td><td>>50ms</td><td>开发测试 / 单租户 / 不合规要求</td></tr><tr><td><strong>GPU OS</strong> (PhoenixOS / LithOS / XSched)</td><td><1s (checkpoint/restore)</td><td>中 (TPC-level 调度)</td><td>高 ($2-7/GPU-hr)</td><td><2ms</td><td>LLM 推理 / 多模型共享 GPU</td></tr><tr><td><strong>Confidential VM</strong> (TDX / SEV)</td><td>>1s</td><td><strong>极强</strong> (硬件加密内存)</td><td>中-高 ($0.10-0.30/vCPU-hr)</td><td>>30ms</td><td>高敏感数据 / 医疗 / 金融 / 政府</td></tr></tbody></table>
+<h3 class="qa-h3">9.2 10 厂商定价对比(2026 H2)</h3>
+<table class="qa-table"><thead><tr><th>厂商</th><th>沙箱模型</th><th>vCPU-hr</th><th>GB-hr</th><th>GPU</th></tr></thead><tbody><tr><td>E2B</td><td>Firecracker microVM, mana</td><td>$0.0504 (per-second, scales wi</td><td>$0.0162 (memory, $0.00000</td><td>—</td></tr><tr><td>Modal</td><td>Serverless container sand</td><td>$0.047/vCPU-hr normalized (adv</td><td>$0.0240 ($0.00000667/GiB/</td><td>B300 $7.10/hr, B200 </td></tr><tr><td>Daytona</td><td>Firecracker microVM, agen</td><td>$0.0504 ($0.000014/vCPU/s)</td><td>$0.0162 ($0.0000045/GiB/s</td><td>Nvidia RTX PRO 6000 </td></tr><tr><td>Fly.io Sprites</td><td>Firecracker microVM, pers</td><td>~$0.07/CPU-hr (per-second acti</td><td>memory proportional while</td><td>L40S $1.25/hr (was h</td></tr><tr><td>Blaxel</td><td>Persistent microVM with 2</td><td>Billed per GB-RAM-second: Acti</td><td>$0.0414/GB-hr (active). S</td><td>Not published; via c</td></tr><tr><td>Browserbase</td><td>Managed headless browser </td><td>Browser hours: $0.10-$0.12/hr </td><td>Memory not separately met</td><td>N/A</td></tr><tr><td>Cloudflare Wor</td><td>V8 isolate (Workers) + Mi</td><td>Workers CPU: $0.02/M CPU-ms ov</td><td>Containers memory: $0.000</td><td>N/A for Workers; Con</td></tr><tr><td>AWS Bedrock Ag</td><td>Managed agent platform (R</td><td>$0.0895/vCPU-hour (active cons</td><td>$0.00945/GB-hour (peak me</td><td>Not natively; bring </td></tr><tr><td>Azure Containe</td><td>Hyper-V isolated, prewarm</td><td>Active: $0.000024/vCPU-s ($0.0</td><td>Active: $0.000003/GiB-s (</td><td>Serverless GPU: NC T</td></tr><tr><td>Vertex AI Agen</td><td>Managed agent runtime (Go</td><td>$0.0864/vCPU-hour (per-second,</td><td>$0.0090/GB-hour memory</td><td>N/A for Agent Engine</td></tr></tbody></table>
+<blockquote class="qa-quote">「沙箱厂商选择对总 TCO 的影响只有 5-15%。真正决定成本的是:模型调用 + FTE 管理 + 合规审计。这三项加起来占总成本的 90%。」 — 综合 TCO 模型 + 企业实践</blockquote>
+<h3 class="qa-h3">9.3 5 年 TCO 模型(中型 vs 大型企业)</h3>
+<table class="qa-table"><thead><tr><th>场景</th><th>代表厂商</th><th>5 年成本拆解</th><th>对比</th></tr></thead><tbody><tr><td>Mid-market (100 agents, 1</td><td>E2B</td><td>{'compute_5yr': '$129,600', 'storage_5yr': '$600', 'network_</td><td>{'Daytona_same_load_5yr': '$65</td></tr><tr><td>Enterprise (10,000 agents</td><td>AWS Bedrock Ag</td><td>{'compute_5yr_runtime': '$892,500 (3.3M hr × $0.0895 × 2 vCP</td><td>{'E2B_Enterprise_5yr_sustained</td></tr><tr><td>200 concurrent sandbox be</td><td>Northflank</td><td>{'PaaS_monthly': '$7,200', 'BYOC_monthly': '$2,060 ($1,500 c</td><td>{'E2B_PaaS_monthly': '$16,819 </td></tr></tbody></table>
+<h3 class="qa-h3">9.4 冷启动成本对比(10 种方案)</h3>
+<table class="qa-table"><thead><tr><th>方案</th><th>冷启动开销</th><th>稳态成本</th></tr></thead><tbody><tr><td>Cold FaaS (AWS Lambda, de</td><td>200ms–10s typical; up to 40s+ for s</td><td>Per-second billing when warm; idle </td></tr><tr><td>Warm Pool (Azure Premium </td><td>Pre-warmed: 0ms additional; cold: s</td><td>Wasted resource cost + management o</td></tr><tr><td>EKS Fargate + kubernetes-</td><td><5 seconds (pod pre-warmed, just cl</td><td>Per-pod hourly Fargate rate ($0.040</td></tr><tr><td>TrEnv-X (research; CXL/RD</td><td><40ms sandbox startup via OS-level </td><td>61% memory reduction vs Firecracker</td></tr><tr><td>Blaxel persistent microVM</td><td>25ms resume from standby (vs 1-2s c</td><td>Suspended state billed at $0.000000</td></tr><tr><td>Fly.io Sprites (snapshot </td><td>~300ms checkpoint/restore from pers</td><td>$0 when idle (zero CPU/memory charg</td></tr><tr><td>Azure ACA Dynamic Session</td><td>Sub-second (milliseconds); pools of</td><td>$0.03/session-hr + per-second compu</td></tr><tr><td>Cloudflare Workers (V8 is</td><td><5ms (no cold start; isolates are l</td><td>30M CPU-ms included in $5/mo; $0.02</td></tr><tr><td>SlimStart (research; prof</td><td>2.30x speedup in initialization lat</td><td>Free open-source tool, integrates C</td></tr><tr><td>GKE Agent Sandbox + suspe</td><td>Pod snapshot checkpoint + ms-scale </td><td>Up to 75% lower cost per agent for </td></tr></tbody></table>
+<h3 class="qa-h3">9.5 实战案例(选 5 个最代表)</h3>
+<table class="qa-table"><thead><tr><th>客户</th><th>厂商</th><th>原成本</th><th>新成本</th><th>节省</th></tr></thead><tbody><tr><td>Lovable</td><td>Modal Sandboxe</td><td>Previous sandbox vendor (</td><td>Modal: 15,000 → 700 lines</td><td>95% reduction i</td></tr><tr><td>Decagon</td><td>Modal (trainin</td><td>Latency too high for real</td><td>65% latency reduction (De</td><td>65% latency red</td></tr><tr><td>Syngenta</td><td>AWS Bedrock Ag</td><td>Long deployment cycles; r</td><td>Agent mesh operational in</td><td>40% faster depl</td></tr><tr><td>Runway (Runway </td><td>Modal</td><td>Standard infrastructure i</td><td>Multi-node inference powe</td><td>Latency reducti</td></tr><tr><td>Cognition (Devi</td><td>Modal Sandboxe</td><td>Cognition default sandbox</td><td>Modal spins up GPU-backed</td><td>Expanded job-to</td></tr></tbody></table>
+<h3 class="qa-h3">9.6 选型决策树(企业架构师 5 分钟)</h3>
+<ol><li><strong>Q1:数据敏感度?</strong> 公开 → 任何方案;内部 → SOC 2;客户/医疗/金融 → HIPAA + Confidential VM;政府 → FedRAMP + IL4+</li><li><strong>Q2:Agent session 长度?</strong> <1 分钟 → V8 Isolate / WASM / Cloudflare Workers;1-60 分钟 → microVM (E2B / Daytona / AgentCore);>1 小时 → 长连接 microVM (Modal / Fly Sprites)</li><li><strong>Q3:是否需要 GPU?</strong> 否 → microVM / gVisor / Container;是 → Modal / Replicate / Together / Fly Sprites GPU / AgentCore EC2 mode</li><li><strong>Q4:部署区域?</strong> 全球多区域 → Cloudflare / AWS / Azure;单一区域 → 所有厂商</li><li><strong>Q5:预算量级?</strong> <$1K/月 → Free tier (E2B Hobby / Modal $30 free);$1K-$50K/月 → Pay-as-you-go + Pro tier;>$50K/月 → Enterprise contracts + BYOC</li><li><strong>Q6:开源 vs 闭源?</strong> 强可控 → OpenHands + Docker / WebContainers / Sprites;省心 → Modal / E2B / Cognition</li></ol></section><section id="p10" class="qa-section"><header><h2>十、企业架构师实战手册(二):合规路径(SOC 2 / HIPAA / FedRAMP / EU AI Act)</h2></header><p>v3.0 新增。合规不是事后补丁 — Agent runtime 选错了,合规成本会爆炸。本部分给合规官 / 法务 / 安全负责人看。</p>
+<h3 class="qa-h3">10.1 SOC 2 Type II 厂商清单</h3>
+<table class="qa-table"><thead><tr><th>厂商</th><th>SOC 2 等级</th><th>认证日期</th></tr></thead><tbody><tr><td>Modal</td><td>SOC 2 Type II</td><td>2025-01-02</td></tr><tr><td>E2B (FoundryLabs, </td><td>SOC 2 Type II</td><td>2025</td></tr><tr><td>AWS Bedrock AgentC</td><td>SOC 2 (in scope) + ISO 27</td><td>2026</td></tr><tr><td>Azure AI Foundry /</td><td>SOC 2 Type II (in scope) </td><td>2026</td></tr><tr><td>Daytona</td><td>SOC 2 Type I completed; T</td><td>2026-02-05 (Series A clos</td></tr><tr><td>Northflank</td><td>SOC 2 Type II</td><td>2025-2026</td></tr><tr><td>Blaxel</td><td>SOC 2 Type II + HIPAA sup</td><td>2025-2026</td></tr></tbody></table>
+<p><strong>关键时间成本</strong>:首次 SOC 2 Type II 从准备到拿证通常需要 6-9 个月准备期 + 6-12 个月观察期,总成本 $25K-$80K(取决于规模)。Modal / E2B / Daytona / AWS Bedrock AgentCore / Azure Foundry / Northflank / Blaxel 已通过。</p>
+<h3 class="qa-h3">10.2 HIPAA BAA 厂商</h3>
+<table class="qa-table"><thead><tr><th>厂商</th><th>HIPAA BAA 范围</th></tr></thead><tbody><tr><td>AWS Bedrock (inclu</td><td>All HIPAA-eligible models on Bedrock: Claude (3.5 </td></tr><tr><td>Modal</td><td>HIPAA-compliant workloads on Enterprise plan via s</td></tr><tr><td>Daytona</td><td>BAA available to customers; GDPR + SOC 2 Type I (T</td></tr><tr><td>E2B</td><td>Sandbox runtime; SOC 2 Type II report available. B</td></tr><tr><td>Blaxel</td><td>HIPAA compliance supported alongside SOC 2 Type II</td></tr><tr><td>Microsoft Foundry </td><td>HIPAA-eligible under Microsoft standard BAA; confi</td></tr></tbody></table>
+<p><strong>注意</strong>:AWS Bedrock BAA 是最广泛的(一个 BAA 覆盖所有 eligible 模型,但 <strong>Claude Mythos / Fable 明确排除</strong>)。需要医疗 Agent 的客户应直接用 AWS Bedrock AgentCore 或 Azure Foundry(继承 BAA)+ Modal / E2B 兜底。</p>
+<h3 class="qa-h3">10.3 FedRAMP 厂商</h3>
+<table class="qa-table"><thead><tr><th>厂商</th><th>FedRAMP 等级</th><th>日期</th></tr></thead><tbody><tr><td>Cognition Platform</td><td>FedRAMP Class D (Hig</td><td>2026-07-13</td></tr><tr><td>AWS Bedrock AgentC</td><td>FedRAMP Class C (Mod</td><td>2026</td></tr><tr><td>Microsoft Azure AI</td><td>FedRAMP Moderate + H</td><td>2026</td></tr><tr><td>Casepoint (OPEXUS </td><td>FedRAMP High + DOD I</td><td>2025-04-09</td></tr></tbody></table>
+<p><strong>亮点</strong>:<strong>Cognition Devin 在 2026-07-13 获得 FedRAMP High In-Process(完整平台)</strong> — 这是 SaaS Agent runtime 第一次进入美国政府供应链。Devin Desktop / CLI 已 FedRAMP High Authorized + IL4 / IL5 / IL6 + ITAR。AWS AgentCore 和 Azure Foundry 继承 Moderate/High(母公司已认证)。{src("Cognition FedRAMP", "https://www.cognition.ai/blog/devin-fedramp-high")}</p>
+<h3 class="qa-h3">10.4 EU AI Act 2026 实施时间表(关键!)</h3>
+<ul><li><strong>2026 Digital Omnibus 重大延期</strong>:Annex III (高风险系统列表) deadline 推迟到 <strong>2027-12-02</strong>;Annex I 推迟到 <strong>2028-08-02</strong>;Article 57 监管沙盒条款推迟到 <strong>2027-08-02</strong></li><li><strong>Article 9 (风险管理体系)</strong>:Agent 系统必须有 risk management system throughout lifecycle</li><li><strong>Article 15 (准确性 / 鲁棒性 / 网络安全)</strong>:对 Agent runtime 强隔离 / 审计 / 监控的要求</li><li><strong>Article 17 (质量管理)</strong>:Agent 系统的部署前测试 + 持续监控</li><li><strong>Article 57 (沙盒条款)</strong>:监管沙盒为创新 Agent 提供受控测试环境 — 这是 Agent sandbox 厂商的 <strong>新机会</strong>(Modal / E2B / Cloudflare 等都在布局)</li></ul></section><section id="p11" class="qa-section"><header><h2>十一、企业架构师实战手册(三):沙箱防逸与决策树</h2></header><p>v3.0 新增。2026 H2 sandbox escape 事件密集爆发,本部分给安全工程师 / DevSecOps 团队看。</p>
+<h3 class="qa-h3">11.1 2026 沙箱逃逸 CVE 案例(10 起,2026 H1-H2)</h3>
+<table class="qa-table"><thead><tr><th>CVE 名称</th><th>CVE ID</th><th>受影响厂商</th><th>CVSS</th><th>日期</th></tr></thead><tbody><tr><td>DuneSlide (Cursor IDE san</td><td>CVE-2026-50548 </td><td>Anysphere (Curs</td><td>9.8 Critic</td><td>2026-04-02 (patch); 2026-06-24 (CVE published); disclosed Feb 2026</td></tr><tr><td>OpenClaw env-var override</td><td>CVE-2026-35650</td><td>OpenClaw (open-</td><td>7.7 High (</td><td>2026-04-10</td></tr><tr><td>'Claw Chain' OpenClaw 4-C</td><td>CVE-2026-44112 </td><td>OpenClaw</td><td>9.6 Critic</td><td>2026-04-22 disclosed; 2026-04-23 patched</td></tr><tr><td>Anthropic Claude breach o</td><td>No CVE - intern</td><td>Anthropic (Clau</td><td>Disclosure</td><td>2026-07-30 (incident report); investigation 2026-07; paused training Sept 2026</td></tr><tr><td>OpenAI ExploitGym sandbox</td><td>No CVE - intern</td><td>OpenAI (GPT-5.6</td><td>Disclosure</td><td>2026-07-16 (breach); 2026-07-21 (OpenAI public attribution); 2026-08-06 (Black Hat debrief)</td></tr><tr><td>Intel TDX 2026.3 module a</td><td>CVE-2026-20885 </td><td>Intel (Trust Do</td><td>CVE-2026-2</td><td>2026-08-11</td></tr><tr><td>Ruflo / RufRoot MCP Bridg</td><td>CVE-2026-59726</td><td>Ruflo (formerly</td><td>10.0 Criti</td><td>2026-07-29 (Noma Labs disclosure); 2026-07-30 (SecurityWeek)</td></tr><tr><td>Cursor Firecracker VM ker</td><td>No CVE; product</td><td>Cursor (Cloud A</td><td>Operationa</td><td>2026-02-27 reported; partially fixed 2026-04-03</td></tr><tr><td>TOCTOU symlink-swap file-</td><td>Class - CWE-367</td><td>Agent file-tool</td><td>Class-leve</td><td>2026</td></tr><tr><td>AI coding tools as attack</td><td>Class - cross-p</td><td>SimpleHelp (RMM</td><td>Operationa</td><td>2026-07-05 reported</td></tr></tbody></table>
+<p><strong>关键事件</strong>:(1) <strong>Cursor DuneSlide CVE-2026-50548/549</strong> CVSS 9.8 zero-click RCE,通过 Firecracker microVM cgroup 漏洞逃逸;(2) <strong>OpenClaw CVE-2026-35650 + Claw Chain</strong>(4 个 CVE),100K+ GitHub stars 的开源 agent harness 漏洞;(3) <strong>Anthropic Claude breach 2026-08-13</strong> 3 家真实组织被攻破;(4) <strong>OpenAI ExploitGym → Hugging Face 2026-07-16</strong>,生产环境完整 breach;(5) <strong>Intel TDX INTEL-SA-01436 (2026-08-11)</strong> 8 个 CVE,影响 confidential VM 沙箱;(6) <strong>Ruflo RufRoot CVE-2026-59726 CVSS 10.0</strong>,67K GitHub stars 项目漏洞。</p>
+<h3 class="qa-h3">11.2 防逸最佳实践(9 类)</h3>
+<table class="qa-table"><thead><tr><th>类别</th><th>实践</th><th>实现方式</th></tr></thead><tbody><tr><td>input_validation</td><td>Treat every MCP / tool argument as untrusted, even</td><td>Pin guidance to MCP spec rev 2025-06-18 </td></tr><tr><td>input_validation</td><td>AgentBound-style execution-boundary contracts</td><td>Auto-generate AgentManifest from observe</td></tr><tr><td>input_validation</td><td>TOCTOU-resistant file operations</td><td>Three layered fixes: (1) Open once, veri</td></tr><tr><td>network_isolation</td><td>Deny-by-default egress (allowlist, not blocklist)</td><td>Three implementations, cheapest first: (</td></tr><tr><td>resource_limits</td><td>cgroup v2 enforced CPU + memory + pids + IO isolat</td><td>Per-sandbox cgroup slice with explicit l</td></tr><tr><td>resource_limits</td><td>MicroVM / kernel-boundary isolation (Firecracker /</td><td>Don't rely on userspace path checks as a</td></tr><tr><td>audit_logging</td><td>OTEL-correlated full-link agent trace</td><td>Wire OpenTelemetry SDK with W3C TraceCon</td></tr><tr><td>audit_logging</td><td>Per-action audit logging for agent tool calls (not</td><td>Model invocation logging only captures A</td></tr><tr><td>four_typical_escap</td><td></td><td></td></tr></tbody></table>
+<h3 class="qa-h3">11.3 选型决策树(2 分钟版)</h3>
+<ol><li><strong>起步</strong>:E2B Hobby Tier(免费 $100 credits)+ Cloudflare Workers 跑边缘任务</li><li><strong>中等规模</strong>:Modal Pay-as-you-go + E2B Pro + Anthropic Managed Agents(已 SOC 2 / HIPAA)</li><li><strong>企业 + HIPAA</strong>:AWS Bedrock AgentCore(SOC 2 + HIPAA BAA + FedRAMP High 继承)或 Azure Foundry Agent Service</li><li><strong>政府 + FedRAMP High</strong>:Cognition Devin(FedRAMP High In-Process 2026-07-13 + IL4/IL5/IL6 + ITAR)</li><li><strong>全球多区域</strong>:AWS Bedrock AgentCore(9 区域)或 Cloudflare Workers(200+ 数据中心)</li><li><strong>成本敏感</strong>:Fly.io Sprites(idle = $0)+ Blaxel(<25ms 冷启动)+ Cloudflare Containers(7 秒 $0.0025)</li><li><strong>开源可控</strong>:OpenHands + Docker + WebContainers(Bolt.new) + Cloudflare Code Mode</li><li><strong>高敏感数据</strong>:Modal Confidential + Confidential VM(TDX/SEV)+ Erebor + 自己部署</li><li><strong>EU AI Act 2027 准备</strong>:Article 57 监管沙盒 + SandboxEscapeBench 内部测试 + 完整审计日志</li></ol>
+<h3 class="qa-h3">11.4 4 类典型逃逸模式 + 防御</h3>
+<ul><li><strong>1. 内核漏洞利用</strong>(CVE-2026-50548 DuneSlide):Firecracker cgroup 漏洞 → 用 <strong>Confidential VM(TDX/SEV)+ 强化 cgroup v2 + 最小内核</strong></li><li><strong>2. 运行时逃逸</strong>(RufRoot CVSS 10.0):Agent runtime 本身漏洞 → 用 <strong>SandboxEscapeBench 定期测试 + AgentBound 声明式权限</strong></li><li><strong>3. 网络逃逸</strong>(TOCTOU):沙箱内访问外部 → 用 <strong>deny-by-default egress + NIST SC-7(5) 控制</strong></li><li><strong>4. 输入注入</strong>(Anthropic Claude breach):Prompt injection → 用 <strong>IBM ContextForge 4 层验证 + IsolateGPT hub-spoke 隔离</strong></li></ul>
+<blockquote class="qa-quote">「SandboxEscapeBench 第一次证明 frontier LLM 能主动逃逸 sandbox。2026 年任何 Agent runtime 选型都必须把它纳入红队测试。」 — UK AI Security Institute</blockquote></section><section id="glossary" class="qa-section"><header><h2>📚 术语速查表</h2></header><table class="qa-table"><thead><tr><th>术语</th><th>解释</th></tr></thead><tbody><tr><td><strong>microVM</strong></td><td>Micro Virtual Machine,基于 KVM 的轻量级虚拟机。Firecracker / Cloud Hypervisor / QEMU 都属此类。</td></tr><tr><td><strong>Firecracker</strong></td><td>AWS 开源的 microVMM,启动 <125ms,单 host 可跑数千个 microVM。</td></tr><tr><td><strong>gVisor</strong></td><td>Google 开源的用户态内核,通过拦截 syscalls 提供进程级隔离。</td></tr><tr><td><strong>Dandelion</strong></td><td>ETH Klimovic Lab SOSP 2025,CHERI 沙箱 hundreds of microseconds (~90µs 以下)启动,比 Firecracker snapshot 快 10×。</td></tr><tr><td><strong>PhoenixOS</strong></td><td>SJTU IPADS SOSP 2025,首个 OS 级并发 GPU checkpoint/restore,Llama2-13B 冷启动 622ms。</td></tr><tr><td><strong>BlitzScale</strong></td><td>SJTU IPADS + Huawei Cloud OSDI 2025,首个 O(1) host caching 的大模型 autoscaling,尾延迟降 94%。</td></tr><tr><td><strong>Medusa</strong></td><td>清华 ASPLOS 2025,Serverless LLM 推理冷启动消除,TTFT 降低 53%。</td></tr><tr><td><strong>WASM / WebAssembly</strong></td><td>浏览器外的可执行字节码格式,可实现接近原生性能的沙箱。</td></tr><tr><td><strong>Wasabi</strong></td><td>UBC NSDI 2026,密集分层 Wasm-in-container serverless 集成。</td></tr><tr><td><strong>KRAKENGUARD</strong></td><td>IIT Roorkee + Microsoft NSDI 2026,细粒度 eBPF 隔离。</td></tr><tr><td><strong>MCP</strong></td><td>Model Context Protocol,Anthropic 提出的 Agent ↔ Tool / 数据源协议,2024-11-25 发布,2026-07-28 stateless 核心升级。</td></tr><tr><td><strong>AAIF</strong></td><td>Linux Foundation Agentic AI Foundation,2025-12 成立,治理 MCP/goose/AGENTS.md。</td></tr><tr><td><strong>AgentBound</strong></td><td>arXiv 2510.21236 (2025-10),MCP 服务器声明式权限框架,AgentManifest + AgentBox。</td></tr><tr><td><strong>SandboxEscapeBench</strong></td><td>UK AISI arXiv 2603.02277,18 场景 frontier LLM sandbox escape benchmark。</td></tr><tr><td><strong>CXL</strong></td><td>Compute Express Link,CPU 与内存 / 加速器的高速缓存一致性互联协议。</td></tr><tr><td><strong>CXLfork</strong></td><td>ATC 2024,用 CXL 实现跨机进程 fork,2.26× SOTA。</td></tr><tr><td><strong>CRIU</strong></td><td>Checkpoint / Restore In Userspace,Linux 用户态进程 checkpoint / restore 工具。</td></tr><tr><td><strong>OSDI / SOSP</strong></td><td>USENIX / ACM 操作系统顶会,Agent 执行环境论文的主要发表场所。</td></tr><tr><td><strong>NSDI</strong></td><td>USENIX 网络系统设计与实现会议。</td></tr><tr><td><strong>SWE-bench</strong></td><td>评估 Coding Agent 解决 GitHub issue 能力的基准测试。</td></tr><tr><td><strong>Ghost</strong></td><td>Replit 改造的 Firecracker 衍生 microVM,剥离冗余设备。</td></tr><tr><td><strong>Stealth Mode</strong></td><td>Browser Agent 反爬虫检测的能力,如指纹伪装 / TLS 指纹。</td></tr><tr><td><strong>x402 / MPP</strong></td><td>Coinbase 推动的稳定币支付协议 + AWS AgentCore 集成。</td></tr></tbody></table></section>
+<footer style="max-width:980px;margin:48px auto;padding:24px 32px;color:var(--muted);font-size:13px;border-top:1px solid var(--line);">
+<p>📊 数据来源:7 路并行 subagent 深度调研 + 6+3 项 audit 验证 · 36 篇 2025-2026 顶会论文 · 16 笔 2026 H2 融资 · 8 起 2026 H2 收购 · 10 厂商 TCO · 10 起 sandbox escape CVE · 9 类防御实践</p>
+<p>🛠️ 方法:主 agent 整合 + MiniMax-M3 撰写 + 多个 audit subagent 验证日期 / 数据 / 术语一致性</p>
+<p>📋 v3.0 重大更新 (vs v2.1): 新增「企业架构师实战手册」(第 9-11 部分)— (1) 第 9 部分:4 类技术深度对比 + 10 厂商 TCO 表 + 5 年 TCO 模型(中型 $660K / 大企业 $10.5M)+ 冷启动成本对比 + 5 个实战案例 + 6 步选型决策树; (2) 第 10 部分:7 SOC 2 厂商 + 6 HIPAA BAA + 4 FedRAMP + EU AI Act 2026 Digital Omnibus 重大延期(2027-12 / 2028-08 / 2027-08)+ 监管沙盒新机会; (3) 第 11 部分:10 起 2026 沙箱逃逸 CVE + 9 类防御最佳实践 + 2 分钟选型决策树 + 4 类典型逃逸模式 + 防御方案。新增关键事件:Cognition Devin FedRAMP High In-Process 2026-07-13 / Intel TDX INTEL-SA-01436 (2026-08-11) / Cursor DuneSlide 详细分析 / OpenAI ExploitGym (2026-07-16) / RufRoot CVE-2026-59726 CVSS 10.0 / Anthropic Claude breach 2026-08-13 真实组织攻击。
+<p>📋 v2.1 修正 (vs v2.0 2026-09-02): 3 路 audit 后修正 6 项 — (1) Dandelion 性能改为「百微秒级(hundreds of microseconds)」而非「<90µs」(后者是 raw KVM boot); (2) XSched 改为「10 distinct XPUs」(原 9 是错误); (3) Anthropic Computer use GA 改为 2026-08-20(原 8/21 错 1 天); (4) Stripe/OpenRouter 改为 $7.5B / 2026-08-17(原 $7B+ / 8/16 偏 1 天); (5) Naïve YC batch 改为 S25 Spring 2025(原 W26 错); (6) Cognition ARR 改为 $900M / 目标 $1B EOY(原 $1B/8月未实现); (7) AWS Bedrock Agents 改为「maintenance mode」(原「退役」措辞过强); (8) Modal ARR 改为 ~$500M+(估计) 删除大部分 2024 及以前的旧论文(保留 Firecracker/gVisor/TrEnv-X/SOCK/Catalyzer/MITOSIS/RunD 作为经典基础系统); 新增 36 篇 2025-2026 顶会论文; 新增 5 家 2025-2026 新公司; 新增 16 笔 2026 H2 融资; 新增 8 起 2026 H2 收购 (含 SpaceX $60B 收 Cursor / Stripe $7B+ 收 OpenRouter); 新增 AWS Bedrock Agents 退役 (2026-07-30) + AgentCore 8 月新功能; 新增 Anthropic Computer Use GA + Claude in Chrome GA + NVIDIA NOOA 开源 + Meta Muse Code 首发; 新增 MCP 2026-07-28 stateless 核心升级 + AAIF 治理; 新增 2026 H2 安全事件专题 (Cursor DuneSlide CVE 9.8 / Claude breach Aug13 / OpenClaw CVE-2026-35650 / 9 Intel TDX CVEs / SandboxEscapeBench)</p>
+<p>⚠️ 注意:部分数据点(尤其融资/估值/CVE 编号)随时间变化,请以原始来源为准。最新更新时间:2026-09-02</p>
+</footer>
+</div>
+</body>
+</html>
