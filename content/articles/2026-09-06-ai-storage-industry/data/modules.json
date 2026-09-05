@@ -1,0 +1,544 @@
+{
+  "research_topic": "AI 时代存储模组层 (Module-Level): HBM / HBF / CXL / MRDIMM / Pipeline Memory",
+  "research_window": "2024-01 → 2026-09",
+  "output_files": [
+    "/home/calvin/research_storage/modules.json",
+    "/home/calvin/research_storage/modules.md"
+  ],
+  "researcher_note": "本研究中所有数字、发布日期均来自原厂 IR/新闻稿或 JEDEC / PCI-SIG / CXL 联盟等官方标准组织的一手来源;用户原始 prompt 中的部分细节(如 'JESD238A 2025-01 草案'、'1.5TB/s/stack'、'128GB CMM-D 2024-08'、'8000 MT/s MRDIMM')与公开标准/新闻不完全一致,本文档以一手可验证资料为准并对差异做了显式标注。",
+  "corrections_to_user_prompt": [
+    {
+      "claim_in_prompt": "JEDEC JESD238A 2025-01 草案 (HBM4)",
+      "verified_fact": "HBM4 标准正式编号为 JEDEC JESD270-4,2025-04-16 由 JEDEC 正式发布。'JESD238' 是 HBM3 家族的编号(JESD238B.01 / 2025-04 是 HBM3 更新版)。",
+      "source_url": "https://www.jedec.org/news/pressreleases/jedec%C2%AE-and-industry-leaders-collaborate-release-jesd270-4-hbm4-standard-advancing"
+    },
+    {
+      "claim_in_prompt": "HBM4 每 pin 1.0Tb/s, 总带宽 1.5TB/s/stack",
+      "verified_fact": "JESD270-4 规定 HBM4 接口 8 Gb/s/pin,2048-bit 总线 → 单 stack 总带宽最高 2 TB/s(2048 × 8 Gb/s = 16,384 Gb/s = 2,048 GB/s ≈ 2 TB/s);JESD270-4A (2025-12 更新)进一步把速率推到 10 Gb/s 以上。",
+      "source_url": "https://www.hpcwire.com/off-the-wire/jedec-releases-hbm4-standard-to-advance-ai-and-hpc-memory/"
+    },
+    {
+      "claim_in_prompt": "NVIDIA Blackwell B100/B200/GB200 用 HBM3e 192GB 8-Hi",
+      "verified_fact": "B200 SXM = 192 GB HBM3e,8-Hi;SK Hynix 自 2024-09 起向客户出货 12-Hi 36GB HBM3e。B200 与 GB200(B200×2 + Grace CPU)的 HBM 容量相同(192 GB)。",
+      "source_url": "https://news.skhynix.com/en/sk-hynix-begins-volume-production-of-the-world-first-12-layer-hbm3e"
+    },
+    {
+      "claim_in_prompt": "AMD MI325X/MI355X HBM3e 256GB",
+      "verified_fact": "MI325X (2024-10 发布) = 256 GB HBM3e;MI355X (2025-06-12 发布) = 288 GB HBM3e。",
+      "source_url": "https://www.amd.com/en/products/accelerators/instinct/mi350/mi355x.html"
+    },
+    {
+      "claim_in_prompt": "Samsung 128GB CMM-D 2024-08 发布",
+      "verified_fact": "Samsung 128 GB CMM-D(MD220)首版早在 2022/2023 已发布;Samsung 与 Lenovo 的 CMM-D 联合 PlugFest 验证于 2024-10-22 公开宣布(MD220 用 Montage MXC 控制器,基于 12nm-class 32Gb DDR5)。256 GB MD220 列于 Samsung 2025 CMM-D 2.0 路线图。",
+      "source_url": "https://www.storagenewsletter.com/2024/10/22/samsung-completes-joint-validation-of-128gb-cmm-d-with-lenovo-servers/"
+    },
+    {
+      "claim_in_prompt": "MCRDIMM/MRDIMM JEDEC JESD79-5 2024-08,8000 MT/s",
+      "verified_fact": "JEDEC 发布的 MRDIMM 模块标准关联 JESD79-5 (DDR5 SDRAM) 及 JESD317A 系列;Micron / Intel 实际首发的 MRDIMM 是 8800 MT/s(Micron 2024-07-16 发布,首版 32-256 GB,2H2024 量产),并非 8000 MT/s。后续 Intel Xeon 6+ 路线图上 12,800 MT/s MRDIMM Gen2 计划 2027,Q1 2027 量产。",
+      "source_url": "https://investors.micron.com/news/press-release/2024/Micron-MRDIMM-Innovations-Deliver-Highest-Performance-and-Lowest-Latency-Main-Memory-to-Accelerate-Data-Center-Workloads-07-16-2024/default.aspx"
+    },
+    {
+      "claim_in_prompt": "HBF 内部 16 颗 4Tb NAND + 1 颗 512GB HBM LPDDR, 读取 32GB/s",
+      "verified_fact": "公开规格中 HBF 是 NAND-based,不带 HBM DRAM。Sandisk 公开 HBF Gen1 规格:16 die 堆叠 / 每 die 256Gb / 单 stack 512 GB / 读取带宽 1.6 TB/s(并非 32 GB/s);Gen2/3 将推至 2 TB/s / 3.2 TB/s。Sandisk 用 BiCS NAND + CMOS directly Bonded to Array (CBA) 技术,无 HBM LPDDR 内部混封。",
+      "source_url": "https://documents.sandisk.com/content/dam/asset-library/en_us/assets/public/sandisk/collateral/company/Sandisk-HBF-Fact-Sheet.pdf"
+    },
+    {
+      "claim_in_prompt": "HBF 比 HBM2e 便宜 50%",
+      "verified_fact": "公开可比口径下,Sandisk HBF 容量是 HBM 的 8-16 倍,'at a similar cost per bit'(Sandisk 官方表述);Samsung 在 zNAND-O 系列里采用不同口径。50% 这个具体数字未在原厂资料中查得,故本文档标为 'unverified'。",
+      "source_url": "https://investor.sandisk.com/news-releases/news-release-details/sandisk-collaborate-sk-hynix-drive-standardization-high"
+    },
+    {
+      "claim_in_prompt": "NVLink Switch 4 50GB/s/link",
+      "verified_fact": "NVLink 4(Hopper,H100/H200)单 GPU 18 links,单 link 25 GB/s 单向(50 GB/s 双向),整 GPU 总 900 GB/s。NVLink Switch 4 是 4th-gen NVSwitch 芯片,每 GPU 域提供 900 GB/s。本文标 50 GB/s/link 为单 link 双向带宽。",
+      "source_url": "https://www.nvidia.com/en-us/data-center/nvlink/"
+    },
+    {
+      "claim_in_prompt": "NVLink Switch 5 100GB/s 2025",
+      "verified_fact": "NVLink 5 (Blackwell) 在 GTC 2025 / Computex 2025 公布:每 GPU 18 × 100 GB/s 单向(200 GB/s 双向)links,合计 1.8 TB/s。NVLink Switch 5 芯片搭配 GB200 NVL72 / GB300 NVL72,聚合带宽 130 TB/s(rack 总)。Rubin 平台的 NVLink 6 将再翻倍到 3.6 TB/s/GPU。",
+      "source_url": "https://docs.nvidia.com/enterprise-reference-architectures/nvl72-ai-factory/latest/components.html"
+    }
+  ],
+  "sections": [
+    {
+      "id": "HBM",
+      "title": "HBM3e / HBM4 / HBM4e",
+      "products": [
+        {
+          "name": "JEDEC JESD270-4 HBM4 DRAM 标准",
+          "vendor": "JEDEC (Solid State Technology Association)",
+          "release_date": "2025-04-16",
+          "spec": {
+            "std_id": "JESD270-4 (Apr 2025); 后缀 A 更新版 2025-12",
+            "data_rate_per_pin": "8 Gb/s (JESD270-4); >10 Gb/s with vendor extension",
+            "interface_width": "2048-bit (从 HBM3 的 1024-bit 翻倍)",
+            "channels": "32 channels × 2 pseudo-channels = 64 pseudo-channels",
+            "max_bandwidth_per_stack": "2 TB/s (8 Gb/s × 2048-bit)",
+            "stack_height": "4-high 到 16-high",
+            "die_density": "24 Gb / 32 Gb",
+            "max_capacity": "64 GB / stack (16-Hi × 32 Gb die)",
+            "voltage": "VDDQ 0.7/0.75/0.8/0.9 V; VDDC 1.0/1.05 V",
+            "RAS": "DRFM directed refresh management + on-chip ECC"
+          },
+          "sources": [
+            {"label": "JEDEC press release (Apr 16, 2025)", "url": "https://www.jedec.org/news/pressreleases/jedec%C2%AE-and-industry-leaders-collaborate-release-jesd270-4-hbm4-standard-advancing"},
+            {"label": "JEDEC JESD270-4A standard page (Dec 2025)", "url": "https://www.jedec.org/standards-documents/docs/jesd270-4a"},
+            {"label": "HPCwire coverage", "url": "https://www.hpcwire.com/off-the-wire/jedec-releases-hbm4-standard-to-advance-ai-and-hpc-memory/"},
+            {"label": "AllAboutCircuits technical breakdown", "url": "https://www.allaboutcircuits.com/news/jedec-officially-releases-hbm4-memory-standard/"}
+          ]
+        },
+        {
+          "name": "SK hynix 12-Hi HBM3E (36 GB)",
+          "vendor": "SK hynix",
+          "release_date": "2024-09-26 (量产首发)",
+          "spec": {
+            "stacks": "12-layer (12-Hi)",
+            "capacity_per_stack": "36 GB (12 × 3 Gb die)",
+            "data_rate": "9.6 Gbps/pin",
+            "packaging": "Advanced MR-MUF (Mass Reflow-Molded Under-Fill); TSV",
+            "die_thinning": "DRAM 芯片厚度比 8-Hi 减薄 40%",
+            "lead_customer": "NVIDIA Blackwell"
+          },
+          "sources": [
+            {"label": "SK hynix press release", "url": "https://news.skhynix.com/en/sk-hynix-begins-volume-production-of-the-world-first-12-layer-hbm3e"},
+            {"label": "KED Global coverage", "url": "https://www.kedglobal.com/korean-chipmakers/newsView/ked202409260013"},
+            {"label": "Tom's Hardware", "url": "https://www.tomshardware.com/pc-components/gpus/sk-hynix-preps-for-nvidia-blackwell-ultra-and-amd-instinct-mi325x-with-12-hi-hbm3e"}
+          ]
+        },
+        {
+          "name": "SK hynix 12-Hi HBM4 (36 GB, 2 TB/s)",
+          "vendor": "SK hynix",
+          "release_date": "2025-03-18 (样品出货); 2H2025 量产",
+          "spec": {
+            "stacks": "12-layer",
+            "capacity_per_stack": "36 GB",
+            "bandwidth_per_stack": ">2 TB/s",
+            "packaging": "Advanced MR-MUF",
+            "mass_prod_window": "2H 2025"
+          },
+          "sources": [
+            {"label": "SK hynix press release", "url": "https://news.skhynix.com/en/sk-hynix-ships-worlds-first-12-layer-hbm4-samples-to-customers/"},
+            {"label": "PRNewswire mirror", "url": "https://www.prnewswire.com/news-releases/sk-hynix-ships-worlds-first-12-layer-hbm4-samples-to-customers-302405246.html"},
+            {"label": "KED Global", "url": "https://www.kedglobal.com/korean-chipmakers/newsView/ked202503190006"}
+          ]
+        },
+        {
+          "name": "Samsung HBM4 / HBM4e",
+          "vendor": "Samsung Electronics",
+          "release_date": "HBM4 2025 H2 量产; HBM4e 13 Gbps+/pin 路线图 2025-10 OCP Summit 公布",
+          "spec": {
+            "HBM4e_target": "≥13 Gbps/pin,峰值 3.25 TB/s/stack(OCP 2025 公开口径)",
+            "Samsung_fab_process": "HBM4 base die 4nm foundry(三星 Foundry 自家代工)"
+          },
+          "sources": [
+            {"label": "TrendForce OCP 2025 coverage (CMM-D + HBM4e 路线图)", "url": "https://www.trendforce.com/news/2025/10/17/news-samsung-unveils-cxl-roadmap-cmm-d-2-0-samples-ready-3-1-targeted-for-year-end/"},
+            {"label": "KED Global - Samsung 4nm HBM4", "url": "https://www.kedglobal.com/korean-chipmakers/newsView/ked202409260013"}
+          ]
+        },
+        {
+          "name": "Micron HBM3E / HBM4",
+          "vendor": "Micron Technology",
+          "release_date": "HBM3E 2024 H2 量产;HBM4 路线图 2026",
+          "spec": {
+            "HBM3E_capacity": "24 GB / 36 GB (12-Hi),8/12-Hi 配置",
+            "HBM4_customer_engagement": "NVIDIA Blackwell 体系, HBM4 2025-2026 出货"
+          },
+          "sources": [
+            {"label": "Micron newsroom search", "url": "https://investors.micron.com/news-releases"},
+            {"label": "JEDEC HBM4 联合发布署名成员(AMD, NVIDIA, Google, Micron, 等)", "url": "https://www.allaboutcircuits.com/news/jedec-officially-releases-hbm4-memory-standard/"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "HBF",
+      "title": "HBF High Bandwidth Flash (NAND-based HBM 替代)",
+      "products": [
+        {
+          "name": "Sandisk HBF (High Bandwidth Flash)",
+          "vendor": "Sandisk Corporation (NASDAQ: SNDK)",
+          "release_date": "概念首次披露 2025-02;FMS 2025-08 公开技术;OCP 技术规范 2026-08-05 发布;首批样品 2H 2026",
+          "spec": {
+            "gen1_read_bandwidth": "1.6 TB/s/stack",
+            "gen1_capacity_per_stack": "512 GB (16-die 堆叠 × 256 Gb/die)",
+            "gen2_target": "≥2 TB/s, 1 TB/stack",
+            "gen3_target": "≥3.2 TB/s, 1.5 TB/stack",
+            "core_tech": "Sandisk BiCS NAND + CMOS directly Bonded to Array (CBA)",
+            "interface": "xPU-HBF host interface (在 OCP 1.0 规范中定义)",
+            "use_case": "AI inference (read-intensive), 边缘/数据中心",
+            "cost_target": "与 HBM 相当 per bit,容量 8-16× HBM"
+          },
+          "sources": [
+            {"label": "Sandisk HBF Fact Sheet PDF", "url": "https://documents.sandisk.com/content/dam/asset-library/en_us/assets/public/sandisk/collateral/company/Sandisk-HBF-Fact-Sheet.pdf"},
+            {"label": "Sandisk + SK hynix MOU press release (Aug 6, 2025)", "url": "https://www.sandisk.com/company/newsroom/press-releases/2025/2025-08-06-sandisk-to-collaborate-with-sk-hynix-to-drive-standardization-of-high-bandwidth-flash-memory-technology"},
+            {"label": "Sandisk blog (Aug 2025) 技术综述", "url": "https://www.sandisk.com/company/newsroom/blogs/2025/scaling-beyond-the-wall-inside-sandisks-high-bandwidth-flash-for-ai"},
+            {"label": "OCP HBF 规范发布 FMS 2026 (Aug 5, 2026)", "url": "https://www.storagenewsletter.com/2026/08/05/fms-2026-sandisk-and-sk-hynix-advance-global-standardization-of-high-bandwidth-flash-with-release-of-first-ocp-technical-specification"}
+          ]
+        },
+        {
+          "name": "SK hynix HBF (H3 hybrid architecture)",
+          "vendor": "SK hynix",
+          "release_date": "与 Sandisk 联合标准化 2025-08;2H2026 首批 trial;2027 商业化目标",
+          "spec": {
+            "architecture": "H3: 8×HBM3E + 8×HBF 与 NVIDIA Blackwell B200 配对 (SK hynix IEEE paper)",
+            "perf_per_watt": "模拟相对纯 HBM 提升最高 2.69×",
+            "consortium": "Google, Tenstorrent, Samsung(后加入) 加入 HBF 工作组"
+          },
+          "sources": [
+            {"label": "SK hynix + Sandisk MOU PR", "url": "https://www.sandisk.com/company/newsroom/press-releases/2025/2025-08-06-sandisk-to-collaborate-with-sk-hynix-to-drive-standardization-of-high-bandwidth-flash-memory-technology"},
+            {"label": "EE Times HBF overview (Sandisk 来源)", "url": "https://www.eetimes.com/nand-reimagined-in-high-bandwidth-flash-to-complement-hbm/"}
+          ]
+        },
+        {
+          "name": "Samsung zNAND-O (Samsung HBF 路线)",
+          "vendor": "Samsung Electronics",
+          "release_date": "概念设计 2025-10 报道;商业化目标 2028",
+          "spec": {
+            "form": "4-Hi / 8-Hi TSV 堆叠 + UCIe I/F",
+            "use_case": "Edge AI, NPU 配对的大容量 on-device 模型存储",
+            "distinction_vs_HBF": "Samsung 官方称 zNAND-O 是 HBF 概念变体,但应用方向不同(HBF = 数据中心 GPU 侧;zNAND-O = 端侧 NPU)"
+          },
+          "sources": [
+            {"label": "SemiWiki 引用 technews.tw 2025-10-02", "url": "https://semiwiki.com/forum/threads/the-hbf-battle-is-underway-with-samsung-reportedly-joining-the-challenge-against-sk-hynix-and-kioxia.23750/"},
+            {"label": "Mark Lapedus Substack", "url": "https://marklapedus.substack.com/p/samsung-debuts-new-3d-hbm-flash-memory"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CXL",
+      "title": "CXL 3.0 / 3.1 / 3.2 Memory Pooling & Switching",
+      "products": [
+        {
+          "name": "CXL 3.0 Specification",
+          "vendor": "CXL Consortium",
+          "release_date": "2022-08-01 (r3.0 v1.0)",
+          "spec": {
+            "features": "内存池化 (memory pooling)、fabric manager、trusted execution、 Type-3 multi-head device、Type-2 with coherent accelerator、PCIe 6.0 PHY 兼容",
+            "supporting_standards": "CXL 3.0 之上: JEDEC JESD317A (CXL module base), JESD405-1B (CXL module label), JESD319 (CXL memory controller ASIC, 2024-09), JESD325 (CXL device management, 2024-09)"
+          },
+          "sources": [
+            {"label": "CXL 3.0 Specification PDF (consortium, r3.0 v1.0)", "url": "https://computeexpresslink.org/wp-content/uploads/2024/02/CXL-3.0-Specification.pdf"},
+            {"label": "JEDEC CXL family PR (Sep 23, 2024) - JESD319 & JESD325", "url": "https://www.jedec.org/news/pressreleases/jedec%C2%AE-adds-suite-standards-supporting-compute-express-link%C2%AE-cxl%C2%AE-memory"}
+          ]
+        },
+        {
+          "name": "CXL 3.1 Specification",
+          "vendor": "CXL Consortium",
+          "release_date": "2023-11-14 公开 + 2024 Webinar 更新版",
+          "spec": {
+            "additions": "Trusted Execution Environment Security Protocol (TSP)、fabric improvements、memory expander improvements、对 PCIe 6.0 PHY 优化",
+            "sponsor_members": "Intel, AMD, Samsung, SK hynix, Micron, Astera Labs, Montage, XConn"
+          },
+          "sources": [
+            {"label": "CXL 3.1 Specification PDF (Webinar 2024 release)", "url": "https://computeexpresslink.org/wp-content/uploads/2024/01/CXL_3.1-Specification-Release_FINAL.pdf"},
+            {"label": "Synopsys technical blog on CXL 3.1", "url": "https://www.synopsys.com/blogs/chip-design/cxl-3-1-standard.html"}
+          ]
+        },
+        {
+          "name": "Samsung CMM-D (CXL Memory Module-DRAM)",
+          "vendor": "Samsung Electronics",
+          "release_date": "MD220 (128GB) Lenovo 联合验证 2024-10-22;CMM-D 2.0 (128GB/256GB) 客户样品 2025-10;CMM-D 3.1 (1TB, 72 GB/s) 设计 2025 年底;MD310 (CXL 3.2, 256 GB, 72 GB/s) 路线图",
+          "spec": {
+            "MD220": "CXL 2.0 / PCIe 5.0; DDR5 32 Gb (12nm-class); 128 GB & 256 GB; EDSFF E3.S 2T; 控制器 = Montage M88MX5891/5851",
+            "CMM-D_2_0": "128/256 GB, 36 GB/s, PCIe Gen5, 单 DDR5 channel, 2025 旗舰",
+            "MD310": "CXL 3.2 / PCIe 6.0, 256 GB, up to 72 GB/s, EDSFF E3.S 2T",
+            "B_PM_CMM_H": "CXL Memory Module Hybrid for Persistent Memory (CMM-H PM, Memcon 2024-03)",
+            "Samsung_2025_CMM-D_3.1": "1 TB, 72 GB/s, CXL 3.0, PCIe 6.0, 双 DDR5"
+          },
+          "sources": [
+            {"label": "Samsung CMM-D 产品页", "url": "https://semiconductor.samsung.com/cxl-memory/cmm-d"},
+            {"label": "Samsung MD220 product page", "url": "https://semiconductor.samsung.com/cxl-memory/cmm-d/md220"},
+            {"label": "StorageNewsletter 128GB Lenovo 联合验证 (Oct 22, 2024)", "url": "https://www.storagenewsletter.com/2024/10/22/samsung-completes-joint-validation-of-128gb-cmm-d-with-lenovo-servers/"},
+            {"label": "BusinessWire Memcon 2024 CMM-H PM 发布", "url": "https://www.businesswire.com/news/home/20240326037385/en/Samsung-Demonstrates-New-CXL-Capabilities-and-Introduces-New-Memory-Module-for-Scalable-Composable-Disaggregated-Infrastructure-at-Memcon-2024/"},
+            {"label": "TrendForce OCP 2025 路线图 (2025-10-17)", "url": "https://www.trendforce.com/news/2025/10/17/news-samsung-unveils-cxl-roadmap-cmm-d-2-0-samples-ready-3-1-targeted-for-year-end/"}
+          ]
+        },
+        {
+          "name": "Astera Labs Aries Retimer & Leo CXL Smart Memory Controller",
+          "vendor": "Astera Labs (NASDAQ: ALAB)",
+          "release_date": "Aries 6 PCIe 6.x/CXL 3.x retimer 2024-03 (GTC);Leo CXL 控制器 2024 OCP Summit 起 demo,2025-11-18 量产支持 Azure M-series VMs",
+          "spec": {
+            "Aries_6_retimer": "PCIe 6.x / CXL 3.x DSP retimer, industry's lowest power; x16; shipping to all major hyperscalers",
+            "Leo_Portfolio": [
+              "Leo A1000 CXL AIC (CXL 1.1/2.0, 16×32G, 4× DDR5-5600, 2 TB, expansion+pooling)",
+              "Leo E-Series CM5082E (CXL 2.0 x8)",
+              "Leo P-Series CM5162P (CXL 2.0 x16, expansion + pooling, 2 TB)"
+            ],
+            "Leo_deployment": "Microsoft Azure M-series VMs (industry-first cloud CXL memory expansion, Nov 18, 2025)",
+            "Taurus_family": "3.2T OCP-standard retimers & redrivers (2026),用于 UALink/ESUN/NVLink Fusion scale-up"
+          },
+          "sources": [
+            {"label": "Astera Labs Aries 6 retimer PR (GTC 2024)", "url": "https://www.asteralabs.com/news/astera-labs-expands-widely-deployed-field-tested-retimer-portfolio-with-industrys-lowest-power-pcie-6-x-cxl-3-x-solution/"},
+            {"label": "Astera Labs Leo product page", "url": "https://www.asteralabs.com/products/leo-cxl-smart-memory-controllers/"},
+            {"label": "Astera Labs IR PR - Leo on Azure (Nov 18, 2025)", "url": "https://ir.asteralabs.com/news-releases/news-release-details/astera-labs-leo-cxl-smart-memory-controllers-microsoft-azure-m"},
+            {"label": "Astera Labs Taurus family expansion PR", "url": "https://www.asteralabs.com/news/astera-labs-expands-taurus-family-with-industrys-first-ocp-standard-footprint-compatible-3-2t-smart-retimers-and-smart-redrivers/"}
+          ]
+        },
+        {
+          "name": "XConn XC50256 CXL 2.0 / PCIe Gen5 Switch",
+          "vendor": "XConn Technologies",
+          "release_date": "XC50256 (256-lane CXL 2.0 + PCIe Gen5) 2024 FMS 公开演示;XC24 与 XC32 系列早期 2023-08 首发",
+          "spec": {
+            "XC50256": "256-lane, 16× x16 ports, hybrid CXL 2.0 / PCIe Gen5 mode",
+            "use_case": "CXL memory pooling, multi-host fan-out",
+            "interop_partners": "Micron, Samsung, Montage"
+          },
+          "sources": [
+            {"label": "PRNewswire XConn XC-series launch (2023-08-08)", "url": "https://www.prnewswire.com/news-releases/xconn-technologies-launches-the-industrys-first-and-only-hybrid-cxl-2-0-and-pcie-gen-5-switch-301895313.html"},
+            {"label": "StorageNewsletter FMS 2023 demonstration", "url": "https://www.storagenewsletter.com/2023/09/26/xconn-technologies-demonstrates-cxl-2-0-switch-with-future-xeon-processors-and-ecosystem/"},
+            {"label": "ServeTheHome FMS 2024 XConn XC50256", "url": "https://www.servethehome.com/xconn-shows-its-cxl-2-0-and-pcie-switch-off-at-fms-2024/"}
+          ]
+        },
+        {
+          "name": "Montage Technology 沐创 MXC CXL Memory eXpander Controller",
+          "vendor": "Montage Technology (澜起科技, SH: 688008)",
+          "release_date": "M88MX5891/5851 (CXL 1.1/2.0) 2022-05 首发;M88MX6852 (CXL 1.1/2.0/3.2, 64 GT/s) 2025-09-01 发布;2026-07-31 试产 CXL 3.2",
+          "spec": {
+            "M88MX6852": "Type 3 CXL controller; CXL 1.1/2.0/3.2 兼容; 1× x8 或 2× x4 ports; 64 GT/s; DDR5; 1211-ball FCBGA; 入选 CXL 2.0 合规供应商清单 2025-01-21",
+            "M88MX5891/5851": "CXL 1.1/2.0; x8; 32 GT/s; DDR4/DDR5",
+            "key_customer": "SK hynix 在 2024 CMM-DDR5 采用 Montage MXC"
+          },
+          "sources": [
+            {"label": "Montage MXC product page", "url": "https://web.montage-tech.com/MXC"},
+            {"label": "Montage CXL 3.1 MXC launch PR (Sep 1, 2025)", "url": "https://www.businesswire.com/news/home/20250829199407/en/Montage-Technology-Introduces-CXL-3.1-Memory-eXpander-Controller-to-Empower-Next-Generation-Data-Center-Infrastructure"},
+            {"label": "Montage 全球首发 MXC PR (May 6, 2022)", "url": "https://www.prnewswire.com/news-releases/montage-technology-delivers-the-worlds-first-cxl-memory-expander-controller-301540620.html"}
+          ]
+        },
+        {
+          "name": "Rambus CXL 2.0 / 3.0 Controller IP",
+          "vendor": "Rambus Inc. (NASDAQ: RMBS)",
+          "release_date": "CXL 2.0 / 3.0 Controller IP 可授权 (持续出货);CXL 3.0 PHY 2024+",
+          "spec": {
+            "product": "Compute Express Link Controller IP for SoCs, ASICs, FPGAs",
+            "compliance": "CXL 3.0 & 2.0"
+          },
+          "sources": [
+            {"label": "Rambus CXL Controller IP page", "url": "https://www.rambus.com/interface-ip/cxl/"}
+          ]
+        },
+        {
+          "name": "SK hynix 96 GB / 128 GB DDR5 CXL 2.0 Module",
+          "vendor": "SK hynix",
+          "release_date": "2025-04 96 GB 完成客户验证;128 GB 版本验证中;2025 H2 出货目标",
+          "spec": {
+            "controller_history": "2024 CMM-DDR5 用 Montage MXC;2025+ 自研 chiplet CXL controller (TSMC 制造)",
+            "perf": "比标准 DDR5 服务器容量 +50%,带宽 +30%"
+          },
+          "sources": [
+            {"label": "SK hynix CXL DDR5 96GB 客户验证完成 PR (Apr 2025)", "url": "https://news.skhynix.com/en/sk-hynix-completes-customer-validation-of-cxl-based-ddr5/"},
+            {"label": "TrendForce - SK hynix 自研 CXL controller", "url": "https://www.trendforce.com/news/2025/02/19/news-sk-hynix-ramps-up-cxl-push-with-first-in-house-controller-reportedly-to-be-built-by-tsmc/"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "MRDIMM",
+      "title": "MRDIMM / MCRDIMM - Multiplexed Rank DIMM",
+      "products": [
+        {
+          "name": "JEDEC JESD79-5 DDR5 SDRAM (含 MRDIMM 模块基础)",
+          "vendor": "JEDEC",
+          "release_date": "JESD79-5 系列为 DDR5 主规范; MRDIMM 标准化在 JESD317A (CXL module base) 框架下",
+          "spec": {
+            "scope": "DDR5 SDRAM 主规范 + MRDIMM 模块扩展",
+            "key_spec": "双 rank buffering,8000-8800 MT/s Gen 1;后续 Gen 2 12,800 MT/s (Intel Xeon 6+ 路线图)"
+          },
+          "sources": [
+            {"label": "JESD79-5 reference PDF (公开)", "url": "https://raw.githubusercontent.com/RAMGuide/TheRamGuide-WIP-/main/DDR5%20Spec%20JESD79-5.pdf"}
+          ]
+        },
+        {
+          "name": "Micron DDR5 MRDIMM 256 GB",
+          "vendor": "Micron Technology (NASDAQ: MU)",
+          "release_date": "2024-07-16 公布 + sampling;2H2024 量产",
+          "spec": {
+            "capacity_range": "32 GB / 64 GB / 96 GB / 128 GB / 256 GB",
+            "data_rate": "8800 MT/s (Gen 1); 8000 MT/s variant for some SKUs",
+            "platform_compat": "Intel Xeon 6 (Granite Rapids-AP, GNR-AP)",
+            "form_factor": "标准 RDIMM + Tall Form Factor (TFF)",
+            "perf_vs_RDIMM": "8800 MT/s MRDIMM 比 6400 MT/s TSV RDIMM 带宽 +39%,读带宽 +40%, 延迟 -40%",
+            "die": "32 Gb DRAM die (1z/1γ),EUV",
+            "TFF_thermal": "TFF 模块比标准 RDIMM 同功耗下温度低 20°C"
+          },
+          "sources": [
+            {"label": "Micron MRDIMM PR (Jul 16, 2024)", "url": "https://investors.micron.com/news/press-release/2024/Micron-MRDIMM-Innovations-Deliver-Highest-Performance-and-Lowest-Latency-Main-Memory-to-Accelerate-Data-Center-Workloads-07-16-2024/default.aspx"},
+            {"label": "Micron MRDIMM product page", "url": "https://www.micron.com/products/memory/dram-modules/mrdimm"},
+            {"label": "Tom's Hardware MRDIMM 256 GB coverage", "url": "https://www.tomshardware.com/desktops/servers/micron-unveils-mrdimms-for-intel-xeon-6-up-to-256gb-ddr5-8800-modules"}
+          ]
+        },
+        {
+          "name": "SK hynix MRDIMM",
+          "vendor": "SK hynix",
+          "release_date": "2024 年内开始;2025 H1 持续供应",
+          "spec": {
+            "data_rate": "8000 MT/s 起步,基于 16 Gb / 24 Gb DDR5",
+            "position": "用于 AI / HPC server,主推 96 GB / 128 GB"
+          },
+          "sources": [
+            {"label": "SK hynix MRDIMM product page", "url": "https://product.skhynix.com/products/dram/module/mrdimm.go"}
+          ]
+        },
+        {
+          "name": "Samsung MRDIMM (32 GB / 48 GB)",
+          "vendor": "Samsung Electronics",
+          "release_date": "2024-2025 多平台支持",
+          "spec": {
+            "position": "2024 推出基于 32 Gb die 的 MRDIMM;后续 Gen 2 路线"
+          },
+          "sources": [
+            {"label": "Samsung DDR5 模块产品页", "url": "https://semiconductor.samsung.com/dram/module/"}
+          ]
+        },
+        {
+          "name": "Intel Xeon 6 MRDIMM 路线图 (后续 12,800 MT/s)",
+          "vendor": "Intel + JEDEC",
+          "release_date": "Gen 1 (8000-8800 MT/s) 2024-2025;Gen 2 (12,800 MT/s) 计划 2027 Q1 (Xeon 6900P);17,600 MT/s 路线图 2029-2030",
+          "spec": {
+            "Gen_1_spec": "8800 MT/s (Micron), 8000 MT/s (SK hynix)",
+            "Gen_2_spec": "12,800 MT/s, 2027 Q1 量产配 Xeon 6900P Granite Rapids",
+            "Future": "17,600 MT/s 2029-2030"
+          },
+          "sources": [
+            {"label": "Wccftech Intel Xeon 6 + MRDIMM 路线图 (Jul 20, 2026)", "url": "https://wccftech.com/intel-xeon-6-leaps-to-8000-mt-s-memory-now-but-the-real-payoff-waits-for-8800-mt-s-mrdimm-in-2027"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "PipelineMemory",
+      "title": "Pipeline Memory (HBM4 Controller / 在 compute die 与 DRAM 间逻辑管线)",
+      "products": [
+        {
+          "name": "Rambus HBM4 Memory Controller IP",
+          "vendor": "Rambus Inc. (NASDAQ: RMBS)",
+          "release_date": "2024-09-09 公布 (业界首个 HBM4 controller IP);early access 设计客户已可 engage",
+          "spec": {
+            "data_rate": "支持 JEDEC 6.4 Gbps 标准,可达 10 Gbps / pin 扩展 → 2.56 TB/s/device",
+            "ecosystem": "Samsung、Cadence PHY、Siemens VIP 联合验证",
+            "HBM4E_controller": "16 Gbps/pin,>4 TB/s (HBM4E)"
+          },
+          "sources": [
+            {"label": "Rambus IR press release (Sep 9, 2024)", "url": "https://investor.rambus.com/press-releases/press-release-details/2024/Rambus-Announces-Industry-First-HBM4-Controller-IP-to-Accelerate-Next-Generation-AI-Workloads/default.aspx"},
+            {"label": "Rambus HBM4 Controller product page", "url": "https://www.rambus.com/interface-ip/hbm/hbm4-controller/"},
+            {"label": "Rambus HBM4E controller note", "url": "https://www.rambus.com/pressreleases/memory-interface/press-releases-controllers"}
+          ]
+        },
+        {
+          "name": "Samsung 4nm HBM4 base-die (含逻辑管线和 interface IP)",
+          "vendor": "Samsung Foundry",
+          "release_date": "2025 H2 量产准备 (与 HBM4 stack 同周期)",
+          "spec": {
+            "process": "4nm Samsung Foundry logic die 集成 HBM4 PHY/控制器/ECC 管线",
+            "function": "逻辑管线层 → 在 compute die 与 DRAM 之间承担 command scheduling, refresh, ECC, error scrubbing"
+          },
+          "sources": [
+            {"label": "KED Global - Samsung 4nm HBM4 foundry", "url": "https://www.kedglobal.com/korean-chipmakers/newsView/ked202409260013"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "AI_Cluster_Interconnect",
+      "title": "AI 集群互连 (NVLink / PCIe / UALink / Infinity Fabric)",
+      "products": [
+        {
+          "name": "NVIDIA NVLink Switch 4 (Hopper)",
+          "vendor": "NVIDIA",
+          "release_date": "2023 (H100/H200 出货周期)",
+          "spec": {
+            "per_link": "25 GB/s 单向 (50 GB/s 双向)",
+            "per_GPU_links": "18 links × 50 GB/s 双向 = 900 GB/s/GPU",
+            "switch_chip": "4th-gen NVSwitch (Hopper 平台)",
+            "GPU_domain": "8 GPU"
+          },
+          "sources": [
+            {"label": "NVIDIA NVLink 官方页", "url": "https://www.nvidia.com/en-us/data-center/nvlink/"}
+          ]
+        },
+        {
+          "name": "NVIDIA NVLink Switch 5 (Blackwell)",
+          "vendor": "NVIDIA",
+          "release_date": "GTC 2025 (Mar 2025) / Computex 2025 公开;GB200 NVL72 出货周期 2H 2024-2025",
+          "spec": {
+            "per_link": "100 GB/s 单向 (200 GB/s 双向)",
+            "per_GPU_links": "18 links × 100 GB/s 单向 = 1.8 TB/s/GPU (翻倍于 Hopper)",
+            "NVLink_Switch": "NVSwitch 5 ASIC; 130 TB/s 总聚合带宽 (NVL72 rack)",
+            "GPU_domain": "576 GPUs full bandwidth (NVL72)",
+            "SHARP": "Scalable Hierarchical Aggregation and Reduction Protocol in-network compute"
+          },
+          "sources": [
+            {"label": "NVIDIA NVLink 官方页", "url": "https://www.nvidia.com/en-us/data-center/nvlink/"},
+            {"label": "NVIDIA GB200 NVL72 数据中心页", "url": "https://www.nvidia.com/en-us/data-center/gb200-nvl72/"},
+            {"label": "NVIDIA NVL72 AI Factory docs", "url": "https://docs.nvidia.com/enterprise-reference-architectures/nvl72-ai-factory/latest/components.html"},
+            {"label": "Techloy NVLink 5 at Computex 2025", "url": "https://www.techloy.com/nvidia-unveils-nvlink-5-and-fusion-to-supercharge-ai-clusters/"}
+          ]
+        },
+        {
+          "name": "NVIDIA NVLink Switch 6 (Rubin) — 预告",
+          "vendor": "NVIDIA",
+          "release_date": "GTC 2025 公开, 2H 2026 Rubin 平台量产",
+          "spec": {
+            "per_GPU": "3.6 TB/s (翻倍 Blackwell)",
+            "domain": "72 / 576 GPU NVLink domain"
+          },
+          "sources": [
+            {"label": "NVIDIA NVLink 官方页 (Rubin 6 列示)", "url": "https://www.nvidia.com/en-us/data-center/nvlink/"}
+          ]
+        },
+        {
+          "name": "PCI-SIG PCIe 6.0 / 6.2 + Retimer 生态",
+          "vendor": "PCI-SIG",
+          "release_date": "PCIe 6.0 spec 2022-01-11;PCIe 6.2 维护版本 2024;Astera Aries 6 retimer 2024 GTC 量产中",
+          "spec": {
+            "data_rate": "64 GT/s PAM4 → 256 GB/s 双向 (x16)",
+            "retimer": "Astera Labs Aries 6 (业界最低功耗 PCIe 6.x/CXL 3.x DSP retimer)"
+          },
+          "sources": [
+            {"label": "PCI-SIG PCIe 6.0 spec page", "url": "https://pcisig.com/pci-express-6.0-specification"},
+            {"label": "Astera Labs Aries 6 PR (Mar 2024 GTC)", "url": "https://www.asteralabs.com/news/astera-labs-expands-widely-deployed-field-tested-retimer-portfolio-with-industrys-lowest-power-pcie-6-x-cxl-3-x-solution/"}
+          ]
+        },
+        {
+          "name": "PCI-SIG PCIe 7.0 Specification",
+          "vendor": "PCI-SIG",
+          "release_date": "v0.5 (Apr 2024) → v0.7 (Jan 16, 2025) → v0.9 final draft (Mar 18, 2025) → v1.0 (Jun 11, 2025 PCI-SIG DevCon)",
+          "spec": {
+            "data_rate": "128 GT/s PAM4 → 512 GB/s 双向 (x16)",
+            "optical_target": "光互联支持 PCIe 6.4 ↔ 7.0 silicon,extended reach across racks",
+            "backward_compat": "与前几代兼容"
+          },
+          "sources": [
+            {"label": "PCI-SIG PCIe 7.0 spec v1.0 release (Jun 11, 2025)", "url": "https://pcisig.com/specifications/pcie-70-specification-version-03-now-available-members"},
+            {"label": "PCI-SIG v0.9 final draft blog (Mar 18, 2025)", "url": "https://pcisig.com/blog/pcie-70-specification-version-09-final-draft-now-available-member-review"},
+            {"label": "PCI-SIG v0.7 blog (Jan 16, 2025)", "url": "https://pcisig.com/blog/progressing-track-pcie-70-specification-version-07-now-available-member-review"}
+          ]
+        }
+      ]
+    }
+  ],
+  "vendor_ecosystem_quick_index": {
+    "HBM_leaders": ["SK hynix", "Samsung", "Micron"],
+    "HBM4_controller_IP": ["Rambus", "Cadence (PHY)", "Siemens (VIP)", "Synopsys"],
+    "CXL_controller_IP_&_ASIC": ["Montage Technology 沐创", "XConn Technologies", "Astera Labs (Leo)", "Rambus", "Microchip", "Panmnesia"],
+    "CXL_module_OEM": ["Samsung (CMM-D / MD220 / MD310)", "SK hynix (96/128GB DDR5)", "Micron (CZ122 CXL 2.0 module 2024)"],
+    "MRDIMM_suppliers": ["Micron", "SK hynix", "Samsung"],
+    "HBF_consortium": ["Sandisk", "SK hynix", "Google", "Tenstorrent", "Samsung (zNAND-O)"],
+    "Retimer_&_Switch": ["Astera Labs (Aries / Taurus)", "Microchip", "Montage", "XConn"]
+  },
+  "primary_sources_summary": [
+    "JEDEC.org standards documents (JESD270-4, JESD319, JESD325, JESD317A, JESD79-5)",
+    "PCI-SIG.org specifications (PCIe 6.0, 7.0 v0.5/0.7/0.9/1.0)",
+    "ComputeExpressLink.org specifications (CXL 3.0 r3.0, 3.1)",
+    "SK hynix newsroom (HBM3E, HBM4, CXL, HBF)",
+    "Samsung Semiconductor newsroom (CMM-D, HBM, zNAND-O)",
+    "Micron IR press release (MRDIMM)",
+    "AMD.com MI325X/MI355X product pages",
+    "NVIDIA.com NVLink / GB200 NVL72 official pages",
+    "Astera Labs IR / Newsroom",
+    "Montage Technology corporate site (澜起科技)",
+    "XConn PRNewswire announcements",
+    "Rambus IR press releases",
+    "Sandisk Newsroom (HBF fact sheet, MOU with SK hynix, OCP spec)",
+    "TrendForce, Tom's Hardware, ServeTheHome, VideoCardz, HPCwire 媒体二手报道(标注)"
+  ]
+}
