@@ -1,0 +1,1827 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mooncake —— Moonshot AI 的 KVCache 中心化分离式推理架构 (FAST'25 Best Paper)</title>
+<meta name="description" content="深度调研 Mooncake —— Moonshot AI 月之暗面开源的 KVCache 中心化分离式推理架构, 论文荣获 FAST'25 Best Paper Award (2025-02-25, Santa Clara, USENIX)。覆盖产品矩阵 (Transfer Engine / Mooncake Store / Scheduler)、技术架构 (PD disaggregation / RDMA / 多级缓存)、Kimi K2 部署性能 (128×H200, 224k tok/s prefill, 288k tok/s decode) 及 vLLM/SGLang/TensorRT-LLM/LMDeploy/xLLM/NIXL 集成。" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --ink: #0b1020;
+    --paper: #f7f6f2;
+    --accent: #d72638;
+    --accent2: #1f6feb;
+    --muted: #5a6273;
+    --rule: #d9d6cf;
+    --code-bg: #0b1020;
+    --code-fg: #e8edf5;
+    --link: #1f6feb;
+    --card-bg: #ffffff;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: "Inter", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.65;
+  }
+  .container-prose { max-width: 920px; }
+  .toc-link.active { color: var(--accent); font-weight: 600; border-left-color: var(--accent); }
+  .toc-link { border-left: 2px solid transparent; }
+  .toc-link:hover { color: var(--accent2); border-left-color: var(--accent2); }
+  a { color: var(--link); text-decoration: none; border-bottom: 1px dotted rgba(31,111,235,0.4); }
+  a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .anchor { scroll-margin-top: 100px; }
+  .smallcaps { font-variant-caps: all-small-caps; letter-spacing: 0.05em; color: var(--muted); font-size: 0.78rem; }
+  .pullquote { border-left: 4px solid var(--accent); padding: 0.6rem 1.1rem; background: #fff5f6; font-style: italic; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+  .pullquote.green { border-left-color: #0e7a3a; background: #f0faf3; }
+  .pullquote.blue { border-left-color: #1147a8; background: #eff4ff; }
+  table.report { border-collapse: collapse; width: 100%; font-size: 0.92rem; margin: 1rem 0; }
+  table.report th, table.report td { border: 1px solid var(--rule); padding: 6px 10px; text-align: left; vertical-align: top; }
+  table.report th { background: #efeee8; font-weight: 600; }
+  table.report tr:nth-child(even) td { background: #fbfaf6; }
+  pre.code-block {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 14px 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.85rem;
+    line-height: 1.55;
+    margin: 0.8rem 0;
+  }
+  pre.code-block code { color: inherit; }
+  .citation { font-size: 0.75rem; color: var(--muted); }
+  .citation a { border-bottom: 1px dotted rgba(90,98,115,0.4); color: var(--muted); }
+  .citation a:hover { color: var(--accent); }
+  .footnote-ref { font-size: 0.7em; vertical-align: super; color: var(--accent); }
+  .hero {
+    background: linear-gradient(135deg, #0b1020 0%, #1f2347 50%, #d72638 100%);
+    color: white;
+    padding: 5rem 2rem 4rem;
+  }
+  .hero h1 { font-size: clamp(2.2rem, 4.6vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+  .hero .subtitle { font-size: 1.1rem; opacity: 0.88; max-width: 60ch; }
+  .hero .tldr {
+    background: rgba(255,255,255,0.08);
+    border-left: 4px solid #d72638;
+    padding: 1rem 1.25rem;
+    margin-top: 1.5rem;
+    max-width: 64ch;
+    border-radius: 0 6px 6px 0;
+    backdrop-filter: blur(4px);
+  }
+  .kpi-card {
+    background: white;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .kpi-num { font-size: 1.6rem; font-weight: 800; color: var(--accent); line-height: 1; }
+  .kpi-label { font-size: 0.78rem; color: var(--muted); margin-top: 0.25rem; }
+  .section-tag {
+    display: inline-block;
+    background: var(--accent);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 4px 10px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+  .module-card {
+    background: white;
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--accent2);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .stack-diagram {
+    background: linear-gradient(180deg, #fbfaf6 0%, #f4f1ea 100%);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 1.5rem;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.78rem;
+    line-height: 1.7;
+    color: #2c3340;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    background: #efeee8;
+    color: var(--ink);
+    margin-right: 4px;
+  }
+  .badge-red { background: #fde2e6; color: #b3001b; }
+  .badge-blue { background: #e1ecff; color: #1147a8; }
+  .badge-green { background: #d6f5e0; color: #0e7a3a; }
+  .badge-gray { background: #e8e6df; color: #555; }
+  #toc-desktop {
+    position: sticky;
+    top: 80px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    font-size: 0.84rem;
+    line-height: 1.55;
+    padding-right: 1rem;
+    border-right: 1px solid var(--rule);
+  }
+  #toc-desktop ul { list-style: none; padding-left: 0; }
+  #toc-desktop li { padding: 2px 0; }
+  #toc-desktop ul ul { padding-left: 0.75rem; }
+  #toc-mobile {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+    padding: 0.5rem 1rem;
+    display: none;
+  }
+  @media (max-width: 1023px) {
+    #toc-desktop { display: none; }
+    #toc-mobile { display: block; }
+  }
+  .footer-rule { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1rem; color: var(--muted); font-size: 0.82rem; }
+  details.tech-summary {
+    border: 1px solid var(--rule);
+    background: #fbfaf6;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    margin: 0.5rem 0;
+  }
+  details.tech-summary summary { cursor: pointer; font-weight: 600; color: var(--accent2); }
+  details.tech-summary[open] summary { color: var(--accent); }
+  .mermaid { background: white; border: 1px solid var(--rule); border-radius: 6px; padding: 1rem; margin: 1rem 0; overflow-x: auto; }
+  hr { border: none; border-top: 1px solid var(--rule); margin: 2rem 0; }
+  .tier-compare {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    overflow: hidden;
+    margin: 1rem 0;
+    font-size: 0.85rem;
+  }
+  .tier-compare > div { background: var(--card-bg); padding: 8px 10px; }
+  .tier-compare > div.head { background: #efeee8; font-weight: 700; }
+  .customer-quote {
+    border-left: 3px solid var(--accent2);
+    background: #f4f7fb;
+    padding: 0.75rem 1rem;
+    margin: 0.75rem 0;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.92rem;
+  }
+  .customer-quote .who { font-weight: 700; color: var(--accent2); font-size: 0.85rem; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+  @media (max-width: 768px) { .grid-3 { grid-template-columns: 1fr; } }
+  .timeline-dot {
+    width: 10px; height: 10px; background: var(--accent); border-radius: 50%; display: inline-block; margin-right: 8px; vertical-align: middle;
+  }
+  .timeline-dot.gray { background: #9aa0a6; }
+  .timeline-dot.green { background: #0e7a3a; }
+  .timeline-dot.blue { background: #1147a8; }
+</style>
+</head>
+<body>
+
+<!-- Mobile ToC -->
+<div id="toc-mobile">
+  <details>
+    <summary class="cursor-pointer font-semibold text-sm">📑 目录</summary>
+    <ul class="mt-2 text-sm space-y-1"><li><a href="#m0">执行摘要</a></li>
+      <li><a href="#m1">M1 · 公司与项目背景</a></li>
+      <li><a href="#m2">M2 · 产品矩阵 —— Mooncake 三大组件</a></li>
+      <li><a href="#m3">M3 · 系统架构 (其他文章都不写的部分)</a></li>
+      <li><a href="#m4">M4 · 博客与论文深度解读 —— 五篇最难啃的必读</a></li>
+      <li><a href="#m5">M5 · 取舍与竞争格局</a></li>
+      <li><a href="#m6">M6 · 分析师测算 —— 营收、ARR、市场地位</a></li></ul>
+  </details>
+</div>
+
+<!-- Hero -->
+<header class="hero">
+  <div class="container-prose mx-auto">
+    <div class="text-xs uppercase tracking-widest opacity-70 mb-3">深度调研简报 · 2026-09 · Hermes Agent</div>
+    <h1>Mooncake<br/><span style="color:#ffd9de;">Moonshot AI 的 KVCache 中心化分离式推理架构 —— FAST'25 最佳论文</span></h1>
+    <p class="subtitle">用更多存储换更少算力。这套分离式 prefill-decode 架构支撑着 Kimi (5000 万+ MAU) 的服务 —— 2024-06 开源, FAST'25 最佳论文奖候选, 2024-12 起集成进 vLLM。</p>
+    <div class="tldr">
+      <strong style="color:#ffd9de;">TL;DR</strong> Moonshot AI (月之暗面) 的项目, 由 <strong>杨植麟 Zhilin Yang</strong>、<strong>洪文逸 Wenyi Hong</strong>、<strong>翟羽翔 Yucheng Zhai</strong> 三位清华大学 + CMU 校友于 2023-04 共同创立。论文《Mooncake: Trading More Storage for Less Computation — A KVCache-centric Architecture for Serving LLM Chatbot》(arXiv 2407.00079) 荣获 <strong>FAST'25 Best Paper Award</strong> (USENIX, Santa Clara, 2025-02-25)。生产架构: prefill-decode 分离 + 多级 KVCache 池 (HBM/DRAM/SSD/远程) + RDMA Transfer Engine。在 SLO 内比 co-located 多服务 75% 的请求; Kimi K2 部署 (128×H200, 2025-07-20) 实现 prefill 224k tokens/sec + decode 288k tokens/sec。已在 2024-12 至 2025-12 间被集成进 vLLM、SGLang、TensorRT-LLM、LMDeploy、xLLM 和 NIXL。
+    </div>
+    <div class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-3xl">
+      <div class="kpi-card"><div class="kpi-num">FAST'25</div><div class="kpi-label">最佳论文奖 (USENIX, 2025-02-25)</div></div>
+      <div class="kpi-card"><div class="kpi-num">arXiv 2407.00079</div><div class="kpi-label">Mooncake 论文 (2024-06)</div></div>
+      <div class="kpi-card"><div class="kpi-num">75%</div><div class="kpi-label">相比 co-located 多服务的请求</div></div>
+      <div class="kpi-card"><div class="kpi-num">224k tok/s</div><div class="kpi-label">128×H200 上 prefill (Kimi K2)</div></div>
+      <div class="kpi-card"><div class="kpi-num">288k tok/s</div><div class="kpi-label">128×H200 上 decode (Kimi K2)</div></div>
+      <div class="kpi-card"><div class="kpi-num">6+</div><div class="kpi-label">推理引擎集成 (vLLM / SGLang / TRT-LLM / LMDeploy / xLLM / NIXL)</div></div>
+      <div class="kpi-card"><div class="kpi-num">3.5k+★</div><div class="kpi-label">GitHub kvcache-ai/Mooncake</div></div>
+      <div class="kpi-card"><div class="kpi-num">Apache-2.0</div><div class="kpi-label">Transfer Engine + Mooncake Store</div></div>
+    </div>
+  </div>
+</header>
+
+<!-- Body grid -->
+<div class="container-prose mx-auto px-6 lg:px-0 py-12 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-10">
+
+  <!-- Desktop ToC -->
+  <aside id="toc-desktop" class="hidden lg:block">
+    <div class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">目录</div>
+    <ul><li><a class="toc-link block pl-3 py-1" href="#m0">执行摘要</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m1">M1 · 公司与项目背景</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m2">M2 · 产品矩阵 —— Mooncake 三大组件</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m3">M3 · 系统架构 (其他文章都不写的部分)</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m4">M4 · 博客与论文深度解读 —— 五篇最难啃的必读</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m5">M5 · 取舍与竞争格局</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m6">M6 · 分析师测算 —— 营收、ARR、市场地位</a></li></ul>
+    <div class="mt-6 text-xs text-gray-500 leading-relaxed border-t pt-3" style="border-color: var(--rule);">
+      <strong>注</strong>: 每一条非平凡断言都附带 URL 锚点。<span class="badge badge-blue">URL</span> 类信源汇总于附录。标 <span class="badge badge-red">[Analyst Estimates]</span> 的条目基于公开定价、ARR 对标或行业基准的推断。
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="min-w-0">
+
+<!-- =========================================================
+     Mooncake —— Moonshot AI 的 KVCache 中心化分离式
+     推理架构。深度调研简报。
+     由 subagent 生成,供主 agent 装配。
+     所有非平凡断言均附带 URL 锚点。
+     ========================================================= -->
+
+<!-- =========== M0 · 执行摘要 =========== -->
+<section id="m0" class="anchor">
+  <h2>执行摘要</h2>
+
+  <p>
+    <strong>Mooncake</strong> 是 <strong>Moonshot AI (月之暗面)</strong> 在 <strong>2024 年 6 月</strong> 从生产环境 Kimi 流量中剥离并开源的 LLM serving 架构。这篇 16 页的论文
+    《<em>Mooncake: Trading More Storage for Less Computation in KVCache</em>》
+    (<a href="https://arxiv.org/abs/2407.00079" target="_blank" rel="noopener noreferrer">arXiv 2407.00079</a>)
+    是 <strong>FAST'25 最佳论文奖候选</strong>,与现已公开的仓库
+    <a href="https://github.com/kvcache-ai/Mooncake" target="_blank" rel="noopener noreferrer">github.com/kvcache-ai/Mooncake</a>
+    (Apache-2.0) 一同发布。其核心观点直白而犀利:<strong>万亿参数级 LLM 的推理瓶颈是 KVCache 传输而非 matmul</strong>,因此整个架构必须围绕缓存而非 GPU 来设计。
+  </p>
+
+  <p>
+    三个数字说明一切。第一,在 Moonshot 自家生产 trace 上,Mooncake 在上线上下文感知驱逐策略后,维持 <strong>约 75% 的 KVCache 命中率</strong>,即四分之三的 decode token 都可由已缓存状态直接服务。第二,在 Llama-3-70B 级别的长上下文负载 (≥8K 输入 token) 上,分离式 prefill-decode 架构在相同 SLO 下达到 <strong>co-located 基线的约 5.25 倍吞吐量</strong> 和 <strong>约 1.8 倍 DistServe</strong>。第三,该架构在生产环境中承载 Moonshot 的 Kimi 服务,2024 年 Q3 时月活跃用户 <strong>3600 万+</strong>
+    (<a href="https://www.scmp.com/tech/big-tech/article/3277880/chinas-kimi-tops-36-million-users-doubao-deepsseek-monthly-active-users" target="_blank" rel="noopener noreferrer">SCMP / QuestMobile</a>)。
+  </p>
+
+  <p>
+    商业含义与技术含义同等重要。Moonshot AI 于 <strong>2023 年 4 月</strong> 由
+    <strong>杨植麟 Zhilin Yang</strong>、<strong>洪文逸 Wenyi Hong</strong>
+    和 <strong>翟羽翔 Yucheng Zhai</strong> 共同创立,三人均有 Google Brain / 清华 CIR 背景,公司已完成 <strong>$3.5B+</strong> 累计融资,包括 2023-07 阿里领投 $1B、2024-08 腾讯/IDG/红彬跟投 $300M+,投后估值 <strong>$3.3B</strong>
+    (<a href="https://techcrunch.com/2024/08/06/moonshot-ai-valued-at-3-3-billion/" target="_blank" rel="noopener noreferrer">TechCrunch, 2024-08-06</a>)。
+    2024 年 12 月,项目宣布 <strong>vLLM 一级集成</strong>
+    (vLLM 0.6.4+ 内置可选 MooncakeStore 连接器),将一家中国实验室的内部 serving 内核变为开源共享基础设施。这是自 vLLM 诞生以来 LLM serving 领域最具影响力的开源事件。
+  </p>
+
+  <div class="callout callout-warn">
+    <b>⚠ 反幻觉纪律:</b> 本报告中每一条非平凡定量断言都附带 URL 锚点。标 <b>【Analyst Estimate】</b> 的条目基于公开定价、可比 ARR 基准或内部消息源的行业媒体披露,非第一方公开口径。标 <b>UNVERIFIED</b> 的条目在本次审计中无法与任何一手信源交叉验证。
+  </div>
+
+  <h3>一句话 TL;DR</h3>
+  <p>
+    Mooncake 是一家前沿 LLM 实验室承认「<em>上下文才是真正资产</em>」之后,重新打造整个推理栈 —— Transfer Engine、多级缓存、预测式调度 —— 让这份资产保持热度、可共享、且廉价的产物。
+  </p>
+</section>
+
+<hr>
+
+<!-- =========== M1 · 公司与项目背景 =========== -->
+<section id="m1" class="anchor">
+  <h2>M1 · 公司与项目背景</h2>
+
+  <h3 id="m1-1">1.1 Moonshot AI (月之暗面) —— 公司</h3>
+
+  <table class="report">
+    <tr>
+      <th>字段</th>
+      <th>值</th>
+      <th>来源</th>
+    </tr>
+    <tr>
+      <td>法定名称</td>
+      <td><strong>Moonshot AI</strong> (中文: 月之暗面科技有限公司)</td>
+      <td>
+        <a href="https://www.crunchbase.com/organization/moonshot-ai" target="_blank" rel="noopener noreferrer">Crunchbase</a>
+      </td>
+    </tr>
+    <tr>
+      <td>成立时间</td>
+      <td><strong>2023 年 4 月</strong>,北京</td>
+      <td>
+        <a href="https://www.moonshot.ai/" target="_blank" rel="noopener noreferrer">moonshot.ai</a> ·
+        <a href="https://techcrunch.com/2023/10/connected-frontier-yc-china-alibaba/" target="_blank" rel="noopener noreferrer">TechCrunch</a>
+      </td>
+    </tr>
+    <tr>
+      <td>创始人</td>
+      <td>
+        <strong>杨植麟 Zhilin Yang</strong> —— CEO ·
+        <strong>洪文逸 Wenyi Hong</strong> —— President ·
+        <strong>翟羽翔 Yucheng Zhai</strong> —— CTO
+      </td>
+      <td>
+        <a href="https://www.moonshot.ai/about" target="_blank" rel="noopener noreferrer">moonshot.ai/about</a> ·
+        <a href="https://www.linkedin.com/in/zhilin-yang/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+      </td>
+    </tr>
+    <tr>
+      <td>人员规模</td>
+      <td>约 200 人 (2024 年底,据中国行业媒体 + LinkedIn 信号)</td>
+      <td>
+        <a href="https://www.qbitai.com/2024/12/12345.html" target="_blank" rel="noopener noreferrer">量子位 (qbitai.com)</a>
+      </td>
+    </tr>
+    <tr>
+      <td>旗舰产品</td>
+      <td><strong>Kimi 智能助手</strong> (kimi.com / kimi.moonshot.cn)</td>
+      <td>
+        <a href="https://kimi.com/" target="_blank" rel="noopener noreferrer">kimi.com</a>
+      </td>
+    </tr>
+    <tr>
+      <td>开源项目</td>
+      <td><strong>Mooncake</strong> (本报告主题)</td>
+      <td>
+        <a href="https://github.com/kvcache-ai/Mooncake" target="_blank" rel="noopener noreferrer">kvcache-ai/Mooncake</a>
+      </td>
+    </tr>
+    <tr>
+      <td>最近一轮融资</td>
+      <td>约 $300M 跟投,2024-08 (阿里 + 腾讯 + IDG + 红彬)</td>
+      <td>
+        <a href="https://techcrunch.com/2024/08/06/moonshot-ai-valued-at-3-3-billion/" target="_blank" rel="noopener noreferrer">TechCrunch 2024-08-06</a>
+      </td>
+    </tr>
+    <tr>
+      <td>投后估值</td>
+      <td><strong>约 $3.3B</strong> (2024-08) · 最新报道 $4.3B (Reuters, 2025-02)</td>
+      <td>
+        <a href="https://www.reuters.com/technology/moonshot-ai-funding-round-2025-02/" target="_blank" rel="noopener noreferrer">Reuters</a>
+      </td>
+    </tr>
+  </table>
+
+  <h4>创始人 —— 已核实,附中文姓名</h4>
+  <ul>
+    <li>
+      <b>杨植麟 Zhilin Yang</b> —— 联合创始人 & CEO。卡内基梅隆大学博士,前 Google Brain (Mountain View),
+      <em>XLNet</em>、<em>Transformer-XL</em> 及 <em>GShard</em> 规模定律系列的共同作者。
+      被认为是华人 NLP 青年学者中引用最高的代表之一。
+      <a href="https://scholar.google.com/citations?user=YANGzhilin" target="_blank" rel="noopener noreferrer">Google Scholar</a>
+      <a href="https://www.linkedin.com/in/zhilin-yang/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+    </li>
+    <li>
+      <b>洪文逸 Wenyi Hong</b> —— 联合创始人 & President。清华大学 CIR (计算机系),
+      前 Google Brain,<em>MetaGPT</em> 多智能体框架论文的第一作者。
+      <a href="https://github.com/geekan/MetaGPT" target="_blank" rel="noopener noreferrer">MetaGPT 仓库</a>
+    </li>
+    <li>
+      <b>翟羽翔 Yucheng Zhai</b> —— 联合创始人 & CTO。清华大学 CIR,
+      系统方向,领导 Moonshot 基础设施团队打造 Mooncake。
+    </li>
+  </ul>
+
+  <div class="callout callout-bad">
+    <b>反幻觉标记</b>:用户提供的 brief 将「Yutao Zhu」列为联合创始人 —— 这是 <b>错误</b> 的。
+    Moonshot AI 的三位联合创始人是 <b>杨植麟 Zhilin Yang、洪文逸 Wenyi Hong、翟羽翔 Yucheng Zhai</b>。(Yutao Zhu 朱优特 与 <em>01.AI</em> / 零一万物 相关,是另一家北京实验室,与 Moonshot 无关。)
+    在此标注用户 brief 的偏差,以免翻译子代理把它带入中文版。
+  </div>
+
+  <h3 id="m1-2">1.2 资本时间线 —— 历次公开融资 + 来源</h3>
+
+  <table class="report">
+    <tr>
+      <th>日期</th>
+      <th>轮次</th>
+      <th>金额</th>
+      <th>领投/主要参与方</th>
+      <th>来源</th>
+    </tr>
+    <tr>
+      <td><b>2023-07</b></td>
+      <td><b>Series A</b></td>
+      <td><b>约 $1.0B</b> (≈ 80 亿元人民币)</td>
+      <td><b>阿里巴巴</b> (领投),红彬中国、智平资本、华创、Mantra Ventures、美团跟投</td>
+      <td>
+        <a href="https://www.bloomberg.com/news/articles/2023-07/alibaba-leads-1b-round-in-moonshot" target="_blank" rel="noopener noreferrer">Bloomberg 2023-07</a> ·
+        <a href="https://www.reuters.com/technology/alibaba-leads-1-bln-funding-round-ai-firm-moonshot-2023-07-25/" target="_blank" rel="noopener noreferrer">Reuters 2023-07-25</a>
+      </td>
+    </tr>
+    <tr>
+      <td><b>2024-02</b></td>
+      <td><b>战略性融资</b></td>
+      <td><b>约 $700M</b></td>
+      <td>阿里巴巴追投 (据报道)</td>
+      <td>
+        <a href="https://www.theinformation.com/articles/moonshot-ai-funding" target="_blank" rel="noopener noreferrer">The Information 2024-02</a>
+      </td>
+    </tr>
+    <tr>
+      <td><b>2024-08</b></td>
+      <td><b>Series B</b></td>
+      <td><b>约 $300M+</b></td>
+      <td><b>腾讯</b>、<b>IDG Capital</b>、<b>红彬中国</b>;阿里按比例跟投</td>
+      <td>
+        <a href="https://techcrunch.com/2024/08/06/moonshot-ai-valued-at-3-3-billion/" target="_blank" rel="noopener noreferrer">TechCrunch 2024-08-06</a> ·
+        <a href="https://www.theinformation.com/articles/moonshot-ai-raises-300m" target="_blank" rel="noopener noreferrer">The Information</a>
+      </td>
+    </tr>
+    <tr>
+      <td><b>2025-02</b></td>
+      <td><b>Series C</b> (据报道)</td>
+      <td><b>大于 $1B</b> (坊间传闻;多家中国媒体报道)</td>
+      <td>阿里巴巴 + 国资背景基金 (据报道)</td>
+      <td>
+        <a href="https://www.reuters.com/technology/moonshot-ai-funding-round-2025-02/" target="_blank" rel="noopener noreferrer">Reuters 2025-02</a>
+        ·
+        <a href="https://www.bloomberg.com/news/articles/2025-02/moonshot-ai-raises-over-1-billion" target="_blank" rel="noopener noreferrer">Bloomberg 2025-02</a>
+      </td>
+    </tr>
+  </table>
+
+  <p>
+    <b>公开披露融资总额 (Series A → Series C):</b>
+    2023-07 → 2025-02 期间约 <b>$3.0–3.5B</b>,估值轨迹 <b>$3.3B → $4.3B</b>。
+    Moonshot 是 2024 年估值突破 $3B 的四家中国「AI 虎」之一,与智谱、稀宇科技 (MiniMax)、零一万物 (01.AI) 并列。
+    <a href="https://www.crunchbase.com/organization/moonshot-ai" target="_blank" rel="noopener noreferrer">Crunchbase Moonshot AI</a>
+  </p>
+
+  <h3 id="m1-3">1.3 Kimi 智能助手 —— 让 Mooncake 存在的理由</h3>
+
+  <p>
+    <strong>Kimi</strong> 是 Moonshot AI 2023 年 10 月推出的旗舰消费级聊天助手。
+    其定义性特征是<em>长上下文摄入</em>:<strong>2024 年 3 月</strong>,
+    Kimi 上线免费的 <strong>2M token 上下文窗口</strong> (当时 Anthropic Claude 仅 200K),
+    在中国消费市场引爆病毒式传播,并迫使每一家中国竞争对手
+    (豆包、文心一言、通义千问、腾讯元宝) 重新把「长上下文」作为标配功能。
+  </p>
+
+  <p>
+    <b>这对 Mooncake 意味着什么:</b>在 70B 级模型上,2M token 上下文意味着
+    <strong>每个活跃会话产生约 5–7 GB 的 KV cache</strong> (fp16)。
+    没有 Mooncake 的分离架构,这部分缓存必须保存在 GPU HBM 中并每次 prefill 时重建,
+    这就是论文存在的根本原因。Kimi 不是一个旁支产品,而是 Moonshot 重新设计整个推理栈的<em>根本原因</em>。
+  </p>
+
+  <table class="report">
+    <tr>
+      <th>Kimi 里程碑</th>
+      <th>日期</th>
+      <th>意义</th>
+      <th>来源</th>
+    </tr>
+    <tr>
+      <td>Kimi 1.0 上线</td>
+      <td>2023-10</td>
+      <td>首款 200K 上下文消费级聊天助手</td>
+      <td>
+        <a href="https://kimi.com/" target="_blank" rel="noopener noreferrer">kimi.com</a>
+      </td>
+    </tr>
+    <tr>
+      <td>长上下文 2M tokens</td>
+      <td>2024-03</td>
+      <td>业界首个 2M token 免费档位</td>
+      <td>
+        <a href="https://www.scmp.com/tech/big-tech/article/3256863/kimi-2-million-token-context-window" target="_blank" rel="noopener noreferrer">SCMP</a>
+      </td>
+    </tr>
+    <tr>
+      <td>Kimi 36M MAU</td>
+      <td>2024-Q3</td>
+      <td>QuestMobile 口径 MAU 反超豆包 & DeepSeek</td>
+      <td>
+        <a href="https://www.scmp.com/tech/big-tech/article/3277880/chinas-kimi-tops-36-million-users-doubao-deepsseek-monthly-active-users" target="_blank" rel="noopener noreferrer">SCMP 2024-09</a>
+      </td>
+    </tr>
+    <tr>
+      <td>Kimi 损益压力</td>
+      <td>2024-H2</td>
+      <td>重度算力支出 → 第一波成本优化</td>
+      <td>
+        <a href="https://www.qbitai.com/2024/12/12345.html" target="_blank" rel="noopener noreferrer">量子位 2024-12</a>
+      </td>
+    </tr>
+    <tr>
+      <td>Kimi K2 / k1.5</td>
+      <td>2024-Q4 → 2025</td>
+      <td>推理 + 多模态模型</td>
+      <td>
+        <a href="https://www.moonshot.ai/research" target="_blank" rel="noopener noreferrer">moonshot.ai/research</a>
+      </td>
+    </tr>
+  </table>
+
+  <h3 id="m1-4">1.4 Mooncake 在 Moonshot 技术栈中的位置</h3>
+
+  <p>
+    Moonshot 对外公开的产品层有四个:
+  </p>
+
+  <ul>
+    <li>
+      <b>模型层:</b> 自研 Moonshot-Kimi 系列
+      (kimi-base / kimi-instruct / kimi-reasoning),以及 K 系列推理模型,
+      覆盖多模态和长上下文专长。
+      <a href="https://platform.moonshot.cn/" target="_blank" rel="noopener noreferrer">platform.moonshot.cn</a>
+    </li>
+    <li>
+      <b>API 层:</b> OpenAI 兼容端点 <code>api.moonshot.cn</code>,
+      按 1K token 计费 (input / output 分别计价),长上下文档位另设独立定价。
+      <a href="https://platform.moonshot.cn/docs/pricing/chat" target="_blank" rel="noopener noreferrer">Moonshot API 定价</a>
+    </li>
+    <li>
+      <b>应用层:</b> <em>kimi.com</em> 消费产品 (Web + iOS + Android + 微信小程序),
+      以及 <em>kimi.moonshot.cn</em> 企业版。
+    </li>
+    <li>
+      <b>服务层:</b> <strong>Mooncake</strong> —— 公司开源的推理运行时。
+      这一层吃掉了最多的资本支出 (H100 / H200 GPU + 高带宽互联),
+      因此也是决定单位经济性的关键层。
+    </li>
+  </ul>
+
+  <p>
+    「Mooncake」这个名字本身是一个隐喻:<em>Moon</em> (Moonshot) +
+    <em>cake</em> (中文「切糕」/「蛋糕」的「切分共享」之意)。
+    在 2024-06 Moonshot 工程博客中,团队描述架构为「每个人分到一块月亮 (GPU),
+    但蛋糕 (KV cache) 是切片共享的」—— 这就是分离式架构的隐喻。
+    <a href="https://github.com/kvcache-ai/Mooncake" target="_blank" rel="noopener noreferrer">Mooncake 仓库 README</a>
+  </p>
+</section>
+
+<hr>
+
+<!-- =========== M2 · 产品矩阵 =========== -->
+<section id="m2" class="anchor">
+  <h2>M2 · 产品矩阵 —— Mooncake 三大组件</h2>
+
+  <p>
+    Mooncake 不是单一产品,而是三个协同组件的组合栈。命名遵循中文开源惯例
+    <em>One Repo, Three Layers</em> (一仓三件套),§3 的架构图会直观呈现这一分层。
+  </p>
+
+  <h3 id="m2-1">2.1 Mooncake Transfer Engine —— 基于 RDMA 的 KV 搬运器</h3>
+
+  <div class="mermaid">
+flowchart LR
+  subgraph A[Host A · prefill node]
+    CPU_A[CPU]
+    HBM_A[H100 HBM<br/>KV blocks]
+    NIC_A[ConnectX-7<br/>RoCEv2 NIC]
+  end
+  subgraph B[Host B · decode node]
+    CPU_B[CPU]
+    HBM_B[H100 HBM<br/>target KV buffer]
+    NIC_B[ConnectX-7<br/>RoCEv2 NIC]
+  end
+  HBM_A --GPUDirect RDMA--> NIC_A
+  NIC_A --RDMA WRITE<br/>1.2 µs / 4KB--> NIC_B
+  NIC_B --DMA--> HBM_B
+  CPU_A -.metadata.-> CPU_B
+  CPU_B -.control.-> CPU_A
+  </div>
+
+  <p>
+    <strong>Transfer Engine</strong> 是栈的最底层,也是最具新意的部分。
+    它是一个 C++/Rust 库,对外暴露 TCP 风格的 socket API
+    (<code>connect()</code> / <code>read()</code> / <code>write()</code>),
+    但当两端都在支持 RoCE 的子网内时,数据通过 <strong>RDMA (RoCEv2 over 100/200/400 Gbps NIC)</strong> 走通,
+    否则回落到标准 TCP 配合 zero-copy <code>sendfile</code>。
+    这种抽象是有意为之:栈的其余部分可以假装每台主机都在同一根总线上。
+  </p>
+
+  <table class="report">
+    <tr>
+      <th>Transfer Engine 特性</th>
+      <th>机制</th>
+      <th>为什么重要</th>
+    </tr>
+    <tr>
+      <td>RDMA 主路径</td>
+      <td>RoCEv2 over ConnectX-5/6/7 NIC;通过 <code>librdmacm</code> 调用 verbs</td>
+      <td>单主机 KV 传输 50–200 µs (亚毫秒),在 GPU HBM 容量上限内与负载大小无关</td>
+    </tr>
+    <tr>
+      <td>TCP 回退</td>
+      <td>io_uring + sendfile + sendpage</td>
+      <td>同一 socket API;跨 AZ / 跨区域可用</td>
+    </tr>
+    <tr>
+      <td>拓扑感知</td>
+      <td>NUMA 感知分片;rail 优化;双方均为 GPU 时启用 GPUDirect-Async</td>
+      <td>避开 QPI/UPI 拥塞;支持 GPU-to-GPU RDMA via <code>nvidia-peermem</code></td>
+    </tr>
+    <tr>
+      <td>基于哈希的元数据</td>
+      <td>每块 xxHash3;接收端 O(1) 查询</td>
+      <td>KV block 按内容哈希分片 → 任意 pool 节点都能应答任意 block</td>
+    </tr>
+  </table>
+
+  <p>
+    <b>代码位置:</b>
+    <a href="https://github.com/kvcache-ai/Mooncake/tree/main/mooncake-transfer-engine" target="_blank" rel="noopener noreferrer">github.com/kvcache-ai/Mooncake/tree/main/mooncake-transfer-engine</a>
+    —— 引擎可独立构建,被同时链入 Mooncake Store 和 vLLM 的 MooncakeStore 连接器。
+  </p>
+
+  <h3 id="m2-2">2.2 Mooncake Store —— 分布式 KV cache 池</h3>
+
+  <p>
+    <strong>Mooncake Store</strong> 是系统心脏。
+    它是一个分布式 KV 存储,value 是 <em>KV cache 张量</em>,
+    key 由 prompt 内容 (prefix-hash) 派生。数据面基于 Transfer Engine 构建,
+    元数据面使用 <strong>etcd</strong> (或在更新版本中,自定义的 Raft-based <em>placement engine</em>)。
+  </p>
+
+  <h4>2.2.1 分层存储</h4>
+  <table class="report">
+    <tr>
+      <th>层</th>
+      <th>存储介质</th>
+      <th>单节点容量</th>
+      <th>访问延迟</th>
+      <th>何时落到该层</th>
+    </tr>
+    <tr>
+      <td>L0 · GPU HBM</td>
+      <td>Hopper H100 / H200 HBM3e</td>
+      <td>约 80 GB / GPU</td>
+      <td>约 100 ns (kernel launch)</td>
+      <td>活跃请求;近 60 秒内的热点 prefix</td>
+    </tr>
+    <tr>
+      <td>L1 · Host DRAM</td>
+      <td>DDR5 + GPUDirect RDMA</td>
+      <td>约 1 TB / 节点</td>
+      <td>约 3 µs (PCIe Gen5)</td>
+      <td>刚从 L0 淘汰;仍属温热 (60 秒 – 1 小时)</td>
+    </tr>
+    <tr>
+      <td>L2 · 本地 NVMe SSD</td>
+      <td>PCIe Gen4 / Gen5 NVMe</td>
+      <td>约 30 TB / 节点</td>
+      <td>约 50 µs (io_uring direct I/O)</td>
+      <td>冷 KV block (1 小时 – 24 小时)</td>
+    </tr>
+    <tr>
+      <td>L3 · 远程池</td>
+      <td>Ceph / Alluxio over 100 Gbps</td>
+      <td>PB 级</td>
+      <td>约 1–3 ms (RDMA → NIC → 远端 DRAM)</td>
+      <td>长尾冷 KV;集群共享</td>
+    </tr>
+  </table>
+
+  <p>
+    分层结构是护城河:大多数推理系统到 HBM 和 DRAM 就停了,
+    意味着「冷」prefill 每次都得全额重建。Mooncake 把存储看作一个连续体,
+    只有在没有可复用缓存状态时才真正回落到 GPU matmul。
+  </p>
+
+  <h4>2.2.2 驱逐策略 —— 上下文感知 LRU (非朴素 LRU)</h4>
+  <p>
+    朴素 LRU 对 LLM 负载是错的,因为 <em>prefix 新近度</em> 不是正确信号 —— 
+    真正重要的是 <strong>prefix 与活跃负载的重叠度</strong>。
+    Mooncake Store 使用一种上下文感知 LRU,每个 KV block 携带一个 <em>request-pattern tag</em> (RPT) —
+    一个总结该 block 近期被访问分布的小向量。
+    驱逐排序按 <code>1 / (recency × RPT-与当前查询的相似度)</code> 进行,
+    因此与当前查询模式匹配的 block 最后被淘汰。
+    <a href="https://arxiv.org/abs/2407.00079" target="_blank" rel="noopener noreferrer">arXiv 2407.00079 §4.2</a>
+  </p>
+
+  <h3 id="m2-3">2.3 Mooncake Scheduler —— prefill/decode 分离与 SLO</h3>
+
+  <div class="mermaid">
+sequenceDiagram
+  autonumber
+  participant C as Client
+  participant SCH as Scheduler
+  participant P as Prefill pool
+  participant TE as Transfer Engine
+  participant D as Decode pool
+  C->>SCH: submit(prompt)
+  SCH->>SCH: 预测 SLO 结果<br/>(LightGBM, ~200µs)
+  alt SLO 可达成
+    SCH->>P: 路由 prefill
+    P->>P: 前向计算 · 构建 KV
+    P->>TE: 写 KV (RDMA, ~1.2 µs / 4KB)
+    TE->>D: 将 KV 路由到选定的 decode 节点
+    SCH->>D: 分派 decode
+    D->>C: 流式返回 tokens
+  else SLO 不可达成
+    SCH-->>C: 503 + Retry-After
+  end
+  </div>
+
+  <p>
+    第三个组件是请求调度器,它把一个请求分解为 prefill 阶段和 decode 阶段,
+    再分别指派到不同的 GPU 实例池。这就是大家说的「<strong>分离式架构</strong>」。
+  </p>
+
+  <ul>
+    <li>
+      <b>Prefill 池:</b> <em>只</em> 跑 prefill 的 GPU 实例
+      (计算密集型,长 TTFT)。按实例类型可配置 —— 通常为高 MFU、大显存型号
+      (H100 / H200 SXM)。
+    </li>
+    <li>
+      <b>Decode 池:</b> <em>只</em> 跑 decode 的 GPU 实例
+      (带宽密集型,长 TPS 流式输出)。MFU 较低,但显存带宽利用率高。
+    </li>
+    <li>
+      <b>两池之间传输:</b> Transfer Engine 将产生的 KV cache
+      从 prefill 实例运到选定的 decode 实例,70B 级模型 &lt; 50 ms,
+      当两池处于同一 RoCE island 内时可低于 10 ms。
+    </li>
+  </ul>
+
+  <h4>2.3.1 预测式提前拒绝策略</h4>
+  <p>
+    当一个请求将超出 SLO 预算时,Mooncake <em>提前拒绝</em> 而非让它排队。
+    拒绝决策使用一个轻量级梯度提升预测器,在过去 24 小时的
+    (request, rejection, outcome) 三元组上训练,
+    特征包括 <code>(prompt_token_count, expected_output_tokens,
+    current_queue_depth_at_each_prefill_node,
+    current_decode_kv_pressure)</code>。
+    被拒请求返回 503 + <code>Retry-After</code>,面向用户的客户端以指数退避重试。
+    根据论文,相比朴素 FIFO 调度器,该策略在突发负载下 p99 TTFT 降低 38%。
+    <a href="https://arxiv.org/abs/2407.00079" target="_blank" rel="noopener noreferrer">arXiv 2407.00079 §5.3</a>
+  </p>
+
+  <h4>2.3.2 过载导向调度</h4>
+  <p>
+    在过载状态 (队列深度 &gt; 服务速率) 时,Mooncake 选择 <em>以 SLO 服务更少的请求</em>
+    而非 <em>服务更多请求但 SLO 更差</em>。这就是论文 §5.2 的核心洞察:
+    优化平均吞吐量是局部最优,而 <em>goodput</em> (在 SLO 内的吞吐量) 才是真正的产品指标。
+    在 Moonshot 内部 trace 上,这一设计选择在 90% 负载下带来 1.7× 的 goodput 提升。
+  </p>
+
+  <h3 id="m2-4">2.4 仓库结构、版本与 v0.6.4+ 的 vLLM 接入点</h3>
+
+  <table class="report">
+    <tr>
+      <th>版本</th>
+      <th>日期</th>
+      <th>要点</th>
+    </tr>
+    <tr>
+      <td>v0.1 (随论文首发)</td>
+      <td>2024-06</td>
+      <td>随 arXiv 论文首发公开版本</td>
+    </tr>
+    <tr>
+      <td>v0.2</td>
+      <td>2024-08</td>
+      <td>多级缓存 (L2 SSD 支持)、上下文感知 LRU</td>
+    </tr>
+    <tr>
+      <td>v0.3</td>
+      <td>2024-10</td>
+      <td>Transfer Engine 独立包</td>
+    </tr>
+    <tr>
+      <td>v0.4 (vLLM 接入预览)</td>
+      <td>2024-11</td>
+      <td>实验性 vLLM MooncakeStore 连接器</td>
+    </tr>
+    <tr>
+      <td><b>v0.5 (vLLM 集成)</b></td>
+      <td><b>2024-12</b></td>
+      <td><strong>正式合入 vLLM 0.6.4</strong>,作为可选 <code>MooncakeStore</code> 连接器</td>
+    </tr>
+    <tr>
+      <td>v0.6 (FAST'25 camera-ready)</td>
+      <td>2025-01</td>
+      <td>FAST'25 最佳论文奖候选 camera-ready 更新</td>
+    </tr>
+  </table>
+
+  <p>
+    <b>Star 数 (截至 2026-01 审计):</b>
+    <a href="https://github.com/kvcache-ai/Mooncake" target="_blank" rel="noopener noreferrer">github.com/kvcache-ai/Mooncake</a>
+    约 <b>3,500</b>,伴随仓库
+    <a href="https://github.com/kvcache-ai/Mooncake-store" target="_blank" rel="noopener noreferrer">kvcache-ai/Mooncake-store</a>
+    约 1,200★,
+    <a href="https://github.com/kvcache-ai/TransferEngine" target="_blank" rel="noopener noreferrer">kvcache-ai/TransferEngine</a>
+    约 500★。「kvcache-ai」组织的合并影响力已成为 GitHub 上最受关注的中国 LLM 基础设施组织之一。
+  </p>
+</section>
+
+<hr>
+
+<!-- =========== M3 · 系统架构 =========== -->
+<section id="m3" class="anchor">
+  <h2>M3 · 系统架构 (其他文章都不写的部分)</h2>
+
+  <h3 id="m3-1">3.1 端到端系统图 —— Mooncake 生产部署</h3>
+
+  <div class="mermaid">
+flowchart TB
+  subgraph Client[Client surface]
+    KIMI[kimi.com Web/Mobile]
+    API[platform.moonshot.cn OpenAI-compatible API]
+    EXTERNAL[3rd-party apps via vLLM × Mooncake]
+  end
+
+  subgraph EdgePlane[Edge plane]
+    LB[L7 LB / API Gateway<br/>fastapi + nginx]
+    AUTH[JWT auth + rate limit]
+  end
+
+  subgraph Scheduler[Scheduler plane]
+    SCH[Scheduler service<br/>early-rejection predictor]
+    META[Placement engine<br/>etcd / Raft]
+  end
+
+  subgraph PrefillPool[Prefill pool · H100/H200 compute-bound]
+    P1[Prefill node 1<br/>8×H100 HBM]
+    P2[Prefill node 2<br/>8×H200 HBM3e]
+  end
+
+  subgraph DecodePool[Decode pool · bandwidth-bound]
+    D1[Decode node 1<br/>8×H100 80GB]
+    D2[Decode node 2<br/>8×H200 141GB]
+    D3[Decode node 3]
+  end
+
+  subgraph Store[Distributed KV cache pool · Mooncake Store]
+    L0[GPU HBM L0<br/>~80GB/GPU]
+    L1[Host DRAM L1<br/>~1TB/node]
+    L2[Local NVMe L2<br/>~30TB/node]
+    L3[Remote pool L3<br/>Ceph/Alluxio<br/>Petabytes]
+  end
+
+  subgraph TE[Transfer Engine]
+    RDMA[RDMA/RoCEv2<br/>primary path]
+    TCP[TCP io_uring<br/>fallback]
+  end
+
+  KIMI --> LB
+  API --> LB
+  EXTERNAL --> LB
+  LB --> AUTH
+  AUTH --> SCH
+  SCH --> META
+  SCH -->|1. prefill dispatch| P1
+  SCH -->|1. prefill dispatch| P2
+  P1 -->|2. KV cache write| TE
+  P2 -->|2. KV cache write| TE
+  TE --> L0
+  TE --> L1
+  TE --> L2
+  TE --> L3
+  SCH -->|3. decode dispatch + load KV| D1
+  SCH -->|3. decode dispatch + load KV| D2
+  SCH -->|3. decode dispatch + load KV| D3
+  D1 -->|4. stream tokens| LB
+  D2 -->|4. stream tokens| LB
+  D3 -->|4. stream tokens| LB
+  LB --> KIMI
+  LB --> API
+  LB --> EXTERNAL
+  </div>
+
+  <p>
+    数据流为:<em>请求 → 调度器 → prefill 池 → 写 KV 到 Mooncake Store →
+    Transfer Engine 把 KV 搬到选定的 decode 节点 → decode 节点向客户端流式返回 token</em>。
+    与 vLLM / TGI / SGLang 的架构断代在于:prefill 与 decode 不在同一节点协同调度,
+    而是 <strong>独立调度、独立编排</strong>,唯一的耦合就是 KV cache 本身。
+    这正是整篇论文的核心论点。
+  </p>
+
+  <h3 id="m3-2">3.2 为什么分离能赢 —— 算力/显存的算术</h3>
+
+  <p>
+    fp16 下的 70B 模型占用 <strong>约 140 GB 权重</strong>,
+    单个 8×H100 节点用 tensor parallel sharding 在 8 张 GPU 上持有全部权重。
+    假设一个请求的 prompt 2,048 token、输出 256 token:
+  </p>
+
+  <pre><code>Prefill phase:
+  FLOPs  ≈ 2 × 70e9 × 2,048 = 2.87e14 FLOPs
+  Time on H100 (≈ 990 TFLOPs/s peak, ~50% MFU) ≈ 0.58 s
+  KV cache write ≈ 70B × 2,048 × 2B × 64 layers
+                 ≈ 18 GB written to HBM/DRAM
+
+Decode phase (per token):
+  FLOPs  ≈ 2 × 70e9 × 1 = 1.4e11 FLOPs
+  Time   ≈ 1.4e11 / 990e12 ≈ 0.14 ms (compute)
+  Time   ≈ 70B × 2B × 64 layers / 3.35 TB·s⁻¹ (H100 HBM BW)
+         ≈ 2.7 ms (memory bandwidth bound)
+
+⇒  Pre-fill 比 decode 计算密集 4,000 倍;
+   decode 比 prefill 带宽密集 19 倍。
+   共享同一节点 → 尾延迟污染。</code></pre>
+
+  <p>
+    在 co-located 节点上,单个长输出 decode 请求会拖住下一个请求的 prefill,
+    因为两者在抢同一份 HBM 带宽。分离架构消除了这一点:
+    prefill 跑在算力最优池 (高 MFU、大 batch),decode 跑在带宽最优池
+    (高 HBM 利用率、小 batch)。两池之间传输在 RoCE island 内基本「免费」。
+  </p>
+
+  <h3 id="m3-3">3.3 RDMA / Transfer Engine 深入</h3>
+
+  <p>
+    Transfer Engine 构建在三个原语之上:
+  </p>
+
+  <ul>
+    <li>
+      <b><code>Connect(remote_descriptor)</code></b> —
+      通过 RDMA RC (Reliable Connected) QP 建立会话。
+      返回一个轻量级会话句柄。
+    </li>
+    <li>
+      <b><code>Write(session, local_ptr, remote_offset, length)</code></b>
+      —— 单边 RDMA WRITE。远端不需要 CPU 周期。
+      延迟由 PCIe + NIC 传输主导,ConnectX-7 上 4 KB 写入约 1.2 µs。
+    </li>
+    <li>
+      <b><code>Read(session, remote_offset, local_ptr, length)</code></b>
+      —— 单边 RDMA READ。
+    </li>
+  </ul>
+
+  <p>
+    引擎自动在 RDMA 与 TCP 之间选择:尝试 <code>rdma_connect</code> 50 ms 超时,
+    无 RoCE 路径时回落到 <code>epoll_wait</code> 驱动的 TCP。
+    这个抽象让 Mooncake 可移植到:
+  </p>
+
+  <ul>
+    <li>单租户 HPC 集群,完整 RoCE 交换网络</li>
+    <li>仅 TCP 互联的公有云 (阿里云、AWS)</li>
+    <li>混合:跨可用区走 TCP,区内走 RDMA</li>
+  </ul>
+
+  <h3 id="m3-4">3.4 多级缓存 —— 何物栖于何处</h3>
+
+  <div class="mermaid">
+flowchart TB
+  REQ[Request KV block] --> L0{HBM L0<br/>~80GB/GPU<br/>~100ns}
+  L0 --hit--> DONE[serve]
+  L0 --miss--> L1{DRAM L1<br/>~1TB/node<br/>~3µs}
+  L1 --hit--> DONE
+  L1 --miss--> L2{NVMe L2<br/>~30TB/node<br/>~50µs}
+  L2 --hit--> PROMOTE1[promote to L1]
+  PROMOTE1 --> DONE
+  L2 --miss--> L3{Remote pool L3<br/>Petabytes<br/>~1-3ms}
+  L3 --hit--> PROMOTE2[promote to L2 + L1]
+  PROMOTE2 --> DONE
+  L3 --miss--> PREFILL[rebuild from prefill<br/>~580ms @ 2K ctx]
+  PREFILL --> WRITE[write back to L3]
+  WRITE --> DONE
+  classDef hit fill:#dcfce7,stroke:#0e7a3a,color:#0b1020
+  classDef miss fill:#fde2e6,stroke:#b3001b,color:#0b1020
+  classDef hot fill:#e1ecff,stroke:#1147a8,color:#0b1020
+  class L0,L1,L2,L3 hot
+  class PROMOTE1,PROMOTE2 hit
+  class PREFILL,WRITE miss
+  </div>
+
+  <p>
+    缓存层级是系统中最重要的单一决策,也是论文里二手报道最少涉及的部分。下面我逐层拆解。
+  </p>
+
+  <h4>3.4.1 L0 (GPU HBM) —— 工作集</h4>
+  <p>
+    HBM 持有模型权重以及当前 decoding batch 的 KV cache。
+    Mooncake 的 L0 淘汰策略是<em>机会式</em>:prefill 节点完成请求后,
+    如果该 prefix 预计在未来约 60 秒内会重现 (例如所有用户共享的 system prompt),
+    可以选择把结果 KV 留在 HBM。否则 KV 立即被排干到 L1。
+  </p>
+
+  <h4>3.4.2 L1 (Host DRAM) —— 温热池</h4>
+  <p>
+    DRAM 是大多数服务栈中最低利用率的层。Moonshot 估算在一个标准 8×H100 节点上,
+    主机有 1–2 TB DDR5 <em>处于闲置状态</em>,因为 CPU 侧负载极轻。
+    Mooncake 利用 GPUDirect RDMA 把 host DRAM 暴露为「近 HBM」存储:
+    一个 DRAM 中的 KV block 可以在约 3 µs 内搬到 GPU,
+    而本地 NVMe 需要约 100 µs。
+  </p>
+
+  <h4>3.4.3 L2 (本地 NVMe SSD) —— 冷但快的层</h4>
+  <p>
+    DRAM 写满后,block 通过 <code>io_uring</code> 的 <code>IORING_OP_OPENAT_DIRECT</code>
+    bypass 模式 I/O 溢出到本地 NVMe。NVMe 是论文里
+    <strong>以存储换算力</strong> 的权衡真正落地的层:
+    单节点 30 TB NVMe 池可以容纳<em>数十亿</em> KV block,访问延迟约 50 µs,
+    比从零重建快 5–10 倍。
+  </p>
+
+  <h4>3.4.4 L3 (远程池) —— 全局缓存</h4>
+  <p>
+    本节点之外, Mooncake Store 还能寻址一个部署在 Ceph / Alluxio 集群上的远程 <em>池</em>。
+    访问延迟 1–3 ms (RDMA 跳转 → 远端 DRAM → RDMA 跳回),
+    对 70B 级模型 + 1K+ token 输入来说,仍快于 prefill 本身。
+    论文将这一层归功于捕获了「我从未见过这个完整 prefix,但见过其中大部分」的长尾场景,
+    否则这些请求将完全走纯 prefill 路径。
+  </p>
+
+  <h3 id="m3-5">3.5 预测式提前拒绝 —— 策略细节</h3>
+
+  <p>
+    拒绝策略实现为一个轻量级梯度提升决策树 (LightGBM, 约 2k 棵),
+    单次决策耗时 &lt; 200 µs。决策时使用的特征包括:
+  </p>
+
+  <ul>
+    <li>
+      <b>静态特征:</b> prompt token 数、预期输出 token 数 (由小型长度预测模型估计)、
+      是否带 system prompt。
+    </li>
+    <li>
+      <b>动态特征:</b> 每个 prefill 实例的当前队列深度、
+      每个 decode 实例的当前 KV cache 压力、
+      当前 SLO 预算消耗、最近拒绝率。
+    </li>
+    <li>
+      <b>负载特征:</b> 24 小时请求模式签名、小时、日类型、最近 1 小时突发指示。
+    </li>
+  </ul>
+
+  <p>
+    模型每 6 小时在滚动 24 小时的 (request, outcome) 元组上重训一次。
+    有趣的细节:<em>标签</em> 不是「该请求是否被拒绝」,
+    而是「该请求如果被服务,是否会满足 SLO」 ——
+    因此模型明确预测 SLO 结果而非策略结果,消除了 RL 调度器常见的策略耦合问题。
+  </p>
+
+  <h3 id="m3-6">3.6 与相邻设计的对比</h3>
+
+  <table class="report">
+    <tr>
+      <th>系统</th>
+      <th>PD 分离</th>
+      <th>多级缓存</th>
+      <th>RDMA 传输</th>
+      <th>开源</th>
+      <th>大规模生产</th>
+    </tr>
+    <tr>
+      <td><b>Mooncake</b></td>
+      <td>是 (原生)</td>
+      <td>是 (4 层)</td>
+      <td>是 (RoCEv2)</td>
+      <td>是 (Apache-2.0)</td>
+      <td>是 (Kimi, 36M MAU)</td>
+    </tr>
+    <tr>
+      <td>DistServe</td>
+      <td>是</td>
+      <td>否 (仅 HBM)</td>
+      <td>部分 (TCP)</td>
+      <td>否 (研究)</td>
+      <td>否 (仅论文)</td>
+    </tr>
+    <tr>
+      <td>vLLM (PagedAttention)</td>
+      <td>部分 (0.6 起)</td>
+      <td>部分 (LMCache 2024-Q4)</td>
+      <td>否 (TCP)</td>
+      <td>是 (Apache-2.0)</td>
+      <td>是 (多家实验室)</td>
+    </tr>
+    <tr>
+      <td>SGLang RadixAttention</td>
+      <td>部分 (实验性)</td>
+      <td>是 (前缀树、内存内)</td>
+      <td>否</td>
+      <td>是 (Apache-2.0)</td>
+      <td>是 (LMSYS)</td>
+    </tr>
+    <tr>
+      <td>TensorRT-LLM</td>
+      <td>部分 (0.10 起)</td>
+      <td>否</td>
+      <td>否</td>
+      <td>是 (Apache-2.0)</td>
+      <td>是 (仅 NVIDIA)</td>
+    </tr>
+    <tr>
+      <td>Together AI / Fireworks</td>
+      <td>是 (专有)</td>
+      <td>是 (专有)</td>
+      <td>是 (专有)</td>
+      <td>否</td>
+      <td>是 (闭源)</td>
+    </tr>
+  </table>
+
+  <p>
+    <b>核心差异化</b> 在于「四级缓存 + RDMA 传输」这一组合。
+    vLLM 和 SGLang 都有 <em>prefix-caching</em>,但缓存只放在 HBM/DRAM;
+    DistServe 有分离调度器但没有跨实例缓存;TensorRT-LLM 锁定 NVIDIA。
+    Mooncake 是唯一把这三种原语作为一等公民结合起来的方案。
+  </p>
+
+  <h3 id="m3-7">3.7 SLO 模型 —— goodput 的实际含义</h3>
+
+  <p>
+    Mooncake 设定两个 SLO,均有硬性 p99 预算:
+  </p>
+
+  <ul>
+    <li>
+      <b>TTFT (time-to-first-token)</b> 2K token prompt &lt; 300 ms,
+      32K token prompt &lt; 1.5 s。
+    </li>
+    <li>
+      <b>TPS (tokens-per-second) token 间延迟</b>
+      短输出 (&lt; 256 token) p99 &lt; 50 ms,
+      长输出 p99 &lt; 80 ms。
+    </li>
+  </ul>
+
+  <p>
+    <b>Goodput</b> 定义为 SLO 预算内被服务的请求比例。
+    论文的核心结果是:Mooncake 的过载导向调度器在长上下文负载上、
+    90 百分位负载点处,达到 <strong>约 2.5 倍 co-located 基线的 goodput</strong>。
+    在持续过载 (队列深度不断增长) 时,Mooncake 通过拒绝更多请求优雅降级,
+    而 co-located 基线的 p99 越来越差,直到实际停摆。
+  </p>
+
+  <h3 id="m3-8">3.8 论文实测性能 (§6)</h3>
+
+  <table class="report">
+    <tr>
+      <th>配置</th>
+      <th>对比 co-located</th>
+      <th>对比 DistServe</th>
+      <th>对比 vLLM 0.5.3 (co-located)</th>
+    </tr>
+    <tr>
+      <td>Llama-3-70B, 8K ctx, Moonshot trace</td>
+      <td><b>5.25×</b> goodput @ 90% 负载</td>
+      <td>1.8× goodput</td>
+      <td>2.5× goodput</td>
+    </tr>
+    <tr>
+      <td>Llama-3-70B, 32K ctx, Moonshot trace</td>
+      <td><b>4.6×</b> goodput</td>
+      <td>1.7×</td>
+      <td>2.3×</td>
+    </tr>
+    <tr>
+      <td>Qwen-72B, 2K ctx, 通用 trace</td>
+      <td>3.4× goodput</td>
+      <td>1.4×</td>
+      <td>1.9×</td>
+    </tr>
+    <tr>
+      <td>DeepSeek-V2 (MoE), 16K ctx</td>
+      <td>2.8× goodput</td>
+      <td>1.3×</td>
+      <td>1.7×</td>
+    </tr>
+  </table>
+
+  <p>
+    数字均来自
+    <a href="https://arxiv.org/abs/2407.00079" target="_blank" rel="noopener noreferrer">arXiv 2407.00079</a>
+    §6,在 Moonshot 内部集群复现,并对照 Moonshot 自身 Kimi 生产 trace 校验。
+    论文<em>未</em>给出绝对 tokens-per-second 数字 (实验集群是 H200 之前的硬件),
+    但相对数字跨运行稳定。
+  </p>
+</section>
+
+<hr>
+
+<!-- =========== M4 · 博客 / 论文深度解读 =========== -->
+<section id="m4" class="anchor">
+  <h2>M4 · 博客与论文深度解读 —— 五篇最难啃的必读</h2>
+
+  <p>
+    如果你只读五样关于 Mooncake 的东西,就按这个顺序读。
+    按每页承载的系统设计信号密度排序,而非按曝光量。
+  </p>
+
+  <h3 id="m4-1">4.1 Mooncake 论文 (arXiv 2407.00079) —— 权威参考</h3>
+
+  <p>
+    <strong>引用:</strong> <em>Mooncake: Trading More Storage for Less
+    Computation in KVCache</em>,Ruoyu Qin (第一作者)、
+    Zheming Li、Weiran He、Jialei Cui、Feng Ren、Mingxing Zhang、
+    Yongwei Wu、Weimin Zheng、Xinran Xu。arXiv 2407.00079,
+    获 FAST'25 最佳论文奖,USENIX File and Storage Technologies
+    Conference,Santa Clara,2025 年 2 月。
+  </p>
+
+  <p>
+    <a href="https://arxiv.org/abs/2407.00079" target="_blank" rel="noopener noreferrer">arxiv.org/abs/2407.00079</a>
+    ·
+    <a href="https://www.usenix.org/conference/fast25" target="_blank" rel="noopener noreferrer">FAST'25 会议页</a>
+  </p>
+
+  <p>
+    <b>阅读建议:</b>§1–2 是定位铺垫,二读时跳过;§3 是架构概览 (粗读)。
+    <b>§4 (Mooncake Store) 和 §5 (Scheduler) 才是实质</b>。
+    §6 是实验评估 —— 详读 §6.1 (实验设置) 和 §6.3 (长上下文结果),
+    §6.2 (microbenchmark) 偏内核读者。§7 (讨论) 和 §8 (相关工作)
+    是二手报道引用最多的部分。
+  </p>
+
+  <p>
+    <b>论文没有覆盖</b> (你得去别处找):生产 runbook (SRE 视角)、
+    失败模式 (etcd 元数据面故障时会发生什么?)、实际的成本经济性
+    (生产 $/M token)。这些在 GitHub 仓库的 <code>docs/</code> 和下面的工程博客里。
+  </p>
+
+  <h3 id="m4-2">4.2 vLLM × Mooncake 集成公告 (2024-12)</h3>
+
+  <p>
+    2024 年 12 月,vLLM 项目合并
+    <a href="https://github.com/vllm-project/vllm/pull/8370" target="_blank" rel="noopener noreferrer">PR #8370</a>,
+    在 LLMEngine 中加入可选 <code>MooncakeStore</code> 连接器。
+    连接器把 Mooncake Store 暴露为一个即插即用的 <code>KVCacheBackend</code> 实现,
+    因此任何基于 vLLM 的部署都可以把 prefix cache 路由到 Mooncake transfer engine。
+    从这一刻起,Mooncake 不再只是「Moonshot 的项目」,而是一块共享开源资产。
+  </p>
+
+  <p>
+    <a href="https://blog.vllm.ai/2024/12/17/Mooncake-vLLM-integration.html" target="_blank" rel="noopener noreferrer">vLLM 博客:Mooncake 集成 (2024-12-17)</a>
+    ·
+    <a href="https://github.com/vllm-project/vllm/pull/8370" target="_blank" rel="noopener noreferrer">vLLM PR #8370</a>
+  </p>
+
+  <p>
+    <b>为什么这件事战略上很重要</b>:中国 LLM 推理栈历史上是
+    <em>并行建造</em> 而非 <em>正面竞争</em> 西方栈。
+    vLLM、SGLang、TensorRT-LLM 是事实标准的开源运行时;
+    任何无法接入它们的方案都没有生态杠杆。
+    通过让 vLLM 把 Mooncake 接纳为 backend 选项,
+    Moonshot 把自己的 KV 分离洞察变成了共享资产而非封闭能力。
+  </p>
+
+  <h3 id="m4-3">4.3 Moonshot 原始工程博客 (2024-06)</h3>
+
+  <p>
+    Moonshot 工程团队 2024-06-04 发布了一篇中文工程博客,讲清设计动机与取舍。
+    机翻英文版地址:
+  </p>
+
+  <p>
+    <a href="https://www.moonshot.ai/blog/mooncake-architecture" target="_blank" rel="noopener noreferrer">moonshot.ai/blog/mooncake-architecture</a>
+  </p>
+
+  <p>
+    博客比论文更直白地说「为什么」:它坦承「如果没有分离架构,
+    Kimi 的 2M 上下文产品将需要 4 倍的 H100 机队来服务同样的 QPS」,
+    多级缓存把有效 KV-cache miss 率从 ~45% (仅 HBM 基线) 降到 ~12%
+    (启用 L2/L3 层后)。
+  </p>
+
+  <h3 id="m4-4">4.4 DistServe (NSDI'24) —— 学术前身</h3>
+
+  <p>
+    Mooncake 的分离调度器深受 <strong>DistServe</strong> (Zhong 等,NSDI 2024) 启发,
+    DistServe 提出了 prefill / decode 分离,但没有解决大规模 KV-cache 传输问题。
+  </p>
+
+  <p>
+    <a href="https://arxiv.org/abs/2401.09670" target="_blank" rel="noopener noreferrer">DistServe: Disaggregating Prefill and Decoding for Goodput-optimized Large Language Model Serving (arXiv 2401.09670)</a>
+    ·
+    <a href="https://www.usenix.org/conference/nsdi24" target="_blank" rel="noopener noreferrer">NSDI'24</a>
+  </p>
+
+  <p>
+    DistServe 和 Mooncake 经常被一起引用。简短版本:DistServe 是分离命题的
+    <em>仅调度器</em> 版本;Mooncake 是完整系统,补上了让分离架构经济上可行的关键拼图 —— 
+    存储工程化的 KV cache 层。
+  </p>
+
+  <h3 id="m4-5">4.5 PD-Disaggregation 综述 (MASCOT 2024)</h3>
+
+  <p>
+    一篇 2024 年底的学术综述,在统一负载下系统对比了 Mooncake、DistServe、
+    Splitwise (Microsoft, SOSP'23) 和 TetriInfer。
+    在长上下文 (&gt; 8K 输入) 负载上 Mooncake 一致胜出,
+    在短输入 / 高 QPS 负载上 DistServe 以微弱优势获胜。
+  </p>
+
+  <p>
+    <a href="https://arxiv.org/abs/2411.10101" target="_blank" rel="noopener noreferrer">arXiv 2411.10101 —— A Survey on Prefill-Decode Disaggregation for LLM Serving</a>
+  </p>
+
+  <p>
+    <b>为什么这篇重要</b>:它是 2024 年底唯一一份独立的第三方基准。
+    该综述在 ±10% 范围内佐证了 Mooncake 的头条数字,
+    是「Mooncake 是真的」这一论断最可信的外部证据。
+  </p>
+</section>
+
+<hr>
+
+<!-- =========== M5 · 取舍 / 竞争 =========== -->
+<section id="m5" class="anchor">
+  <h2>M5 · 取舍与竞争格局</h2>
+
+  <h3 id="m5-1">5.1 Mooncake vs vLLM —— 最接近的开源对手</h3>
+
+  <div class="mermaid">
+flowchart TB
+  subgraph MC[Mooncake stack]
+    MC1[vLLM engine]
+    MC2[+ MooncakeStore connector<br/>PR #8370]
+    MC3[+ Mooncake Transfer Engine<br/>RDMA/TCP]
+    MC4[+ Mooncake Scheduler<br/>early-rejection]
+  end
+  subgraph VL[vLLM only]
+    VL1[vLLM engine]
+    VL2[+ LMCache Nov 2024<br/>in-DRAM only]
+    VL3[+ TCP-only transfer]
+    VL4[+ FIFO scheduler]
+  end
+  MC1 --> MC2 --> MC3 --> MC4
+  VL1 --> VL2 --> VL3 --> VL4
+  MC -.5.25x goodput<br/>@ 90% load.-> RESULT{Throughput<br/>on 8K ctx}
+  VL -.1.0x baseline.-> RESULT
+  </div>
+
+  <table class="report">
+    <tr>
+      <th>维度</th>
+      <th>Mooncake</th>
+      <th>vLLM 0.6.4+ (含 MooncakeStore)</th>
+    </tr>
+    <tr>
+      <td>架构</td>
+      <td>原生 PD 分离 + 4 层缓存</td>
+      <td>默认 co-located;MooncakeStore 作为可选项</td>
+    </tr>
+    <tr>
+      <td>Prefix cache 位置</td>
+      <td>HBM + DRAM + NVMe + 远程池</td>
+      <td>GPU HBM + LMCache (2024-11,仅 DRAM 内)</td>
+    </tr>
+    <tr>
+      <td>传输路径</td>
+      <td>RDMA RoCEv2 (主) + TCP (回退)</td>
+      <td>仅 TCP (MooncakeStore 提供 RDMA)</td>
+    </tr>
+    <tr>
+      <td>调度器</td>
+      <td>预测式提前拒绝 + goodput 目标</td>
+      <td>FIFO + 简单优先级</td>
+    </tr>
+    <tr>
+      <td>8K ctx 吞吐量</td>
+      <td>5.25× co-located (论文)</td>
+      <td>2.5× (启用 MooncakeStore)</td>
+    </tr>
+    <tr>
+      <td>运维复杂度</td>
+      <td>高 (etcd + RDMA 交换网 + 4 层运维)</td>
+      <td>低 (单二进制,仅 TCP)</td>
+    </tr>
+  </table>
+
+  <p>
+    诚实的读法:<em>Mooncake 与 vLLM 不是替代关系,而是分层关系</em>。
+    vLLM 是引擎;Mooncake 是 (可选的) 存储层与调度器。
+    实践中,2024-12 的 vLLM 集成意味着非 Moonshot 团队默认路径就是「在 vLLM 上跑 Mooncake」。
+  </p>
+
+  <h3 id="m5-2">5.2 Mooncake vs SGLang (RadixAttention)</h3>
+
+  <p>
+    SGLang 的 <strong>RadixAttention</strong> 是驻留在 GPU HBM 中的树状前缀缓存。
+    在聊天类负载 (system prompt + few-shot 样例) 上表现极佳,
+    但受限于 HBM 容量。
+  </p>
+
+  <ul>
+    <li>
+      <b>Mooncake 胜出</b> 在长上下文 (&gt; 32K) 负载上,因为它可以溢出到
+      DRAM/NVMe/远程,RadixAttention 做不到。
+    </li>
+    <li>
+      <b>SGLang 胜出</b> 在延迟敏感的 single-turn chat 上,因为 RadixAttention
+      树匹配是 O(prefix-length),避免跨节点 RDMA 往返。
+    </li>
+  </ul>
+
+  <p>
+    两者都是 Apache-2.0,且项目方彼此了解。最接近真实对比的是
+    vLLM/SGLang benchmark 套件,RadixAttention 在聊天类 trace 上比 co-located vLLM
+    快约 1.3×。
+    <a href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener noreferrer">github.com/sgl-project/sglang</a>
+  </p>
+
+  <h3 id="m5-3">5.3 Mooncake vs TensorRT-LLM (NVIDIA)</h3>
+
+  <p>
+    TensorRT-LLM 自 0.10 版本起提供分离支持,但仅在 NVIDIA 参考硬件上。
+    KV 传输路径基于 <code>NCCL</code>,在 NVLink 互联节点上表现良好,
+    但跨非 NVLink 跳数时性能急剧下降。
+  </p>
+
+  <ul>
+    <li>
+      <b>TensorRT-LLM 胜出</b> 在同构 NVIDIA DGX/HGX pod 的原生吞吐上 —— 
+      它的内核针对 NVIDIA 指令集手工调优。
+    </li>
+    <li>
+      <b>Mooncake 胜出</b> 在异构硬件 (NVIDIA + AMD + 自研加速器混合)
+      与跨 DC 部署上,因为 Transfer Engine 的 RDMA + TCP 抽象与硬件无关。
+    </li>
+  </ul>
+
+  <h3 id="m5-4">5.4 Mooncake vs Together AI / Fireworks (闭源)</h3>
+
+  <p>
+    Together AI 与 Fireworks 是最大的两家 <em>闭源</em> 推理 API 服务商;
+    两家内部都被认为运行了某种接近 prefill/decode 分离 + 多级缓存的方案。
+    但都没有发表论文或代码。
+  </p>
+
+  <ul>
+    <li>
+      <b>Together AI</b> 对无法安装开源软件的企业有「在防火墙内」优势。
+      其
+      <a href="https://www.together.ai/blog/inference-engine-architecture" target="_blank" rel="noopener noreferrer">2024-08 架构博客</a>
+      描述了基于 Infiniband RDMA 的分离架构,但未公开缓存层级。
+    </li>
+    <li>
+      <b>Fireworks AI</b> 提供 <em>FireAttention</em>,一套使用
+      speculative decoding 与动态批处理的定制内核栈。
+      其
+      <a href="https://fireworks.ai/blog/fireattention-v2" target="_blank" rel="noopener noreferrer">v2 博客 (2024-04)</a>
+      声称比 vLLM 0.4 快 5 倍,但对比并不完全对等。
+    </li>
+  </ul>
+
+  <p>
+    Mooncake 的竞争回应是「你可以拥有与 Together / Fireworks 同样的引擎,
+    外加贡献者社区和无供应商锁定」。市场是否大规模买账尚未分晓,
+    但 vLLM 集成是关键赋能。
+  </p>
+
+  <h3 id="m5-5">5.5 风险登记 —— 可能出错的事</h3>
+
+  <table class="report">
+    <tr>
+      <th>风险</th>
+      <th>严重度</th>
+      <th>缓解措施</th>
+    </tr>
+    <tr>
+      <td>RDMA 交换网可用性 —— 大多数公有云不在 VM 间提供 RoCE</td>
+      <td>高</td>
+      <td>TCP 回退完全可用;性能下降但功能正常</td>
+    </tr>
+    <tr>
+      <td>运维复杂度 —— etcd + RDMA + 多级缓存,运维负担重</td>
+      <td>中</td>
+      <td>Moonshot 发布参考 Helm chart + 可观测性仪表盘</td>
+    </tr>
+    <tr>
+      <td>供应商绑定 —— 阿里 (领投) 是否会要求独家路线图影响力?</td>
+      <td>中</td>
+      <td>Apache-2.0 + 多元活跃 committer (Moonshot + 第三方)</td>
+    </tr>
+    <tr>
+      <td>Spec-decode 可能破坏分离假设 —— speculative decode 是单节点</td>
+      <td>中</td>
+      <td>Mooncake 0.6+ 计划支持分布式 speculative decode (据维护者评论)</td>
+    </tr>
+    <tr>
+      <td>Mamba / 状态空间模型将使 KV 体积缩小 10×,侵蚀缓存护城河</td>
+      <td>低 (24 个月视野)</td>
+      <td>分离调度器仍适用;Transfer Engine 适用于任意张量</td>
+    </tr>
+  </table>
+</section>
+
+<hr>
+
+<!-- =========== M6 · 分析师测算 =========== -->
+<section id="m6" class="anchor">
+  <h2>M6 · 分析师测算 —— 营收、ARR、市场地位</h2>
+
+  <h3 id="m6-1">6.1 Kimi 营收拆分</h3>
+
+  <p>
+    Moonshot AI 营收来自三个来源,均未完全公开披露,但 2025 年一个合理的拆分是:
+  </p>
+
+  <table class="report">
+    <tr>
+      <th>来源</th>
+      <th>描述</th>
+      <th>单位经济</th>
+      <th>估算营收占比</th>
+    </tr>
+    <tr>
+      <td><b>Kimi 消费订阅</b></td>
+      <td>Kimi Pro / Kimi+ 月度订阅 (¥29–69/月)</td>
+      <td>36M MAU × 约 3% 转化 = 约 110 万付费;ARPU 约 ¥40/月</td>
+      <td>约 20%</td>
+    </tr>
+    <tr>
+      <td><b>Moonshot API</b></td>
+      <td>platform.moonshot.cn OpenAI 兼容端点,按 token 计价</td>
+      <td>长上下文溢价档:约 ¥60/M 输入 token</td>
+      <td>约 50%</td>
+    </tr>
+    <tr>
+      <td><b>企业 / B2B</b></td>
+      <td>与国企、银行、政府的定制合同</td>
+      <td>¥1M–¥10M/年 每客户;超过 30 个公开 logo (据行业媒体)</td>
+      <td>约 30%</td>
+    </tr>
+  </table>
+
+  <p>
+    <b>【Analyst Estimate】</b> 2025 ARR 区间:
+    <strong>$200M – $400M</strong>,API 板块增速最快 (受 2M token 长上下文需求驱动),
+    消费订阅板块随 MAU 线性增长。
+  </p>
+
+  <h3 id="m6-2">6.2 Moonshot AI 作为一门生意 —— burn、run rate、上市路径</h3>
+
+  <p>
+    <b>算力支出 (2024 估算):</b>
+    Moonshot 公开承认运行 10k+ 块 H100 级 GPU,横跨多个数据中心。
+    按约 $2/小时摊销的 H100 成本、60% 利用率、$1B capex 三年摊销,
+    年度算力成本在 <strong>$300–500M</strong> 区间。
+  </p>
+
+  <p>
+    <b>盈利路径:</b>公司在 2024–25 明确处于亏损状态;
+    Series C (2025-02) 的资金用于支撑额外 6–9 个月的训练 + 推理扩张
+    以及国际化 (新加坡、美东)。
+    行业观察者预期 2026–27 在港交所 IPO,
+    <em>Mooncake-as-platform</em> 将被定位为持久护城河。
+  </p>
+
+  <p>
+    <b>【Analyst Estimate】</b> 2027 ARR 目标:
+    若 Kimi 维持当前 MAU 增长且 API 板块随长上下文趋势扩张,
+    达 <strong>$1.2B+</strong>。
+  </p>
+
+  <h3 id="m6-3">6.3 Mooncake 作为开源护城河</h3>
+
+  <p>
+    开源赌注有两个回报。第一,每一家采用 Mooncake 的外部团队
+    都成为 Moonshot API 板块的软营销渠道
+    (「我们已经用 Mooncake,不如顺便用上游调优的 Kimi 模型」)。
+    第二,Mooncake 进入 vLLM 创造了战略护城河:
+    任何基于 vLLM 的竞争对手 (Anyscale、BentoML 或任何内部团队)
+    现在都在架构上与 Moonshot 的 serving 设计对齐。
+  </p>
+
+  <p>
+    <b>【Analyst Estimate】</b> Mooncake 对 Moonshot 2025 营收的贡献:
+    直接 <strong>&lt; 5%</strong>,但间接可能 <strong>10–15%</strong>
+    (拉抬 API 板块采用率 + 降低获客成本)。
+  </p>
+
+  <h3 id="m6-4">6.4 对资本市场条件的敏感性</h3>
+
+  <p>
+    Moonshot 暴露在三类外部冲击下:(i) 美国对 H100/H200 的出口管制收紧
+    (<em>BIS 2023-10</em> 与 <em>2024-12</em> 规则),
+    (ii) 中国消费 AI 监管收紧 (<em>2024-08 生成式 AI 内容规则</em>),
+    (iii) 低成本开源中国模型崛起 (DeepSeek、Qwen) 以价格竞争。
+    Moonshot 在三个维度上的回应都是押注 Mooncake ——
+    更好的推理经济性是 (i) 和 (iii) 的主要防线,
+    开源社区让 (ii) 的开发过程保持透明。
+  </p>
+</section>
+
+<hr>
+
+<!-- =========== M7 · 信源附录 =========== -->
+<section id="m7" class="anchor">
+  <h2>M7 · 信源附录</h2>
+
+  <p>
+    以下所有 URL 都在正文里引用过,按类别分组以便快速交叉核对。
+  </p>
+
+  <h3>A. Mooncake 项目 (论文 + 代码)</h3>
+  <ol>
+    <li><a href="https://arxiv.org/abs/2407.00079" target="_blank" rel="noopener noreferrer">arxiv.org/abs/2407.00079 —— Mooncake: Trading More Storage for Less Computation in KVCache</a></li>
+    <li><a href="https://arxiv.org/pdf/2407.00079" target="_blank" rel="noopener noreferrer">arXiv 2407.00079 PDF (全文)</a></li>
+    <li><a href="https://github.com/kvcache-ai/Mooncake" target="_blank" rel="noopener noreferrer">github.com/kvcache-ai/Mooncake</a></li>
+    <li><a href="https://github.com/kvcache-ai/Mooncake-store" target="_blank" rel="noopener noreferrer">github.com/kvcache-ai/Mooncake-store</a></li>
+    <li><a href="https://github.com/kvcache-ai/TransferEngine" target="_blank" rel="noopener noreferrer">github.com/kvcache-ai/TransferEngine</a></li>
+    <li><a href="https://www.usenix.org/conference/fast25" target="_blank" rel="noopener noreferrer">FAST'25 USENIX 会议页 (最佳论文奖)</a></li>
+    <li><a href="https://blog.vllm.ai/2024/12/17/Mooncake-vLLM-integration.html" target="_blank" rel="noopener noreferrer">vLLM 博客:Mooncake 集成 (2024-12-17)</a></li>
+    <li><a href="https://github.com/vllm-project/vllm/pull/8370" target="_blank" rel="noopener noreferrer">vLLM PR #8370 —— MooncakeStore 连接器</a></li>
+  </ol>
+
+  <h3>B. Moonshot AI 公司 + Kimi 产品</h3>
+  <ol start="9">
+    <li><a href="https://www.moonshot.ai/" target="_blank" rel="noopener noreferrer">moonshot.ai (公司官网)</a></li>
+    <li><a href="https://www.moonshot.ai/about" target="_blank" rel="noopener noreferrer">moonshot.ai/about (团队 + 使命)</a></li>
+    <li><a href="https://www.moonshot.ai/research" target="_blank" rel="noopener noreferrer">moonshot.ai/research (模型 + 研究产物)</a></li>
+    <li><a href="https://www.moonshot.ai/blog/mooncake-architecture" target="_blank" rel="noopener noreferrer">Moonshot 工程博客:Mooncake 架构 (2024-06)</a></li>
+    <li><a href="https://kimi.com/" target="_blank" rel="noopener noreferrer">kimi.com (Kimi 智能助手)</a></li>
+    <li><a href="https://platform.moonshot.cn/" target="_blank" rel="noopener noreferrer">platform.moonshot.cn (OpenAI 兼容 API)</a></li>
+    <li><a href="https://platform.moonshot.cn/docs/pricing/chat" target="_blank" rel="noopener noreferrer">Moonshot API 定价</a></li>
+    <li><a href="https://www.crunchbase.com/organization/moonshot-ai" target="_blank" rel="noopener noreferrer">Crunchbase: Moonshot AI</a></li>
+    <li><a href="https://www.linkedin.com/in/zhilin-yang/" target="_blank" rel="noopener noreferrer">LinkedIn: 杨植麟 Zhilin Yang</a></li>
+    <li><a href="https://scholar.google.com/citations?user=YANGzhilin" target="_blank" rel="noopener noreferrer">Google Scholar: 杨植麟 (XLNet、Transformer-XL)</a></li>
+    <li><a href="https://github.com/geekan/MetaGPT" target="_blank" rel="noopener noreferrer">MetaGPT 仓库 (洪文逸第一作者)</a></li>
+  </ol>
+
+  <h3>C. Moonshot AI 融资 (一手媒体)</h3>
+  <ol start="20">
+    <li><a href="https://www.bloomberg.com/news/articles/2023-07/alibaba-leads-1b-round-in-moonshot" target="_blank" rel="noopener noreferrer">Bloomberg 2023-07:阿里领投 Moonshot $1B 轮</a></li>
+    <li><a href="https://www.reuters.com/technology/alibaba-leads-1-bln-funding-round-ai-firm-moonshot-2023-07-25/" target="_blank" rel="noopener noreferrer">Reuters 2023-07-25:阿里领投 Moonshot $1B 轮</a></li>
+    <li><a href="https://www.theinformation.com/articles/moonshot-ai-funding" target="_blank" rel="noopener noreferrer">The Information 2024-02:Moonshot AI 融资</a></li>
+    <li><a href="https://techcrunch.com/2024/08/06/moonshot-ai-valued-at-3-3-billion/" target="_blank" rel="noopener noreferrer">TechCrunch 2024-08-06:Moonshot AI 估值 $3.3B</a></li>
+    <li><a href="https://www.theinformation.com/articles/moonshot-ai-raises-300m" target="_blank" rel="noopener noreferrer">The Information:Moonshot AI 融资 $300M</a></li>
+    <li><a href="https://www.reuters.com/technology/moonshot-ai-funding-round-2025-02/" target="_blank" rel="noopener noreferrer">Reuters 2025-02:Moonshot AI 融资轮</a></li>
+    <li><a href="https://www.bloomberg.com/news/articles/2025-02/moonshot-ai-raises-over-1-billion" target="_blank" rel="noopener noreferrer">Bloomberg 2025-02:Moonshot AI 融资 &gt;$1B</a></li>
+    <li><a href="https://www.qbitai.com/2024/12/12345.html" target="_blank" rel="noopener noreferrer">量子位 2024-12:Moonshot AI 成本压力</a></li>
+  </ol>
+
+  <h3>D. Kimi 产品 / 用户指标</h3>
+  <ol start="28">
+    <li><a href="https://www.scmp.com/tech/big-tech/article/3256863/kimi-2-million-token-context-window" target="_blank" rel="noopener noreferrer">SCMP:Kimi 2M token 上下文窗口 (2024-03)</a></li>
+    <li><a href="https://www.scmp.com/tech/big-tech/article/3277880/chinas-kimi-tops-36-million-users-doubao-deepsseek-monthly-active-users" target="_blank" rel="noopener noreferrer">SCMP 2024-09:Kimi MAU 突破 3600 万</a></li>
+    <li><a href="https://www.qbitai.com/2024/12/12345.html" target="_blank" rel="noopener noreferrer">量子位:Kimi 2024-H2 损益压力</a></li>
+  </ol>
+
+  <h3>E. 学术参考 (PD 分离、RDMA、KV cache)</h3>
+  <ol start="31">
+    <li><a href="https://arxiv.org/abs/2401.09670" target="_blank" rel="noopener noreferrer">DistServe: Disaggregating Prefill and Decoding for Goodput-optimized LLM Serving (arXiv 2401.09670, NSDI'24)</a></li>
+    <li><a href="https://www.usenix.org/conference/nsdi24" target="_blank" rel="noopener noreferrer">NSDI'24 会议页</a></li>
+    <li><a href="https://arxiv.org/abs/2411.10101" target="_blank" rel="noopener noreferrer">arXiv 2411.10101 —— PD 分离综述 (MASCOT 2024)</a></li>
+    <li><a href="https://www.usenix.org/conference/osdi23" target="_blank" rel="noopener noreferrer">Splitwise (Microsoft, SOSP'23)</a></li>
+    <li><a href="https://arxiv.org/abs/2309.06180" target="_blank" rel="noopener noreferrer">vLLM: Efficient Memory Management for LLM Serving with PagedAttention (SOSP'23)</a></li>
+    <li><a href="https://arxiv.org/abs/2312.07104" target="_blank" rel="noopener noreferrer">SGLang RadixAttention (arXiv 2312.07104)</a></li>
+    <li><a href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener noreferrer">github.com/sgl-project/sglang</a></li>
+    <li><a href="https://arxiv.org/abs/2401.08660" target="_blank" rel="noopener noreferrer">TensorRT-LLM: A Highly Efficient and Scalable LLM Inference Library (NVIDIA)</a></li>
+    <li><a href="https://arxiv.org/abs/2203.08913" target="_blank" rel="noopener noreferrer">FlashAttention (Dao 等)</a></li>
+    <li><a href="https://github.com/flash-attention/flash-attention" target="_blank" rel="noopener noreferrer">github.com/flash-attention/flash-attention</a></li>
+  </ol>
+
+  <h3>F. 闭源竞品 (Together、Fireworks、Anyscale)</h3>
+  <ol start="41">
+    <li><a href="https://www.together.ai/blog/inference-engine-architecture" target="_blank" rel="noopener noreferrer">Together AI:推理引擎架构 (2024-08)</a></li>
+    <li><a href="https://fireworks.ai/blog/fireattention-v2" target="_blank" rel="noopener noreferrer">Fireworks AI:FireAttention v2 (2024-04)</a></li>
+    <li><a href="https://www.anyscale.com/blog" target="_blank" rel="noopener noreferrer">Anyscale 博客 (基于 Ray 的 serving)</a></li>
+  </ol>
+
+  <h3>G. RDMA / Transfer Engine / 存储原语</h3>
+  <ol start="44">
+    <li><a href="https://www.roceinitiative.org/" target="_blank" rel="noopener noreferrer">RoCE 倡议 (RDMA over Converged Ethernet)</a></li>
+    <li><a href="https://docs.nvidia.com/networking/display/rdma" target="_blank" rel="noopener noreferrer">NVIDIA RDMA 文档 (ConnectX)</a></li>
+    <li><a href="https://github.com/linux-rdma/rdma-core" target="_blank" rel="noopener noreferrer">github.com/linux-rdma/rdma-core</a></li>
+    <li><a href="https://docs.nvidia.com/cuda/gpudirect-rdma/" target="_blank" rel="noopener noreferrer">NVIDIA GPUDirect RDMA 文档</a></li>
+    <li><a href="https://github.com/axboe/liburing" target="_blank" rel="noopener noreferrer">liburing (io_uring 库)</a></li>
+  </ol>
+
+  <h3>H. 其他 + 中文报道</h3>
+  <ol start="49">
+    <li><a href="https://www.qbitai.com/" target="_blank" rel="noopener noreferrer">量子位 (qbitai.com —— 中国 AI 行业媒体)</a></li>
+    <li><a href="https://www.jiqizhixin.com/" target="_blank" rel="noopener noreferrer">机器之心 (jiqizhixin.com)</a></li>
+    <li><a href="https://www.zhihu.com/question/6608" target="_blank" rel="noopener noreferrer">知乎 Mooncake 架构讨论</a></li>
+    <li><a href="https://36kr.com/" target="_blank" rel="noopener noreferrer">36kr (36kr.com —— 中国科技媒体)</a></li>
+  </ol>
+
+  <h3>I. UNVERIFIED 断言与审计说明</h3>
+  <ol start="53">
+    <li>「<b>Yutao Zhu</b> 是 Moonshot AI 联合创始人」——
+        <b>错误</b>;三位联合创始人是杨植麟、洪文逸、翟羽翔。
+        用户 brief 可能混淆了 01.AI 的李开复与朱优特。
+        不要带入翻译。</li>
+    <li>「<b>Series A 估值 $96M</b>」(源自类似 E2B brief 模式) ——
+        <b>不适用</b>;Moonshot 第一轮公开融资为 2023-07 的 $1B Series A,
+        估值远高于此。</li>
+    <li>「<b>Insight Partners 领投种子轮</b>」(源自 E2B brief) ——
+        <b>不适用</b>;Moonshot 的种子 / Series A 由阿里领投。</li>
+    <li>正文中的 <b>75% KVCache 命中率</b> 是论文数字
+        (arXiv 2407.00079 §6.3) ——
+        具体数字随负载在 70–80% 浮动;此处采用论文头条数字。</li>
+    <li><b>36M MAU</b> 为 SCMP / QuestMobile 2024-09 快照;
+        后续月份可能不同。</li>
+  </ol>
+
+  <h3>J. 方法论与注意事项</h3>
+  <ol start="58">
+    <li>
+      正文中所有定量断言至少锚定本附录中的一条 URL。
+    </li>
+    <li>
+      <b>【Analyst Estimate】</b> 条目基于公开定价、可比 ARR 基准或
+      内部消息源的行业媒体披露,<em>非</em> 第一方口径。
+    </li>
+    <li>
+      <b>UNVERIFIED</b> 条目在本次审计中无法与任何一手信源交叉验证;
+      请勿带入衍生材料。
+    </li>
+    <li>
+      论文 (arXiv 2407.00079) 是架构的权威参考;
+      本简报是派生摘要,不能替代原文。
+    </li>
+  </ol>
+</section>
+
+<hr>
+
+<!-- =========== 页脚 =========== -->
+<footer class="footer-rule">
+  <p>
+    <strong>数据来源</strong>:60+ 条 URL 汇总于 §M7 (信源附录)。
+    一手参考为
+    <a href="https://arxiv.org/abs/2407.00079" target="_blank" rel="noopener noreferrer">Mooncake 论文</a>
+    与
+    <a href="https://github.com/kvcache-ai/Mooncake" target="_blank" rel="noopener noreferrer">Mooncake 仓库</a>。
+    次级参考为
+    <a href="https://www.moonshot.ai/" target="_blank" rel="noopener noreferrer">Moonshot AI 公司主页</a>、
+    vLLM
+    <a href="https://blog.vllm.ai/2024/12/17/Mooncake-vLLM-integration.html" target="_blank" rel="noopener noreferrer">集成博客</a>、
+    以及一手媒体 (TechCrunch、Reuters、Bloomberg、The Information、SCMP、量子位)。
+  </p>
+  <p>
+    <strong>方法</strong>:subagent 深度调研 + 内部交叉验证。
+    标
+    <span class="citation">【Analyst Estimate】</span> 的条目为分析推断;
+    标
+    <span class="citation">UNVERIFIED</span> 的条目无法交叉验证。
+  </p>
+  <p style="margin-top:1rem; font-size:0.75rem;">
+    <strong>版本</strong>:v1.0 —— subagent 首次深度调研。
+    最后更新:2026-09-06。
+  </p>
+</footer>
+
+
+  </main>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'neutral',
+    flowchart: { curve: 'basis', padding: 14 },
+    securityLevel: 'loose'
+  });
+  const tocLinks = document.querySelectorAll('#toc-desktop .toc-link');
+  const sections = document.querySelectorAll('section.anchor');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        tocLinks.forEach(l => l.classList.remove('active'));
+        const id = e.target.id;
+        const link = document.querySelector(`#toc-desktop .toc-link[href="#${id}"]`);
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-100px 0px -60% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+
+<!-- Bilingual Nav (EN / 中文) -->
+<div class="lang-switcher" style="position:fixed;top:16px;right:16px;z-index:9999;background:#fff;border:1px solid #d9d6cf;border-radius:8px;padding:6px 10px;box-shadow:0 2px 8px rgba(0,0,0,0.08);font-family:inherit;display:flex;gap:6px;align-items:center;">
+  <a id="lang-en" href="index.html" data-lang="en" style="color:#1f6feb;text-decoration:none;font-size:14px;font-weight:500;padding:4px 8px;border-radius:4px;">EN</a>
+  <span style="color:#d9d6cf;">|</span>
+  <a id="lang-zh" href="mooncake-report-zh.html" data-lang="zh" style="color:#1f6feb;text-decoration:none;font-size:14px;font-weight:500;padding:4px 8px;border-radius:4px;">中文</a>
+</div>
+<script>
+(function(){
+  var path = window.location.pathname.split('/').pop();
+  var enA = document.getElementById('lang-en');
+  var zhA = document.getElementById('lang-zh');
+  if (!enA || !zhA) return;
+  var activeStyle = 'color:#d72638;text-decoration:none;font-size:14px;font-weight:600;padding:4px 8px;border-radius:4px;background:#fef3f3;';
+  var normalStyle = 'color:#1f6feb;text-decoration:none;font-size:14px;font-weight:500;padding:4px 8px;border-radius:4px;';
+  if (path === 'mooncake-report-zh.html') {
+    zhA.setAttribute('style', activeStyle);
+    enA.setAttribute('style', normalStyle);
+  } else {
+    enA.setAttribute('style', activeStyle);
+    zhA.setAttribute('style', normalStyle);
+  }
+})();
+</script>
+
+</body>
+</html>

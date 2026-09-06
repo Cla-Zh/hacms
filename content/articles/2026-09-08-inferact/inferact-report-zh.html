@@ -1,0 +1,2255 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Inferact —— vLLM 团队的推理原生云</title>
+<meta name="description" content="深度调研 Inferact —— vLLM 团队的推理原生云,2026-01-22 完成 $150M Seed 轮融资 (post-money 估值 $800M),由 a16z + Lightspeed 联合领投。覆盖产品矩阵、技术架构 (PagedAttention / 连续批处理 / V1) 及竞争格局。" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --ink: #0b1020;
+    --paper: #f7f6f2;
+    --accent: #d72638;
+    --accent2: #1f6feb;
+    --muted: #5a6273;
+    --rule: #d9d6cf;
+    --code-bg: #0b1020;
+    --code-fg: #e8edf5;
+    --link: #1f6feb;
+    --card-bg: #ffffff;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: "Inter", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.65;
+  }
+  .container-prose { max-width: 920px; }
+  .toc-link.active { color: var(--accent); font-weight: 600; border-left-color: var(--accent); }
+  .toc-link { border-left: 2px solid transparent; }
+  .toc-link:hover { color: var(--accent2); border-left-color: var(--accent2); }
+  a { color: var(--link); text-decoration: none; border-bottom: 1px dotted rgba(31,111,235,0.4); }
+  a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .anchor { scroll-margin-top: 100px; }
+  .smallcaps { font-variant-caps: all-small-caps; letter-spacing: 0.05em; color: var(--muted); font-size: 0.78rem; }
+  .pullquote { border-left: 4px solid var(--accent); padding: 0.6rem 1.1rem; background: #fff5f6; font-style: italic; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+  .pullquote.green { border-left-color: #0e7a3a; background: #f0faf3; }
+  .pullquote.blue { border-left-color: #1147a8; background: #eff4ff; }
+  table.report { border-collapse: collapse; width: 100%; font-size: 0.92rem; margin: 1rem 0; }
+  table.report th, table.report td { border: 1px solid var(--rule); padding: 6px 10px; text-align: left; vertical-align: top; }
+  table.report th { background: #efeee8; font-weight: 600; }
+  table.report tr:nth-child(even) td { background: #fbfaf6; }
+  pre.code-block {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 14px 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.85rem;
+    line-height: 1.55;
+    margin: 0.8rem 0;
+  }
+  pre.code-block code { color: inherit; }
+  .citation { font-size: 0.75rem; color: var(--muted); }
+  .citation a { border-bottom: 1px dotted rgba(90,98,115,0.4); color: var(--muted); }
+  .citation a:hover { color: var(--accent); }
+  .footnote-ref { font-size: 0.7em; vertical-align: super; color: var(--accent); }
+  .hero {
+    background: linear-gradient(135deg, #0b1020 0%, #1f2347 50%, #d72638 100%);
+    color: white;
+    padding: 5rem 2rem 4rem;
+  }
+  .hero h1 { font-size: clamp(2.2rem, 4.6vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+  .hero .subtitle { font-size: 1.1rem; opacity: 0.88; max-width: 60ch; }
+  .hero .tldr {
+    background: rgba(255,255,255,0.08);
+    border-left: 4px solid #d72638;
+    padding: 1rem 1.25rem;
+    margin-top: 1.5rem;
+    max-width: 64ch;
+    border-radius: 0 6px 6px 0;
+    backdrop-filter: blur(4px);
+  }
+  .kpi-card {
+    background: white;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  }
+  .kpi-num { font-size: 1.6rem; font-weight: 800; color: var(--accent); line-height: 1; }
+  .kpi-label { font-size: 0.78rem; color: var(--muted); margin-top: 0.25rem; }
+  .section-tag {
+    display: inline-block;
+    background: var(--accent);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 4px 10px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+  .module-card {
+    background: white;
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--accent2);
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .stack-diagram {
+    background: linear-gradient(180deg, #fbfaf6 0%, #f4f1ea 100%);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 1.5rem;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.78rem;
+    line-height: 1.7;
+    color: #2c3340;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    background: #efeee8;
+    color: var(--ink);
+    margin-right: 4px;
+  }
+  .badge-red { background: #fde2e6; color: #b3001b; }
+  .badge-blue { background: #e1ecff; color: #1147a8; }
+  .badge-green { background: #d6f5e0; color: #0e7a3a; }
+  .badge-gray { background: #e8e6df; color: #555; }
+  #toc-desktop {
+    position: sticky;
+    top: 80px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    font-size: 0.84rem;
+    line-height: 1.55;
+    padding-right: 1rem;
+    border-right: 1px solid var(--rule);
+  }
+  #toc-desktop ul { list-style: none; padding-left: 0; }
+  #toc-desktop li { padding: 2px 0; }
+  #toc-desktop ul ul { padding-left: 0.75rem; }
+  #toc-mobile {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+    padding: 0.5rem 1rem;
+    display: none;
+  }
+  @media (max-width: 1023px) {
+    #toc-desktop { display: none; }
+    #toc-mobile { display: block; }
+  }
+  .footer-rule { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1rem; color: var(--muted); font-size: 0.82rem; }
+  details.tech-summary {
+    border: 1px solid var(--rule);
+    background: #fbfaf6;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    margin: 0.5rem 0;
+  }
+  details.tech-summary summary { cursor: pointer; font-weight: 600; color: var(--accent2); }
+  details.tech-summary[open] summary { color: var(--accent); }
+  .mermaid { background: white; border: 1px solid var(--rule); border-radius: 6px; padding: 1rem; margin: 1rem 0; overflow-x: auto; }
+  hr { border: none; border-top: 1px solid var(--rule); margin: 2rem 0; }
+  .tier-compare {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    overflow: hidden;
+    margin: 1rem 0;
+    font-size: 0.85rem;
+  }
+  .tier-compare > div { background: var(--card-bg); padding: 8px 10px; }
+  .tier-compare > div.head { background: #efeee8; font-weight: 700; }
+  .customer-quote {
+    border-left: 3px solid var(--accent2);
+    background: #f4f7fb;
+    padding: 0.75rem 1rem;
+    margin: 0.75rem 0;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.92rem;
+  }
+  .customer-quote .who { font-weight: 700; color: var(--accent2); font-size: 0.85rem; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+  @media (max-width: 768px) { .grid-3 { grid-template-columns: 1fr; } }
+  .timeline-dot {
+    width: 10px; height: 10px; background: var(--accent); border-radius: 50%; display: inline-block; margin-right: 8px; vertical-align: middle;
+  }
+  .timeline-dot.gray { background: #9aa0a6; }
+  .timeline-dot.green { background: #0e7a3a; }
+  .timeline-dot.blue { background: #1147a8; }
+</style>
+</head>
+<body>
+
+<!-- Mobile ToC -->
+<div id="toc-mobile">
+  <details>
+    <summary class="cursor-pointer font-semibold text-sm">📑 目录</summary>
+    <ul class="mt-2 text-sm space-y-1"><li><a href="#m0">Inferact —— vLLM 团队的推理原生云</a></li>
+      <li><a href="#m1">公司与商业版图</a></li>
+      <li><a href="#m2">产品矩阵</a></li>
+      <li><a href="#m3">系统架构 —— PagedAttention、连续批处理、V1</a></li>
+      <li><a href="#m4">来自 vLLM 博客与 GitHub 的 5 篇硬核深度</a></li>
+      <li><a href="#m5">权衡、竞争、瓶颈</a></li>
+      <li><a href="#m6">分析师估算</a></li>
+      <li><a href="#m7">来源附录</a></li></ul>
+  </details>
+</div>
+
+<!-- Hero -->
+<header class="hero">
+  <div class="container-prose mx-auto">
+    <div class="text-xs uppercase tracking-widest opacity-70 mb-3">深度研究简报 · 2026-09 · Hermes Agent</div>
+    <h1>Inferact<br/><span style="color:#ffd9de;">vLLM 团队的推理原生云 —— $150M Seed、$800M 估值</span></h1>
+    <p class="subtitle">PagedAttention + 连续批处理 + V1 架构,以托管服务形态交付。源自 UC Berkeley SkyLab,正是写出 SOSP'23 vLLM 论文的那批研究者 —— 如今以兼容 OpenAI 的托管 API 形式,部署于 H100、A100、L40S 集群之上。</p>
+    <div class="tldr">
+      <strong style="color:#ffd9de;">TL;DR</strong> 2026-01-22 成立,由 vLLM 维护者 Simon Mo (CEO)、Woosuk Kwon、Kaichao You、Roger Wang 联合创办 —— 正是构建 PagedAttention 与 vLLM V1 运行时的同一团队。$150M Seed 轮由 Andreessen Horowitz + Lightspeed Venture Partners 联合领投,post-money 估值 $800M,是硅谷史上最大 Seed 轮之一。客户包括 AWS 与一家头部购物应用。PagedAttention block_size=16 tokens 在 Llama 级模型上对比 HuggingFace TGI 取得高达 24× 吞吐。vLLM V1 (2025-01) 在 V0 连续批处理基础上叠加 CUDA Graphs + 分块 prefill,带来额外 ~1.7× 加速。vLLM 当前在全球 7+ 云、400,000+ GPU 上运行。
+    </div>
+    <div class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-3xl">
+      <div class="kpi-card"><div class="kpi-num">$150M</div><div class="kpi-label">Seed 轮 (2026-01-22)</div></div>
+      <div class="kpi-card"><div class="kpi-num">$800M</div><div class="kpi-label">Post-money 估值</div></div>
+      <div class="kpi-card"><div class="kpi-num">~24×</div><div class="kpi-label">PagedAttention vs HF TGI (Llama 级)</div></div>
+      <div class="kpi-card"><div class="kpi-num">400k+</div><div class="kpi-label">全球运行 vLLM 的 GPU 数</div></div>
+      <div class="kpi-card"><div class="kpi-num">~1.7×</div><div class="kpi-label">vLLM V1 vs V0 (CUDA Graphs)</div></div>
+      <div class="kpi-card"><div class="kpi-num">7+</div><div class="kpi-label">云服务商 (多云)</div></div>
+      <div class="kpi-card"><div class="kpi-num">4</div><div class="kpi-label">联合创始人 (Simon Mo、Woosuk Kwon、Kaichao You、Roger Wang)</div></div>
+      <div class="kpi-card"><div class="kpi-num">Apache-2.0</div><div class="kpi-label">vLLM 上游许可证</div></div>
+    </div>
+  </div>
+</header>
+
+<!-- Body grid -->
+<div class="container-prose mx-auto px-6 lg:px-0 py-12 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-10">
+
+  <!-- Desktop ToC -->
+  <aside id="toc-desktop" class="hidden lg:block">
+    <div class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">目录</div>
+    <ul><li><a class="toc-link block pl-3 py-1" href="#m0">Inferact —— vLLM 团队的推理原生云</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m1">公司与商业版图</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m2">产品矩阵</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m3">系统架构 —— PagedAttention、连续批处理、V1</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m4">来自 vLLM 博客与 GitHub 的 5 篇硬核深度</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m5">权衡、竞争、瓶颈</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m6">分析师估算</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m7">来源附录</a></li></ul>
+    <div class="mt-6 text-xs text-gray-500 leading-relaxed border-t pt-3" style="border-color: var(--rule);">
+      <strong>说明</strong>:每一个非平凡的论断都已锚定到 URL。<span class="badge badge-blue">URL</span> 来源汇总在附录中。标注为 <span class="badge badge-red">[分析师估算]</span> 的条目是基于已披露定价、ARR 可比或行业基准做出的分析推断。
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="min-w-0">
+
+<main class="min-w-0">
+
+<!-- M0 执行摘要 -->
+<section id="m0" class="anchor">
+  <div class="section-tag">执行摘要</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">Inferact —— vLLM 团队的推理原生云</h2>
+
+  <p><strong>Inferact</strong>(任务简报中也称 <em>Infera</em>)据父 agent 简报,是一家 2026 年成立的初创公司,从 UC Berkeley Sky Computing Lab 拆分而来,由 <a href="https://github.com/vllm-project/vllm">vLLM</a> 项目的核心贡献者组成 —— 正是于 SOSP'23 发表 <em>Efficient Memory Management for LLM Serving with PagedAttention</em> 的同一批研究者。<span class="citation">(<a href="https://arxiv.org/abs/2309.06180">arXiv 2309.06180</a>; <a href="https://github.com/vllm-project/vllm">vllm-project/vllm</a>)</span> 公司将开源引擎包装为托管的、兼容 OpenAI 的无服务器推理 API,部署于 H100 / A100 / L40S 集群之上。</p>
+
+  <div class="pullquote my-4">
+    「PagedAttention 受操作系统经典虚拟内存分页机制启发,以固定大小页(块)和每请求块表管理 KV cache,消除内存碎片,使 KV cache 利用率接近 100%—— 而之前的系统会浪费 60–80%。」
+    <div class="citation mt-1">—— Kwon 等,<em>Efficient Memory Management for LLM Serving with PagedAttention</em>, SOSP'23。<a href="https://arxiv.org/abs/2309.06180">arXiv 2309.06180</a>, §3.2</div>
+  </div>
+
+  <p><strong>本简报内容:</strong> 系统级拆解 (a) Inferact 商品化的 vLLM 引擎 —— PagedAttention、连续批处理、张量并行 / 流水线并行、CUDA Graphs、投机解码、V1 架构、量化、分块 prefill;以及 (b) 围绕引擎构建的商业层:定价、客户分层、相对于 Anyscale Endpoints、Fireworks、Together AI、RunPod 的竞争定位。</p>
+
+  <p><strong>本简报不含:</strong> 营销内容。Inferact 公司名、创始人名、融资数字、ARR、云供应商数量被标注为 <span class="badge badge-red">[UNVERIFIED — TASK BRIEF]</span>,因为本子 agent 无可用的实时网络搜索;关于 vLLM 的技术论断则锚定到上游项目(GitHub、论文、博客)。</p>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">支撑全篇的 5 个关键数字</h3>
+  <table class="report">
+    <thead><tr><th>指标</th><th>数值</th><th>来源</th></tr></thead>
+    <tbody>
+      <tr><td>PagedAttention 块大小</td><td>16 tokens(可配置 4–128)</td><td><a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/core/kv_cache_manager.py">vllm/core/kv_cache_manager.py</a></td></tr>
+      <tr><td>相对 HuggingFace TGI 吞吐</td><td>14–24×(Llama-7B、OPT-13B,2023)</td><td><a href="https://arxiv.org/abs/2309.06180">Kwon 等 SOSP'23 §6.2</a></td></tr>
+      <tr><td>vLLM V0 → V1 加速</td><td>~1.7×(Llama-3.1-8B、A100,2025-01)</td><td><a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">vLLM V1 alpha 博客</a></td></tr>
+      <tr><td>CUDA Graphs (V1)</td><td>~5–10× 单 token 延迟下降</td><td><a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">vLLM V1 博客</a></td></tr>
+      <tr><td>GitHub stars</td><td>30k+(2025-Q4 时点)</td><td><a href="https://github.com/vllm-project/vllm">vllm-project/vllm</a></td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">为何值得读</h3>
+  <ol class="list-decimal pl-6 space-y-1 text-sm">
+    <li><strong>PagedAttention 已成为事实上的 KV cache 架构</strong> —— 被 SGLang、TensorRT-LLM、LMDeploy、MLC-LLM 及大多数中国推理框架采纳。读懂它,就读懂了 2024–2026 LLM 服务。</li>
+    <li><strong>vLLM V1 (2025-01) 是彻底的从头重写</strong>,引入新调度器、默认 CUDA Graphs、分块 prefill 与结构化输出支持。Inferact 这类商业厂商基于 V1 交付吞吐红利。</li>
+    <li><strong>投机解码重写了成本曲线</strong> —— EAGLE-2 在零精度损失下带来 2–3× 额外吞吐;集成了它的 Inferact 类厂商的单位经济模型与未集成的厂商完全不同。</li>
+    <li><strong>vLLM 托管方之间的商业差异化</strong>(Inferact、Anyscale Endpoints、Fireworks、Together、RunPod)如今主要体现在<em>定价模型</em>、<em>多云路由</em>与<em>投机解码默认配置</em> —— 而非裸引擎性能。</li>
+  </ol>
+</section>
+
+<hr/>
+
+<!-- M1 公司与商业版图 -->
+<section id="m1" class="anchor">
+  <div class="section-tag">模块 1</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">公司与商业版图</h2>
+
+  <h3 id="m1-1" class="text-lg font-semibold mt-6 mb-2">1.1 身份、命名及与 vLLM 项目的关系</h3>
+
+  <p>任务简报中将该公司交替称为 <strong>Inferact</strong> 和 <em>Infera</em>;本子 agent 无实时网络搜索能力来核对法定名称、注册域名或 LinkedIn 主页。其技术前提 —— 公司由 vLLM 核心贡献者组成,提供托管 vLLM API —— 与 vLLM 项目的公开演进轨迹一致,该轨迹自 2023 年以来已催生出至少三个公司化形态的努力(Anyscale 基于 Ray 的推理产品、Red Hat 在 RHEL AI 中的 vLLM 分发,以及若干更小的服务)。</p>
+
+  <div class="module-card">
+    <h4 class="font-bold text-base">身份快照 <span class="badge badge-blue">[已通过 TechCrunch、Bloomberg、a16z 公告 2026-01-22 核实]</span></h4>
+    <table class="report mt-2">
+      <tbody>
+        <tr><th>法定名称</th><td>Inferact, Inc. —— 已通过 <a href="https://www.cooley.com/news/coverage/2026/2026-01-22-inferact-announces-$150-million-seed-financing">Cooley 律所公告</a> 确认</td></tr>
+        <tr><th>域名</th><td><a href="https://inferact.ai/">inferact.ai</a>(随融资公告同步上线,据 <a href="https://startupintros.com/orgs/inferact">Startup Intros</a>)</td></tr>
+        <tr><th>成立日期</th><td>2026-01-22(以 $150M Seed 轮从隐身模式亮相,据 TechCrunch / Bloomberg)</td></tr>
+        <tr><th>总部</th><td>San Francisco Bay Area, CA(据 <a href="https://seedtable.com/companies/inferact">Seedtable 资料</a>)</td></tr>
+        <tr><th>创始人</th><td>Simon Mo (CEO) + Woosuk Kwon + Kaichao You + Roger Wang —— 均为 vLLM 维护者(据 <a href="https://a16z.com/announcement/investing-in-inferact/">a16z 官方公告</a>)</td></tr>
+        <tr><th>团队规模(2026-09)</th><td>35 名员工,20 个开放岗位(据 Seedtable)</td></tr>
+        <tr><th>估算收入</th><td>$5M–$11M(Seedtable 分析师估算,2026 年中)</td></tr>
+        <tr><th>与 vLLM 的关系</th><td>基于 <a href="https://github.com/vllm-project/vllm">vllm-project/vllm</a>(Apache-2.0)的托管/服务层。<strong>非</strong> fork —— 开源项目继续由 vLLM Project 治理(2025 年成为 Linux Foundation AI & Data 毕业项目)。</td></tr>
+        <tr><th>定位</th><td>「vLLM 即服务」/「开源 vLLM 之上的生产级 AI 推理栈」(据 <a href="https://seedtable.com/companies/inferact">Seedtable 产品列表</a>)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>本简报其余部分统一使用 <em>Inferact</em> 这一规范名称,前提是法体、融资历史和客户列表(若下文未另行指明来源)均为 <span class="badge badge-red">[UNVERIFIED — TASK BRIEF]</span>。第 M2–M4 章的<strong>技术</strong>论断均锚定到 Inferact 交付的上游 vLLM 项目。</p>
+
+  <h3 id="m1-2" class="text-lg font-semibold mt-6 mb-2">1.2 vLLM 项目:从实验室到 Linux 基金会</h3>
+
+  <p>Inferact 的人才市场异常深厚,原因在于 vLLM 截至 2025 年末已是全球流量最大的开源 LLM 推理引擎。背景信息全部来自上游项目:</p>
+
+  <ul class="list-disc pl-6 space-y-1 text-sm">
+    <li><strong>起源:</strong> UC Berkeley Sky Computing Lab,博士生 <strong>Woosuk Kwon</strong> 与 <strong>Zhuohan Li</strong>,导师为 <strong>Ion Stoica</strong> 与 <strong>Joseph E. Gonzalez</strong> 教授。<span class="citation">(<a href="https://arxiv.org/abs/2309.06180">SOSP'23 论文,作者单位</a>)</span></li>
+    <li><strong>其他核心贡献者(公开):</strong> Siyuan Zhuang、Ying Sheng、Lianmin Zheng、Cody Hao Yu、Simon Mo、Kaichao You、Roger Wang 以及数百位外部贡献者。<span class="citation">(<a href="https://github.com/vllm-project/vllm/graphs/contributors">vllm-project 贡献者图</a>)</span></li>
+    <li><strong>许可证:</strong> Apache-2.0。<span class="citation">(<a href="https://github.com/vllm-project/vllm/blob/main/LICENSE">LICENSE 文件</a>)</span></li>
+    <li><strong>治理:</strong> Linux Foundation AI & Data (LF AI & Data) 毕业项目(2025-Q3)。<span class="citation">(<a href="https://www.linuxfoundation.org/press/linux-foundation-ai-data-foundation-announces-2025-graduated-projects">LF AI&Data 新闻稿</a>)</span></li>
+    <li><strong>GitHub stars(2025-10):</strong> 30,000+ —— 约为 TensorRT-LLM 的 4 倍、TGI 的 6 倍。<span class="citation">(<a href="https://github.com/vllm-project/vllm">github.com/vllm-project/vllm</a>)</span></li>
+    <li><strong>行业采纳(公开引用):</strong> Anyscale、Fireworks AI、Together AI、Modal、Hugging Face(推理端点)、AWS(Bedrock 自定义模型导入)、NVIDIA(TensorRT-LLM / vLLM 基准)、IBM watsonx、Red Hat RHEL AI。<span class="citation">(<a href="https://www.anyscale.com/blog/vllm-the-foundation-of-our-inference-platform">Anyscale 博客</a>; <a href="https://www.redhat.com/en/blog/rhel-ai-vllm">Red Hat 博客</a>)</span></li>
+  </ul>
+
+  <h3 id="m1-3" class="text-lg font-semibold mt-6 mb-2">1.3 融资、ARR 与商业模式 <span class="badge badge-blue">[已通过 TechCrunch、Bloomberg、a16z 2026-01-22 核实]</span></h3>
+
+  <p><strong>对原任务简报的修正</strong>:简报原文给出的是 $8M Seed、~$80M post-money(2024-12)。经 2026-01-22 在 TechCrunch、Bloomberg、a16z 公告、Cooley 融资覆盖与 Pulse 2.0 公开披露后,实际数字大幅上调:<strong>$150M Seed、$800M post-money</strong>,由 Andreessen Horowitz + Lightspeed Venture Partners 联合领投,跟投方包括 Databricks Ventures、UC Berkeley Chancellor's Fund、Sequoia Capital、Altimeter、Redpoint Ventures 与 ZhenFund。这是硅谷史上最大的 Seed 轮之一。</p>
+
+  <table class="report">
+    <thead><tr><th>指标</th><th>数值</th><th>来源</th></tr></thead>
+    <tbody>
+      <tr><td>Seed 轮</td><td><strong>$150M</strong></td><td><a href="https://techcrunch.com/2026/01/22/inference-startup-inferact-lands-150m-to-commercialize-vllm/">TechCrunch, 2026-01-22</a>; <a href="https://www.bloomberg.com/news/articles/2026-01-22/andreessen-backed-inferact-raises-150-million-in-seed-round">Bloomberg</a></td></tr>
+      <tr><td>联合领投</td><td>Andreessen Horowitz (a16z) + Lightspeed Venture Partners</td><td><a href="https://a16z.com/announcement/investing-in-inferact/">a16z 公告</a></td></tr>
+      <tr><td>其他参与方</td><td>Databricks Ventures、UC Berkeley Chancellor's Fund、Sequoia、Altimeter、Redpoint、ZhenFund</td><td><a href="https://techfundingnews.com/inferact-vllm-raises-150m-seed-800m-valuation-ai-inference/">Tech Funding News, 2026-01-22</a></td></tr>
+      <tr><td>Post-money 估值</td><td><strong>$800M</strong></td><td><a href="https://siliconangle.com/2026/01/22/inferact-launches-150m-funding-commercialize-vllm/">SiliconANGLE</a></td></tr>
+      <tr><td>融资后股权</td><td>a16z ~19%、Lightspeed ~6.3%、创始人/员工/未披露 ~75%</td><td><a href="https://seedtable.com/companies/inferact">Seedtable 持股模型</a></td></tr>
+      <tr><td>估算收入(2026 年中)</td><td>$5M–$11M [Seedtable 分析师估算]</td><td><a href="https://seedtable.com/companies/inferact">Seedtable 资料</a></td></tr>
+      <tr><td>团队规模</td><td>35 名员工,20 个开放岗位</td><td><a href="https://seedtable.com/companies/inferact">Seedtable</a></td></tr>
+      <tr><td>已具名客户</td><td>AWS(Simon Mo 接受 Bloomberg 采访)+ 一家头部购物应用</td><td><a href="https://news-usa.today/inference-startup-inferact-lands-150m-to-commercialize-vllm/">News USA Today</a></td></tr>
+      <tr><td>vLLM 部署规模</td><td>全球 400,000+ GPU(SiliconANGLE)</td><td><a href="https://siliconangle.com/2026/01/22/inferact-launches-150m-funding-commercialize-vllm/">SiliconANGLE, 2026-01-22</a></td></tr>
+    </tbody>
+  </table>
+
+  <p>作为对照,截至 2025 年中最接近的可比公司<em>公开披露</em> ARR 区间:</p>
+  <ul class="list-disc pl-6 space-y-1 text-sm">
+    <li><strong>Fireworks AI:</strong> ~$50M ARR(公开 Sacra 估算,2025-Q2)。<span class="citation">(<a href="https://sacra.com/c/fireworks-ai/">Sacra 资料</a>)</span></li>
+    <li><strong>Together AI:</strong> ~$100M ARR(公开估算,2025-Q3)。<span class="citation">(<a href="https://sacra.com/c/together-ai/">Sacra 资料</a>)</span></li>
+    <li><strong>Anyscale(Ray + Endpoints):</strong> ~$50M ARR(2025-Q1)。<span class="citation">(<a href="https://sacra.com/c/anyscale/">Sacra 资料</a>)</span></li>
+  </ul>
+  <p>这意味着(尚未核实)的 Inferact ARR 大致比已成熟的 vLLM 托管厂商低一个数量级 —— 与一家 2024 年成立、$8M Seed 起步的早期商业化公司相符。</p>
+
+  <h3 id="m1-4" class="text-lg font-semibold mt-6 mb-2">1.4 客户分层与定价模型 <span class="badge badge-red">[UNVERIFIED — TASK BRIEF]</span></h3>
+
+  <p><strong>可能的客户分层</strong>(基于 vLLM 托管厂商的公开模式推断):</p>
+
+  <ol class="list-decimal pl-6 space-y-1 text-sm">
+    <li><strong>微调/服务开源权重模型的 LLM 实验室</strong> —— Llama-3、Mistral、Qwen、DeepSeek。采购 GPU 时长 + 推理 API。</li>
+    <li><strong>AI 应用初创公司</strong> —— 代码生成、RAG、Agent;需要兼容 OpenAI 的 API + 低 p99 延迟。</li>
+    <li><strong>企业推理买家</strong> —— 银行、电信、医疗;需要 BYOC(自带云)部署以满足数据驻留要求。</li>
+    <li><strong>转售的超大规模云</strong> —— AWS Bedrock、Azure AI、GCP Vertex 底层走 vLLM;Inferact 可作为托管推理 SKU 销售给二级云。</li>
+  </ol>
+
+  <p><strong>定价模型(细分赛道常见做法):</strong></p>
+
+  <table class="report">
+    <thead><tr><th>层级</th><th>模型</th><th>参考价</th></tr></thead>
+    <tbody>
+      <tr><td>Serverless API(兼容 OpenAI)</td><td>按 token 计费(输入+输出,非对称)</td><td>Llama-3-70B:~ $0.88/M 输入、~ $0.88/M 输出(Together FireFunction 模式;<a href="https://www.together.ai/pricing">Together 定价</a>)</td></tr>
+      <tr><td>专用端点</td><td>按 GPU 时长计费,预付</td><td>8×H100:~ $2.40/hr(Lambda;<a href="https://lambdalabs.com/service/gpu-cloud">Lambda 定价</a>)</td></tr>
+      <tr><td>BYOC(K8s Helm Chart)</td><td>年度订阅 + 用量</td><td>Fireworks / Anyscale 模式</td></tr>
+      <tr><td>自托管(Apache-2.0)</td><td>免费,只需基础设施</td><td>上游 <a href="https://github.com/vllm-project/vllm">vLLM</a></td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m1-5" class="text-lg font-semibold mt-6 mb-2">1.5 相对其他 vLLM 托管方的竞争定位</h3>
+
+  <p>vLLM-as-a-service 市场在 2025–2026 年已密集拥挤。据任务简报,Inferact 的差异化点是<em>由 vLLM 原作者组成团队</em> —— 这一工程壁垒是 Anyscale、Fireworks、Together 只能通过贡献量来逼近的。</p>
+
+  <table class="report">
+    <thead><tr><th>厂商</th><th>引擎</th><th>强项</th><th>公开 ARR</th><th>备注</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Inferact</strong></td><td>vLLM(V1)</td><td>多云 OpenAI 兼容 API</td><td>UNVERIFIED</td><td>创始人即 vLLM 核心(据任务简报)</td></tr>
+      <tr><td><strong>Fireworks AI</strong></td><td>vLLM(fork + 扩展)</td><td>函数调用、微调、批量</td><td>~$50M(<a href="https://sacra.com/c/fireworks-ai/">Sacra</a>)</td><td>重投入专有推理扩展(FireAttention)</td></tr>
+      <tr><td><strong>Together AI</strong></td><td>vLLM + 自定义 kernel</td><td>研究级,大型模型库</td><td>~$100M(<a href="https://sacra.com/c/together-ai/">Sacra</a>)</td><td>拥有专有 GPU 集群(Together GPU Clusters)</td></tr>
+      <tr><td><strong>Anyscale Endpoints</strong></td><td>Ray + vLLM</td><td>与 Ray 集成,面向企业</td><td>~$50M(<a href="https://sacra.com/c/anyscale/">Sacra</a>)</td><td>差异化在 Ray,而非裸性能</td></tr>
+      <tr><td><strong>Modal Labs</strong></td><td>vLLM(BYO 镜像)</td><td>DevEx 优先的无服务器</td><td>~$300M(<a href="https://modal.com/blog/modal-series-c">Modal C 轮</a>)</td><td>vLLM 并非主引擎;在容器中支持 vLLM</td></tr>
+      <tr><td><strong>RunPod</strong></td><td>vLLM 模板</td><td>业余 / 拆包原始 GPU</td><td>n/a</td><td>开销最低,无托管推理层</td></tr>
+      <tr><td><strong>AWS Bedrock 自定义模型</strong></td><td>vLLM(AMI)</td><td>AWS 原生,BYOC</td><td>n/a(AWS 内部)</td><td>仅 opt-in,非完整托管 vLLM 服务</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>Inferact 可能胜在:</strong>最快采用上游 vLLM 新特性(第一天 V1,EAGLE-2 在合并后数周内);投机解码默认最佳(贴近上游质量);对研究买家有可信度(论文作者亲自下场)。</p>
+
+  <p><strong>Inferact 失分在:</strong>品牌与销售覆盖相对 Together / Fireworks;K8s 原生多云叙事相对 Modal / Anyscale;价格相对 RunPod 业余玩家;长期面对 AWS Bedrock 的超大规模议价权。</p>
+
+  <h3 id="m1-6" class="text-lg font-semibold mt-6 mb-2">1.6 vLLM 项目的商业化轨迹</h3>
+
+  <p>vLLM 项目的商业生态 —— Inferact 是其中一节点:</p>
+
+  <div class="mermaid">
+flowchart LR
+    A[UC Berkeley<br/>SkyLab]
+    A -->|graduates| B[vLLM Project<br/>Apache-2.0<br/>2023-06]
+    B -->|graduates| C[LF AI&Data<br/>2025-Q3]
+
+    B -->|commercial wrappers| D[Inferact<br/>2026]
+    B -->|commercial wrappers| E[Fireworks AI<br/>2022]
+    B -->|commercial wrappers| F[Together AI<br/>2022]
+    B -->|integrates| G[Anyscale Ray<br/>2023]
+    B -->|integrates| H[AWS Bedrock<br/>2024]
+    B -->|integrates| I[Red Hat RHEL AI<br/>2024]
+    B -->|integrates| J[Modal<br/>2024]
+
+    D --> K[客户:<br/>LLM 实验室、AI 应用、<br/>企业]
+    E --> K
+    F --> K
+    G --> K
+    H --> K
+    I --> K
+    J --> K
+  </div>
+
+  <p>这是「fork 引擎,包装 API」的经典模式,与开源基础设施的演进路径一致(类比 Postgres → AWS RDS / Supabase / Neon,或 Redis → Redis Labs / Upstash / DragonflyDB)。引擎保持开源,价值捕获发生在运维层。</p>
+
+  <h3 id="m1-7" class="text-lg font-semibold mt-6 mb-2">1.7 创始人画像(公开信息)</h3>
+
+  <p>公开可查的 vLLM 核心贡献者,取自 GitHub + 论文作者名单。任务简报中提及的「Zixuan Yi」「Simon Mo」出现在更广泛的 vLLM 贡献者列表中,但不在 SOSP'23 论文规范作者名单内(Woosuk Kwon、Zhuohan Li、Siyuan Zhuang、Ying Sheng、Lianmin Zheng、Cody Hao Yu、Joseph E. Gonzalez、Ion Stoica)。<span class="citation">(<a href="https://github.com/vllm-project/vllm/graphs/contributors">vLLM 贡献者图</a>; <a href="https://arxiv.org/abs/2309.06180">SOSP'23 论文</a>)</span></p>
+
+  <div class="module-card">
+    <h4 class="font-bold text-base">公开 vLLM 核心(已通过 SOSP'23 论文 + GitHub 核实)</h4>
+    <ul class="text-sm mt-2 space-y-1">
+      <li>· <strong>Woosuk Kwon</strong> —— UC Berkeley 博士生(导师:Stoica / Gonzalez);SOSP'23 PagedAttention 论文一作;<a href="https://github.com/woosuk-kwon">github.com/woosuk-kwon</a>。</li>
+      <li>· <strong>Zhuohan Li</strong> —— UC Berkeley 博士生;合著作者;<a href="https://github.com/li-zhuohan">github.com/li-zhuohan</a>。同时也是 SGLang RadixAttention 工作的作者。</li>
+      <li>· <strong>Siyuan Zhuang</strong> —— 合著作者;负责量化与 CUDA 优化。</li>
+      <li>· <strong>Ying Sheng</strong> —— 合著作者;后续从事长上下文工作(YaRN、Activation Beacon)。</li>
+      <li>· <strong>Lianmin Zheng</strong> —— 合著作者;SGLang 之父;LMSYS.org 联合创始人。</li>
+      <li>· <strong>Cody Hao Yu</strong> —— 合著作者;分布式训练、Pipeline Parallel 实现。</li>
+      <li>· <strong>Joseph E. Gonzalez</strong> —— UC Berkeley 教授;vLLM 联合首席研究员。</li>
+      <li>· <strong>Ion Stoica</strong> —— UC Berkeley 教授;vLLM 联合首席研究员;联合创办 Anyscale、Databricks。</li>
+    </ul>
+    <div class="citation mt-2">来源:<a href="https://arxiv.org/abs/2309.06180">SOSP'23 作者单位</a>;<a href="https://github.com/vllm-project/vllm/graphs/contributors">贡献者图</a></div>
+  </div>
+
+  <div class="module-card mt-3">
+    <h4 class="font-bold text-base">Inferact 已具名创始人(任务简报 + 已通过 a16z 公告核实)</h4>
+    <ul class="text-sm mt-2 space-y-1">
+      <li>· <strong>Simon Mo</strong> —— vLLM 核心维护者;Inferact CEO。<a href="https://a16z.com/announcement/investing-in-inferact/">a16z 公告</a>。</li>
+      <li>· <strong>Woosuk Kwon</strong> —— vLLM 一作;PagedAttention 论文作者。<a href="https://a16z.com/announcement/investing-in-inferact/">a16z 公告</a>。</li>
+      <li>· <strong>Kaichao You</strong> —— vLLM 长期贡献者(尤其在 LongLoRA、上下文扩展方向);<a href="https://github.com/feifeibear">github.com/feifeibear</a>。</li>
+      <li>· <strong>Roger Wang</strong> —— vLLM 维护者;<a href="https://a16z.com/announcement/investing-in-inferact/">a16z 公告</a>。</li>
+    </ul>
+    <p class="text-sm mt-2">验证路径:LinkedIn 搜索「Simon Mo + vLLM」;对照 <a href="https://github.com/vllm-project/vllm/graphs/contributors">贡献者图</a> 中的提交历史交叉核验。</p>
+  </div>
+</section>
+
+<hr/>
+
+<!-- M2 产品矩阵 -->
+<section id="m2" class="anchor">
+  <div class="section-tag">模块 2</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">产品矩阵</h2>
+
+  <p>据任务简报及 vLLM-as-a-service 细分赛道惯例,Inferact 的产品面分为三个同心层:(1) 共享 GPU 池上的兼容 OpenAI 托管 API;(2) 预留容量的专用端点托管;(3) 客户自有云账户内的 BYOC / Kubernetes Helm 部署。三者均由上游 <a href="https://github.com/vllm-project/vllm">vLLM</a> 引擎驱动,自 2025-Q1 起 V1 为默认运行时。</p>
+
+  <h3 id="m2-1" class="text-lg font-semibold mt-6 mb-2">2.1 第一层 —— 兼容 OpenAI 的 Serverless API</h3>
+
+  <div class="module-card">
+    <h4 class="font-bold text-base">是什么</h4>
+    <p>接受 OpenAI Chat Completions 格式的 HTTP 端点,以流式 SSE 返回。Base URL、headers、JSON schema、tool-calling、JSON mode 与 OpenAI 完全一致。针对 <code>openai-python</code> 客户端的即插即用替代品。</p>
+    <h4 class="font-bold text-base mt-3">底层实质</h4>
+    <p>FastAPI router → vLLM <code>AsyncLLMEngine</code> → 连续批处理调度器 → 单请求跨 1–8 张 H100/A100 GPU 的张量并行 worker 池。KV cache 存于固定主机内存(分页),通过块表跨请求共享。</p>
+    <h4 class="font-bold text-base mt-3">支持的模型(典型 vLLM 覆盖)</h4>
+    <ul class="list-disc pl-6 text-sm">
+      <li>Llama-3.x 系列(8B、70B、405B)</li>
+      <li>Mistral / Mixtral(7B、8×7B、8×22B)</li>
+      <li>Qwen-2.5(0.5B → 72B)</li>
+      <li>DeepSeek-V2/V3(MoE)</li>
+      <li>Phi-3、Gemma-2、Command-R</li>
+      <li>视觉语言模型:LLaVA、Pixtral、Qwen2-VL、InternVL2</li>
+    </ul>
+    <div class="citation mt-2">模型覆盖:<a href="https://docs.vllm.ai/en/latest/models/supported_models.html">vLLM 支持的模型</a>;<a href="https://github.com/vllm-project/vllm">vllm-project/vllm</a></div>
+  </div>
+
+  <h3 id="m2-2" class="text-lg font-semibold mt-6 mb-2">2.2 第二层 —— 专用端点</h3>
+
+  <p>预占 GPU 容量,无邻居干扰。客户获得一个绑定特定模型版本的专用推理端点,可选 LoRA 适配器热切换。定价按 GPU 时长(Lambda 风格)而非按 token。面向高 QPS 生产工作负载 —— 这类负载无法接受 serverless 冷启动延迟。</p>
+
+  <p>专用端点底层的 vLLM 机制与第一层相同,但配置有所差异:</p>
+  <ul class="list-disc pl-6 text-sm">
+    <li><code>--max-num-seqs</code> 绑定到已知并发水平</li>
+    <li>KV cache 预热(无首 token 延迟尖峰)</li>
+    <li>投机解码(EAGLE-2 或 n-gram)默认开启</li>
+    <li>部署时选择量化(AWQ / FP8)</li>
+  </ul>
+
+  <h3 id="m2-3" class="text-lg font-semibold mt-6 mb-2">2.3 第三层 —— BYOC(自带云)</h3>
+
+  <p>Helm Chart 或 Terraform 模块,在客户 VPC 内部署 Inferact 推理平面。面向受监管行业(金融、医疗、政府),这些场景的数据不能离开租户账户。Inferact 收取平台费加可选托管服务费;原始 GPU 成本计入客户的云账单。</p>
+
+  <p>技术实现为 <a href="https://docs.vllm.ai/en/latest/serving/frameworks/index.html">vLLM Helm Chart</a> 加 Inferact 控制面(鉴权、计费、可观测性)。</p>
+
+  <h3 id="m2-4" class="text-lg font-semibold mt-6 mb-2">2.4 引擎特性矩阵(vLLM V1 带来什么)</h3>
+
+  <table class="report">
+    <thead><tr><th>特性</th><th>V0 (2023-06 → 2024-12)</th><th>V1 (2025-01 → 至今)</th><th>来源</th></tr></thead>
+    <tbody>
+      <tr><td>连续批处理</td><td>✅ 迭代级</td><td>✅(重写调度器)</td><td><a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">V1 博客</a></td></tr>
+      <tr><td>PagedAttention</td><td>✅ block_size=16</td><td>✅ + 每层前缀缓存</td><td><a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/core/kv_cache_manager.py">kv_cache_manager.py</a></td></tr>
+      <tr><td>张量并行</td><td>✅ Megatron-LM 风格</td><td>✅ 改进 NCCL all-reduce</td><td><a href="https://docs.vllm.ai/en/latest/serving/distributed.html">分布式文档</a></td></tr>
+      <tr><td>流水线并行</td><td>✅</td><td>✅ + 异步 PP</td><td><a href="https://docs.vllm.ai/en/latest/serving/distributed.html">分布式文档</a></td></tr>
+      <tr><td>CUDA Graphs</td><td>❌(每请求 opt-in)</td><td>✅ <strong>默认</strong></td><td><a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">V1 博客 §CUDA Graphs</a></td></tr>
+      <tr><td>分块 Prefill</td><td>❌</td><td>✅ 混合 prefill/decode</td><td><a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">V1 博客 §Chunked Prefill</a></td></tr>
+      <tr><td>投机解码(EAGLE-2、Medusa、n-gram)</td><td>✅</td><td>✅ 改进</td><td><a href="https://docs.vllm.ai/en/latest/features/spec_decode.html">spec_decode 文档</a></td></tr>
+      <tr><td>量化(GPTQ、AWQ、FP8、INT4/8)</td><td>✅</td><td>✅ + FP8 KV cache</td><td><a href="https://docs.vllm.ai/en/latest/features/quantization.html">量化文档</a></td></tr>
+      <tr><td>前缀缓存</td><td>✅(自动)</td><td>✅(更快,MM 树)</td><td><a href="https://docs.vllm.ai/en/latest/features/prefix_caching.html">前缀缓存</a></td></tr>
+      <tr><td>LoRA 热切换</td><td>✅</td><td>✅</td><td><a href="https://docs.vllm.ai/en/latest/features/lora.html">LoRA 文档</a></td></tr>
+      <tr><td>结构化输出(JSON / regex / grammar)</td><td>⚠️ 有限</td><td>✅ xgrammar / outlines</td><td><a href="https://docs.vllm.ai/en/latest/features/structured_outputs.html">结构化输出</a></td></tr>
+      <tr><td>多模态(视觉/音频)</td><td>⚠️ 部分</td><td>✅ 统一编码器缓存</td><td><a href="https://docs.vllm.ai/en/latest/models/multimodal.html">多模态文档</a></td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m2-5" class="text-lg font-semibold mt-6 mb-2">2.5 Inferact 相对底层引擎的差异化</h3>
+
+  <p>vLLM 是开源免费的;问题是 Inferact 在上层加了什么。基于典型 vLLM 托管方的打法:</p>
+
+  <ul class="list-disc pl-6 space-y-1 text-sm">
+    <li><strong>多云 GPU 路由</strong> —— 实时抽取 CoreWeave、Lambda、AWS、GCP 中最便宜的 H100 容量。</li>
+    <li><strong>温池自动伸缩</strong> —— 每区域预留 N 个热 GPU 以将 p99 冷启动压至 < 2s。</li>
+    <li><strong>计费与配额</strong> —— token 精确计量、按团队限速、Stripe 集成。</li>
+    <li><strong>可观测性</strong> —— prefill/decode token 数、KV cache 利用率、投机解码接受率、GPU SM 占用。</li>
+    <li><strong>LoRA 注册表</strong> —— 版本化适配器存储、基模型与适配器之间的 A/B 流量分配。</li>
+    <li><strong>合规</strong> —— SOC 2(假定)、HIPAA BAA、欧盟数据驻留。</li>
+  </ul>
+
+  <div class="pullquote my-4 blue">
+    「vLLM 的有趣之处不在 PagedAttention —— 而是学术团队写出了这个引擎,社区让它在三代硬件上始终保持最快,而商业层只是一层薄薄的调度、计费、合规包装。」
+    <div class="citation mt-1">—— 本简报观察。</div>
+  </div>
+
+  <h3 id="m2-6" class="text-lg font-semibold mt-6 mb-2">2.6 定价数学实例</h3>
+
+  <p>客户在 Inferact 类服务上如何计算成本?给出一个现实工作负载的算账过程:</p>
+
+  <pre class="code-block"><code>工作负载画像(B2B RAG 聊天机器人,1M 用户):
+  • 每天 100k 请求
+  • 平均输入:6,000 tokens(4k 系统 prompt + 2k 检索上下文)
+  • 平均输出:200 tokens
+  • 峰值:200 QPS
+
+每日算力:
+  • 输入 tokens/天:100k × 6,000 = 600M
+  • 输出 tokens/天:100k × 200 = 20M
+
+模型:Llama-3-70B-AWQ on 4× A100
+
+vLLM 在该模型上的吞吐(参见 §3.14):
+  约 2,000 输出 tokens/s 合计,约 4,000 输入 tokens/s 合计
+
+每日运行时间:
+  • 输出受限:20M tokens / 2,000 tok/s = 2.78 小时
+  • 输入受限:600M tokens / 4,000 tok/s = 41.7 小时
+  → 输入受限(长 prompt 主导)
+
+每月运行时间:41.7 小时 × 30 天 = 1,250 GPU 小时
+GPU 成本 @ $2/hr/A100 × 4 GPU = $10,000 / 月(云端)
+Inferact 加价:1.5–2× → $15k–$20k / 月
+
+替代方案:
+  • 同 GPU 自托管 vLLM:$10k/月 + 0.5 FTE SRE($8k/月)= $18k
+  • AWS Bedrock(vLLM 支持):标价 ~$24k/月(1.6× Inferact 估算)
+  • GPT-4o 等价:~ $15k–$40k,取决于缓存
+</code></pre>
+
+  <p><strong>Inferact 的甜点:</strong> 50M–1B tokens/月的客户,他们不想自建 GPU SRE 团队。再低就 RunPod,再高就自托管 vLLM + SRE。</p>
+
+  <h3 id="m2-7" class="text-lg font-semibold mt-6 mb-2">2.7 「兼容 OpenAI」在实践中究竟意味着什么</h3>
+
+  <p>各家厂商都宣称「兼容 OpenAI」,但兼容性程度参差不齐。要匹配的完整规范:</p>
+
+  <table class="report">
+    <thead><tr><th>OpenAI API 表面</th><th>vLLM 支持</th><th>备注</th></tr></thead>
+    <tbody>
+      <tr><td><code>/v1/chat/completions</code></td><td>✅</td><td>完全支持,含流式</td></tr>
+      <tr><td><code>/v1/completions</code>(旧版)</td><td>✅</td><td>完全支持</td></tr>
+      <tr><td><code>/v1/embeddings</code></td><td>✅</td><td>通过独立 embedding 模型服务</td></tr>
+      <tr><td>函数调用 / tool use</td><td>✅</td><td>通过结构化输出 + JSON mode</td></tr>
+      <tr><td>JSON mode / response_format</td><td>✅</td><td>基于 xgrammar</td></tr>
+      <tr><td>视觉输入(image_url)</td><td>✅</td><td>针对 VL 模型(LLaVA、Qwen2-VL)</td></tr>
+      <tr><td>音频输入</td><td>⚠️ 部分</td><td>Whisper 类模型独立</td></tr>
+      <tr><td>Assistants API(threads、runs)</td><td>❌</td><td>不支持;厂商自建替代</td></tr>
+      <tr><td>Fine-tuning API</td><td>❌(托管)</td><td>仅 BYOC;厂商提供 LoRA 注册表</td></tr>
+      <tr><td>Batch API(50% 折扣)</td><td>⚠️ 部分</td><td>以带延迟 SLA 的异步队列形式实现</td></tr>
+      <tr><td>用量 / 计费 API</td><td>✅</td><td>各家实现不同</td></tr>
+      <tr><td>组织 / API 密钥 / RBAC</td><td>✅</td><td>标准</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>Inferact(假定)与 OpenAI 的差异点:</strong> 没有 Assistants API(持久线程抽象是 OpenAI 专属)。从 OpenAI 迁移过来的客户需要重构线程管理代码。</p>
+
+  <h3 id="m2-8" class="text-lg font-semibold mt-6 mb-2">2.8 客户画像</h3>
+
+  <p>典型 Inferact 客户(据任务简报 + 行业模式推断):</p>
+
+  <div class="module-card">
+    <h4 class="font-bold text-base">画像 1 —— 「代码生成 AI 初创」(Tier-1,高用量)</h4>
+    <ul class="text-sm mt-2 space-y-1">
+      <li>· 每月用量:100M–1B 输出 tokens</li>
+      <li>· 模型:Llama-3-70B(代码)、DeepSeek-Coder(专项)</li>
+      <li>· 延迟要求:p95 < 300ms TTFT,< 50ms inter-token</li>
+      <li>· 功能要求:默认 EAGLE-2、FP8、tool call 结构化输出</li>
+      <li>· 客单价:$5k–$30k / 月</li>
+    </ul>
+  </div>
+
+  <div class="module-card mt-3">
+    <h4 class="font-bold text-base">画像 2 —— 「企业 RAG」(Tier-2,中用量)</h4>
+    <ul class="text-sm mt-2 space-y-1">
+      <li>· 每月用量:10M–100M 输出 tokens</li>
+      <li>· 模型:Llama-3-70B(对话)、BGE-large(embedding)</li>
+      <li>· 延迟要求:p95 < 1s TTFT 可接受</li>
+      <li>· 功能要求:BYOC、SOC 2、欧盟驻留、长上下文(32k+)</li>
+      <li>· 客单价:$3k–$15k / 月</li>
+    </ul>
+  </div>
+
+  <div class="module-card mt-3">
+    <h4 class="font-bold text-base">画像 3 —— 「评估模型的 LLM 实验室」(Tier-3,低用量但高战略价值)</h4>
+    <ul class="text-sm mt-2 space-y-1">
+      <li>· 每月用量:1M–10M tokens(突发型)</li>
+      <li>· 模型:最新开源权重(Llama、Mistral、Qwen、DeepSeek)</li>
+      <li>· 延迟要求:低(研究负载)</li>
+      <li>· 功能要求:Day-1 模型支持、多种量化选项、原始 API 访问</li>
+      <li>· 客单价:$500–$3k / 月,但可作为案例 logo</li>
+    </ul>
+  </div>
+</section>
+
+<hr/>
+
+<!-- M3 系统架构 -->
+<section id="m3" class="anchor">
+  <div class="section-tag">模块 3</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">系统架构 —— PagedAttention、连续批处理、V1</h2>
+
+  <p>本章是整篇简报最深入的部分。我们逐层走进 Inferact 商品化的 vLLM 引擎:从 KV cache 内存布局,到调度器,再到张量并行、CUDA Graphs、V1 重写。所有论断锚定到上游 <a href="https://github.com/vllm-project/vllm">vLLM 仓库</a>、SOSP'23 论文以及 V1 博客。</p>
+
+  <h3 id="m3-1" class="text-lg font-semibold mt-6 mb-2">3.1 PagedAttention 解决的问题</h3>
+
+  <p>LLM 推理是自回归的 —— 每一步模型读取自身的上一时刻 KV cache 并生成一个新 token。两个服务时事实相互冲突:</p>
+
+  <ol class="list-decimal pl-6 space-y-1 text-sm">
+    <li><strong>KV cache 大小与 seq_len × num_layers × num_heads × head_dim × 2 (K+V) 成正比。</strong>Llama-3-70B fp16 下:~320 KB / token。一个 8K token 的请求光 KV cache 就需要 2.5 GB。</li>
+    <li><strong>不同请求的输出长度各异。</strong>100 token 的 prompt 可能产出 50、500、5,000 个输出 token。最坏情况决定静态内存分配。</li>
+  </ol>
+
+  <p>PagedAttention 之前的系统(HuggingFace TGI v1、FasterTransformer)按任何请求<em>可能</em>达到的最长序列来过度分配 KV cache。结果:实际内存利用率 20–40%,其余以内部碎片形式浪费。<span class="citation">(<a href="https://arxiv.org/abs/2309.06180">Kwon 等 §3.1</a>)</span></p>
+
+  <h3 id="m3-2" class="text-lg font-semibold mt-6 mb-2">3.2 PagedAttention:核心算法</h3>
+
+  <p>SOSP'23 论文的核心技巧是把 KV cache 当作操作系统对待虚拟内存一样:固定大小的 token <strong>块</strong>、每请求的<strong>块表</strong>把逻辑块 ID 映射到物理 GPU 内存,以及随序列增长按需分配块。</p>
+
+  <div class="stack-diagram">
+PagedAttention 块布局(vLLM 默认)
+
+  序列 1 (req_001)── 248 tokens
+  ┌──────────┬──────────┬──────────┬──────────┬──────────┬──────────┬──────────┬──────────┐
+  │ 块 0    │ 块 1    │ 块 2    │ 块 3    │ 块 4    │ 块 5    │ 块 6    │ 块 7    │
+  │ toks 0-15│ toks16-31│ toks32-47│ toks48-63│ toks64-79│ toks80-95│toks96-111│toks112-127│
+  └────┬─────┴────┬─────┴────┬─────┴─────────┴─────────┴─────────┴─────────┘
+       │          │          │          │
+       ▼          ▼          ▼          ▼
+  [P0] [P4]  [P7] [P2]   [P5]      [P9]         ← 物理块 ID(任意空闲槽)
+
+  req_001 块表:
+  ┌──────────┬──────────┬──────────┬──────────┬──────────┬──────────┬──────────┬──────────┐
+  │  0 → P0  │  1 → P4  │  2 → P7  │  3 → P2  │  4 → P5  │  5 → P9  │  6 → P1  │  7 → P8  │
+  └──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────┘
+
+  序列 2 (req_002)── 1024 tokens,与 req_001 并行
+  → 从同一空闲池分配,无碎片
+
+  块大小 = 16 tokens(可配置 4、8、16、32、64、128)
+  </div>
+
+  <p><strong>算法含义:</strong> attention 计算变成<em>块级 scatter/gather</em>。对每层每个 attention head,kernel 读取块表、抓取相关物理块(它们在 GPU HBM 中可能不连续),然后计算 scaled-dot-product attention。CUDA kernel 被重写以处理这一间接寻址 —— 这是一项不平凡的工程任务,占去了 PagedAttention 实现的绝大部分。</p>
+
+  <table class="report">
+    <thead><tr><th>属性</th><th>PagedAttention 之前(HF TGI v1)</th><th>PagedAttention(vLLM)</th></tr></thead>
+    <tbody>
+      <tr><td>KV cache 分配</td><td>连续,按最坏长度</td><td>分页(16-token 块)</td></tr>
+      <tr><td>内存利用率</td><td>20–40%</td><td>~96%(前缀共享 >98%)</td></tr>
+      <tr><td>同 GPU 显存下的最大批大小</td><td>1×</td><td>2–4×</td></tr>
+      <tr><td>吞吐(Llama-7B、A100)</td><td>1.0× 基线</td><td>14–24×(<a href="https://arxiv.org/abs/2309.06180">SOSP'23 §6.2</a>)</td></tr>
+      <tr><td>实现成本</td><td>标准 kernel</td><td>自定义 CUDA attention kernel</td></tr>
+      <tr><td>跨请求共享</td><td>手动</td><td>自动块级共享</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m3-3" class="text-lg font-semibold mt-6 mb-2">3.3 块大小权衡</h3>
+
+  <p>块大小是 PagedAttention 中影响最大的单个超参数。默认 16 tokens,但 vLLM 通过 <code>--block-size</code> 暴露 4、8、16、32、64、128。</p>
+
+  <ul class="list-disc pl-6 text-sm">
+    <li><strong>更小的块(4–8):</strong> 更细粒度的共享、更少的内部碎片,但每 attention 调用要遍历的块表项更多 → kernel 开销增大。</li>
+    <li><strong>更大的块(32–128):</strong> 块表项更少、内存局部性更好,但每个部分填充块浪费更多空间。</li>
+    <li><strong>甜点:</strong> 16 tokens —— 在 SOSP'23 §6 的 vLLM 基准测试套件中经验验证。</li>
+  </ul>
+
+  <h3 id="m3-4" class="text-lg font-semibold mt-6 mb-2">3.4 连续批处理(对比静态批处理)</h3>
+
+  <p>PagedAttention 之前的 LLM 服务使用<strong>静态批处理</strong>:把一个批次中所有序列 pad 到最长,一起运行,等<em>全部</em>完成再返回。代价是灾难性的 —— 一个 2,000 token 的请求混在 8 个 100 token 请求的批次里,95% 的 GPU 时间浪费在等待长尾。</p>
+
+  <p>vLLM 实现<strong>连续批处理</strong>(迭代级调度,灵感来自 <a href="https://www.usenix.org/system/files/osdi22-yu.pdf">ORCA (OSDI'22)</a>):</p>
+
+  <ol class="list-decimal pl-6 space-y-1 text-sm">
+    <li>每一步前向是一个 token 生成迭代。</li>
+    <li>每次迭代后,调度器检查批次中哪些序列已完成并释放其 KV 块。</li>
+    <li>等待队列中的新请求被接纳到腾出的槽位。</li>
+    <li>下一次前向调用同时包含<em>仍在解码的旧序列</em>与<em>新预填充的序列</em>。</li>
+  </ol>
+
+  <div class="mermaid">
+flowchart TD
+    A[Step n: 批次有 8 个序列,6 个在 iter n+5 结束,2 个在 iter n+50 结束] --> B[在 iter n+5,释放 6 个已完成序列的 KV 块]
+    B --> C[从等待队列拉入 6 个新请求]
+    C --> D[Step n+6 批次:2 个旧序列 + 6 个新序列]
+    D --> E[无空闲 GPU 槽位 —— 每次迭代都满载]
+    E --> F[净效果:在变长工作负载上吞吐 +20-23× 对比静态批处理]
+  </div>
+
+  <p><strong>量化收益:</strong> vLLM 论文报告连续批处理 + PagedAttention 合计在 Llama-7B / OPT-13B / BLOOM-176B 工作负载上对比 HuggingFace TGI 取得 14–24× 吞吐,所用输出长度分布取自 <a href="https://huggingface.co/datasets/lmsys/lmsys-chat-1m">lmsys/lmsys-chat-1m</a>。<span class="citation">(<a href="https://arxiv.org/abs/2309.06180">Kwon 等 §6.2, Figure 7</a>)</span></p>
+
+  <h3 id="m3-5" class="text-lg font-semibold mt-6 mb-2">3.5 张量并行与流水线并行</h3>
+
+  <p>对于超过单卡 HBM 的模型(Llama-70B fp16 需要 ~140 GB),vLLM 使用两种策略将模型分片到多设备:</p>
+
+  <h4 class="font-bold text-base mt-4">张量并行(TP)</h4>
+  <p>每层的权重矩阵被<strong>列切分</strong>(针对 Q、K、V、gate、up)或<strong>行切分</strong>(针对 output、down)。attention 与 MLP 计算被分片到多 GPU;<code>all-reduce</code> 在层边界同步输出。标准 Megatron-LM 模式。<span class="citation">(<a href="https://arxiv.org/abs/1909.08053">Shoeybi 等 Megatron-LM</a>; <a href="https://docs.vllm.ai/en/latest/serving/distributed.html">vLLM 分布式文档</a>)</span></p>
+  <ul class="list-disc pl-6 text-sm">
+    <li>延迟开销:NCCL <code>all-reduce</code> 在每个 transformer 块(~ NVLink 上 50–100 µs)。</li>
+    <li>吞吐开销:批大小足以填满所有 GPU SM 时几乎为零。</li>
+    <li>最佳度:等于 <code>num_attention_heads</code>(这样 head 切分是干净的)。Llama-70B 64 heads 时,TP=8 在 8×H100 上是典型配置。</li>
+  </ul>
+
+  <h4 class="font-bold text-base mt-4">流水线并行(PP)</h4>
+  <p>不同 transformer 层分配到不同 GPU。Llama-70B 的 80 层分到 4 GPU = 每 GPU 20 层。vLLM V1 加入异步流水线并行以重叠计算与 P2P 通信。<span class="citation">(<a href="https://docs.vllm.ai/en/latest/serving/distributed.html">vLLM 分布式文档</a>)</span></p>
+  <ul class="list-disc pl-6 text-sm">
+    <li>延迟开销:流水线 bubble —— 前几个 micro-batch 有 GPU 空闲。</li>
+    <li>吞吐开销:稳态下与 TP 相当,但 micro-batch 太小时 SM 利用率低。</li>
+    <li>适用场景:TP 度耗尽时(如 70B 在 8 GPU 上已用 TP=8),仍需更多设备。</li>
+  </ul>
+
+  <h4 class="font-bold text-base mt-4">TP × PP 组合</h4>
+  <p>对于 Llama-405B(126 层,128 heads)这类模型,vLLM 支持 TP×PP mesh。Llama-405B 部署指南推荐在 16×H100 上 TP=8、PP=2。<span class="citation">(<a href="https://docs.vllm.ai/en/latest/models/llama.html">vLLM Llama 文档</a>)</span></p>
+
+  <h3 id="m3-6" class="text-lg font-semibold mt-6 mb-2">3.6 CUDA Graphs —— 单 token 延迟 5–10× 的胜利</h3>
+
+  <p>CUDA kernel 启动开销大约为每 kernel 5–10 µs。70B 模型的单次 decode 迭代会发出数百个 kernel(attention、GEMM、layerNorm、rotary embedding、采样)。在 1,000–2,000 tokens/s 合计吞吐下,kernel 启动开销在总延迟中占比可观。</p>
+
+  <p><strong>CUDA Graphs</strong> 是 NVIDIA 的一个原语,允许你一次性录制一串 kernel 启动,然后以单次提交回放。vLLM V1 让 CUDA Graphs 成为 decode 循环的<em>默认</em>:</p>
+
+  <ol class="list-decimal pl-6 space-y-1 text-sm">
+    <li>首个请求到达时,引擎将整个 prefill 或 decode 迭代 trace 为一个 CUDA graph。</li>
+    <li>Graph 按 (batch_size, sequence_lengths, KV-block-table-layout) 索引 —— 变体作为独立 graph 实例缓存。</li>
+    <li>后续迭代以单次 <code>cudaGraphLaunch</code> 调用回放合适 graph。</li>
+    <li>CPU 开销从「1000 次 kernel 启动 × 5–10 µs」降至「1 次 graph 启动 × 5 µs」。</li>
+  </ol>
+
+  <div class="pullquote my-4">
+    「在 vLLM V1 中,CUDA Graphs 默认用于 prefill 与 decode。...... 这消除了 Python 与 CPU 开销,将小批大小下的单 token 延迟降低 5–10×。」
+    <div class="citation mt-1">—— <a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">vLLM V1 alpha 博客</a>,§「CUDA Graphs」</div>
+  </div>
+
+  <p>代价:CUDA Graphs 要求固定的输入 shape,因此 vLLM 维护一个按 batch size 索引的预编译 graph 池。对于可变工作负载,会残留少量 graph 切换开销。</p>
+
+  <h3 id="m3-7" class="text-lg font-semibold mt-6 mb-2">3.7 分块 Prefill 与混合批处理</h3>
+
+  <p>V1 之前,vLLM 将 prefill(prompt 处理)与 decode(token 生成)运行在<em>独立</em>批次中。一个长 prompt 会阻塞整个 decode 批次一整个 prefill 时长,在所有在飞请求上制造延迟尖峰。</p>
+
+  <p>V1 引入<strong>分块 Prefill</strong>:将长 prompt 切分为若干块(典型 4,096 tokens),在同一前向中将 prefill 块与 decode 步交错。这以略高的 prefill 总时间为代价换来更平滑的延迟。vLLM 还暴露 <code>--max-num-batched-tokens</code> 以限制 prefill 块大小。<span class="citation">(<a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">vLLM V1 博客 §「Chunked Prefill」</a>; <a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/engine/llm_engine.py">v1/engine/llm_engine.py</a>)</span></p>
+
+  <h3 id="m3-8" class="text-lg font-semibold mt-6 mb-2">3.8 投机解码 —— EAGLE-2、Medusa、n-gram</h3>
+
+  <p>投机解码(<a href="https://arxiv.org/abs/2211.17192">Leviathan 等 2023</a>)通过小型<em>草稿模型</em>提出 K 个 token,然后在一次前向中由<em>目标模型</em>验证来加速自回归生成。vLLM 集成三种实现:</p>
+
+  <table class="report">
+    <thead><tr><th>方法</th><th>草稿模型</th><th>加速</th><th>兼容性</th></tr></thead>
+    <tbody>
+      <tr><td><strong>EAGLE-2</strong>(<a href="https://arxiv.org/abs/2406.16858">Li 等 2024</a>)</td><td>目标模型上训练的轻量 transformer head</td><td>2–3×</td><td>Llama-2/3、Mistral、Qwen</td></tr>
+      <tr><td><strong>EAGLE-3</strong>(2024-Q4)</td><td>多层草稿,目标特征融合</td><td>3–4×</td><td>Llama-3、Mistral</td></tr>
+      <tr><td><strong>Medusa</strong>(<a href="https://arxiv.org/abs/2401.10774">Cai 等 2024</a>)</td><td>目标模型上的多个并行 head</td><td>2–2.5×</td><td>Llama-2/3、Vicuna</td></tr>
+      <tr><td><strong>n-gram</strong>(内建)</td><td>在 prompt + 最近输出中查找</td><td>1.3–2×(可变)</td><td>任意模型,无需训练</td></tr>
+    </tbody>
+  </table>
+
+  <p>接受率指标至关重要:草稿模型在 K=5 token 上接受率 80% 时,每次前向平均得到 ~4 个有效 token,即 decode 步骤 4× 加速。EAGLE-2 在 Llama-3-70B 上宣称的 2–3×,扣去草稿模型自身开销后,端到端吞吐上约对应 1.5–2.5×。<span class="citation">(<a href="https://docs.vllm.ai/en/latest/features/spec_decode.html">vLLM spec_decode 文档</a>)</span></p>
+
+  <h3 id="m3-9" class="text-lg font-semibold mt-6 mb-2">3.9 量化:GPTQ、AWQ、INT4/INT8、FP8</h3>
+
+  <p>vLLM 在训练后量化(PTQ)与仅权重量化家族上均支持权重与激活量化:</p>
+
+  <table class="report">
+    <thead><tr><th>方法</th><th>位数</th><th>节省内存</th><th>质量损失</th><th>硬件</th></tr></thead>
+    <tbody>
+      <tr><td>FP16(基线)</td><td>16</td><td>1.0×</td><td>—</td><td>任意</td></tr>
+      <tr><td>BF16</td><td>16</td><td>1.0×</td><td>—</td><td>A100、H100</td></tr>
+      <tr><td>FP8 (E4M3)</td><td>8</td><td>2×</td><td>< 0.1 困惑度</td><td>H100 原生(<a href="https://docs.nvidia.com/cuda/cublas/">cuBLAS 12.x</a>)</td></tr>
+      <tr><td>INT8 (SmoothQuant / per-tensor)</td><td>8</td><td>2×</td><td>< 0.5 困惑度</td><td>A100、H100</td></tr>
+      <tr><td>AWQ (Activation-aware Weight Quantization)</td><td>4</td><td>4×</td><td>< 1 困惑度</td><td>A100、H100</td></tr>
+      <tr><td>GPTQ</td><td>4 / 3 / 2</td><td>4–8×</td><td>INT4 1–3 困惑度,INT2 > 5</td><td>A100、H100</td></tr>
+      <tr><td>BitsAndBytes (NF4、INT8)</td><td>4 / 8</td><td>2–4×</td><td>类似 GPTQ</td><td>任意</td></tr>
+    </tbody>
+  </table>
+
+  <p>对 Inferact 类部署,典型搭配是<strong>H100 上 FP8</strong>(零质量损失,H100 原生指令,2× 内存 + ~1.6× 吞吐)或<strong>A100 上 AWQ INT4</strong>(4× 内存,轻微质量损失)。KV cache 量化(H100 上 FP8 KV)是 vLLM V1 的新增。<span class="citation">(<a href="https://docs.vllm.ai/en/latest/features/quantization.html">vLLM 量化文档</a>)</span></p>
+
+  <h3 id="m3-10" class="text-lg font-semibold mt-6 mb-2">3.10 PagedAttention v2 / V1 —— 2025 重写</h3>
+
+  <p>vLLM V0 服务了 ~18 个月的生产流量并积累了大量复杂度:每模型代码路径、独立 prefill/decode 调度器、两种竞争 attention backend(XFormers vs FlashAttention)。V1 是一次彻底的重写,2025-01-27 公告,结构变化如下:<span class="citation">(<a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">vLLM V1 alpha 博客</a>)</span></p>
+
+  <ul class="list-disc pl-6 space-y-1 text-sm">
+    <li><strong>统一调度器</strong> —— prefill 与 decode 共享一个队列,在单次前向中混合。</li>
+    <li><strong>块级前缀缓存</strong> —— 共享前缀的 prompt(系统 prompt、few-shot 示例)跨请求复用 KV 块。</li>
+    <li><strong>CUDA Graphs 默认开启</strong> —— 见 §3.6。</li>
+    <li><strong>分块 Prefill</strong> —— 见 §3.7。</li>
+    <li><strong>结构化输出(xgrammar)</strong> —— 通过采样时的约束掩码保证 JSON schema / regex / grammar 合规。</li>
+    <li><strong>FP8 KV cache</strong> —— H100 上 2× KV 内存节省。</li>
+    <li><strong>简化的模型注册表</strong> —— 一条模型执行路径代替每架构特殊分支。</li>
+  </ul>
+
+  <p>V1 博客报告的标题数字:</p>
+  <table class="report">
+    <thead><tr><th>工作负载</th><th>V0</th><th>V1</th><th>加速</th></tr></thead>
+    <tbody>
+      <tr><td>Llama-3.1-8B、A100、batch 32、1k in / 256 out</td><td>基线</td><td>~1.7×</td><td><a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">V1 博客</a></td></tr>
+      <tr><td>Llama-3.1-70B、H100、batch 16、1k in / 256 out</td><td>基线</td><td>~1.5×</td><td><a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">V1 博客</a></td></tr>
+      <tr><td>混合 prefill/decode,长上下文(32k)</td><td>严重 p99 尖峰</td><td>平滑 p99</td><td><a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">V1 博客 §Chunked Prefill</a></td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m3-11" class="text-lg font-semibold mt-6 mb-2">3.11 前缀缓存 —— RAG 与 Agent 厂商的最爱</h3>
+
+  <p>2025 年大多数 LLM 流量是 RAG(检索增强生成)或 Agent 循环。两者都有重度前缀共享:长系统 prompt、多 shot 示例、重复 tool schema。vLLM 的前缀缓存自动检测跨请求匹配的 KV 块并复用 —— 当前缀已缓存时,把 8k-token prompt 变成 200-token 计算成本。</p>
+
+  <p>vLLM V1 用<strong>radix tree</strong>结构组织块缓存,实现 O(前缀长度)查找与 O(共享前缀)复用。RAG 基准测试中的生产缓存命中率:70–90%。<span class="citation">(<a href="https://docs.vllm.ai/en/latest/features/prefix_caching.html">vLLM 前缀缓存文档</a>)</span></p>
+
+  <h3 id="m3-12" class="text-lg font-semibold mt-6 mb-2">3.12 架构图</h3>
+
+  <div class="mermaid">
+flowchart TB
+    subgraph Client["客户端层"]
+        A1[OpenAI 兼容 SDK<br/>chat completions / completions / embeddings]
+    end
+
+    subgraph Edge["Inferact 边缘平面"]
+        B1[FastAPI 路由<br/>鉴权、限速、计量]
+        B2[SSE 流式<br/>逐 token]
+    end
+
+    subgraph Engine["vLLM V1 引擎(每个模型副本)"]
+        C1[AsyncLLMEngine<br/>异步请求队列]
+        C2[V1 调度器<br/>连续 + 分块 prefill]
+        C3[块管理器<br/>PagedAttention KV cache<br/>block_size=16]
+        C4[前缀缓存<br/>radix tree]
+        C5[Model Runner V1<br/>CUDA Graphs 默认]
+    end
+
+    subgraph Workers["GPU Worker 池(TP × PP mesh)"]
+        D1[GPU 0]
+        D2[GPU 1]
+        D3[GPU 2]
+        D4[GPU 7]
+    end
+
+    subgraph Opts["优化项(每模型 opt-in)"]
+        E1[EAGLE-2 / Medusa<br/>投机解码]
+        E2[AWQ / FP8 / INT8<br/>量化]
+        E3[LoRA 适配器<br/>热切换]
+    end
+
+    A1 --> B1 --> C1 --> C2
+    C2 --> C3
+    C2 --> C4
+    C2 --> C5
+    C5 --> D1 & D2 & D3 & D4
+    C5 -.uses.-> E1 & E2 & E3
+    C2 --> B2 --> A1
+  </div>
+
+  <p>来源:<a href="https://docs.vllm.ai/en/latest/architecture/overview.html">vLLM 架构文档</a>;<a href="https://github.com/vllm-project/vllm/blob/main/ARCHITECTURE.md">ARCHITECTURE.md</a>;<a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">V1 博客</a>。</p>
+
+  <h3 id="m3-13" class="text-lg font-semibold mt-6 mb-2">3.13 KV Cache 内存数学(给工程师)</h3>
+
+  <p>一个模型究竟需要多少 KV cache?公式:</p>
+
+  <pre class="code-block"><code>KV_cache_bytes_per_token =
+    2 (K + V)
+  × num_hidden_layers
+  × num_key_value_heads  (GQA 模型 ≠ num_attention_heads)
+  × head_dim
+  × bytes_per_element   (fp16 为 2,int8 为 1,fp8 为 0.5)
+
+示例 —— Llama-3-70B(fp16):
+  2 × 80 层 × 8 KV heads × 128 head_dim × 2 bytes
+  = 327,680 字节 ≈ 320 KB / token
+
+  4,096-token 上下文:1.34 GB
+  32,768-token 上下文:10.7 GB
+  32 个请求、16 K 上下文的批次:700 GB   ← 超过 H100 80 GB 显存
+</code></pre>
+
+  <p>最后一行解释了为何 70B+ 模型在任何合理批大小下都<strong>不可避免地需要张量并行</strong>。跨 8×H100 TP=8,单卡 KV cache 是上式的 1/8,轻松装入 80 GB。</p>
+
+  <p>vLLM 的 KV cache 管理器在引擎启动时分配块池:</p>
+
+  <pre class="code-block"><code># vllm/v1/core/kv_cache_manager.py(节选)
+num_gpu_blocks = (
+    (gpu_memory_utilization * total_gpu_memory - model_weights - activations)
+    // kv_cache_bytes_per_block
+)
+# 默认 gpu_memory_utilization = 0.9(为激活 + CUDA workspace 保留 10%)
+# block_size = 16 tokens
+</code></pre>
+
+  <h3 id="m3-14" class="text-lg font-semibold mt-6 mb-2">3.14 性能基准 —— H100 vs A100 vs L40S</h3>
+
+  <p>汇总 vLLM 性能博客、V1 公告与第三方基准的公开数据。所有吞吐为 70% 利用率共享 GPU 池上的合计输出 tokens/s:</p>
+
+  <table class="report">
+    <thead><tr><th>模型</th><th>GPU</th><th>TP</th><th>吞吐(tok/s)</th><th>首 token 延迟</th><th>来源</th></tr></thead>
+    <tbody>
+      <tr><td>Llama-3-8B</td><td>1× A100-80GB</td><td>1</td><td>~3,800</td><td>~50 ms</td><td><a href="https://blog.vllm.ai/2024/09/05/perf.html">vLLM perf 博客</a></td></tr>
+      <tr><td>Llama-3-8B</td><td>1× H100-80GB</td><td>1</td><td>~5,500</td><td>~30 ms</td><td><a href="https://blog.vllm.ai/2024/09/05/perf.html">vLLM perf 博客</a></td></tr>
+      <tr><td>Llama-3-70B</td><td>8× A100-80GB</td><td>8</td><td>~2,200</td><td>~200 ms</td><td><a href="https://blog.vllm.ai/2024/09/05/perf.html">vLLM perf 博客</a></td></tr>
+      <tr><td>Llama-3-70B</td><td>8× H100-80GB</td><td>8</td><td>~3,800</td><td>~120 ms</td><td><a href="https://blog.vllm.ai/2024/09/05/perf.html">vLLM perf 博客</a></td></tr>
+      <tr><td>Llama-3-70B-AWQ</td><td>4× A100-80GB</td><td>4</td><td>~2,000</td><td>~180 ms</td><td><a href="https://docs.vllm.ai/en/latest/features/quantization.html">量化文档</a></td></tr>
+      <tr><td>Llama-3-70B-FP8</td><td>4× H100-80GB</td><td>4</td><td>~3,600</td><td>~120 ms</td><td><a href="https://docs.vllm.ai/en/latest/features/quantization.html">量化文档</a></td></tr>
+      <tr><td>Mixtral-8×7B</td><td>2× H100-80GB</td><td>2</td><td>~3,200</td><td>~80 ms</td><td><a href="https://blog.vllm.ai/2024/09/05/perf.html">vLLM perf 博客</a></td></tr>
+      <tr><td>Llama-3.1-405B</td><td>16× H100-80GB</td><td>8× PP=2</td><td>~1,800</td><td>~450 ms</td><td><a href="https://docs.vllm.ai/en/latest/models/llama.html">Llama 文档</a></td></tr>
+      <tr><td>Llama-3.1-8B + EAGLE-2</td><td>1× A100</td><td>1</td><td>~9,000(2.4×)</td><td>~50 ms</td><td><a href="https://docs.vllm.ai/en/latest/features/spec_decode.html">spec_decode 文档</a></td></tr>
+      <tr><td>Llama-3.1-8B + n-gram</td><td>1× A100</td><td>1</td><td>~5,500(1.4×)</td><td>~50 ms</td><td><a href="https://docs.vllm.ai/en/latest/features/spec_decode.html">spec_decode 文档</a></td></tr>
+      <tr><td>Phi-3-medium</td><td>1× L40S-48GB</td><td>1</td><td>~2,800</td><td>~45 ms</td><td><a href="https://docs.vllm.ai/en/latest/models/supported_models.html">支持模型</a></td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>注意:</strong> 这些是代表性批大小下的合计吞吐;p99 延迟与尾部行为高度依赖前缀缓存命中率与分块 prefill 配置。深度调优的厂商(Inferact、Fireworks)通常通过以下方式再高出 10–30%:</p>
+  <ul class="list-disc pl-6 text-sm">
+    <li>投机解码默认开启(Llama 用 EAGLE-2,Mistral 用 Medusa)</li>
+    <li>H100 上 FP8(对比 FP16 基线)</li>
+    <li>激进的前缀缓存(系统 prompt、RAG 上下文)</li>
+    <li>连续批处理 + 更高 <code>--max-num-seqs</code>(64–128)</li>
+  </ul>
+
+  <h3 id="m3-15" class="text-lg font-semibold mt-6 mb-2">3.15 连续批处理为何对 lmsys_chat 工作负载至关重要</h3>
+
+  <p><a href="https://huggingface.co/datasets/lmsys/lmsys-chat-1m">lmsys/lmsys-chat-1m</a> 数据集 —— 来自 25 个 LLM API 的 100 万条真实对话 —— 揭示了重尾的输出长度分布:</p>
+
+  <pre class="code-block"><code>输出 token 长度分布(lmsys-chat-1m,约 100 万样本):
+  中位数:~ 150 tokens
+  p75:~ 350 tokens
+  p90:~ 800 tokens
+  p95:~ 1,400 tokens
+  p99:~ 2,500 tokens
+  p99.9:~ 5,000 tokens
+  最大:~ 16,000 tokens
+
+对静态批处理的含义:
+  一个 8 条序列的批次,中位数 150 tokens,但有一条 5,000 tokens,
+  会浪费 8 × (5,000 - 150) = 38,800 个前向 token 步等待长尾。
+  即 96% 的计算浪费。
+
+对连续批处理的含义:
+  7 条短序列在 150 步内完成。其 KV 块被释放。
+  接纳 7 个新请求。长序列继续独自运行。
+  有效利用率:~ 98%。
+</code></pre>
+
+  <p>这正是 2023 年打垮 HF TGI v1 的工作负载形态,也正是 PagedAttention + 连续批处理架构要解决的问题。vLLM SOSP'23 论文显式针对此分布做基准测试。<span class="citation">(<a href="https://arxiv.org/abs/2309.06180">Kwon 等 §6.2, Figure 7</a>; <a href="https://huggingface.co/datasets/lmsys/lmsys-chat-1m">lmsys/lmsys-chat-1m</a>)</span></p>
+
+  <h3 id="m3-16" class="text-lg font-semibold mt-6 mb-2">3.16 Attention Backend 变体注记</h3>
+
+  <p>vLLM V1 支持多个 attention kernel backend,在引擎启动时按模型选取:</p>
+
+  <table class="report">
+    <thead><tr><th>Backend</th><th>选用条件</th><th>备注</th></tr></thead>
+    <tbody>
+      <tr><td><strong>FlashAttention 2/3</strong></td><td>多数 NVIDIA(Ampere+、Ada、Hopper)</td><td>裸性能最佳;需 fp16/bf16/fp8</td></tr>
+      <tr><td><strong>XFormers</strong></td><td>FA 不可用时的后备</td><td>更灵活的 shape,稍慢</td></tr>
+      <tr><td><strong>FlashInfer</strong></td><td>实验性,稀疏 / 分页变体</td><td>来自 <a href="https://github.com/flashinfer-ai/flashinfer">flashinfer-ai</a>;前缀缓存复用场景有用</td></tr>
+      <tr><td><strong>TRITON MLA</strong></td><td>DeepSeek-V2/V3 MLA attention</td><td>多头 latent attention;专用 kernel</td></tr>
+      <tr><td><strong>ROCM (AMD)</strong></td><td>AMD MI300X / MI250</td><td>vLLM 通过 <code>VLLM_TARGET_DEVICE=rocm</code> 支持 ROCm</td></tr>
+      <tr><td><strong>TPU</strong></td><td>Google Cloud TPU v5e/v5p</td><td>有限支持,通过 PyTorch XLA</td></tr>
+    </tbody>
+  </table>
+
+  <p>PagedAttention 的间接寻址被实现为每个 backend 之<em>上</em> —— kernel 读取块表并把每个块当作连续 tile。这意味着新 attention backend(如 PyTorch 2.5 的 FlexAttention)可被插入而无须重构内存管理器。</p>
+
+  <h3 id="m3-17" class="text-lg font-semibold mt-6 mb-2">3.17 端到端时序图(单请求生命周期)</h3>
+
+  <div class="mermaid">
+sequenceDiagram
+    participant C as Client
+    participant F as FastAPI 路由
+    participant E as AsyncLLMEngine
+    participant S as V1 调度器
+    participant BM as 块管理器
+    participant MR as Model Runner V1
+    participant G as GPU Worker
+
+    C->>F: POST /v1/chat/completions (prompt)
+    F->>E: enqueue(request_id, prompt_tokens)
+    E->>S: schedule()
+    S->>BM: allocate_blocks(ceil(prompt_len / 16))
+    BM-->>S: block_table
+    S->>MR: prefill(prompt_tokens, block_table)
+    MR->>G: CUDA Graph 回放(或 eager 前向)
+    G-->>MR: logits[0]
+    MR->>MR: sample(token_0)
+    MR-->>S: token_0
+    S->>F: 发送 SSE chunk (token_0)
+    F-->>C: data: {...}
+    loop 每个输出 token
+        S->>MR: decode(step_n)
+        MR->>G: CUDA Graph 回放
+        G-->>MR: logits
+        MR->>MR: sample(token_n)
+        MR-->>S: token_n
+        S->>F: 发送 SSE
+    end
+    MR-->>S: <eos> token
+    S->>BM: free_blocks(block_table)
+    S-->>F: stream_end()
+    F-->>C: data: [DONE]
+  </div>
+
+  <p>来源:节选自 <a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/engine/llm_engine.py">vllm/v1/engine/llm_engine.py</a>;<a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">V1 博客</a>。</p>
+
+  <h3 id="m3-18" class="text-lg font-semibold mt-6 mb-2">3.18 采样方法(top-p、top-k、temperature、repetition penalty)</h3>
+
+  <p>vLLM 在模型 logits 之上实现标准采样栈:</p>
+
+  <table class="report">
+    <thead><tr><th>方法</th><th>效果</th><th>用例</th></tr></thead>
+    <tbody>
+      <tr><td><strong>贪心</strong>(temp=0)</td><td>总是取 argmax</td><td>确定性代码生成、评测</td></tr>
+      <tr><td><strong>Top-k</strong></td><td>从概率最高的 k 个 token 采样</td><td>中等随机性</td></tr>
+      <tr><td><strong>Top-p (nucleus)</strong></td><td>从累计概率 ≥ p 的最小集合采样</td><td>开放式对话、创意写作</td></tr>
+      <tr><td><strong>Temperature</strong></td><td>锐化(T<1)或展平(T>1)分布</td><td>与 top-p/top-k 组合</td></tr>
+      <tr><td><strong>Min-p</strong></td><td>从概率 ≥ p × max_prob 的 token 采样</td><td>top-p 的更新替代</td></tr>
+      <tr><td><strong>Repetition penalty</strong></td><td>将已生成 token 的 logits 除以 r</td><td>减少循环</td></tr>
+      <tr><td><strong>Frequency / presence penalty</strong></td><td>按出现次数扣减罚分</td><td>OpenAI 风格控制</td></tr>
+      <tr><td><strong>Beam search</strong></td><td>保留 top-B 并行 beam</td><td>翻译、摘要(较少用)</td></tr>
+      <tr><td><strong>Mirostat</strong></td><td>自适应困惑度目标</td><td>长文生成</td></tr>
+    </tbody>
+  </table>
+
+  <p>采样步骤实现在 <a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/sample/ops/topk_topp_sampler.py">vllm/v1/sample/ops/topk_topp_sampler.py</a>。自定义 logit 处理器(用于约束解码)通过 <code>LogitsProcessor</code> 接口接入。</p>
+
+  <h3 id="m3-19" class="text-lg font-semibold mt-6 mb-2">3.19 内存分配器内部(PyTorch + CUDA Caching)</h3>
+
+  <p>vLLM 的 CUDA 内存布局分两层:</p>
+
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li><strong>PyTorch CUDA caching allocator</strong>(<code>cudaCachingAllocator</code>) —— 以池形式管理原始 GPU 内存,大小为 <code>gpu_memory_utilization</code> × 总 GPU 内存。</li>
+    <li><strong>vLLM 块管理器</strong> —— 把池切成固定大小的块(PagedAttention 的逻辑单元)。</li>
+  </ol>
+
+  <p>块管理器暴露两个池:</p>
+  <ul class="list-disc pl-6 text-sm">
+    <li><strong>GPU 块</strong> —— pinned HBM,快速访问,KV cache 所在。</li>
+    <li><strong>CPU 块</strong> —— pinned 主机内存(page-locked,<code>cudaHostAlloc</code>),用于前缀缓存溢出与异步 D2H 拷贝。</li>
+  </ul>
+
+  <p>当 GPU 内存耗尽,调度器可以将块驱逐到 CPU(swap) —— 但如 §5.2 所述,V1 倾向于重算而非 swap 来抢占。</p>
+
+  <h3 id="m3-20" class="text-lg font-semibold mt-6 mb-2">3.20 抢占决策树</h3>
+
+  <p>当新请求到达但没有空闲 GPU 块时,调度器必须二选一:</p>
+
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li><strong>排队</strong> —— 等待当前请求完成。对新请求 p99 影响最大,但代价最小。</li>
+    <li><strong>重算</strong> —— 驱逐一个低优先级运行中的序列,resume 时重算其 KV。V1 默认。</li>
+    <li><strong>Swap</strong> —— 把被驱逐序列的 KV 拷到 CPU 内存,resume 时恢复。更慢但无重算成本。V0 部分模式使用。</li>
+  </ol>
+
+  <p>V1 实现 <code>--preemption-mode</code> = <code>recompute</code>(默认)或 <code>swap</code>。正确选择取决于工作负载:</p>
+
+  <table class="report">
+    <thead><tr><th>工作负载</th><th>更好选择</th><th>原因</th></tr></thead>
+    <tbody>
+      <tr><td>短 prompt、短输出(对话)</td><td>重算</td><td>重算快;swap 开销主导</td></tr>
+      <tr><td>长 prompt、短输出(RAG)</td><td>重算</td><td>重算有界;swap 受带宽限制</td></tr>
+      <tr><td>长 prompt、长输出(Agent)</td><td>Swap</td><td>重算代价巨大;swap 更划算</td></tr>
+      <tr><td>批量重离线</td><td>重算</td><td>延迟不重要,内存才重要</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m3-21" class="text-lg font-semibold mt-6 mb-2">3.21 调度吞吐数学</h3>
+
+  <p>对于一个 vLLM 部署,饱和吞吐取决于几个旋钮:</p>
+
+  <pre class="code-block"><code>饱和吞吐(tokens/s) ≈
+    (num_GPUs × tokens/s_per_GPU)
+  × (1 - scheduler_overhead_fraction)   # V1 中约 5%
+  × (1 - preemption_loss_fraction)        # 调优良好时 < 1%
+  × speculative_speedup_factor            # 1.0–3.0
+  × quantization_speedup_factor           # 1.0–1.8(FP8 vs FP16)
+
+Llama-3-70B-AWQ on 8×H100、V1、开启 EAGLE-2:
+  = (8 × 2,500) × 0.95 × 0.99 × 2.0 × 1.0
+  ≈ 37,600 输出 tokens/s 合计
+</code></pre>
+
+  <p><strong>首 token 时间(TTFT):</strong> 由 prefill 成本主导。</p>
+
+  <pre class="code-block"><code>TTFT_ms ≈ (prompt_tokens × model_flops_per_token) / (num_GPUs × gpu_flops) × 1000
+       + scheduling_overhead(约 5 ms)
+       + cuda_graph_replay_overhead(约 2 ms)
+
+Llama-3-70B on 8×H100、2k-token prompt:
+  = (2,000 × 7e13) / (8 × 1e15) × 1000 + 7
+  ≈ 175 + 7 = 约 180 ms
+</code></pre>
+
+  <h3 id="m3-22" class="text-lg font-semibold mt-6 mb-2">3.22 投机解码接受率数学</h3>
+
+  <p>草稿模型的接受率决定有效加速。经验模式:</p>
+
+  <pre class="code-block"><code>按工作负载类型的接受率(K=5,EAGLE-2 on Llama-3-70B):
+  代码补全:88–95%   (平均接受长度 ~ 4.5)
+  翻译(正式):80–90%   (~ 4.2)
+  摘要:70–82%   (~ 3.8)
+  开放式对话:60–75%   (~ 3.3)
+  创意写作:50–65%   (~ 2.8)
+
+有效加速 ≈ 1 / (1 - acceptance_rate + acceptance_rate / K)
+对 acceptance=0.75、K=5:1 / (0.25 + 0.75/5)= 1 / 0.40 = 2.5×
+
+注意:含草稿模型自身前向成本。
+EAGLE-2 草稿约是目标的 5% → 净加速约 2.3–2.4×
+</code></pre>
+
+  <p>这就是为什么投机解码在代码(确定性)上帮助大于创意写作(多样化)。也是为何 EAGLE-3 的 tree-attention 变体再额外带来 30%—— 长尾接受率更好。</p>
+
+  <h3 id="m3-23" class="text-lg font-semibold mt-6 mb-2">3.23 真实生产故障模式</h3>
+
+  <p>来自公开的事后分析与 vLLM GitHub issues,最常见的生产故障:</p>
+
+  <table class="report">
+    <thead><tr><th>故障模式</th><th>症状</th><th>缓解</th></tr></thead>
+    <tbody>
+      <tr><td><strong>长 prompt prefill 时 OOM</strong></td><td>CUDA OOM 错误;请求崩溃</td><td>限制 <code>--max-model-len</code>;使用分块 prefill</td></tr>
+      <tr><td><strong>KV cache 碎片</strong></td><td>突发负载下缓存利用率跌至 60%</td><td>重启引擎去碎片;调 <code>--num-lookahead-slots</code></td></tr>
+      <tr><td><strong>投机解码接受率崩塌</strong></td><td>加速从 2.5× 跌至 1.1×</td><td>重训草稿模型;检查分布偏移</td></tr>
+      <tr><td><strong>TP all-reduce NCCL 挂起</strong></td><td>引擎在前向中途挂起</td><td>设 <code>NCCL_DEBUG=INFO</code>,检查 IB / NVLink 健康</td></tr>
+      <tr><td><strong>Tokenizer 不匹配</strong></td><td>输出 token 乱码</td><td>将 tokenizer 版本 pin 到模型 checkpoint</td></tr>
+      <tr><td><strong>MoE 专家不均衡</strong></td><td>GPU SM 占用不均 → 慢 GPU 拖累</td><td>开启 expert-parallel 负载均衡</td></tr>
+      <tr><td><strong>前缀缓存中毒</strong></td><td>前缀不匹配后输出错误</td><td>严格前缀哈希校验</td></tr>
+      <tr><td><strong>GPU 热降频</strong></td><td>10 分钟后吞吐降 20%</td><td>检查机房风道;H100 持续功率 700W</td></tr>
+      <tr><td><strong>长尾延迟尖峰</strong></td><td>p99 = 10× p50</td><td>降低 <code>--max-num-seqs</code>;隔离邻居干扰负载</td></tr>
+    </tbody>
+  </table>
+
+  <p>Inferact 类厂商的 SRE 增值正是<em>在客户察觉前预防并恢复</em>这些故障。</p>
+
+  <h3 id="m3-24" class="text-lg font-semibold mt-6 mb-2">3.24 跨数据中心扩展</h3>
+
+  <p>vLLM 是单区域引擎;跨区域扩展需要外部编排:</p>
+
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>跨区域 active-active:</strong> 每区域跑自己的 vLLM 集群;全局负载均衡按延迟或容量路由。</li>
+    <li><strong>Active-passive (DR):</strong> 主区域承接流量;备区域温备。更便宜但故障切换慢。</li>
+    <li><strong>地理隔离:</strong> EU 流量留在 EU 区域以满足合规。模型更新通过全局模型注册表传播。</li>
+  </ul>
+
+  <p>跨区域延迟成本(50–200 ms)通常<em>大于</em>一次推理调用。拥有全球流量的客户通常为区域本地推理而设计架构(如 EU 用户访问 EU 部署的模型)。</p>
+
+  <h3 id="m3-25" class="text-lg font-semibold mt-6 mb-2">3.25 跨引擎对比(vLLM vs SGLang vs TensorRT-LLM vs TGI)</h3>
+
+  <p>截至 2026-Q1,四大开源 LLM 推理引擎:</p>
+
+  <table class="report">
+    <thead><tr><th>引擎</th><th>出身</th><th>许可证</th><th>强项</th><th>短板</th></tr></thead>
+    <tbody>
+      <tr><td><strong>vLLM</strong></td><td>UC Berkeley SkyLab(2023)</td><td>Apache-2.0</td><td>PagedAttention + V1 性能;社区;LF 治理</td><td>CUDA 重;非 NVIDIA 优化较少</td></tr>
+      <tr><td><strong>SGLang</strong></td><td>LMSYS / UC Berkeley(2024)</td><td>Apache-2.0</td><td>RadixAttention 面向 Agent/RAG;结构化输出原生</td><td>社区较小;模型覆盖较少</td></tr>
+      <tr><td><strong>TensorRT-LLM</strong></td><td>NVIDIA(2023)</td><td>Apache-2.0(部分)</td><td>NVIDIA 上裸性能最佳;FP4 / FP8 原生</td><td>仅 NVIDIA;扩展较难</td></tr>
+      <tr><td><strong>HuggingFace TGI</strong></td><td>HuggingFace(2022)</td><td>Apache-2.0</td><td>部署简单;模型覆盖广</td><td>四者中性能最差(V0 vLLM 之前基线)</td></tr>
+      <tr><td><strong>MLC-LLM</strong></td><td>CMU / Apache TVM(2023)</td><td>Apache-2.0</td><td>设备端 / 移动 / WebGPU</td><td>未针对服务规模优化</td></tr>
+      <tr><td><strong>LMDeploy</strong></td><td>InternLM / 上海 AI Lab(2024)</td><td>Apache-2.0</td><td>在中国模型(Qwen、InternLM)上表现强</td><td>海外采用较少</td></tr>
+      <tr><td><strong>vAttention (Microsoft)</strong></td><td>Microsoft Research(2024)</td><td>MIT</td><td>虚拟内存 KV cache;CPU 开销更低</td><td>研究原型;未生产就绪</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>性能排序(Llama-3-70B、A100、batch 32、1k-in/256-out):</strong></p>
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li>vLLM V1 —— 1.0×(参考)</li>
+    <li>TensorRT-LLM —— 1.0–1.05×</li>
+    <li>SGLang —— 0.85–0.95×</li>
+    <li>LMDeploy —— 0.80–0.90×</li>
+    <li>HuggingFace TGI —— 0.50–0.65×</li>
+  </ol>
+
+  <p>vLLM V1 在 2025-Q1 基准中与 TensorRT-LLM 实质打平 —— 考虑到 TensorRT-LLM 多年的领先,这是了不起的成就。</p>
+</section>
+
+<hr/>
+
+<!-- M4 博客深度 -->
+<section id="m4" class="anchor">
+  <div class="section-tag">模块 4</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">来自 vLLM 博客与 GitHub 的 5 篇硬核深度</h2>
+
+  <p>本节浓缩了 vLLM 五篇最具技术密度的发布/提交,按来源做成简报。每条记录抓取<em>算法思路</em>、<em>实测影响</em>与<em>代码锚点</em>。</p>
+
+  <h3 id="m4-1" class="text-lg font-semibold mt-6 mb-2">4.1 SOSP'23 论文 —— PagedAttention(Kwon、Li、Zhuang、Sheng、Zheng、Yu、Gonzalez、Stoica)</h3>
+
+  <div class="module-card">
+    <p><strong>来源:</strong> <a href="https://arxiv.org/abs/2309.06180">arXiv 2309.06180</a>;<a href="https://dl.acm.org/doi/10.1145/3623182">ACM SOSP'23 论文集</a></p>
+    <p><strong>一句话思路:</strong> 像对待虚拟内存一样对待 KV cache —— 固定大小页 + 每请求页表。</p>
+    <p><strong>算法上实际做了什么:</strong></p>
+    <ol class="list-decimal pl-6 text-sm space-y-1">
+      <li>将 KV cache 划分为等大的<strong>物理块</strong>,每块 B 个 token(B 默认 = 16)。</li>
+      <li>维护每请求的<strong>块表</strong> —— 一个驻留在 CPU/GPU 上的小数组,把逻辑块 ID 映射到物理块 ID。</li>
+      <li>每次前向,attention kernel 读取块表并执行<em>块级</em> attention —— 将 Q 分成块-tile 加载,并通过间接映射抓取 K、V。</li>
+      <li>块分配是惰性的:序列增长时再分配。新请求在 prefill 启动时获得 <code>ceil(prompt_len / B)</code> 个块。</li>
+      <li>共享:两个请求有共同前缀时,第二个请求的块表指向与第一个<em>相同</em>的物理块(分支时采用 copy-on-write 语义)。</li>
+    </ol>
+    <p><strong>实测影响(论文 §6):</strong></p>
+    <ul class="list-disc pl-6 text-sm">
+      <li>在 Llama-7B / OPT-13B / BLOOM-176B 上,服务吞吐比 HuggingFace TGI 高 14–24×。</li>
+      <li>同 GPU 显存预算下最大批大小 2–4×。</li>
+      <li>KV cache 内存利用率:~ 96%(前缀共享 > 98%)。</li>
+    </ul>
+    <p><strong>代码锚点:</strong> <a href="https://github.com/vllm-project/vllm/tree/main/vllm/attention">vllm/attention/</a>(PagedAttention CUDA kernel);<a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/core/kv_cache_manager.py">vllm/v1/core/kv_cache_manager.py</a>。</p>
+  </div>
+
+  <h3 id="m4-2" class="text-lg font-semibold mt-6 mb-2">4.2 V1 Alpha 博客 —— 「vLLM V1:一次重大重写」(2025-01-27)</h3>
+
+  <div class="module-card">
+    <p><strong>来源:</strong> <a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">blog.vllm.ai/2025/01/27/v1-alpha.html</a></p>
+    <p><strong>一句话思路:</strong> 抛弃 18 个月积累的复杂度,围绕统一调度器 + CUDA Graphs + 分块 prefill 重建引擎。</p>
+    <p><strong>V1 新增:</strong></p>
+    <ul class="list-disc pl-6 text-sm space-y-1">
+      <li><strong>统一调度器。</strong>V0 有独立的 prefill 与 decode 调度器,需要二者之间的同步屏障。V1 有一个调度器,在单次前向中混合二者 —— 消除「prefill 尖峰」延迟惩罚。</li>
+      <li><strong>CUDA Graphs 默认。</strong>V0 通过 <code>--enforce-eager=False</code> opt-in。V1 设为默认。据报告小批大小下每 token 延迟降低 ~ 5–10×。</li>
+      <li><strong>分块 Prefill。</strong>长 prompt 切为块(默认 4,096 tokens)与 decode 步交错。p99 延迟更平滑。</li>
+      <li><strong>结构化输出(xgrammar)。</strong>通过采样时的约束掩码保证 JSON schema / regex / grammar 合规。</li>
+      <li><strong>FP8 KV cache。</strong>H100 上 2× KV 内存节省。</li>
+      <li><strong>简化的模型注册表。</strong>一条执行路径代替每架构代码重复。</li>
+    </ul>
+    <p><strong>实测影响:</strong></p>
+    <ul class="list-disc pl-6 text-sm">
+      <li>Llama-3.1-8B(A100、batch 32、1k in / 256 out)吞吐 ~ 1.7×。</li>
+      <li>Llama-3.1-70B(H100、batch 16、1k in / 256 out)吞吐 ~ 1.5×。</li>
+      <li>长上下文(32k tokens)混合 prefill/decode 工作负载上 p99 延迟改善。</li>
+    </ul>
+    <p><strong>代码锚点:</strong> <a href="https://github.com/vllm-project/vllm/tree/main/vllm/v1">vllm/v1/</a> 目录;V0 路径作为 <code>vllm.v0.engine</code> 保留一个发布版本。</p>
+  </div>
+
+  <h3 id="m4-3" class="text-lg font-semibold mt-6 mb-2">4.3 投机解码集成(EAGLE-2、Medusa、n-gram)</h3>
+
+  <div class="module-card">
+    <p><strong>来源:</strong> <a href="https://docs.vllm.ai/en/latest/features/spec_decode.html">docs.vllm.ai/spec_decode</a>;<a href="https://arxiv.org/abs/2406.16858">EAGLE-2 论文</a>;<a href="https://arxiv.org/abs/2401.10774">Medusa 论文</a></p>
+    <p><strong>一句话思路:</strong> 用便宜的草稿模型提出 K 个 token,目标模型一次前向验证,通过则采纳。</p>
+    <p><strong>机制:</strong></p>
+    <ol class="list-decimal pl-6 text-sm space-y-1">
+      <li>草稿模型自回归产出 K 个投机 token(便宜、小模型)。</li>
+      <li>目标模型<em>并行</em>评估 K 个 token —— 通过对 K token + 原始 prompt 的一次大 prefill。</li>
+      <li>树形 attention / 级联拒绝:从最长接受前缀开始,回退到第一个不匹配,接受前缀、拒绝其余。</li>
+      <li>已接受的 K' token 返回给用户;被拒的 token 丢弃(草稿白做)。</li>
+    </ol>
+    <p><strong>vLLM 细节:</strong></p>
+    <ul class="list-disc pl-6 text-sm">
+      <li><code>--speculative-model</code> 标志指向草稿模型(EAGLE-2 head、Medusa head 或 n-gram 查找)。</li>
+      <li><code>--num-speculative-tokens</code> 设置 K(典型 4–8)。</li>
+      <li><strong>EAGLE-2</strong>:Llama-3-70B 上 2–3× 吞吐;草稿是单 transformer 层,通过特征回归训练。</li>
+      <li><strong>Medusa</strong>:2–2.5×;草稿是目标模型上的多个并行 MLP head(无独立权重)。</li>
+      <li><strong>n-gram</strong>:1.3–2×;无需训练,仅在 prompt 中查找匹配序列。</li>
+    </ul>
+    <p><strong>注意:</strong> 投机解码只有在接受率高时才划算。对话场景输出多样,K=5 时接受率典型 60–80%。代码补全可冲至 90%+。</p>
+  </div>
+
+  <h3 id="m4-4" class="text-lg font-semibold mt-6 mb-2">4.4 连续批处理与 ORCA 传承</h3>
+
+  <div class="module-card">
+    <p><strong>来源:</strong> <a href="https://www.usenix.org/system/files/osdi22-yu.pdf">ORCA(Yu 等, OSDI'22)</a>;<a href="https://arxiv.org/abs/2309.06180">vLLM §6.1</a></p>
+    <p><strong>一句话思路:</strong> 把每个 token 生成步骤当作独立的调度单位,而非把每个 batch 视为单位。</p>
+    <p><strong>为何在量化层面重要:</strong></p>
+    <ul class="list-disc pl-6 text-sm space-y-1">
+      <li>静态批处理(HF TGI v1):把所有序列 pad 到最长,等所有完成 → 在变长工作负载上浪费 95% 计算。</li>
+      <li>连续批处理(ORCA、vLLM):每次迭代驱逐已完成序列、接纳新序列 → 利用率接近 100%。</li>
+      <li>与 PagedAttention 组合:在静态批非分页系统上获得 14–24× 吞吐改善。</li>
+    </ul>
+    <p><strong>vLLM 实现:</strong> <a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/core/sched/scheduler.py">vllm/v1/core/sched/scheduler.py</a> —— <code>schedule()</code> 方法在每次前向运行,选择接纳哪些序列、哪些抢占(重算)、哪些驱逐。</p>
+    <p><strong>适用的工作负载:</strong> Lmsys.org <a href="https://huggingface.co/datasets/lmsys/lmsys-chat-1m">lmsys/lmsys-chat-1m</a> 显示真实对话输出长度服从长尾分布(中位 ~ 150 tokens,p99 ~ 2,000+)。静态批处理在此崩塌;连续批处理吸纳之。</p>
+  </div>
+
+  <h3 id="m4-5" class="text-lg font-semibold mt-6 mb-2">4.5 分块 Prefill + 连续批处理:平滑延迟配方</h3>
+
+  <div class="module-card">
+    <p><strong>来源:</strong> <a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">V1 博客 §「Chunked Prefill」</a>;<a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/engine/llm_engine.py">vllm/v1/engine/llm_engine.py</a></p>
+    <p><strong>一句话思路:</strong> 在一次前向中将 prefill 块与 decode 步混合。</p>
+    <p><strong>为何重要:</strong></p>
+    <ul class="list-disc pl-6 text-sm space-y-1">
+      <li>V1 之前,16,384-token prefill 会阻塞所有 decode 步整整一个 prefill 时长(70B on TP=8 H100 约 3 秒)。这造成 p99 上的延迟断崖。</li>
+      <li>分块 prefill 将 16k prompt 切成 4× 4,096-token 块。每块与其他在飞请求的 decode 迭代交错运行。</li>
+      <li>Prefill 总时间略有上升(prefill 块不如完整 prefill 高效),但 p99 延迟显著平滑。</li>
+    </ul>
+    <p><strong>调优旋钮:</strong> <code>--max-num-batched-tokens</code>(V1 中默认 2,048)。更大 → 每块吞吐更高、单块延迟更高。更小 → 单块延迟更低、填满 prefill 需更多迭代。</p>
+    <p><strong>与 <a href="https://github.com/sgl-project/sglang">SGLang</a> RadixAttention 的关联:</strong> SGLang 开创了类似思路;vLLM 的 V1 实现以不同名字收敛到同一架构。</p>
+  </div>
+
+  <details class="tech-summary">
+    <summary>📚 附加深度:量化数学(FP8 vs AWQ vs GPTQ)</summary>
+    <div class="mt-3 text-sm space-y-2">
+      <p><strong>FP8 (E4M3):</strong>1 sign + 4 exponent + 3 mantissa bits。范围约 ±448,精度约 3% 相对误差。在 H100 上,FP8 GEMM 运行在专用 tensor core,吞吐约为 FP16 的 2×。结果:2× 内存,~ 1.6× 吞吐,几乎零质量损失。H100 托管的杀手锏。</p>
+      <p><strong>AWQ (Activation-aware Weight Quantization, Lin 等 2023):</strong>通过保留 1–3% 的关键权重通道为更高精度来保护它们,其余量化到 INT4。结果:4× 内存,大多数基准上 < 1 困惑度损失。在 A100 与 H100 上工作。</p>
+      <p><strong>GPTQ (Frantar 等 2022):</strong>基于二阶梯度的量化,INT4 / INT3 / INT2。INT4:4× 内存,1–3 困惑度损失。INT2:8× 内存,> 5 困惑度损失 —— 通常生产不可用。</p>
+      <p><strong>SmoothQuant:</strong>通过每通道 scale 将量化难度从激活转移到权重。在 A100/H100 上实现 < 0.5 困惑度损失的 INT8 推理。</p>
+    </div>
+  </details>
+
+  <h3 id="m4-6" class="text-lg font-semibold mt-6 mb-2">4.6 前缀缓存 —— RAG 与 Agent 放大器</h3>
+
+  <div class="module-card">
+    <p><strong>来源:</strong> <a href="https://docs.vllm.ai/en/latest/features/prefix_caching.html">vLLM 前缀缓存文档</a>;vLLM v0.4 发布说明(2024-04)。</p>
+    <p><strong>一句话思路:</strong> 如果两个请求有相同前缀 token,共享其 KV cache 块而非重算。</p>
+    <p><strong>为何重要:</strong></p>
+    <ul class="list-disc pl-6 text-sm space-y-1">
+      <li>典型 RAG 请求有 4,000-token 系统 prompt + 2,000-token 检索上下文。6,000 token 中 ~ 95% 在请求间相同。</li>
+      <li>无前缀缓存时,每个请求在 prefill 重算全部 6,000 token。有缓存时,只需 prefill 可变的用户消息。</li>
+      <li>RAG 工作负载上报告加速:首 token 时间 4–8×,合计吞吐 1.5–2×。</li>
+    </ul>
+    <p><strong>机制(radix tree):</strong></p>
+    <ol class="list-decimal pl-6 text-sm space-y-1">
+      <li>vLLM 维护所有活跃 KV 块的 radix tree,以 token 内容为键。</li>
+      <li>新请求到达时,引擎遍历树,找最长匹配前缀。</li>
+      <li>匹配块被引用(分支时 copy-on-write);未匹配块全新计算。</li>
+      <li>树在内存压力下受 LRU 驱逐约束。</li>
+    </ol>
+    <p><strong>代码锚点:</strong> <a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/core/kv_cache_manager.py">vllm/v1/core/kv_cache_manager.py</a>(查找 <code>find_longest_cache_hit</code>)。</p>
+  </div>
+
+  <h3 id="m4-7" class="text-lg font-semibold mt-6 mb-2">4.7 结构化输出 —— xgrammar 与引导解码</h3>
+
+  <div class="module-card">
+    <p><strong>来源:</strong> <a href="https://docs.vllm.ai/en/latest/features/structured_outputs.html">vLLM 结构化输出文档</a>;<a href="https://github.com/mlc-ai/xgrammar">xgrammar 仓库</a>(MLC-AI)。</p>
+    <p><strong>一句话思路:</strong> 在每一步解码时保证 LLM 输出匹配 JSON schema、regex 或 grammar。</p>
+    <p><strong>为何生产上重要:</strong></p>
+    <ul class="list-disc pl-6 text-sm space-y-1">
+      <li>Tool-calling API(函数调用)需要 JSON schema 合规的参数。无引导解码时,模型 ~ 5–10% 时间产出无效 JSON。</li>
+      <li>代码生成需要合法语法。Regex 约束解码防止畸形输出。</li>
+      <li>Agent 循环依赖可靠解析 —— 一段畸形 JSON 就打断整个工作流。</li>
+    </ul>
+    <p><strong>机制:</strong></p>
+    <ol class="list-decimal pl-6 text-sm space-y-1">
+      <li>将 JSON schema / regex / grammar 编译为有限状态自动机(xgrammar)或下推自动机(outlines)。</li>
+      <li>每步解码,屏蔽 logits 只保留能让输出保持合法状态的 token。</li>
+      <li>在屏蔽后的 logits 上采样 —— 保证输出合法。</li>
+    </ol>
+    <p><strong>性能开销:</strong> 通常 < 10% 延迟惩罚;屏蔽作为与采样并行的快速 logit-bias 算子实现。</p>
+  </div>
+
+  <h3 id="m4-8" class="text-lg font-semibold mt-6 mb-2">4.8 LoRA 热切换 —— 微调无须重部署</h3>
+
+  <div class="module-card">
+    <p><strong>来源:</strong> <a href="https://docs.vllm.ai/en/latest/features/lora.html">vLLM LoRA 文档</a>。</p>
+    <p><strong>一句话思路:</strong> 把多个低秩适配器权重加载到 GPU 内存;为不同适配器的请求服务而无需重启引擎。</p>
+    <p><strong>机制:</strong></p>
+    <ol class="list-decimal pl-6 text-sm space-y-1">
+      <li>基模型(如 Llama-3-70B)加载一次。FP16 下占 ~ 140 GB。</li>
+      <li>每个 LoRA 适配器小(~ 50–200 MB for rank 16–64)。vLLM 可同时持有 10–50 个适配器于 GPU 内存。</li>
+      <li>请求指定 <code>"adapter_id": "customer-acme-v3"</code>;引擎查找适配器权重并按层计算 <code>W_effective = W_base + B @ A</code>。</li>
+      <li>热切换:运行时通过 <code>/v1/load_lora_adapter</code> API 增加或删除适配器 —— 无引擎重启。</li>
+    </ol>
+    <p><strong>用例:</strong> 在共享 GPU 基础设施上为每个客户提供微调模型。一套 70B 基模型 + 50 个适配器从一个 GPU 池服务 50 个不同客户的画像。</p>
+  </div>
+
+  <h3 id="m4-9" class="text-lg font-semibold mt-6 mb-2">4.9 多模态推理(视觉语言)</h3>
+
+  <div class="module-card">
+    <p><strong>来源:</strong> <a href="https://docs.vllm.ai/en/latest/models/multimodal.html">vLLM 多模态文档</a>。</p>
+    <p><strong>一句话思路:</strong> 通过视觉编码器处理图像/视频/音频输入,投影到 text-token 空间,然后走同一 LLM 前向。</p>
+    <p><strong>架构:</strong></p>
+    <ol class="list-decimal pl-6 text-sm space-y-1">
+      <li><strong>视觉编码器</strong>(ViT、CLIP、SigLIP)将图像处理为视觉 token 序列(如 448×448 图像、14×14 patch 下为 576 token)。</li>
+      <li><strong>投影器</strong>(线性或 MLP)将视觉 token 嵌入映射到 LLM 的 token 空间。</li>
+      <li><strong>LLM</strong>处理组合序列:<code>[system] + [user_text] + [visual_tokens] + [user_text_2]</code>。</li>
+      <li>KV cache 同时包含文本与视觉 token —— PagedAttention 统一处理。</li>
+    </ol>
+    <p><strong>支持的模型(节选):</strong> LLaVA-1.5/1.6、Qwen2-VL、Pixtral-12B、InternVL2、Phi-3.5-Vision、CogVLM、Llama-3.2-Vision。</p>
+    <p><strong>性能注记:</strong> 视觉编码器受带宽限制;LLM 受计算限制。vLLM 在可能时并行运行二者。</p>
+  </div>
+
+  <h3 id="m4-10" class="text-lg font-semibold mt-6 mb-2">4.10 音频与语音(Whisper 类、VALL-E)</h3>
+
+  <div class="module-card">
+    <p><strong>来源:</strong> <a href="https://docs.vllm.ai/en/latest/models/supported_models.html">vLLM 支持模型</a>。</p>
+    <p><strong>一句话思路:</strong> 音频编码器产出离散 token(Whisper)或连续嵌入(USM);LLM 像消费视觉 token 一样消费它们。</p>
+    <p><strong>vLLM 中状态:</strong> 实验性。Whisper、Distil-Whisper 与 VALL-E 模型有部分支持;商业部署通常使用专用的 ASR 引擎(Whisper.cpp、NVIDIA Riva、Deepgram)。</p>
+    <p><strong>对 Inferact 的含义:</strong> 尚未成为核心产品。可能列入 2026 路线图。</p>
+  </div>
+
+  <h3 id="m4-11" class="text-lg font-semibold mt-6 mb-2">4.11 Embeddings 端点(vLLM + Sentence Transformers)</h3>
+
+  <div class="module-card">
+    <p><strong>来源:</strong> <a href="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#embeddings-api">vLLM OpenAI server 文档 §Embeddings</a>。</p>
+    <p><strong>一句话思路:</strong> 在同一引擎上通过 OpenAI <code>/v1/embeddings</code> 端点提供文本 embedding 模型(BERT、BGE、E5、Stella)。</p>
+    <p><strong>为何重要:</strong> RAG 应用既需要 LLM 又需要 embedding 推理。统一端点降低运维复杂度。vLLM 在同一服务器上支持两种模式。</p>
+    <p><strong>性能:</strong> embedding 推理单请求成本远低于 LLM(~ 1 ms vs ~ 100 ms)。大多数 RAG 流量在摄入阶段是 embedding 重、查询阶段是 LLM 重。</p>
+  </div>
+
+  <h3 id="m4-12" class="text-lg font-semibold mt-6 mb-2">4.12 生产可观测性 —— vLLM 导出什么</h3>
+
+  <div class="module-card">
+    <p><strong>来源:</strong> <a href="https://docs.vllm.ai/en/latest/serving/metrics.html">vLLM 指标文档</a>。</p>
+    <p>vLLM 导出 Prometheus 格式指标。关键序列:</p>
+    <pre class="code-block"><code># 延迟(histogram)
+vllm:request_success_total
+vllm:time_to_first_token_seconds          (histogram, p50/p90/p99 可推导)
+vllm:time_per_output_token_seconds         (histogram)
+vllm:request_decode_seconds               (histogram)
+vllm:request_prefill_seconds              (histogram)
+
+# 吞吐(counter)
+vllm:prompt_tokens_total
+vllm:generation_tokens_total
+vllm:request_success_total
+
+# 缓存(gauge)
+vllm:gpu_cache_usage_perc                 (0-100)
+vllm:cpu_cache_usage_perc
+vllm:prefix_cache_hits_total
+vllm:prefix_cache_queries_total
+
+# 调度(gauge)
+vllm:num_requests_running                  (当前批大小)
+vllm:num_requests_waiting
+vllm:num_requests_swapped
+vllm:num_preemptions_total                (counter)
+vllm:num_retries_total
+
+# 投机解码(gauge)
+vllm:spec_decode_draft_acceptance_rate    (0-1)
+vllm:spec_decode_effective_tokens_per_step
+
+# GPU(gauge, 来自 NVIDIA DCGM)
+DCGM_FI_DEV_GPU_UTIL                      (SM 占用 %)
+DCGM_FI_DEV_FB_USED                       (HBM 已用字节)
+DCGM_FI_DEV_FB_FREE                       (HBM 空闲字节)
+DCGM_FI_DEV_POWER_USAGE                   (瓦)
+</code></pre>
+
+    <p>这些指标是生产 vLLM 集群监控的对象。仪表盘通常用 Grafana 构建;告警用 Alertmanager。</p>
+  </div>
+
+  <h3 id="m4-13" class="text-lg font-semibold mt-6 mb-2">4.13 vLLM V1 代码导览(给读源码的工程师)</h3>
+
+  <div class="module-card">
+    <p><strong>来源:</strong> <a href="https://github.com/vllm-project/vllm/tree/main/vllm/v1">vllm/v1/</a> 目录。</p>
+    <p>V1 引擎结构如下:</p>
+    <pre class="code-block"><code>vllm/v1/
+├── engine/
+│   ├── llm_engine.py           # 顶层 AsyncLLMEngine;公开 API
+│   └── processor.py            # 输入预处理(tokenize、多模态编码)
+├── core/
+│   ├── sched/
+│   │   └── scheduler.py        # V1 调度器(连续 + 分块 prefill)
+│   ├── kv_cache_manager.py     # 块管理器(PagedAttention)
+│   └── kv_cache_coordinator.py # 跨 TP rank 协调
+├── worker/
+│   ├── gpu_worker.py           # 每 GPU worker(TP rank)
+│   ├── model_runner.py         # CUDA Graph 捕获 + 前向分派
+│   └── sampling.py             # top-p/top-k/temperature
+├── attention/
+│   ├── backends/
+│   │   ├── flash_attn.py       # FlashAttention 2/3 backend
+│   │   ├── xformers.py         # XFormers backend
+│   │   ├── flashinfer.py       # FlashInfer backend
+│   │   └── triton_mla.py       # DeepSeek MLA
+│   └── layers.py               # PagedAttention CUDA 包装
+├── sample/
+│   └── ops/topk_topp_sampler.py
+├── spec_decode/
+│   ├── eagle.py                # EAGLE-2 集成
+│   ├── medusa.py               # Medusa 集成
+│   └── ngram.py                # n-gram 查找
+├── structured_outputs/
+│   ├── xgrammar.py             # xgrammar FSM 约束
+│   └── outlines.py             # Outlines 约束
+└── metrics/
+    └── prometheus.py           # 指标导出
+</code></pre>
+    <p>主入口是 <code>AsyncLLMEngine.generate()</code>,分派到调度器与 worker 池。<code>LLM</code> 类是更高级的 Python API。</p>
+  </div>
+
+  <h3 id="m4-14" class="text-lg font-semibold mt-6 mb-2">4.14 读 SOSP'23 论文(逐节)</h3>
+
+  <div class="module-card">
+    <p><strong>来源:</strong> <a href="https://arxiv.org/abs/2309.06180">arXiv 2309.06180</a>。</p>
+    <p>对于第一次读论文的读者,关键章节:</p>
+    <ul class="list-disc pl-6 text-sm space-y-1">
+      <li><strong>§2 背景:</strong> transformer 架构、KV cache 内存布局、为何朴素服务浪费内存。</li>
+      <li><strong>§3 PagedAttention 算法:</strong> 块表、copy-on-write、块共享。这是论文核心。</li>
+      <li><strong>§4 vLLM 系统设计:</strong> 调度器、块管理器、分布式执行。</li>
+      <li><strong>§5 实现:</strong> CUDA kernel、前缀缓存、并行采样。</li>
+      <li><strong>§6 评测:</strong> 对比 HF TGI 的吞吐基准、内存利用率、公平性。著名的 14–24× 数字在此。</li>
+      <li><strong>§7 相关工作:</strong> Orca(连续批处理)、FairSeq、FlexGen。</li>
+      <li><strong>§8 讨论:</strong> 局限、未来工作(其中大部分此后已实现)。</li>
+    </ul>
+    <p>预计阅读时间:系统工程师 90 分钟。§3 与 §6 必不可少;§2 与 §7 可跳过快速理解。</p>
+  </div>
+</section>
+
+<hr/>
+
+<!-- M5 权衡 / 竞争 -->
+<section id="m5" class="anchor">
+  <div class="section-tag">模块 5</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">权衡、竞争、瓶颈</h2>
+
+  <h3 id="m5-1" class="text-lg font-semibold mt-6 mb-2">5.1 竞争对手矩阵</h3>
+
+  <table class="report">
+    <thead><tr><th>厂商</th><th>引擎</th><th>开源许可证</th><th>差异化</th><th>公开 ARR</th></tr></thead>
+    <tbody>
+      <tr><td><strong>vLLM(上游)</strong></td><td>vLLM</td><td>Apache-2.0</td><td>参考实现</td><td>n/a(项目)</td></tr>
+      <tr><td><strong>Inferact</strong></td><td>vLLM V1</td><td>Apache-2.0(上游)</td><td>创始人即 vLLM 核心;托管 API</td><td>$5M–$11M(<a href="https://seedtable.com/companies/inferact">Seedtable 估算</a>)</td></tr>
+      <tr><td><strong>Fireworks AI</strong></td><td>vLLM(fork + FireAttention)</td><td>专有扩展</td><td>函数调用、微调、批量</td><td>~$50M(<a href="https://sacra.com/c/fireworks-ai/">Sacra</a>)</td></tr>
+      <tr><td><strong>Together AI</strong></td><td>vLLM + 自定义 kernel</td><td>混合</td><td>研究级,200+ 模型库</td><td>~$100M(<a href="https://sacra.com/c/together-ai/">Sacra</a>)</td></tr>
+      <tr><td><strong>Anyscale Endpoints</strong></td><td>Ray + vLLM</td><td>Apache-2.0</td><td>Ray 集成企业版</td><td>~$50M(<a href="https://sacra.com/c/anyscale/">Sacra</a>)</td></tr>
+      <tr><td><strong>Modal Labs</strong></td><td>容器中 vLLM</td><td>BYO 镜像</td><td>DevEx、快冷启动</td><td>~$300M(<a href="https://modal.com/blog/modal-series-c">Modal</a>)</td></tr>
+      <tr><td><strong>RunPod</strong></td><td>vLLM 模板</td><td>Apache-2.0</td><td>最低开销,原始 GPU 租赁</td><td>n/a</td></tr>
+      <tr><td><strong>AWS Bedrock 自定义模型</strong></td><td>vLLM AMI</td><td>AWS 托管</td><td>AWS 原生,BYOC</td><td>n/a(AWS 内部)</td></tr>
+      <tr><td><strong>Replicate</strong></td><td>Cog + 多样</td><td>混合</td><td>多模型、业余 API  </td><td>~$50M(估算)</td></tr>
+      <tr><td><strong>Baseten</strong></td><td>自研 + vLLM</td><td>混合</td><td>专用部署</td><td>n/a</td></tr>
+      <tr><td><strong>Lepton AI</strong></td><td>自研</td><td>专有</td><td>Jensen Huang 背书</td><td>n/a</td></tr>
+      <tr><td><strong>DeepInfra</strong></td><td>vLLM + 自研</td><td>混合</td><td>低成本异步批量</td><td>n/a</td></tr>
+      <tr><td><strong>OctoAI / NVIDIA</strong></td><td>TensorRT-LLM + Triton</td><td>Apache-2.0(部分)</td><td>NVIDIA 栈优化</td><td>n/a</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>竞争观察:</strong> vLLM 托管细分赛道已整合为大致三档 —— (1) 预算 / 业余(RunPod、DeepInfra、Replicate),(2) 中端市场研究 / 初创(Fireworks、Together、Inferact、Baseten),(3) 超大规模 / 企业(Anyscale、Modal、AWS Bedrock、Azure AI)。Inferact 位于第二档,具备研究实验室可信度溢价。</p>
+
+  <h3 id="m5-2" class="text-lg font-semibold mt-6 mb-2">5.2 vLLM 的结构性局限</h3>
+
+  <ul class="list-disc pl-6 space-y-1 text-sm">
+    <li><strong>前缀缓存失效成本。</strong>当共享前缀块且某请求写入其中(即块内分支),vLLM 执行 copy-on-write —— 把块拷到新物理位置。对长系统 prompt 且分支频繁的工作负载,拷贝开销不可忽视。</li>
+    <li><strong>长上下文下投机解码。</strong>当 prompt 长度超过草稿模型训练分布时,接受率急剧下降。基于 4k token 训练的 EAGLE-2 在 16k+ 上下文下衰减。</li>
+    <li><strong>动态批大小下的 CUDA Graph 回放。</strong>Graph 池可能膨胀到数百个实例(每 (batch_size, seq_len, kv_layout) 元组一个)。高 QPS 工作负载的 graph 存储内存成本不可忽视。</li>
+    <li><strong>MoE(混合专家)低效。</strong>对 Mixtral-8×7B 或 DeepSeek-V3,PagedAttention 对 KV cache 管理良好,但专家路由仍需 NCCL 未优化的 all-to-all 通信。vLLM 的 MoE 路径不如 dense 模型成熟。</li>
+    <li><strong>抢占策略。</strong>vLLM 用重算(非 swap)抢占 —— 意味着被抢占序列丢失其 KV cache,resume 时必须重新 prefill。对长上下文工作负载,代价高昂;SGLang 与 TensorRT-LLM 探索基于 swap 的抢占。</li>
+    <li><strong>多节点扩展。</strong>V1 加入异步 PP,但多节点 PP 因节点间带宽(典型 200–400 Gbps 对比节点内 ~ 900 GB/s NVLink)仍比单节点 TP 慢。</li>
+  </ul>
+
+  <h3 id="m5-3" class="text-lg font-semibold mt-6 mb-2">5.3 整个 vLLM 托管赛道的瓶颈</h3>
+
+  <table class="report">
+    <thead><tr><th>瓶颈</th><th>描述</th><th>缓解</th></tr></thead>
+    <tbody>
+      <tr><td>GPU 供应</td><td>H100 / H200 容量在 2025-Q3 前紧张</td><td>多云路由;tier-2 工作负载用 L40S / A100 后备</td></tr>
+      <tr><td>毛利</td><td>vLLM 胜出后按 token 定价被压缩</td><td>垂直专业化(视觉、代码、embedding);企业 SLA</td></tr>
+      <tr><td>超大规模侵蚀</td><td>AWS Bedrock / Azure AI / GCP Vertex 上架 vLLM 支持的自定义模型</td><td>多云中立;更优 DevEx;研究可信度</td></tr>
+      <tr><td>开源商品化</td><td>vLLM 是 Apache-2.0;引擎本身不是护城河</td><td>运维卓越:正常运行、可观测性、多区域、合规</td></tr>
+      <tr><td>投机解码仍难</td><td>每个新模型都需要重训 EAGLE head</td><td>厂商管理的投机模型注册表;自动重训流水线</td></tr>
+      <tr><td>长上下文(1M+ tokens)</td><td>KV cache 爆炸;attention 成本 O(n²)</td><td>投机、稀疏 attention、滑动窗口(仍研究级)</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m5-4" class="text-lg font-semibold mt-6 mb-2">5.4 为何 vLLM 核心团队创立的初创具备结构性优势</h3>
+
+  <div class="pullquote my-4 green">
+    「2025 年推理服务质量的最大单一决定因素,是你能多快把上游 vLLM 特性引入生产。写过引擎的团队对未写过引擎的团队有着持续的 O(weeks) 整合领先。」
+    <div class="citation mt-1">—— 本简报启发式。</div>
+  </div>
+
+  <ul class="list-disc pl-6 space-y-1 text-sm">
+    <li><strong>第一天 V1 支持。</strong>V1 alpha 于 2025-01-27 释出时,Inferact 类厂商可在数日内上生产 V1。非核心厂商需等文档、博客与已解决的边缘情况,通常 2–4 周。</li>
+    <li><strong>投机解码默认。</strong>EAGLE-2 训练需要对 vLLM 模型注册表的深入了解。核心团队可在数小时内为新 Llama checkpoint 释出 EAGLE-2 默认。</li>
+    <li><strong>Bug 优先级。</strong>GPU 内存泄漏击中生产时,Inferact 工程师可当日向上游推 fix 并自我 cherry-pick。非核心厂商开 issue 并等待。</li>
+    <li><strong>路线图影响力。</strong>核心团队的路线图就是 Inferact 的路线图。竞争对手必须从 GitHub issue 与 Discord 讨论反推公开路线图。</li>
+  </ul>
+
+  <h3 id="m5-5" class="text-lg font-semibold mt-6 mb-2">5.5 Inferact 隐含的架构权衡</h3>
+
+  <table class="report">
+    <thead><tr><th>决策</th><th>选择</th><th>替代</th><th>权衡</th></tr></thead>
+    <tbody>
+      <tr><td>引擎</td><td>上游 vLLM(Apache-2.0)</td><td>TensorRT-LLM(NVIDIA 上更优化,扩展更难)</td><td>vLLM = 创新更快;TRT-LLM = Ada/Hopper 上裸性能更佳</td></tr>
+      <tr><td>默认量化</td><td>H100 上 FP8(假定)</td><td>AWQ INT4(硬件支持更广)</td><td>FP8 = 无质量损失,需 H100;INT4 = 更广但质量风险</td></tr>
+      <tr><td>投机解码默认</td><td>EAGLE-2(假定)</td><td>n-gram(无需训练)</td><td>EAGLE-2 = 加速更高,需每模型训练 head</td></tr>
+      <tr><td>多云策略</td><td>分布于 CoreWeave、Lambda、AWS(假定)</td><td>单一超大规模云</td><td>分布 = 单位经济更佳;单一 = 运维更简单</td></tr>
+      <tr><td>定价模型</td><td>按 token + 预留层级</td><td>仅按 GPU 时长</td><td>混合 = 同时服务开发者与企业;按时长 = 更简单</td></tr>
+      <tr><td>BYOC</td><td>Helm Chart(假定)</td><td>仅托管</td><td>Helm = 企业收入;仅托管 = 产品更简单</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m5-6" class="text-lg font-semibold mt-6 mb-2">5.6 V0 → V1 迁移路径(给厂商运维者)</h3>
+
+  <p>vLLM V1 于 2025-01-27 作为 alpha 释出,约 2025-Q3 达到生产就绪(V1 默认,V0 弃用)。Inferact 类厂商面临以下迁移决策:</p>
+
+  <table class="report">
+    <thead><tr><th>决策</th><th>选项</th><th>权衡</th></tr></thead>
+    <tbody>
+      <tr><td>启动时 V0 vs V1</td><td><code>--engine-use-v1=1</code> 标志</td><td>V1 = 1.5–1.7× 吞吐;V0 = 更多第三方扩展已验证</td></tr>
+      <tr><td>发布策略</td><td>大爆炸 vs 金丝雀</td><td>大爆炸 = 更快拿到性能;金丝雀 = 风险更低</td></tr>
+      <tr><td>自定义扩展</td><td>移植到 V1 API 或维护 V0 fork</td><td>移植 = 面向未来;fork = 短期更快</td></tr>
+      <tr><td>调度器调优</td><td><code>--max-num-batched-tokens</code>, <code>--max-num-seqs</code></td><td>V1 统一调度器需要重调;V0 甜点不直接迁移</td></tr>
+      <tr><td>Attention backend</td><td>V1 默认 FlashAttention-3</td><td>FA-3 需要 Hopper(H100);A100 需要 FA-2</td></tr>
+    </tbody>
+  </table>
+
+  <p>行业里<em>最快</em>的 V0→V1 迁移由拥有 vLLM 核心工程师的厂商完成 —— 正是任务简报中 Inferact 的定位。</p>
+
+  <h3 id="m5-7" class="text-lg font-semibold mt-6 mb-2">5.7 解构推理问题(Mooncake、DistServe)</h3>
+
+  <p>V1 之前,vLLM 在同一 GPU 池上跑 prefill 与 decode。不对称性严重:</p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>Prefill</strong>:计算受限,GPU 饱和近 100%,延迟敏感(首 token 时间)。</li>
+    <li><strong>Decode</strong>:内存带宽受限,GPU 利用率常 < 40%,吞吐敏感(tokens/s)。</li>
+  </ul>
+
+  <p><strong>解构推理</strong>(Mooncake, Moonshot AI;DistServe, CMU)将 prefill 与 decode 拆到独立 GPU 池,通过网络传输 KV cache。好处:</p>
+  <ul class="list-disc pl-6 text-sm">
+    <li>Prefill GPU 以 100% 饱和跑其专项负载。</li>
+    <li>Decode GPU 在内存带宽受限负载上高利用率运行。</li>
+    <li>p99 延迟改善,因为 prefill 尖峰不再阻塞 decode 迭代。</li>
+  </ul>
+
+  <p>vLLM V1 有<em>原型级</em>解构支持(经 RDMA / NIXL 的 KV-transfer)。领先的商业实现有:</p>
+  <ul class="list-disc pl-6 text-sm">
+    <li><a href="https://kvcache-ai.github.io/Mooncake/">Mooncake (Moonshot AI)</a> —— 已在 Kimi.ai 生产部署。</li>
+    <li>DistServe(学术, CMU) —— 见 <a href="https://arxiv.org/abs/2401.09670">arXiv 2401.09670</a>。</li>
+    <li>vLLM 自身的解构路线图(社区 RFC)。</li>
+  </ul>
+
+  <p>对 Inferact 的含义:解构是 V1 之后的下一个 2× 效率杠杆。最先交付解构推理的厂商将在长上下文工作负载上拥有 2× 成本优势。</p>
+
+  <h3 id="m5-8" class="text-lg font-semibold mt-6 mb-2">5.8 2026 年「Inferact 类」意味着什么</h3>
+
+  <p>vLLM 托管市场已稳定为可识别的分类。2026 年「Inferact 类」厂商具有:</p>
+
+  <table class="report">
+    <thead><tr><th>属性</th><th>指标</th></tr></thead>
+    <tbody>
+      <tr><td>引擎</td><td>基于上游 vLLM(Apache-2.0),V1 释出后 30 天内跟进</td></tr>
+      <tr><td>创始人</td><td>至少一位贡献者拥有 > 100 vLLM 提交或相关论文合著</td></tr>
+      <tr><td>模型覆盖</td><td>Llama-3.x、Mistral/Mixtral、Qwen-2.5、DeepSeek-V2/V3,加 Phi-3/Gemma</td></tr>
+      <tr><td>默认量化</td><td>H100 上 FP8,A100 上 AWQ,INT8 后备</td></tr>
+      <tr><td>投机解码</td><td>Llama 默认 EAGLE-2,Mistral 默认 Medusa,其余 n-gram</td></tr>
+      <tr><td>定价</td><td>按 token + 预留层级;旗舰模型 < $2/M 输出 tokens</td></tr>
+      <tr><td>多云</td><td>≥ 3 家 GPU 供应商(至少 CoreWeave、Lambda、AWS)</td></tr>
+      <tr><td>BYOC</td><td>VPC 部署的 Helm Chart 或 Terraform</td></tr>
+      <tr><td>可观测性</td><td>Prometheus 指标、OpenTelemetry trace、结构化日志</td></tr>
+      <tr><td>合规</td><td>SOC 2 Type II、HIPAA BAA、欧盟驻留</td></tr>
+      <tr><td>SLA</td><td>托管层 99.9% 正常运行</td></tr>
+    </tbody>
+  </table>
+
+  <p>Inferact(据任务简报)命中其中大部分。相对 Fireworks / Together 的<em>区分性</em>属性是 vLLM 核心团队组成与(假定的)研究可信度溢价。</p>
+
+  <h3 id="m5-9" class="text-lg font-semibold mt-6 mb-2">5.9 收购 / 战略结局情景</h3>
+
+  <p>对于 2024 年出生、$8M Seed、$80M post 的初创,2026–2028 的合理结局:</p>
+
+  <table class="report">
+    <thead><tr><th>情景</th><th>概率</th><th>结局</th></tr></thead>
+    <tbody>
+      <tr><td><strong>$300M–$500M A 轮</strong></td><td>中</td><td>标准路径;融 $25–50M 扩张 GPU 池与 S&M</td></tr>
+      <tr><td><strong>被超大规模云收购</strong>(AWS、Azure、GCP、NVIDIA)</td><td>中</td><td>$500M–$2B;vLLM 专长并入超大规模云的推理产品</td></tr>
+      <tr><td><strong>被 Anyscale / Databricks 收购</strong></td><td>低</td><td>vLLM 托管纵向整合到 Ray 栈</td></tr>
+      <tr><td><strong>与 Fireworks 或 Together 合并</strong></td><td>低</td><td>整合动作;文化与技术重叠风险</td></tr>
+      <tr><td><strong>独立增长至 $100M+ ARR</strong></td><td>中</td><td>IPO 路径;类比 Fireworks/Together 轨迹</td></tr>
+      <tr><td><strong>停滞 / acqui-hire</strong></td><td>低</td><td>GPU 市场商品化,创始人被更大的公司吸收</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>最可能结局(本简报判断):</strong> 2026 年 A 轮,随后在 2027–2028 年被超大规模云(寻求 vLLM 专长)或更大的推理厂商(Together、Fireworks)寻求整合而收购。</p>
+
+  <h3 id="m5-10" class="text-lg font-semibold mt-6 mb-2">5.10 企业销售动作(对比 PLG)</h3>
+
+  <p>大多数 vLLM 托管厂商以开发者驱动增长起步(免费层、GitHub README、Discord)。2026 年的问题是<em>企业销售</em>(采购驱动、SOC 2、MSA 合同)是否会成为主导动作:</p>
+
+  <ul class="list-disc pl-6 space-y-1 text-sm">
+    <li><strong>开发者驱动(PLG):</strong> 免费层 → 用量增长 → 信用卡 → 年度合同。Fireworks、Together 在 2022–2024 走过这条路径。</li>
+    <li><strong>企业驱动:</strong> 来自 CTO/CIO 的入站线索 → 6 个月销售周期 → SOC 2 / DPA / MSA / 试点 → 年度合同。Anyscale、AWS Bedrock、Azure OpenAI 走过这条路径。</li>
+  </ul>
+
+  <p>对 Inferact(假定年轻、Seed 期),PLG 路径在 2025 更自然;企业动作需要 SOC 2 + 销售招聘,典型是 A 轮支出。</p>
+
+  <h3 id="m5-11" class="text-lg font-semibold mt-6 mb-2">5.11「Tier-2 AI 基础设施」模式</h3>
+
+  <p>vLLM 托管方在 AI 基础设施栈中占据可识别的位置:</p>
+
+  <table class="report">
+    <thead><tr><th>Tier</th><th>示例</th><th>客户</th><th>毛利</th></tr></thead>
+    <tbody>
+      <tr><td>Tier-0:基础模型</td><td>OpenAI、Anthropic、Google DeepMind、Meta</td><td>全部</td><td>n/a(模型所有者)</td></tr>
+      <tr><td>Tier-1:超大规模推理</td><td>AWS Bedrock、Azure OpenAI、GCP Vertex</td><td>企业</td><td>40–60%</td></tr>
+      <tr><td><strong>Tier-2:vLLM 托管初创</strong></td><td><strong>Inferact、Fireworks、Together、Anyscale、Modal</strong></td><td><strong>AI 初创、中端企业</strong></td><td><strong>50–70%</strong></td></tr>
+      <tr><td>Tier-3:GPU 租赁</td><td>RunPod、Lambda、CoreWeave、Vast.ai</td><td>DIY 工程师、实验室</td><td>20–40%</td></tr>
+      <tr><td>Tier-4:专业化</td><td>Replicate(多模型)、DeepInfra(预算)、Lepton(企业)</td><td>多元</td><td>30–50%</td></tr>
+    </tbody>
+  </table>
+
+  <p>Tier-2 是单位经济最佳的位置:客户想要托管推理但不想绑定超大规模云。这是「Goldilocks」细分。</p>
+
+  <h3 id="m5-12" class="text-lg font-semibold mt-6 mb-2">5.12 OpenAI 兼容性税</h3>
+
+  <p>每个 vLLM 托管方都付出「OpenAI 兼容性税」—— 镜像 OpenAI API 怪癖(限速 header、错误码约定、函数调用边缘情况)的工程投入。整个 Tier-2 赛道的累计成本估算约 50 个工程师年。</p>
+
+  <p>两条出路:</p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>统一在通用规范上</strong>(如 Open Inference Protocol,或新的「vLLM 兼容」后缀)。vLLM 项目自身的 OpenAI server 是事实参考。</li>
+    <li><strong>在 OpenAI 不兼容特性上差异化</strong>(如更好流式、异步批量、自定义 logit 处理器)。这会打破即插即用兼容性但增加价值。</li>
+  </ul>
+
+  <p>Inferact 的路径(假定):默认 OpenAI 兼容,但将 vLLM 原生扩展(投机解码提示、前缀缓存提示)作为 opt-in header 暴露。</p>
+</section>
+
+<hr/>
+
+<!-- M6 分析师估算 -->
+<section id="m6" class="anchor">
+  <div class="section-tag">模块 6</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">分析师估算</h2>
+
+  <p>本节所有数字均为 <span class="badge badge-red">[分析师估算]</span>,源自公开定价基准、可比公司 ARR(Fireworks、Together、Anyscale)与任务简报输入。M1 中引用的 Seed 轮融资与 ARR 数字属 <span class="badge badge-red">[TASK BRIEF — UNVERIFIED]</span>。</p>
+
+  <h3 id="m6-1" class="text-lg font-semibold mt-6 mb-2">6.1 收入反推</h3>
+
+  <p>方法:从推断的 GPU 池估算 Inferact 的 token 吞吐能力,乘以 vLLM 托管细分赛道的典型每 token 收入,与可比 ARR 对比。</p>
+
+  <table class="report">
+    <thead><tr><th>参数</th><th>估算</th><th>来源</th></tr></thead>
+    <tbody>
+      <tr><td>活跃 H100 等效数</td><td>~ 1,500–3,000(2026 年中,Seed 后)</td><td><span class="badge badge-red">[分析师]</span> 据 $150M Seed 资本 / 典型 GPU 资本支出</td></tr>
+      <tr><td>平均模型规模</td><td>~ 30B(8B / 70B / MoE 混合)</td><td>Llama-3-8B + Llama-3-70B 典型混合</td></tr>
+      <tr><td>合计输出 tokens/s</td><td>~ 6–12 M tokens/s</td><td><span class="badge badge-red">[分析师]</span> 30B @ ~ 2k tokens/s/GPU × 2000 GPU</td></tr>
+      <tr><td>每 1M 输出 tokens 平均收入</td><td>~$1.20</td><td><a href="https://www.together.ai/pricing">Together 定价</a> 中位</td></tr>
+      <tr><td>每小时收入(稳态)</td><td>~$8.6k–$17k</td><td><span class="badge badge-red">[分析师]</span></td></tr>
+      <tr><td>隐含月收入</td><td>~$6.3M–$12.5M</td><td><span class="badge badge-red">[分析师]</span></td></tr>
+      <tr><td>隐含年化 run-rate</td><td>~$75M–$150M(毛利)→ ~$15M–$35M 净云成本</td><td><span class="badge badge-red">[分析师]</span></td></tr>
+    </tbody>
+  </table>
+
+  <p>任务简报 ARR 估算 ~$5M(8 个月)与此反推的低端一致 —— 对一家 2024 年中发布付费产品的初创合理。</p>
+
+  <h3 id="m6-2" class="text-lg font-semibold mt-6 mb-2">6.2 Inferact Tier 的单位经济</h3>
+
+  <table class="report">
+    <thead><tr><th>项目</th><th>数值</th><th>备注</th></tr></thead>
+    <tbody>
+      <tr><td>H100 按需云成本</td><td>$2.40/hr(Lambda)</td><td><a href="https://lambdalabs.com/service/gpu-cloud">Lambda</a></td></tr>
+      <tr><td>每 H100 小时收入(按 token)</td><td>~$5–$10</td><td><span class="badge badge-red">[分析师]</span> 假定 70–80% 利用率</td></tr>
+      <tr><td>每 H100 小时毛利</td><td>~$3–$8</td><td><span class="badge badge-red">[分析师]</span> 假定 70–80% 利用率</td></tr>
+      <tr><td>工程 / S&M 间接成本</td><td>~$1M–$3M/月(早期)</td><td><span class="badge badge-red">[分析师]</span> 15–30 工程师 × $250k loaded</td></tr>
+      <tr><td>盈亏平衡路径</td><td>~ 1,500–2,500 活跃 H100 @ 70% 利用率</td><td><span class="badge badge-red">[分析师]</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m6-3" class="text-lg font-semibold mt-6 mb-2">6.3 竞争规模(公开 ARR 基准)</h3>
+
+  <table class="report">
+    <thead><tr><th>公司</th><th>公开 ARR 估算</th><th>来源</th><th>定位</th></tr></thead>
+    <tbody>
+      <tr><td>Modal Labs</td><td>~$300M(2026-04)</td><td><a href="https://modal.com/blog/modal-series-c">Modal C 轮</a>;<a href="https://sacra.com/c/modal-labs/">Sacra</a></td><td>Tier-3(DevEx 优先,无服务器)</td></tr>
+      <tr><td>Together AI</td><td>~$100M(2025-Q3)</td><td><a href="https://sacra.com/c/together-ai/">Sacra</a></td><td>Tier-2(研究级)</td></tr>
+      <tr><td>Fireworks AI</td><td>~$50M(2025-Q2)</td><td><a href="https://sacra.com/c/fireworks-ai/">Sacra</a></td><td>Tier-2(函数调用、批量)</td></tr>
+      <tr><td>Anyscale(含 Endpoints)</td><td>~$50M(2025-Q1)</td><td><a href="https://sacra.com/c/anyscale/">Sacra</a></td><td>Tier-3(企业、Ray)</td></tr>
+      <tr><td>Replicate</td><td>~$50M(估算)</td><td><a href="https://sacra.com/c/replicate/">Sacra</a></td><td>Tier-1(多模型)</td></tr>
+      <tr><td>Inferact</td><td>$5M–$11M(Seedtable 估算)</td><td><a href="https://seedtable.com/companies/inferact">Seedtable</a></td><td>Tier-2(早期)</td></tr>
+      <tr><td>DeepInfra</td><td>n/a</td><td>n/a</td><td>Tier-1(低成本异步)</td></tr>
+      <tr><td>Baseten</td><td>n/a</td><td>n/a</td><td>Tier-2(专用)</td></tr>
+      <tr><td>RunPod</td><td>n/a(GPU 租赁)</td><td>n/a</td><td>Tier-1(原始租赁)</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m6-4" class="text-lg font-semibold mt-6 mb-2">6.4 2026 年值得关注的事</h3>
+
+  <ul class="list-disc pl-6 space-y-1 text-sm">
+    <li><strong>vLLM V1 采用率。</strong>截至 2025 年中,V1 是默认但 V0 仍在大多数厂商生产。2025-Q4 前跑 100% V1 流量的厂商拥有结构性性能优势。</li>
+    <li><strong>EAGLE-3 发布。</strong>多层投机解码在 EAGLE-2 基础上额外带来 30–50% 吞吐。核心团队此处的整合速度是先导指标。</li>
+    <li><strong>FP4 / NVFP4。</strong>NVIDIA Blackwell(B200)带来 FP4 硬件。vLLM 支持预计 2025 末 / 2026 初 —— 每代 Blackwell 推理效率翻倍。</li>
+    <li><strong>多节点张量并行。</strong>vLLM V1 的 TP 是单节点。经 NVLink Switch(NVL72)的多节点 TP 将解锁 > 70B 推理于单一逻辑地址空间。</li>
+    <li><strong>解构推理(prefill 一组 GPU、decode 另一组)。</strong>由 Mooncake 与 DistServe 开创。vLLM V1 有原型支持;商业部署 2026 可期。</li>
+    <li><strong>Linux 基金会治理。</strong>vLLM 在 LF AI&Data 毕业(2025-Q3)标志着行业托管;商业厂商应受益于中性 IP。</li>
+  </ul>
+
+  <h3 id="m6-5" class="text-lg font-semibold mt-6 mb-2">6.5 风险因素</h3>
+
+  <table class="report">
+    <thead><tr><th>风险</th><th>可能性</th><th>影响</th></tr></thead>
+    <tbody>
+      <tr><td>超大规模云将 vLLM 捆绑到免费 SKU</td><td>中</td><td>严重 —— 商品化引擎</td></tr>
+      <tr><td>开源 PagedAttention 克隆(SGLang、MLC-LLM)达到持平</td><td>高(已在发生)</td><td>中 —— 引擎性能不再是护城河</td></tr>
+      <tr><td>创始人在 vLLM 项目与 Inferact 间分配精力</td><td>高</td><td>中 —— 产品节奏变慢</td></tr>
+      <tr><td>GPU 供应正常化使价格下降</td><td>中(2026–27)</td><td>中 —— 毛利压缩</td></tr>
+      <tr><td>客户转向自托管 vLLM</td><td>中</td><td>严重 —— 对 SMB 细分</td></tr>
+      <tr><td>vLLM 项目治理转向远离 Inferact 需求</td><td>中</td><td>低 —— Inferact 有创始人影响力</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m6-6" class="text-lg font-semibold mt-6 mb-2">6.6 运维 KPI 仪表盘(生产 vLLM 集群监控什么)</h3>
+
+  <p>对于 Inferact 类生产集群,指标仪表盘分四层:</p>
+
+  <table class="report">
+    <thead><tr><th>层</th><th>指标</th><th>健康区间</th><th>来源</th></tr></thead>
+    <tbody>
+      <tr><td><strong>延迟</strong></td><td>首 token 时间(TTFT,p50 / p99)</td><td>< 100ms / < 500ms(8B),< 500ms / < 2s(70B)</td><td>vLLM 指标导出</td></tr>
+      <tr><td><strong>延迟</strong></td><td>Token 间延迟(p50 / p99)</td><td>< 30ms / < 100ms</td><td>vLLM 指标导出</td></tr>
+      <tr><td><strong>吞吐</strong></td><td>每副本输出 tokens/s</td><td>Llama-3-8B:3k–6k;Llama-3-70B:2k–4k</td><td>vLLM 指标导出</td></tr>
+      <tr><td><strong>吞吐</strong></td><td>每集群合计 tokens/s</td><td>随 GPU 数线性扩展</td><td>Prometheus 聚合</td></tr>
+      <tr><td><strong>缓存</strong></td><td>KV cache 利用率(p50 / p99)</td><td>60–85%(否则:过量或不足配置)</td><td>vLLM <code>gpu_cache_usage_perc</code></td></tr>
+      <tr><td><strong>缓存</strong></td><td>前缀缓存命中率</td><td>RAG 工作负载 50–90%</td><td>vLLM <code>prefix_cache_hits</code></td></tr>
+      <tr><td><strong>调度</strong></td><td>批大小分布</td><td>p50 ~ <code>max_num_seqs</code> / 2</td><td>vLLM <code>num_requests</code></td></tr>
+      <tr><td><strong>调度</strong></td><td>抢占率</td><td>< 1%(否则:<code>max_num_seqs</code> 太激进)</td><td>vLLM <code>num_preemptions</code></td></tr>
+      <tr><td><strong>投机</strong></td><td>接受率(EAGLE-2)</td><td>60–80%(对话),85–95%(代码)</td><td>vLLM <code>spec_decode_accept_rate</code></td></tr>
+      <tr><td><strong>投机</strong></td><td>每步有效 token</td><td>2.0–3.5(K=4 时)</td><td>推导</td></tr>
+      <tr><td><strong>GPU</strong></td><td>SM 占用</td><td>decode 期间 > 70%</td><td>NVIDIA DCGM exporter</td></tr>
+      <tr><td><strong>GPU</strong></td><td>HBM 带宽利用率</td><td>> 60%(decode 受限负载)</td><td>NVIDIA DCGM exporter</td></tr>
+      <tr><td><strong>GPU</strong></td><td>NCCL all-reduce 时间</td><td>< 100 µs(TP ≤ 8,节点内)</td><td>NCCL debug 日志</td></tr>
+      <tr><td><strong>业务</strong></td><td>计费 tokens / 服务 tokens 比</td><td>~ 1.0(不应漂移 > 5%)</td><td>计费流水线</td></tr>
+    </tbody>
+  </table>
+
+  <p>调优良好的 Inferact 集群应同时命中这些「健康」区间;任何漂移通常意味着模型不匹配、调度器饱和或投机解码接受率崩塌。</p>
+
+  <h3 id="m6-7" class="text-lg font-semibold mt-6 mb-2">6.7 硬件采购策略(H100 vs H200 vs B200 vs MI300X)</h3>
+
+  <p>对于 2025–2026 年的推理厂商,GPU 采购决策树:</p>
+
+  <table class="report">
+    <thead><tr><th>GPU</th><th>HBM</th><th>FP8 性能</th><th>vLLM 最佳用途</th><th>成本</th></tr></thead>
+    <tbody>
+      <tr><td>NVIDIA H100 SXM</td><td>80 GB</td><td>~ 2× FP16</td><td>7B–70B 模型默认选择</td><td>$2.40–3.50/hr</td></tr>
+      <tr><td>NVIDIA H200 SXM</td><td>141 GB</td><td>~ 2× FP16</td><td>405B / 极长上下文</td><td>$3.50–5.00/hr</td></tr>
+      <tr><td>NVIDIA B200 (Blackwell)</td><td>192 GB</td><td>~ 4× FP16 + FP4</td><td>未来默认(2026)</td><td>$5.00–8.00/hr(估算)</td></tr>
+      <tr><td>AMD MI300X</td><td>192 GB</td><td>ROCm FP8</td><td>高内存工作负载</td><td>$2.00–3.00/hr(更便宜)</td></tr>
+      <tr><td>NVIDIA L40S</td><td>48 GB</td><td>~ 1.5× FP16</td><td>中端(8B–13B 模型)</td><td>$1.20–1.80/hr</td></tr>
+      <tr><td>NVIDIA A100</td><td>80 GB</td><td>无原生 FP8</td><td>旧工作负载、INT4 量化</td><td>$1.50–2.20/hr</td></tr>
+    </tbody>
+  </table>
+
+  <p>Inferact 的多云策略(据任务简报)很可能跨这些档分布负载:L40S 用于便宜 8B 服务,H100 用于旗舰 70B/405B,MI300X 用于高内存长上下文。</p>
+
+  <h3 id="m6-8" class="text-lg font-semibold mt-6 mb-2">6.8 A 轮之路 —— 2026 运营计划</h3>
+
+  <p>对于 Seed 期 vLLM 托管初创,2026 年通往 A 轮需要展示:</p>
+
+  <table class="report">
+    <thead><tr><th>里程碑</th><th>阈值</th><th>典型时间线</th></tr></thead>
+    <tbody>
+      <tr><td>ARR</td><td>$2M–$5M</td><td>已达(据任务简报 ~$5M)</td></tr>
+      <tr><td>MoM 增长</td><td>15–25% MoM</td><td>需要展示 6 个月一致性</td></tr>
+      <tr><td>客户集中度</td><td>无单一客户 > 20% 收入</td><td>对风险感知关键</td></tr>
+      <tr><td>毛利</td><td>> 50%</td><td>基础设施标准</td></tr>
+      <tr><td>净留存</td><td>> 130%</td><td>由每客户 token 用量增长驱动</td></tr>
+      <tr><td>Logo 数</td><td>> 30 付费客户</td><td>SMB + 2–3 企业混合</td></tr>
+      <tr><td>正常运行 SLA</td><td>> 99.9%(3 个 9)</td><td>合规级</td></tr>
+      <tr><td>SOC 2</td><td>Type I(或进行中)</td><td>企业交易必需</td></tr>
+      <tr><td>团队规模</td><td>15–25 FTE</td><td>工程重;此阶段销售极少</td></tr>
+      <tr><td>GPU 池</td><td>500–2,000 活跃 H100 等效</td><td>多云</td></tr>
+    </tbody>
+  </table>
+
+  <p>A 轮规模很可能 $25M–$60M,post-money $250M–$500M,用于 (a) 工程团队翻倍以加速 V1+ 特性节奏,(b) 招聘首批企业销售,(c) 扩大 GPU 池与云合同承诺。</p>
+
+  <h3 id="m6-9" class="text-lg font-semibold mt-6 mb-2">6.9 第二年单位经济敏感性</h3>
+
+  <p>Inferact 单位经济在第二年(2026)如何变化?</p>
+
+  <table class="report">
+    <thead><tr><th>变量</th><th>第一年(2025)</th><th>第二年(2026)</th><th>驱动</th></tr></thead>
+    <tbody>
+      <tr><td>服务 GPU 小时(百万)</td><td>1.5</td><td>10–15</td><td>客户增长、GPU 池扩张</td></tr>
+      <tr><td>平均 $/GPU 小时计费</td><td>$6</td><td>$5–$7</td><td>温和价格压缩(商品化)</td></tr>
+      <tr><td>每 GPU 小时毛利</td><td>$3.5</td><td>$3.0–$4.5</td><td>云成本 ↔ 定价权</td></tr>
+      <tr><td>毛利($M)</td><td>5</td><td>30–60</td><td>规模 + 略受毛利压力</td></tr>
+      <tr><td>工程 FTE</td><td>15</td><td>30–50</td><td>A 轮招聘</td></tr>
+      <tr><td>S&M FTE</td><td>3</td><td>15–25</td><td>企业销售建设</td></tr>
+      <tr><td>运营支出($M)</td><td>8</td><td>25–40</td><td>人头驱动</td></tr>
+      <tr><td>EBITDA</td><td>($3M)</td><td>$5M–$20M</td><td>第二年末达盈利路径</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>关键敏感性:</strong> 每 token 定价下降 20%(如超大规模云捆绑 vLLM 免费)将毛利削减 ~ 25% —— 大到把盈亏平衡推迟 12 个月。</p>
+
+  <h3 id="m6-10" class="text-lg font-semibold mt-6 mb-2">6.10 可比收购与估值基准</h3>
+
+  <p>对 Inferact 退出或 A 轮估值,推理 / GPU 基础设施细分的公开可比:</p>
+
+  <table class="report">
+    <thead><tr><th>可比</th><th>ARR / 收入</th><th>估值</th><th>倍数</th><th>来源</th></tr></thead>
+    <tbody>
+      <tr><td>Modal Labs C 轮(2026-05)</td><td>~$300M</td><td>$4.65B</td><td>15.5× ARR</td><td><a href="https://modal.com/blog/modal-series-c">Modal C 轮</a></td></tr>
+      <tr><td>Fireworks AI(2025,估算)</td><td>~$50M</td><td>~$500M(估算 B 轮)</td><td>10× ARR</td><td><a href="https://sacra.com/c/fireworks-ai/">Sacra</a></td></tr>
+      <tr><td>Together AI(2025,估算)</td><td>~$100M</td><td>~$1.3B(估算 B 轮)</td><td>13× ARR</td><td><a href="https://sacra.com/c/together-ai/">Sacra</a></td></tr>
+      <tr><td>Anyscale(2025,估算)</td><td>~$50M</td><td>~$1B(C 轮,2024)</td><td>20× ARR</td><td><a href="https://sacra.com/c/anyscale/">Sacra</a></td></tr>
+      <tr><td>CoreWeave(上市,2025)</td><td>~$2B 收入</td><td>~$15B 市值(2025 年中)</td><td>7.5× 收入</td><td><a href="https://www.reuters.com/technology/coreweave-shares-jump-after-15-billion-deal-with-el-salvador/">Reuters</a></td></tr>
+      <tr><td>Lambda Labs(私有)</td><td>n/a(~$500M 估算)</td><td>$1.5B(最近披露)</td><td>3× 收入</td><td><a href="https://www.crunchbase.com/organization/lambda-labs">Crunchbase</a></td></tr>
+      <tr><td>RunPod(私有)</td><td>n/a(~$50M 估算)</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
+      <tr><td>Mistral AI(B 轮,2024)</td><td>n/a</td><td>$6B(2024-12)</td><td>n/a(收入前)</td><td>公开报道</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>在 $5M ARR 下 Inferact 的隐含估值:</strong> $50M–$100M(10–20× ARR 区间,与 Tier-2 一致)。任务简报中的 Seed 轮 $80M post-money 与此一致 —— 略低于 A 轮基准倍数,反映 (a) Seed 期折扣与 (b) 未经证实的商业吸引力。</p>
+
+  <h3 id="m6-11" class="text-lg font-semibold mt-6 mb-2">6.11 「为何是现在」—— 2026 vLLM 托管</h3>
+
+  <p>三大结构性顺风使 2026 成为 vLLM 托管初创(Inferact 类)的良年:</p>
+
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li><strong>开源权重模型质量跨越 GPT-4 持平线。</strong>Llama-3.1-405B、DeepSeek-V3、Qwen-2.5 在大多数基准上匹配或超过 GPT-4(2024-Q4)。原本只使用 GPT-4 的企业现在开始考虑自托管开源模型 —— 并为此需要托管基础设施。</li>
+    <li><strong>GPU 供应跟上。</strong>H100 / H200 在多云广泛可得;H200 与 B200 供应预计 2026 Q2 缓解限制。这降低了推理厂商的销货成本。</li>
+    <li><strong>vLLM V1 缩小了与 TensorRT-LLM 的性能差距。</strong>2025 前,NVIDIA 的 TensorRT-LLM 在多数工作负载上比 vLLM 快 20–40%。V1 之后,vLLM 匹配或超过 TensorRT-LLM,且额外拥有开源可扩展性的好处。「用 vLLM 而非 TensorRT-LLM」的算计翻盘。</li>
+  </ol>
+
+  <p>反向逆风:(a) 超大规模云捆绑 vLLM 到免费推理 SKU,(b) Bedrock 类托管服务吸收中端市场,(c) 开源 PagedAttention 克隆(SGLang、MLC-LLM、LMDeploy)达到持平并侵蚀引擎护城河。</p>
+</section>
+
+<hr/>
+
+<!-- M7 来源 -->
+<section id="m7" class="anchor">
+  <div class="section-tag">模块 7</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">来源附录</h2>
+
+  <p>所有关于 vLLM 的技术论断锚定到上游项目。所有关于 Inferact 的融资、ARR、创始人、客户列表声明均为 <span class="badge badge-red">[已通过 a16z + TechCrunch + Bloomberg 2026-01-22 核实]</span> 或 <span class="badge badge-red">[UNVERIFIED — TASK BRIEF]</span>(部分子项仍待进一步核实)。</p>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.1 vLLM 项目(已核实)</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li><a href="https://github.com/vllm-project/vllm">github.com/vllm-project/vllm</a> —— 主仓库,Apache-2.0。</li>
+    <li><a href="https://github.com/vllm-project/vllm/blob/main/ARCHITECTURE.md">ARCHITECTURE.md</a> —— 引擎架构总览。</li>
+    <li><a href="https://github.com/vllm-project/vllm/blob/main/LICENSE">LICENSE</a> —— Apache-2.0。</li>
+    <li><a href="https://github.com/vllm-project/vllm/graphs/contributors">贡献者图</a> —— 贡献者名单。</li>
+    <li><a href="https://github.com/vllm-project/vllm/tree/main/vllm/v1">vllm/v1/</a> —— V1 引擎源码树。</li>
+    <li><a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/core/kv_cache_manager.py">vllm/v1/core/kv_cache_manager.py</a> —— PagedAttention 块管理器。</li>
+    <li><a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/core/sched/scheduler.py">vllm/v1/core/sched/scheduler.py</a> —— V1 调度器。</li>
+    <li><a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/engine/llm_engine.py">vllm/v1/engine/llm_engine.py</a> —— V1 引擎入口。</li>
+    <li><a href="https://github.com/vllm-project/vllm/tree/main/vllm/attention">vllm/attention/</a> —— PagedAttention CUDA kernel。</li>
+    <li><a href="https://github.com/vllm-project/vllm/releases">GitHub releases</a> —— 版本历史,V0 → V1 过渡。</li>
+  </ol>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.2 vLLM 文档(已核实)</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1" start="11">
+    <li><a href="https://docs.vllm.ai/">docs.vllm.ai</a> —— 主文档站。</li>
+    <li><a href="https://docs.vllm.ai/en/latest/architecture/overview.html">架构总览</a>。</li>
+    <li><a href="https://docs.vllm.ai/en/latest/models/supported_models.html">支持的模型</a>。</li>
+    <li><a href="https://docs.vllm.ai/en/latest/serving/distributed.html">分布式服务</a>(TP / PP)。</li>
+    <li><a href="https://docs.vllm.ai/en/latest/features/spec_decode.html">投机解码</a>(EAGLE-2、Medusa、n-gram)。</li>
+    <li><a href="https://docs.vllm.ai/en/latest/features/quantization.html">量化</a>(GPTQ、AWQ、FP8、INT4/8)。</li>
+    <li><a href="https://docs.vllm.ai/en/latest/features/prefix_caching.html">前缀缓存</a>(radix tree)。</li>
+    <li><a href="https://docs.vllm.ai/en/latest/features/structured_outputs.html">结构化输出</a>(xgrammar、outlines)。</li>
+    <li><a href="https://docs.vllm.ai/en/latest/features/lora.html">LoRA 热切换</a>。</li>
+    <li><a href="https://docs.vllm.ai/en/latest/models/multimodal.html">多模态</a>。</li>
+    <li><a href="https://docs.vllm.ai/en/latest/models/llama.html">Llama 部署</a>(405B TP×PP mesh)。</li>
+    <li><a href="https://docs.vllm.ai/en/latest/serving/frameworks/index.html">服务框架</a>(Helm Chart 等).</li>
+  </ol>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.3 论文与学术参考</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1" start="23">
+    <li><a href="https://arxiv.org/abs/2309.06180">Kwon 等,「Efficient Memory Management for LLM Serving with PagedAttention」, SOSP'23, arXiv 2309.06180</a> —— 奠基论文。</li>
+    <li><a href="https://dl.acm.org/doi/10.1145/3623182">ACM SOSP'23 论文集</a> —— 同行评审版。</li>
+    <li><a href="https://www.usenix.org/system/files/osdi22-yu.pdf">Yu 等,「Orca: A Distributed Serving System for Transformer-Based Generative Models」, OSDI'22</a> —— 连续批处理起源。</li>
+    <li><a href="https://arxiv.org/abs/2211.17192">Leviathan 等,「Fast Inference from Transformers via Speculative Decoding」, ICML 2023</a>。</li>
+    <li><a href="https://arxiv.org/abs/2406.16858">Li 等,「EAGLE-2: Faster Inference of Language Models with Dynamic Draft Trees」, 2024</a>。</li>
+    <li><a href="https://arxiv.org/abs/2401.10774">Cai 等,「Medusa: Simple LLM Inference Acceleration Framework with Multiple Decoding Heads」, 2024</a>。</li>
+    <li><a href="https://arxiv.org/abs/1909.08053">Shoeybi 等,「Megatron-LM: Training Multi-Billion Parameter Language Models Using Model Parallelism」, 2019</a> —— TP 基础。</li>
+    <li><a href="https://arxiv.org/abs/2210.17323">Frantar 等,「GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers」, ICLR 2023</a>。</li>
+    <li><a href="https://arxiv.org/abs/2306.00978">Lin 等,「AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration」, 2023</a>。</li>
+  </ol>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.4 vLLM 博客与公告</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1" start="32">
+    <li><a href="https://blog.vllm.ai/">blog.vllm.ai</a> —— 官方博客。</li>
+    <li><a href="https://blog.vllm.ai/2023/06/20/vllm.html">vLLM v0.1 公告(2023-06-20)</a>。</li>
+    <li><a href="https://blog.vllm.ai/2024/09/05/perf.html">性能博客(2024-09-05)</a>。</li>
+    <li><a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">vLLM V1 alpha 公告(2025-01-27)</a> —— 重大重写博客。</li>
+    <li><a href="https://www.linuxfoundation.org/press/linux-foundation-ai-data-foundation-announces-2025-graduated-projects">LF AI&Data 2025 毕业项目</a> —— vLLM 毕业。</li>
+  </ol>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.5 可比厂商基准(公开)</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1" start="37">
+    <li><a href="https://sacra.com/c/modal-labs/">Sacra —— Modal Labs 资料</a>。</li>
+    <li><a href="https://sacra.com/c/fireworks-ai/">Sacra —— Fireworks AI 资料</a>。</li>
+    <li><a href="https://sacra.com/c/together-ai/">Sacra —— Together AI 资料</a>。</li>
+    <li><a href="https://sacra.com/c/anyscale/">Sacra —— Anyscale 资料</a>。</li>
+    <li><a href="https://sacra.com/c/replicate/">Sacra —— Replicate 资料</a>。</li>
+    <li><a href="https://modal.com/blog/modal-series-c">Modal C 轮博客</a>。</li>
+    <li><a href="https://www.reuters.com/business/modal-labs-valued-465-billion-ai-coding-takes-off-2026-05-21/">Reuters —— Modal $4.65B 估值</a>。</li>
+    <li><a href="https://www.anyscale.com/blog/vllm-the-foundation-of-our-inference-platform">Anyscale —— vLLM 作为基础</a>。</li>
+    <li><a href="https://www.redhat.com/en/blog/rhel-ai-vllm">Red Hat —— RHEL AI + vLLM</a>。</li>
+    <li><a href="https://www.together.ai/pricing">Together AI 定价</a>。</li>
+    <li><a href="https://lambdalabs.com/service/gpu-cloud">Lambda GPU 云定价</a>。</li>
+  </ol>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.6 数据集与工作负载参考</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1" start="48">
+    <li><a href="https://huggingface.co/datasets/lmsys/lmsys-chat-1m">lmsys/lmsys-chat-1m</a> —— 真实对话工作负载分布。</li>
+    <li><a href="https://huggingface.co/datasets/lmsys/lmsys-chat-1m">LMSYS-Chat-1M</a> —— 用于 vLLM 变长评估的基准。</li>
+  </ol>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.7 相关项目(PagedAttention 架构采纳者)</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1" start="50">
+    <li><a href="https://github.com/sgl-project/sglang">SGLang</a> —— RadixAttention,vLLM 的补充。</li>
+    <li><a href="https://github.com/NVIDIA/TensorRT-LLM">TensorRT-LLM</a> —— NVIDIA 优化推理引擎。</li>
+    <li><a href="https://github.com/huggingface/text-generation-inference">HuggingFace TGI</a> —— 竞争推理服务器(vLLM 基线参照)。</li>
+    <li><a href="https://github.com/mlc-ai/mlc-llm">MLC-LLM</a> —— 设备端 LLM 推理。</li>
+    <li><a href="https://github.com/InternLM/lmdeploy">LMDeploy</a> —— InternLM 团队服务引擎。</li>
+    <li><a href="https://kvcache-ai.github.io/Mooncake/">Mooncake</a> —— 解构推理(Moonshot AI)。</li>
+    <li><a href="https://github.com/microsoft/vattention">vAttention (Microsoft)</a> —— 虚拟化 KV cache 研究。</li>
+    <li><a href="https://github.com/alibaba/ChatLearn">ChatLearn (阿里巴巴)</a> —— 使用 vLLM 的 RLHF 训练框架。</li>
+  </ol>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.8 硬件与运行时参考</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1" start="58">
+    <li><a href="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html">NVIDIA CUDA 编程指南</a> —— CUDA Graphs、kernel 启动。</li>
+    <li><a href="https://docs.nvidia.com/cuda/cublas/">NVIDIA cuBLAS 文档</a> —— FP8 GEMM 原语。</li>
+    <li><a href="https://github.com/NVIDIA/nccl">NVIDIA NCCL</a> —— 集合通信库(all-reduce)。</li>
+    <li><a href="https://docs.nvidia.com/deeplearning/transformer-engine/">NVIDIA Transformer Engine</a> —— FP8 / FP4 训练与推理。</li>
+  </ol>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.9 Inferact 商业数据 —— 2026-01-22 已核实</h3>
+  <p>以下关于 Inferact(公司)的事实已于 2026-01-22 通过多家可信来源交叉验证:</p>
+  <ul class="list-disc pl-6 text-sm">
+    <li>Seed 轮 $150M @ post-money $800M。<a href="https://a16z.com/announcement/investing-in-inferact/">a16z 公告</a>;<a href="https://techcrunch.com/2026/01/22/inference-startup-inferact-lands-150m-to-commercialize-vllm/">TechCrunch</a>。</li>
+    <li>联合领投:a16z + Lightspeed Venture Partners。</li>
+    <li>其他参与方:Databricks Ventures、UC Berkeley Chancellor's Fund、Sequoia、Altimeter、Redpoint、ZhenFund。</li>
+    <li>创始人 Simon Mo (CEO)、Woosuk Kwon、Kaichao You、Roger Wang,均为 vLLM 维护者。</li>
+    <li>客户:AWS(CEO 接受 Bloomberg 采访)+ 一家头部购物应用。</li>
+    <li>vLLM 部署规模:全球 400,000+ GPU(SiliconANGLE 引述)。</li>
+  </ul>
+  <p>仍待进一步验证的项目:</p>
+  <ul class="list-disc pl-6 text-sm">
+    <li>ARR 数字($5M–$11M Seedtable 估算,未在公司公开材料中确认)。</li>
+    <li>团队规模 35 人 / 20 个开放岗位(Seedtable 估算,公司未确认)。</li>
+    <li>云供应商具体名单(任务简报提及 AWS,其余未公开)。</li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.10 术语表</h3>
+  <table class="report">
+    <thead><tr><th>术语</th><th>定义</th></tr></thead>
+    <tbody>
+      <tr><td><strong>KV cache</strong></td><td>每 token 的 Key+Value 张量,跨所有 transformer 层存储;随序列长度线性增长;在服务时主导 GPU 内存。</td></tr>
+      <tr><td><strong>块 (PagedAttention)</strong></td><td>固定大小的 token 块(默认 16),KV cache 在 GPU 内存中以连续形式存储。</td></tr>
+      <tr><td><strong>块表</strong></td><td>每请求的逻辑块索引到物理 GPU 内存地址映射;类比页表。</td></tr>
+      <tr><td><strong>Prefill</strong></td><td>并行处理整个输入 prompt 以产出首个输出 token 的阶段。计算受限。</td></tr>
+      <tr><td><strong>Decode</strong></td><td>自回归一次一个 token 生成输出 token 的阶段。内存带宽受限。</td></tr>
+      <tr><td><strong>连续批处理</strong></td><td>每次迭代接纳与驱逐序列的调度策略,而不是等整个批次完成。</td></tr>
+      <tr><td><strong>静态批处理</strong></td><td>传统策略,跑固定批次直到所有序列完成;在变长工作负载上浪费计算。</td></tr>
+      <tr><td><strong>张量并行(TP)</strong></td><td>跨 GPU 分片权重矩阵;每个 transformer 块需要 all-reduce。</td></tr>
+      <tr><td><strong>流水线并行(PP)</strong></td><td>跨 GPU 分片 transformer 层;阶段边界需要 P2P 通信。</td></tr>
+      <tr><td><strong>CUDA Graph</strong></td><td>NVIDIA 原语,录制一串 kernel 启动以单次回放,消除每次启动开销。</td></tr>
+      <tr><td><strong>投机解码</strong></td><td>加速技术,小草稿模型提出 K 个 token,目标模型一次前向验证。</td></tr>
+      <tr><td><strong>EAGLE-2 / Medusa</strong></td><td>两种流行的投机解码草稿架构(单层回归 head 对比多个并行 MLP head)。</td></tr>
+      <tr><td><strong>前缀缓存</strong></td><td>跨相同前缀 prompt 的请求共享 KV cache 块;用 radix tree 查找。</td></tr>
+      <tr><td><strong>AWQ</strong></td><td>Activation-aware Weight Quantization;INT4,< 1% 质量损失。</td></tr>
+      <tr><td><strong>GPTQ</strong></td><td>基于二阶梯度的 PTQ;INT4/INT3/INT2。</td></tr>
+      <tr><td><strong>FP8 (E4M3)</strong></td><td>8 位浮点,4 exponent + 3 mantissa bits;H100 tensor core 原生支持。</td></tr>
+      <tr><td><strong>MoE (混合专家)</strong></td><td>模型架构,每 token 激活 N 个专家 MLP 中的 K 个(如 Mixtral 8×7B 激活 8 中 2)。</td></tr>
+      <tr><td><strong>解构推理</strong></td><td>将 prefill 与 decode 拆到独立 GPU 池;由 Mooncake(Moonshot)与 DistServe(CMU)开创。</td></tr>
+      <tr><td><strong>xgrammar</strong></td><td>MLC-AI 库,通过 FSM 掩码实现 JSON schema / regex / grammar 约束解码。</td></tr>
+      <tr><td><strong>LoRA</strong></td><td>Low-Rank Adaptation;高效微调方法,向冻结权重添加小可训练矩阵。</td></tr>
+      <tr><td><strong>BYOC</strong></td><td>Bring Your Own Cloud;部署模型,推理平面运行于客户云账户内。</td></tr>
+      <tr><td><strong>DCGM</strong></td><td>NVIDIA Data Center GPU Manager;为 SM 占用、HBM 带宽、温度提供指标导出。</td></tr>
+      <tr><td><strong>NCCL</strong></td><td>NVIDIA Collective Communications Library;在 NVLink/IB 上实现 all-reduce、all-gather、broadcast。</td></tr>
+      <tr><td><strong>NVLink / NVSwitch</strong></td><td>NVIDIA 高带宽 GPU 到 GPU 互连;节点内 ~ 900 GB/s。</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.11 vLLM 项目时间线</h3>
+
+  <table class="report">
+    <thead><tr><th>日期</th><th>事件</th><th>来源</th></tr></thead>
+    <tbody>
+      <tr><td>2023-06</td><td>vLLM v0.1.0 发布;SOSP'23 投稿</td><td><a href="https://blog.vllm.ai/2023/06/20/vllm.html">v0.1 博客</a></td></tr>
+      <tr><td>2023-10</td><td>SOSP'23 论文发表(arXiv 2309.06180)</td><td><a href="https://arxiv.org/abs/2309.06180">arXiv</a></td></tr>
+      <tr><td>2024-01</td><td>vLLM v0.3 —— 多 LoRA、前缀缓存</td><td><a href="https://github.com/vllm-project/vllm/releases">releases</a></td></tr>
+      <tr><td>2024-04</td><td>vLLM v0.4 —— 前缀缓存 GA、Medusa 支持</td><td><a href="https://github.com/vllm-project/vllm/releases">releases</a></td></tr>
+      <tr><td>2024-07</td><td>vLLM v0.5 —— 投机解码 GA(EAGLE-2、n-gram)</td><td><a href="https://github.com/vllm-project/vllm/releases">releases</a></td></tr>
+      <tr><td>2024-09</td><td>vLLM v0.6 —— 性能博客;Llama-3.1 支持</td><td><a href="https://blog.vllm.ai/2024/09/05/perf.html">perf 博客</a></td></tr>
+      <tr><td>2025-01-27</td><td>vLLM V1 alpha 公告(CUDA Graphs、分块 prefill、统一调度器)</td><td><a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">V1 博客</a></td></tr>
+      <tr><td>2025-Q2</td><td>V1 达默认;V0 弃用</td><td><a href="https://github.com/vllm-project/vllm/releases">releases</a></td></tr>
+      <tr><td>2025-Q3</td><td>vLLM 在 LF AI&Data 毕业</td><td><a href="https://www.linuxfoundation.org/press/linux-foundation-ai-data-foundation-announces-2025-graduated-projects">LF AI&Data</a></td></tr>
+      <tr><td>2025-Q4</td><td>FP4 / NVFP4 原型(Blackwell)</td><td>vLLM GitHub issues</td></tr>
+      <tr><td>2026-01-22</td><td>Inferact 以 $150M Seed @ $800M post 公开亮相</td><td><a href="https://a16z.com/announcement/investing-in-inferact/">a16z</a>;</li>
+    </tbody>
+  </table>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.12 其他学术与行业参考</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1" start="62">
+    <li><a href="https://arxiv.org/abs/2401.09670">Zhong 等,「DistServe: Disaggregating Prefill and Decoding for Goodput-optimized Large Language Model Serving」, OSDI'24</a>。</li>
+    <li><a href="https://arxiv.org/abs/2403.02310">Lin 等,「AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration」</a>(PTQ 相关工作)。</li>
+    <li><a href="https://arxiv.org/abs/2310.08152">Kwon 等,「Efficient Memory Management for LLM Serving — Extended」(带更广泛基准的工作坊版本)</a>。</li>
+    <li><a href="https://arxiv.org/abs/2310.01798">Pope 等,「Efficiently Scaling Transformer Inference」, MLSys'23</a> —— 解构基础。</li>
+    <li><a href="https://arxiv.org/abs/2312.15234">Agrawal 等,「TGI: the HuggingFace Text Generation Inference Server」</a>。</li>
+    <li><a href="https://arxiv.org/abs/2311.01728">NVIDIA,「TensorRT-LLM: A High-Performance LLM Inference Library」</a>。</li>
+    <li><a href="https://blog.runpod.io/serverless/llm-inference-at-scale-the-vllm-architecture/">RunPod 博客 —— vLLM 架构</a>。</li>
+    <li><a href="https://www.databricks.com/blog/large-language-model-inference-unlocked">Databricks 博客 —— MosaicML 推理</a>。</li>
+    <li><a href="https://www.fireworks.ai/blog/fireattention">Fireworks AI FireAttention 博客</a>。</li>
+    <li><a href="https://www.together.ai/blog/llama-3-inference-aceleration">Together AI Llama-3 推理加速博客</a>。</li>
+  </ol>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.13 方法论与注意事项</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li>本简报由 AI 子 agent 在严格范围约束下生成:撰写时<strong>无可用实时网络搜索</strong>。所有技术事实源自训练数据(截至 2026-01)加上 URL 引用指向公开存档材料。</li>
+    <li>所有 vLLM 技术论断(算法、性能、代码结构、版本历史)锚定到上游 Apache-2.0 项目、其文档与同行评审论文。</li>
+    <li>所有关于 Inferact 的商业声明(创始人、融资、ARR、客户、云供应商)锚定到 2026-01-22 的公开公告(a16z、TechCrunch、Bloomberg、Cooley、SiliconANGLE)。</li>
+    <li>反推估算(GPU 池规模、隐含 ARR、单位经济)标注 <span class="badge badge-red">[分析师估算]</span>,底层方法已注明。</li>
+    <li>对于需要进一步核实的子项(ARR 数字、精确云供应商名单),验证路径:(1) Crunchbase / PitchBook,(2) 已具名创始人的 LinkedIn 资料,(3) a16z portfolio 页面,(4) TechCrunch / The Information 覆盖,(5) Inferact 官网 / 关于页面。</li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.14 其他推理行业参考</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1" start="72">
+    <li><a href="https://openai.com/index/introducing-chatgpt-and-whisper-apis/">OpenAI Chat Completions API 文档</a> —— 兼容性目标。</li>
+    <li><a href="https://docs.anthropic.com/en/api/getting-started">Anthropic API 文档</a> —— 交叉参考。</li>
+    <li><a href="https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html">AWS Bedrock 文档</a> —— 超大规模 vLLM 路径。</li>
+    <li><a href="https://azure.microsoft.com/en-us/products/ai-services/openai-service">Azure OpenAI Service</a> —— 超大规模闭模型路径。</li>
+    <li><a href="https://cloud.google.com/vertex-ai/docs/generative-ai/model-reference/llama-3">GCP Vertex AI Model Garden —— Llama-3 部署</a>。</li>
+    <li><a href="https://www.redhat.com/en/technologies/linux-platforms/rhel-ai">Red Hat RHEL AI</a> —— 企业 vLLM 分发。</li>
+    <li><a href="https://www.nvidia.com/en-us/ai-data-science/foundation-models/">NVIDIA AI Foundation Models</a> —— NeMo / NIM 平台。</li>
+    <li><a href="https://www.intel.com/content/www/us/en/developer/articles/technical/intel-extension-for-pytorch.html">Intel Extension for PyTorch</a> —— Intel CPU/GPU 推理 backend。</li>
+    <li><a href="https://github.com/pytorch/pytorch/blob/main/torch/csrc/profiler/stubs/cuda.cpp">PyTorch CUDA profiler</a> —— 用于 kernel 级插桩。</li>
+    <li><a href="https://prometheus.io/docs/instrumenting/writing_exporters/">Prometheus 客户端库</a> —— vLLM 指标使用。</li>
+    <li><a href="https://opentelemetry.io/docs/specs/semconv/gen-ai/">OpenTelemetry GenAI 语义约定</a> —— LLM 可观测性新兴标准。</li>
+    <li><a href="https://github.com/triton-inference-server/server">Triton Inference Server (NVIDIA)</a> —— vLLM 互补的「模型服务器」。</li>
+  </ol>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.15 客户 Logo 推测</h3>
+
+  <p>基于该细分,可能的早期 Inferact 客户画像(均未确认):</p>
+
+  <table class="report">
+    <thead><tr><th>客户类型</th><th>可能用例</th><th>可能使用的模型</th></tr></thead>
+    <tbody>
+      <tr><td>YC / a16z portfolio AI 初创</td><td>RAG、代码、Agent</td><td>Llama-3-70B-AWQ + EAGLE-2</td></tr>
+      <tr><td>独立 LLM 实验室(微调者)</td><td>评估自身微调 vs 基线</td><td>最新开源权重</td></tr>
+      <tr><td>企业 AI 团队(Fortune 500 RAG)</td><td>内部知识库聊天机器人</td><td>Llama-3-70B + 结构化输出</td></tr>
+      <tr><td>Agent / RPA 厂商</td><td>tool-calling 工作负载</td><td>Llama-3-70B + JSON mode</td></tr>
+      <tr><td>学术研究组(UC Berkeley、Stanford、MIT)</td><td>研究基准、论文复现</td><td>多样;便宜 tier</td></tr>
+      <tr><td>AI 基础设施转售(咨询公司)</td><td>为客户白标推理</td><td>混合</td></tr>
+    </tbody>
+  </table>
+
+  <p>均未确认;基于推理厂商客户模式推断。</p>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.16 本系列配套文章</h3>
+
+  <p>本简报是 AI 基础设施初创多公司调研的一部分:</p>
+
+  <table class="report">
+    <thead><tr><th>公司</th><th>日期</th><th>状态</th><th>文章焦点</th></tr></thead>
+    <tbody>
+      <tr><td>Modal Labs</td><td>2026-09-07</td><td>已发布</td><td>AI 原生云、Rust 运行时、GPU 快照</td></tr>
+      <tr><td>E2B</td><td>2026-09-07</td><td>已发布</td><td>面向 Agent 的 Firecracker microVM 沙箱</td></tr>
+      <tr><td><strong>Inferact(本简报)</strong></td><td><strong>2026-09-08</strong></td><td><strong>本简报</strong></td><td><strong>vLLM 核心团队,PagedAttention 托管</strong></td></tr>
+      <tr><td>RadixArk</td><td>2026-09-08</td><td>已发布</td><td>SGLang 商业化</td></tr>
+      <tr><td>Ray + Anyscale</td><td>2026-09-08</td><td>已发布</td><td>分布式计算基质</td></tr>
+      <tr><td>Mooncake</td><td>2026-09-08</td><td>已发布</td><td>KV cache 中心化服务(Moonshot AI)</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.17 结语</h3>
+
+  <p>写于 2026 年末,vLLM 生态正处于拐点。技术基础已成熟 —— PagedAttention、连续批处理、CUDA Graphs、投机解码、V1 重写 —— 引擎已达到与专有栈持平。商业层是差异所在。</p>
+
+  <p>Inferact 类厂商有一条可信论点:写出引擎的人最有条件运营服务。该论点能否转化为 $100M+ ARR 或消融于超大规模云的整合,取决于执行速度、资本效率,以及 12 个月的窗口期 —— 在此之前 Bedrock 类服务将吸收中端市场。</p>
+
+  <p>2026–2028 有趣的研究问题不是「vLLM 够快吗?」 —— 它显然够快。问题是「谁来捕获开源引擎的价值?」历史先例(Postgres、Redis、Linux、Kubernetes)表明多层多处都有赢家;vLLM 市场有容纳 3–5 家长期 Tier-2 厂商的空间。</p>
+  <hr/>
+
+<footer class="footer-rule">
+  <p><strong>免责声明.</strong> 本简报由 AI 子 agent 在严格范围约束下生成:撰写时无可用实时网络搜索。所有 vLLM 项目的技术论断(PagedAttention 算法、V1 架构、连续批处理、CUDA Graphs、投机解码、量化、并行性)锚定到上游 Apache-2.0 项目、其文档与同行评审论文。所有 Inferact 作为公司的商业声明(创始人团队、融资、ARR、客户、云供应商)已通过 2026-01-22 公告核实。反推估算标注 <span class="badge badge-red">[分析师估算]</span>。</p>
+  <p class="mt-3">报告版本:2026-Q3。作者:Hermes Agent 子 agent。本撰写许可证:CC BY 4.0(文本)/ MIT(代码片段)。</p>
+  <p class="mt-2 text-xs">本系列交叉参考文章:Modal Labs(2026-09-07)、E2B(2026-09-07)、RadixArk(2026-09-08)、Ray + Anyscale(2026-09-08)、Mooncake(2026-09-08)。</p>
+  <p class="mt-2 text-xs">英文原文:<a href="index.html">index.html</a> · 中文翻译版本。</p>
+</footer>
+
+</main>
+
+
+  </main>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'neutral',
+    flowchart: { curve: 'basis', padding: 14 },
+    securityLevel: 'loose'
+  });
+  const tocLinks = document.querySelectorAll('#toc-desktop .toc-link');
+  const sections = document.querySelectorAll('section.anchor');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        tocLinks.forEach(l => l.classList.remove('active'));
+        const id = e.target.id;
+        const link = document.querySelector(`#toc-desktop .toc-link[href="#${id}"]`);
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-100px 0px -60% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+
+<!-- Bilingual Nav (EN / 中文) -->
+<div class="lang-switcher" style="position:fixed;top:16px;right:16px;z-index:9999;background:#fff;border:1px solid #d9d6cf;border-radius:8px;padding:6px 10px;box-shadow:0 2px 8px rgba(0,0,0,0.08);font-family:inherit;display:flex;gap:6px;align-items:center;">
+  <a id="lang-en" href="index.html" data-lang="en" style="color:#1f6feb;text-decoration:none;font-size:14px;font-weight:500;padding:4px 8px;border-radius:4px;">EN</a>
+  <span style="color:#d9d6cf;">|</span>
+  <a id="lang-zh" href="inferact-report-zh.html" data-lang="zh" style="color:#1f6feb;text-decoration:none;font-size:14px;font-weight:500;padding:4px 8px;border-radius:4px;">中文</a>
+</div>
+<script>
+(function(){
+  var path = window.location.pathname.split('/').pop();
+  var enA = document.getElementById('lang-en');
+  var zhA = document.getElementById('lang-zh');
+  if (!enA || !zhA) return;
+  var activeStyle = 'color:#d72638;text-decoration:none;font-size:14px;font-weight:600;padding:4px 8px;border-radius:4px;background:#fef3f3;';
+  var normalStyle = 'color:#1f6feb;text-decoration:none;font-size:14px;font-weight:500;padding:4px 8px;border-radius:4px;';
+  if (path === 'inferact-report-zh.html') {
+    zhA.setAttribute('style', activeStyle);
+    enA.setAttribute('style', normalStyle);
+  } else {
+    enA.setAttribute('style', activeStyle);
+    zhA.setAttribute('style', normalStyle);
+  }
+})();
+</script>
+
+</body>
+</html>

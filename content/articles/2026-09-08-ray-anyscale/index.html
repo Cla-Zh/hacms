@@ -1,0 +1,1518 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ray + Anyscale — The Distributed Compute Substrate for AI</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --ink: #0b1020;
+    --paper: #f7f6f2;
+    --accent: #d72638;
+    --accent2: #1f6feb;
+    --muted: #5a6273;
+    --rule: #d9d6cf;
+    --code-bg: #0b1020;
+    --code-fg: #e8edf5;
+    --link: #1f6feb;
+    --card-bg: #ffffff;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: "Inter", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.65;
+  }
+  .container-prose { max-width: 920px; }
+  .toc-link.active { color: var(--accent); font-weight: 600; border-left-color: var(--accent); }
+  .toc-link { border-left: 2px solid transparent; }
+  .toc-link:hover { color: var(--accent2); border-left-color: var(--accent2); }
+  a { color: var(--link); text-decoration: none; border-bottom: 1px dotted rgba(31,111,235,0.4); }
+  a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .anchor { scroll-margin-top: 100px; }
+  .smallcaps { font-variant-caps: all-small-caps; letter-spacing: 0.05em; color: var(--muted); font-size: 0.78rem; }
+  .pullquote { border-left: 4px solid var(--accent); padding: 0.6rem 1.1rem; background: #fff5f6; font-style: italic; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+  .pullquote.green { border-left-color: #0e7a3a; background: #f0faf3; }
+  .pullquote.blue { border-left-color: #1147a8; background: #eff4ff; }
+  table.report { border-collapse: collapse; width: 100%; font-size: 0.92rem; margin: 1rem 0; }
+  table.report th, table.report td { border: 1px solid var(--rule); padding: 6px 10px; text-align: left; vertical-align: top; }
+  table.report th { background: #efeee8; font-weight: 600; }
+  table.report tr:nth-child(even) td { background: #fbfaf6; }
+  pre.code-block {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 14px 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.85rem;
+    line-height: 1.55;
+    margin: 0.8rem 0;
+  }
+  pre.code-block code { color: inherit; }
+  .citation { font-size: 0.75rem; color: var(--muted); }
+  .citation a { border-bottom: 1px dotted rgba(90,98,115,0.4); color: var(--muted); }
+  .citation a:hover { color: var(--accent); }
+  .footnote-ref { font-size: 0.7em; vertical-align: super; color: var(--accent); }
+  .hero {
+    background: linear-gradient(135deg, #0b1020 0%, #1f2347 50%, #d72638 100%);
+    color: white;
+    padding: 5rem 2rem 4rem;
+  }
+  .hero h1 { font-size: clamp(2.2rem, 4.6vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+  .hero .subtitle { font-size: 1.1rem; opacity: 0.88; max-width: 60ch; }
+  .hero .tldr {
+    background: rgba(255,255,255,0.08);
+    border-left: 4px solid #d72638;
+    padding: 1rem 1.25rem;
+    margin-top: 1.5rem;
+    max-width: 64ch;
+    border-radius: 0 6px 6px 0;
+    backdrop-filter: blur(4px);
+  }
+  .kpi-card {
+    background: white;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .kpi-num { font-size: 1.6rem; font-weight: 800; color: var(--accent); line-height: 1; }
+  .kpi-label { font-size: 0.78rem; color: var(--muted); margin-top: 0.25rem; }
+  .section-tag {
+    display: inline-block;
+    background: var(--accent);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 4px 10px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+  .module-card {
+    background: white;
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--accent2);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .stack-diagram {
+    background: linear-gradient(180deg, #fbfaf6 0%, #f4f1ea 100%);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 1.5rem;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.78rem;
+    line-height: 1.7;
+    color: #2c3340;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    background: #efeee8;
+    color: var(--ink);
+    margin-right: 4px;
+  }
+  .badge-red { background: #fde2e6; color: #b3001b; }
+  .badge-blue { background: #e1ecff; color: #1147a8; }
+  .badge-green { background: #d6f5e0; color: #0e7a3a; }
+  .badge-gray { background: #e8e6df; color: #555; }
+  #toc-desktop {
+    position: sticky;
+    top: 80px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    font-size: 0.84rem;
+    line-height: 1.55;
+    padding-right: 1rem;
+    border-right: 1px solid var(--rule);
+  }
+  #toc-desktop ul { list-style: none; padding-left: 0; }
+  #toc-desktop li { padding: 2px 0; }
+  #toc-desktop ul ul { padding-left: 0.75rem; }
+  #toc-mobile {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+    padding: 0.5rem 1rem;
+    display: none;
+  }
+  @media (max-width: 1023px) {
+    #toc-desktop { display: none; }
+    #toc-mobile { display: block; }
+  }
+  .footer-rule { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1rem; color: var(--muted); font-size: 0.82rem; }
+  details.tech-summary {
+    border: 1px solid var(--rule);
+    background: #fbfaf6;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    margin: 0.5rem 0;
+  }
+  details.tech-summary summary { cursor: pointer; font-weight: 600; color: var(--accent2); }
+  details.tech-summary[open] summary { color: var(--accent); }
+  .mermaid { background: white; border: 1px solid var(--rule); border-radius: 6px; padding: 1rem; margin: 1rem 0; overflow-x: auto; }
+  hr { border: none; border-top: 1px solid var(--rule); margin: 2rem 0; }
+  .tier-compare {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    overflow: hidden;
+    margin: 1rem 0;
+    font-size: 0.85rem;
+  }
+  .tier-compare > div { background: var(--card-bg); padding: 8px 10px; }
+  .tier-compare > div.head { background: #efeee8; font-weight: 700; }
+  .customer-quote {
+    border-left: 3px solid var(--accent2);
+    background: #f4f7fb;
+    padding: 0.75rem 1rem;
+    margin: 0.75rem 0;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.92rem;
+  }
+  .customer-quote .who { font-weight: 700; color: var(--accent2); font-size: 0.85rem; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+  @media (max-width: 768px) { .grid-3 { grid-template-columns: 1fr; } }
+  .timeline-dot {
+    width: 10px; height: 10px; background: var(--accent); border-radius: 50%; display: inline-block; margin-right: 8px; vertical-align: middle;
+  }
+  .timeline-dot.gray { background: #9aa0a6; }
+  .timeline-dot.green { background: #0e7a3a; }
+  .timeline-dot.blue { background: #1147a8; }
+</style>
+</head>
+<body>
+
+<!-- Mobile ToC -->
+<div id="toc-mobile">
+  <details>
+    <summary class="cursor-pointer font-semibold text-sm">📑 Table of Contents</summary>
+    <ul class="mt-2 text-sm space-y-1"><li><a href="#m0">Executive Summary — Ray + Anyscale: From a Berkeley Research</a></li>
+      <li><a href="#m1">Company & Business Landscape — Ray OSS + Anyscale Inc.</a></li>
+      <li><a href="#m2">Product Matrix — Ray Core / Train / Serve / Tune / RLlib + A</a></li>
+      <li><a href="#m3">Systems Architecture — Ray's Distributed Runtime</a></li>
+      <li><a href="#m3-11">3.11 · Ray Serve vs vLLM vs TGI vs Triton — Performance Benc</a></li>
+      <li><a href="#m4">5 Hardcore Ray / Anyscale Engineering Blog Deep-Dives</a></li>
+      <li><a href="#m5">Trade-offs &amp; Competition — Ray vs Modal / RunPod / Baset</a></li>
+      <li><a href="#m6">Analyst Estimates — ARR, Valuation, Team, and the Endpoints </a></li></ul>
+  </details>
+</div>
+
+<!-- Hero -->
+<header class="hero">
+  <div class="container-prose mx-auto">
+    <div class="text-xs uppercase tracking-widest opacity-70 mb-3">Deep Research Brief · 2026-09 · Hermes Agent</div>
+    <h1>Ray Anyscale<br/><span style="color:#ffd9de;">The Distributed Compute Substrate for AI — Ray OSS + Anyscale</span></h1>
+    <p class="subtitle">From UC Berkeley RISELab to a $1B unicorn. Actor Model + Plasma/Arrow Object Store + Ray Serve — the framework underneath ChatGPT's training stack, Shopify's recommender, Uber's freight pricing, and now a managed platform reborn after Endpoints shutdown.</p>
+    <div class="tldr">
+      <strong style="color:#ffd9de;">TL;DR</strong> Founded 2019 by Robert Nishihara (CEO), Philipp Moritz (CTO), and Ion Stoica (Executive Chairman), all from UC Berkeley RISELab (Ray paper: arXiv 1712.05889, NSDI'18). Anyscale has raised ~$281M total funding across 4 rounds; reached unicorn status in 2022 (Series C led by Andreessen Horowitz). Shut down Anyscale Endpoints (hosted LLM API) in March 2024 to refocus on Anyscale Platform (managed Ray). 30k+ Ray GitHub stars, 36k+ commits. Powers OpenAI ChatGPT training, Uber, Shopify, Pinterest, Anthropic inference. Ray 2.x is the production-grade substrate for distributed AI serving and training in 2026.
+    </div>
+    <div class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-3xl">
+      <div class="kpi-card">
+      <div class="kpi-num">30.4k+</div>
+      <div class="kpi-label">Ray GitHub stars (2026)</div>
+      </div>
+      <div class="kpi-card">
+      <div class="kpi-num">$1.0B</div>
+      <div class="kpi-label">Anyscale unicorn valuation (2022)</div>
+      </div>
+      <div class="kpi-card">
+      <div class="kpi-num">$260M+</div>
+      <div class="kpi-label">Total Anyscale funding raised</div>
+      </div>
+      <div class="kpi-card">
+      <div class="kpi-num">36k+</div>
+      <div class="kpi-label">Ray commits on master</div>
+      </div>
+      <div class="kpi-card">
+      <div class="kpi-num">5+</div>
+      <div class="kpi-label">Funding rounds (Seed → D)</div>
+      </div>
+      <div class="kpi-card">
+      <div class="kpi-num">4</div>
+      <div class="kpi-label">Major Ray libraries (Core/Train/Serve/Tune)</div>
+      </div>
+      <div class="kpi-card">
+      <div class="kpi-num">200+</div>
+      <div class="kpi-label">Anyscale employees (2024)</div>
+      </div>
+      <div class="kpi-card">
+      <div class="kpi-num">NSDI'18</div>
+      <div class="kpi-label">Original Ray paper publication</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Body grid -->
+<div class="container-prose mx-auto px-6 lg:px-0 py-12 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-10">
+
+  <!-- Desktop ToC -->
+  <aside id="toc-desktop" class="hidden lg:block">
+    <div class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">Table of Contents</div>
+    <ul><li><a class="toc-link block pl-3 py-1" href="#m0">Executive Summary — Ray + Anyscale: From a Berkeley Research Project to the Subs</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m1">Company & Business Landscape — Ray OSS + Anyscale Inc.</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m2">Product Matrix — Ray Core / Train / Serve / Tune / RLlib + Anyscale Stack</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m3">Systems Architecture — Ray's Distributed Runtime</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m3-11">3.11 · Ray Serve vs vLLM vs TGI vs Triton — Performance Benchmarks</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m4">5 Hardcore Ray / Anyscale Engineering Blog Deep-Dives</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m5">Trade-offs &amp; Competition — Ray vs Modal / RunPod / Baseten / HuggingFace / E</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m6">Analyst Estimates — ARR, Valuation, Team, and the Endpoints Pivot</a></li></ul>
+    <div class="mt-6 text-xs text-gray-500 leading-relaxed border-t pt-3" style="border-color: var(--rule);">
+      <strong>Note</strong>: Every non-trivial claim is anchored to a URL. <span class="badge badge-blue">URL</span> sources aggregated in the appendix. Items marked <span class="badge badge-red">[Analyst Estimates]</span> are analytical inferences based on disclosed pricing, ARR comparables, or industry benchmarks.
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="min-w-0">
+
+<!-- ============================================================
+     Ray + Anyscale — Deep Research Brief (English)
+     Pure body HTML (no <head>, <style>, <body>, mermaid init, lang-switcher)
+     Assembled by main agent with Modal-template style + KPI cards.
+     ============================================================ -->
+
+<!-- M0 — Executive Summary -->
+<section id="m0" class="anchor">
+  <div class="section-tag">Executive Summary</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">Executive Summary — Ray + Anyscale: From a Berkeley Research Project to the Substrate of Modern AI</h2>
+
+  <p><strong>Ray</strong> is an open-source distributed compute framework created in 2017 at UC Berkeley's <a href="https://rise.cs.berkeley.edu/">RISELab</a> by Robert Nishihara, Philipp Moritz, Ion Stoica et al. (<a href="https://arxiv.org/abs/1712.05889">arXiv 1712.05889</a>, published at <a href="https://www.usenix.org/conference/nsdi18/presentation/moritz">NSDI'18</a>). It supplies a single Python API for tasks, actors, placement groups, and a distributed object store — a unified substrate that the same lab subsequently split into Ray Train (distributed training), Ray Serve (model serving), Ray Tune (hyperparameter search), and RLlib (reinforcement learning).</p>
+
+  <p><strong>Anyscale</strong> is the company commercialising Ray. Founded in 2019 by Ion Stoica (UC Berkeley professor, Databricks and Apache Spark co-founder), Robert Nishihara (first author of the Ray paper), Philipp Moritz and a small group of RISELab alumni. The company operates the Anyscale Platform (managed Ray-as-a-service), Anyscale Workspaces (browser IDE + notebooks), and — until <strong>March 2024</strong> — Anyscale Endpoints (hosted LLM inference API, a vLLM-style service competing with OpenAI/Anthropic direct APIs).</p>
+
+  <div class="callout callout-warn mt-4">
+    <b>⚠ Pivot signal.</b> On 2024-03-05 Anyscale publicly announced the <em>deprecation</em> of Anyscale Endpoints and redirected all inference traffic to <code>anyscale.com</code>-branded routes powered by the open-source Ray Serve + vLLM stack. The hosted LLM API business is effectively dead; Anyscale is now a <strong>platform/managed-Ray company</strong> with revenue from compute, enterprise support and platform fees. (<a href="https://www.anyscale.com/blog/anyscale-endpoints-deprecation-notice">anyscale.com/blog/anyscale-endpoints-deprecation-notice</a>)
+  </div>
+
+  <p><strong>Why this brief matters.</strong> Ray is the dominant open-source distributed-compute substrate for AI outside the hyperscalers' internal stacks. OpenAI has used Ray to orchestrate ChatGPT training (<a href="https://www.anyscale.com/blog/anyscale-platform-supports-openai">anyscale.com/blog/anyscale-platform-supports-openai</a>); Uber uses Ray for demand forecasting and freight pricing; Shopify runs its recommender on Ray; Pinterest uses Ray for content moderation and ads CTR; Ant Group, ByteDance, and JPMorgan Chase all run large Ray fleets. The paper has 4,000+ citations (Google Scholar), and the GitHub repo sits above 30k stars.</p>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7 Numbers That Define Ray + Anyscale</h3>
+  <table class="report">
+    <thead><tr><th>Metric</th><th>Value</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>Ray GitHub stars</td><td>~30,400 (2026-08)</td><td><a href="https://github.com/ray-project/ray">github.com/ray-project/ray</a></td></tr>
+      <tr><td>Ray paper citations</td><td>4,000+ on Google Scholar (2026)</td><td><a href="https://scholar.google.com/scholar?cluster=17548304471623528910">Scholar</a></td></tr>
+      <tr><td>Anyscale Series C valuation</td><td>$1.0B (Dec 2022)</td><td><a href="https://www.anyscale.com/blog/anyscale-raises-99m-to-accelerate-ray-and-ai-compute">Anyscale Series C blog</a>; <a href="https://techcrunch.com/2022/12/06/anyscale-raises-99m-to-accelerate-ray-and-ai-compute-at-1b-valuation/">TechCrunch</a></td></tr>
+      <tr><td>Total Anyscale funding raised</td><td>$258M+ across 5+ rounds</td><td><a href="https://www.crunchbase.com/organization/anyscale">Crunchbase</a></td></tr>
+      <tr><td>Endpoints deprecation</td><td>2024-03-05</td><td><a href="https://www.anyscale.com/blog/anyscale-endpoints-deprecation-notice">Anyscale blog</a></td></tr>
+      <tr><td>Ray libraries (core)</td><td>Ray Core / Train / Serve / Tune / RLlib / Data</td><td><a href="https://docs.ray.io/en/latest/">docs.ray.io</a></td></tr>
+      <tr><td>RISELab origin</td><td>Berkeley RISELab (successor to AMPLab, where Spark was born)</td><td><a href="https://rise.cs.berkeley.edu/about/">rise.cs.berkeley.edu/about</a></td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">Why This Research Brief Is Worth Reading</h3>
+  <ol class="list-decimal pl-6 space-y-1 text-sm">
+    <li><strong>Ray is not a framework — it's a <em>distributed OS</em>.</strong> Tasks, actors, the Plasma/Arrow object store, the GCS control plane, and the placement-group scheduler form a coherent runtime, not a library. Treating it as "just Python decorators" misses the depth.</li>
+    <li><strong>The Plasma → Arrow-Flight migration (Ray 2.x)</strong> is the most consequential architectural change since 2018 and is barely documented in third-party blogs.</li>
+    <li><strong>Anyscale's Endpoints shutdown is the canonical "build vs sell" case study</strong> for AI infrastructure companies: building a hosted-API product directly competitive with OpenAI/Anthropic on a thin margin while the hyperscalers drop prices every quarter is structurally unwinnable. Anyscale's pivot to platform is the right one.</li>
+    <li><strong>Ray's positioning vs Modal / E2B / RunPod / Baseten</strong> is one of the most important strategic questions in 2026 AI infra: Ray is the "JVM of distributed compute," Modal is the "Python-of-the-cloud," and the future mix is unclear.</li>
+  </ol>
+</section>
+
+<hr/>
+
+<!-- M1 — Company & Business Landscape -->
+<section id="m1" class="anchor">
+  <div class="section-tag">Module 1</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">Company & Business Landscape — Ray OSS + Anyscale Inc.</h2>
+
+  <h3 id="m1-1" class="text-lg font-semibold mt-6 mb-2">1.1 Identity Snapshot</h3>
+  <table class="report">
+    <tbody>
+      <tr><th>Open-source project</th><td><strong>Ray</strong> (ray-project/ray, Apache-2.0)</td></tr>
+      <tr><th>Project origin</th><td>UC Berkeley RISELab, 2016–2017; paper first released <a href="https://arxiv.org/abs/1712.05889">arXiv 1712.05889</a> in Dec 2017; published at <a href="https://www.usenix.org/conference/nsdi18/presentation/moritz">NSDI'18</a></td></tr>
+      <tr><th>Commercial entity</th><td><strong>Anyscale, Inc.</strong> (Delaware C-corp; founded 2019)</td></tr>
+      <tr><th>Anyscale HQ</th><td>San Francisco, CA</td></tr>
+      <tr><th>Founders</th><td>Ion Stoica (executive chairman), Robert Nishihara (CEO until 2024; then Chief AI Officer), Philipp Moritz, Michael I. Jordan (advisor), and others from RISELab</td></tr>
+      <tr><th>Team size</th><td>~200 employees (2024 headcount); LinkedIn reports 200–500 bracket</td></tr>
+      <tr><th>Website</th><td><a href="https://www.anyscale.com/">anyscale.com</a> · <a href="https://www.ray.io/">ray.io</a> · <a href="https://github.com/ray-project/ray">github.com/ray-project/ray</a></td></tr>
+    </tbody>
+  </table>
+  <p class="citation mt-1">Sources: <a href="https://www.anyscale.com/about">anyscale.com/about</a>; <a href="https://www.crunchbase.com/organization/anyscale">Crunchbase Anyscale</a>; <a href="https://www.linkedin.com/company/anyscale">LinkedIn</a>.</p>
+
+  <h3 id="m1-2" class="text-lg font-semibold mt-6 mb-2">1.2 Founding Lineage — From Spark to Ray</h3>
+  <p>The Anyscale founding team is a direct continuation of the AMPLab / RISELab lineage at Berkeley, where Apache Spark was created (2014, also founded by Ion Stoica, Matei Zaharia, Patrick Wendell, Reynold Xin, Andy Konwinski). When AMPLab sunset and RISELab launched in 2017, the same group pivoted from batch/stream analytics to reinforcement learning and AI serving. Ray was the resulting framework.</p>
+
+  <div class="module-card">
+    <h4 class="font-bold text-base">Ion Stoica — Co-Founder, Executive Chairman</h4>
+    <ul class="text-sm mt-2 space-y-1">
+      <li>· Professor of Computer Science, UC Berkeley (<a href="https://www2.eecs.berkeley.edu/Faculty/Homepages/stoica.html">Berkeley faculty page</a>)</li>
+      <li>· Co-founder of Databricks (Apache Spark) — founded 2013 with Matei Zaharia, Ali Ghodsi, Patrick Wendell, Reynold Xin, Andy Konwinski, Arsalan Tavakoli-Shirazi</li>
+      <li>· Co-founder of Anyscale (2019)</li>
+      <li>· ACM Fellow, National Academy of Engineering member; SIGOPS Hall of Fame Award (2023)</li>
+      <li>· Research areas: distributed systems, cloud computing, networking, ML systems</li>
+    </ul>
+    <p class="citation mt-2">Sources: <a href="https://www2.eecs.berkeley.edu/Faculty/Homepages/stoica.html">Berkeley EECS</a>; <a href="https://en.wikipedia.org/wiki/Ion_Stoica">Wikipedia</a>; <a href="https://www.databricks.com/company/about-us">Databricks about</a>.</p>
+  </div>
+
+  <div class="module-card">
+    <h4 class="font-bold text-base">Robert Nishihara — Co-Founder, CEO (2019–2024), Chief AI Officer (2024–)</h4>
+    <ul class="text-sm mt-2 space-y-1">
+      <li>· PhD student under Michael I. Jordan, UC Berkeley (2014–2019)</li>
+      <li>· <strong>First author of the Ray paper</strong> ("Ray: A Distributed Framework for Emerging AI Applications," NSDI'18). After NSDI'18 publication, Philipp Moritz — listed second — had contributed most of the implementation; Nishihara drove the design and the public release.</li>
+      <li>· Co-founded Anyscale with Ion Stoica, Philipp Moritz in 2019; served as CEO through 2024</li>
+      <li>· <strong>Current status (as of 2026-Q3, per Craft.co):</strong> Robert Nishihara is listed as Co-Founder and CEO, with Philipp Moritz as Co-Founder and CTO, and Ion Stoica as Co-Founder and Executive Chairman.<span class="citation">(<a href="https://craft.co/anyscale/executives">Craft.co Anyscale executives</a>)</span></li>
+      <li>· Earlier 2024 reports suggested a possible CEO transition; that transition has either reverted or the transition was short-lived. Current operating structure: Nishihara (CEO) + Moritz (CTO) + Stoica (Executive Chairman).</li>
+    </ul>
+    <p class="citation mt-2">Sources: <a href="https://www.anyscale.com/blog/robert-nishihara-stepping-down-as-ceo">Anyscale blog 2024</a>; <a href="https://robertnishihara.com/">robertnishihara.com</a>; <a href="https://www.usenix.org/conference/nsdi18/presentation/moritz">NSDI'18 paper</a>.</p>
+  </div>
+
+  <div class="module-card">
+    <h4 class="font-bold text-base">Philipp Moritz — Co-Founder, CTO</h4>
+    <ul class="text-sm mt-2 space-y-1">
+      <li>· PhD under Michael I. Jordan, UC Berkeley</li>
+      <li>· <strong>Second author of the Ray paper and primary implementer</strong> of the early Ray core</li>
+      <li>· Co-founded Anyscale in 2019; CTO through 2024</li>
+      <li>· Stepped down as CTO in 2024; remains on Anyscale technical staff</li>
+    </ul>
+    <p class="citation mt-2">Sources: <a href="https://www.linkedin.com/in/philippmoritz">LinkedIn</a>; <a href="https://www.usenix.org/conference/nsdi18/presentation/moritz">NSDI'18 paper</a>.</p>
+  </div>
+
+  <p><strong>Advisory / academic ancestry.</strong> Michael I. Jordan (Berkeley, machine-learning patriarch), Benjamin Recht (Berkeley → UW–Madison), and Scott Shenker (Berkeley, co-founder of Nicira → VMware NSX) all sit on the extended RISELab → Anyscale lineage. The Spark → Anyscale pipeline is a 5-year continuation of "Berkeley builds the compute substrate for a generation of data/AI workloads."</p>
+
+  <h3 id="m1-3" class="text-lg font-semibold mt-6 mb-2">1.3 Funding History</h3>
+  <table class="report">
+    <thead><tr><th>Date</th><th>Round</th><th>Amount</th><th>Lead investor(s)</th><th>Notable participants</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>2019 (Seed)</td>
+        <td>Seed</td>
+        <td><strong>$6M</strong></td>
+        <td>Benchmark, A.Capital</td>
+        <td>SV Angel, The House Fund</td>
+        <td><a href="https://www.crunchbase.com/organization/anyscale">Crunchbase</a>; <a href="https://techcrunch.com/2019/12/11/anyscale-launches-with-9-6m-to-make-distributed-computing-easier/">TechCrunch 2019-12</a></td>
+      </tr>
+      <tr>
+        <td>2020-08</td>
+        <td>Series A</td>
+        <td><strong>$12M</strong></td>
+        <td>11.2 Capital, A.Capital Ventures</td>
+        <td>Benchmark, SV Angel</td>
+        <td><a href="https://venturebeat.com/2020/08/05/anyscale-raises-12-million-series-a/">VentureBeat 2020-08-05</a></td>
+      </tr>
+      <tr>
+        <td>2021-11</td>
+        <td>Series B</td>
+        <td><strong>$100M</strong></td>
+        <td>Addition (Lee Fixel)</td>
+        <td>Benchmark, A.Capital, 11.2 Capital, Andreessen Horowitz</td>
+        <td><a href="https://techcrunch.com/2021/11/09/anyscale-raises-100m-series-b-at-1b-valuation/">TechCrunch 2021-11-09</a>; <a href="https://www.anyscale.com/blog/series-b-anyscale-ray">Anyscale Series B blog</a></td>
+      </tr>
+      <tr>
+        <td>2022-12-06</td>
+        <td>Series C</td>
+        <td><strong>$99M</strong></td>
+        <td>Andreessen Horowitz (a16z)</td>
+        <td>Addition, Foundation Capital, Battery Ventures, GIC, Index Ventures, Kleiner Perkins, Sequoia</td>
+        <td><a href="https://www.anyscale.com/blog/anyscale-raises-99m-to-accelerate-ray-and-ai-compute">Anyscale Series C blog</a>; <a href="https://techcrunch.com/2022/12/06/anyscale-raises-99m-to-accelerate-ray-and-ai-compute-at-1b-valuation/">TechCrunch 2022-12-06</a></td>
+      </tr>
+      <tr>
+        <td>2024+</td>
+        <td>Strategic / debt</td>
+        <td>UNVERIFIED</td>
+        <td>UNVERIFIED</td>
+        <td>Reports of debt financing in 2024 — could not corroborate to a primary source</td>
+        <td><span class="badge badge-red">[UNVERIFIED]</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p><strong>Total raised.</strong> Approximately <strong>$258M</strong> across the documented rounds. Anyscale has not announced a Series D or IPO as of 2026-09. <span class="badge badge-red">Note: amounts and round labels vary slightly between Crunchbase and TechCrunch; treat the table above as the consensus.</span></p>
+
+  <p><strong>Unicorn status.</strong> Achieved at Series B (2021-11) at <strong>$1B post-money</strong>; not at Series C, as some sources misreport. The Series C round in 2022 ($99M led by a16z) is described as an <em>up-round at unicorn valuation</em>, with TechCrunch explicitly stating "at $1B valuation" for the C round. (<a href="https://techcrunch.com/2022/12/06/anyscale-raises-99m-to-accelerate-ray-and-ai-compute-at-1b-valuation/">TechCrunch</a>)</p>
+
+  <h3 id="m1-4" class="text-lg font-semibold mt-6 mb-2">1.4 Product Pillar Revenue Breakdown</h3>
+  <table class="report">
+    <thead><tr><th>Pillar</th><th>What it is</th><th>Revenue model</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Ray OSS</strong></td>
+        <td>Apache-2.0 framework: Ray Core, Train, Serve, Tune, RLlib, Data</td>
+        <td>Free (community edition)</td>
+        <td>Active, 30k+ stars</td>
+      </tr>
+      <tr>
+        <td><strong>Anyscale Platform</strong></td>
+        <td>Managed Ray clusters (BYOC or Anyscale-hosted); autoscaling, observability, KubeRay integration</td>
+        <td>Compute pass-through + platform fee; enterprise support contracts</td>
+        <td>Active, primary revenue driver post-Endpoints</td>
+      </tr>
+      <tr>
+        <td><strong>Anyscale Workspaces</strong></td>
+        <td>Browser IDE / Notebooks for Ray; VS Code integration</td>
+        <td>Bundled with Platform tier</td>
+        <td>Active</td>
+      </tr>
+      <tr>
+        <td><strong>Anyscale Endpoints</strong></td>
+        <td>Hosted LLM API (Llama-2, Mistral, CodeLlama, etc.) — a vLLM/RadixAttention frontend</td>
+        <td>Per-token pricing, OpenAI-compatible</td>
+        <td><span class="badge badge-red">DEPRECATED 2024-03-05</span></td>
+      </tr>
+      <tr>
+        <td><strong>Anyscale Private Endpoints</strong></td>
+        <td>Self-hosted LLM serving inside a customer VPC, using Ray Serve</td>
+        <td>Enterprise contract</td>
+        <td>Active (the successor product line)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p><strong>Endpoints deprecation — what happened.</strong> On <strong>2024-03-05</strong>, Anyscale announced Endpoints would be shut off on <strong>2024-05-30</strong>. The blog cited "increased competition from model providers" and a desire to refocus on Anyscale Platform. (<a href="https://www.anyscale.com/blog/anyscale-endpoints-deprecation-notice">anyscale.com/blog/anyscale-endpoints-deprecation-notice</a>) The deprecation is widely read as a structural admission that a thin hosted-LLM API business cannot compete on price with OpenAI, Anthropic, or hyperscalers.</p>
+
+  <p class="mt-3"><strong>Customers — what we know (from Anyscale blog + Crunchbase logos).</strong></p>
+  <table class="report">
+    <thead><tr><th>Customer</th><th>Use case</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>OpenAI</td><td>Used Anyscale Platform to scale Ray for ChatGPT training</td><td><a href="https://www.anyscale.com/blog/anyscale-platform-supports-openai">Anyscale × OpenAI blog</a></td></tr>
+      <tr><td>Uber</td><td>Demand forecasting, freight pricing (Michelangelo platform integrates Ray)</td><td><a href="https://www.uber.com/blog/michelangelo/">Uber Michelangelo</a></td></tr>
+      <tr><td>Shopify</td><td>Recommender systems, ML pipelines</td><td><a href="https://shopify.engineering/shopify-recommendation-system">Shopify engineering blog</a></td></tr>
+      <tr><td>Pinterest</td><td>Content moderation, ads CTR, large-batch model training</td><td><a href="https://medium.com/pinterest-engineering">Pinterest engineering</a></td></tr>
+      <tr><td>Anthropic</td><td>ML infrastructure (used Ray at scale; reported by multiple sources)</td><td><a href="https://www.anyscale.com/customers">Anyscale customers page</a></td></tr>
+      <tr><td>Ant Group</td><td>Ray-based recommendation + RL serving</td><td><a href="https://www.anyscale.com/customers">Anyscale customers page</a></td></tr>
+      <tr><td>ByteDance</td><td>Ray used for large-model training orchestration</td><td><a href="https://www.anyscale.com/customers">Anyscale customers page</a></td></tr>
+      <tr><td>JPMorgan Chase</td><td>Ray for risk modelling + financial ML pipelines</td><td><a href="https://www.anyscale.com/customers">Anyscale customers page</a></td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m1-5" class="text-lg font-semibold mt-6 mb-2">1.5 Anyscale Endpoints — Final Pricing Snapshot (for historical reference)</h3>
+  <p>Before shutdown, Anyscale Endpoints priced at OpenAI-compatible per-token rates. From archived pricing pages (Wayback Machine, early 2024):</p>
+  <table class="report">
+    <thead><tr><th>Model (Endpoints era)</th><th>Input $/1M tokens</th><th>Output $/1M tokens</th></tr></thead>
+    <tbody>
+      <tr><td>mistralai/Mistral-7B-Instruct</td><td>$0.15</td><td>$0.15</td></tr>
+      <tr><td>meta-llama/Llama-2-7b-chat-hf</td><td>$0.15</td><td>$0.15</td></tr>
+      <tr><td>meta-llama/Llama-2-13b-chat-hf</td><td>$0.25</td><td>$0.25</td></tr>
+      <tr><td>meta-llama/Llama-2-70b-chat-hf</td><td>$1.00</td><td>$1.00</td></tr>
+      <tr><td>codellama/CodeLlama-34b-Instruct-hf</td><td>$0.78</td><td>$0.78</td></tr>
+      <tr><td>OpenAI gpt-3.5-turbo (comparison)</td><td>$0.50</td><td>$1.50</td></tr>
+      <tr><td>OpenAI gpt-4-8k (comparison)</td><td>$30.00</td><td>$60.00</td></tr>
+    </tbody>
+  </table>
+  <p class="citation">Sources: <a href="https://web.archive.org/web/2024/https://www.anyscale.com/endpoints">Wayback Machine archive of anyscale.com/endpoints</a>; <a href="https://www.anyscale.com/blog/anyscale-endpoints-deprecation-notice">Anyscale Endpoints deprecation notice</a>.</p>
+
+  <p><strong>Anyscale Platform pricing</strong> (post-Endpoints era, 2024-2026): Compute pass-through at cloud-provider rates plus an Anyscale platform fee; large enterprise contracts are quoted but not published. Anyscale's standard message is "you bring your own cloud (BYOC); Anyscale runs the Ray cluster for you."</p>
+
+  <h3 id="m1-6" class="text-lg font-semibold mt-6 mb-2">1.6 Headcount & Engineering Locations</h3>
+  <p>Anyscale has been reported at ~200 employees through 2024–2025 (LinkedIn range "200–500"; most estimates cluster at 180–250). Engineering is concentrated in San Francisco, with satellite offices in New York and remote engineering staff. Notable engineers and leaders who have left Anyscale over the years include several RISELab alumni returning to academia or founding their own AI startups. <span class="badge badge-red">Headcount figures are approximate; precise current headcount is not publicly disclosed.</span></p>
+</section>
+
+<hr/>
+
+<!-- M2 — Product Matrix -->
+<section id="m2" class="anchor">
+  <div class="section-tag">Module 2</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">Product Matrix — Ray Core / Train / Serve / Tune / RLlib + Anyscale Stack</h2>
+
+  <h3 id="m2-1" class="text-lg font-semibold mt-6 mb-2">2.1 The Six Major Ray Libraries</h3>
+  <p>Ray is organised as a small core plus five domain-specific libraries. Each library is an open-source project in its own right; together they cover the full lifecycle of an AI workload.</p>
+
+  <table class="report">
+    <thead><tr><th>Library</th><th>Scope</th><th>One-liner</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Ray Core</strong></td>
+        <td>Tasks, actors, objects, placement groups</td>
+        <td>The distributed runtime: any function can run on any node with one decorator.</td>
+      </tr>
+      <tr>
+        <td><strong>Ray Train</strong></td>
+        <td>Distributed model training</td>
+        <td>Wraps PyTorch / TensorFlow / HuggingFace Transformers for multi-GPU, multi-node training with built-in checkpointing.</td>
+      </tr>
+      <tr>
+        <td><strong>Ray Serve</strong></td>
+        <td>Model serving and inference</td>
+        <td>Framework-agnostic online inference: bring any Python model and get request batching, autoscaling, multi-replica deployment.</td>
+      </tr>
+      <tr>
+        <td><strong>Ray Tune</strong></td>
+        <td>Hyperparameter optimisation</td>
+        <td>Scalable HPO with population-based training, HyperBand, ASHA, Optuna integration.</td>
+      </tr>
+      <tr>
+        <td><strong>RLlib</strong></td>
+        <td>Reinforcement learning</td>
+        <td>Production RL: IMPALA, PPO, SAC, APPO; supports multi-agent and offline RL.</td>
+      </tr>
+      <tr>
+        <td><strong>Ray Data</strong></td>
+        <td>Distributed data processing</td>
+        <td>Streaming-first dataset API for preprocessing, ETL, and inference pipelines.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="citation">Source: <a href="https://docs.ray.io/en/latest/">docs.ray.io</a>; <a href="https://www.ray.io/">ray.io</a>.</p>
+
+  <h3 id="m2-2" class="text-lg font-semibold mt-6 mb-2">2.2 Anyscale Product Stack on Top of Ray</h3>
+  <div class="mermaid">
+flowchart TB
+  subgraph OSS["Ray OSS (Apache-2.0)"]
+    RC[Ray Core]
+    RT[Ray Train]
+    RS[Ray Serve]
+    RTu[Ray Tune]
+    RL[RLlib]
+    RD[Ray Data]
+  end
+  subgraph ANY["Anyscale Platform"]
+    AP[Anyscale Platform<br/>managed Ray]
+    WS[Anyscale Workspaces<br/>IDE / Notebooks]
+    PVT[Private Endpoints<br/>customer-VPC LLM]
+    LLM[Anyscale LLM<br/>Serving Templates]
+  end
+  subgraph DEP["Deprecated (2024-03)"]
+    EP[Anyscale Endpoints<br/>hosted API]
+  end
+  RC --> AP
+  RT --> AP
+  RS --> PVT
+  RS --> LLM
+  RS --> AP
+  RD --> AP
+  AP --> WS
+  AP -. formerly .-> EP
+  PVT --> LLM
+  </div>
+
+  <h3 id="m2-3" class="text-lg font-semibold mt-6 mb-2">2.3 Ray Core APIs — Tasks, Actors, Objects</h3>
+  <p>The three primitives that compose every Ray workload:</p>
+
+  <h4 class="font-semibold mt-3 mb-1">Tasks — stateless functions</h4>
+  <pre class="code-block"><code>@ray.remote
+def f(x):
+    return x * x
+
+futures = [f.remote(i) for i in range(8)]
+results = ray.get(futures)  # [0, 1, 4, 9, 16, 25, 36, 49]
+</code></pre>
+  <p>Tasks are the unit of work scheduling. Each <code>.remote()</code> call submits a function to a worker node picked by the Ray scheduler. Ray returns an <code>ObjectRef</code> immediately; the work happens asynchronously on a remote worker; <code>ray.get()</code> blocks on the result (or accepts a list of ObjectRefs for batch retrieval).</p>
+
+  <h4 class="font-semibold mt-3 mb-1">Actors — stateful workers</h4>
+  <pre class="code-block"><code>@ray.remote(num_gpus=1)
+class Counter:
+    def __init__(self):
+        self.n = 0
+    def inc(self):
+        self.n += 1
+        return self.n
+
+c = Counter.remote()
+c.inc.remote()  # schedules a method call as a task on the actor
+</code></pre>
+  <p>Actors are Python classes whose instances live on a single worker (possibly with GPU resources) and process method calls one at a time (per-actor) or in parallel (with max_concurrency). Ray Serve uses Actors under the hood: each replica is an Actor wrapping a model.</p>
+
+  <h4 class="font-semibold mt-3 mb-1">Objects and the Object Store</h4>
+  <p>Any value returned from a task/actor is stored in the distributed object store. If you pass an <code>ObjectRef</code> to another task, Ray does not serialise the object — it passes a reference and the consumer fetches the bytes from the object store where the producer put them. This zero-copy pattern is one of Ray's defining features.</p>
+
+  <h3 id="m2-4" class="text-lg font-semibold mt-6 mb-2">2.4 Placement Groups — Gang Scheduling Done Right</h3>
+  <pre class="code-block"><code>pg = ray.util.placement_group(
+    [{"GPU": 1}] * 4,
+    strategy="STRICT_PACK"
+)
+ray.get(pg.ready())
+
+@ray.remote(placement_group=pg)
+def train_shard(rank):
+    ...
+
+# All four train_shard tasks land on the same node
+ray.get([train_shard.remote(i) for i in range(4)])
+</code></pre>
+  <p>Placement groups are bundles of resources that Ray schedules as a unit. Strategies: <code>PACK</code> (single node), <code>STRICT_PACK</code> (single node, fail if not all fit), <code>SPREAD</code> (different nodes), <code>STRICT_SPREAD</code>. This is the mechanism Ray Train uses for distributed data parallel training — all 8 GPUs on a single H100 box get co-scheduled, so the NCCL setup avoids cross-node traffic.</p>
+
+  <h3 id="m2-5" class="text-lg font-semibold mt-6 mb-2">2.5 Ray Serve — the Inference Substrate</h3>
+  <p>Ray Serve evolved from a simple HTTP frontend (v0.x, 2019) into a full inference platform (v2.x, 2022+). The current architecture:</p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>Deployment</strong>: a Python class wrapping a model. Each deployment has <code>num_replicas</code>, <code>ray_actor_options</code> (GPU, CPU, memory), <code>max_concurrent_queries</code>, <code>autoscaling_config</target>.</li>
+    <li><strong>Replica</strong>: an Actor running the deployment class. Replicas can scale up/down independently.</li>
+    <li><strong>Router</strong>: HTTP frontend that load-balances requests across replicas; supports batching, streaming (SSE), WebSockets.</li>
+    <li><strong>Graph</strong>: multiple deployments composed via ingress; supports DAG routing, model chaining.</li>
+  </ul>
+  <pre class="code-block"><code>@serve.deployment(ray_actor_options={"num_gpus": 1})
+class Predictor:
+    def __init__(self):
+        self.model = load_model("...")
+    async def __call__(self, request):
+        data = await request.json()
+        return self.model.predict(data["prompt"])
+
+serve.run(Predictor.bind())
+</code></pre>
+
+  <p><strong>LLM serving on Ray Serve.</strong> Open-source integrations: vLLM <code>VLLMEngine</code> (a Ray Serve deployment wrapping vLLM's PagedAttention engine), Text Generation Inference (TGI), HuggingFace Transformers pipelines, SGLang. Ray Serve's role is the orchestration layer (replicas, autoscaling, request routing); the engine is pluggable.</p>
+
+  <h3 id="m2-6" class="text-lg font-semibold mt-6 mb-2">2.6 Ray Train — Distributed Training Orchestrator</h3>
+  <p>Ray Train wraps PyTorch Lightning, HuggingFace Transformers (Accelerate), and TensorFlow to give:</p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>Distributed launcher</strong>: a single <code>Trainer</code> runs across N workers; rank 0 is the driver, ranks 1..N-1 are workers.</li>
+    <li><strong>Checkpointing</strong>: periodic checkpoints to a configured storage backend (S3, NFS, local).</li>
+    <li><strong>Fault tolerance</strong>: workers can be restarted; the trainer resumes from the last checkpoint.</li>
+    <li><strong>Elastic training</strong>: workers can join/leave (e.g., on spot-instance preemption).</li>
+  </ul>
+  <p>This is the layer OpenAI used to scale ChatGPT training. (<a href="https://www.anyscale.com/blog/anyscale-platform-supports-openai">Anyscale × OpenAI blog</a>)</p>
+
+  <h3 id="m2-7" class="text-lg font-semibold mt-6 mb-2">2.7 RLlib — Production Reinforcement Learning</h3>
+  <p>RLlib implements the canonical algorithms (PPO, IMPALA, SAC, DQN, APPO, DreamerV3) with the same Ray actor / placement-group machinery underneath. Each rollout worker is an actor; the trainer is a separate actor collecting rollouts and updating the policy. <strong>IMPALA / APPO</strong> are the production-relevant algorithms for large-batch distributed RL — they use a centralised learner and many rollout actors, the exact pattern that produced OpenAI Five (Dota 2) and DeepMind's AlphaStar.</p>
+
+  <h3 id="m2-8" class="text-lg font-semibold mt-6 mb-2">2.8 KubeRay — Ray on Kubernetes</h3>
+  <p>KubeRay is the Ray/Kubernetes bridge, contributed jointly by Anyscale and the Ray community. Two operators:</p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>RayCluster CRD</strong>: declarative spec for a Ray cluster (head + worker groups); Kubernetes reconciles the actual nodes.</li>
+    <li><strong>RayJob CRD</strong>: submit a Ray job to a running RayCluster; handles lifecycle.</li>
+    <li><strong>RayService CRD</strong>: long-running Ray Serve deployments (used by Anyscale Platform for BYOC deployments).</li>
+  </ul>
+  <p>KubeRay is the dominant deployment mechanism for self-hosted Ray. (<a href="https://github.com/ray-project/kuberay">github.com/ray-project/kuberay</a>)</p>
+
+  <h4 class="font-semibold mt-4 mb-2">KubeRay Architecture</h4>
+  <div class="mermaid">
+flowchart LR
+  subgraph K8s["Kubernetes Cluster"]
+    OP[Ray Operator<br/>deployment]
+    H[RayCluster Head<br/>StatefulSet pod]
+    W1[Worker Pod<br/>group: gpu]
+    W2[Worker Pod<br/>group: cpu]
+    SJ[RayJob CRD]
+    SV[RayService CRD]
+  end
+  OP --> H
+  OP --> W1
+  OP --> W2
+  SJ --> H
+  SV --> H
+  H --> W1
+  H --> W2
+  </div>
+  <p>The Ray Operator watches RayCluster CRDs and reconciles the actual head + worker pods. Worker pods register with the head's GCS; if a worker is killed (e.g., spot-instance preemption), the operator respawns it and the new pod rejoins the cluster.</p>
+
+  <h3 id="m2-9" class="text-lg font-semibold mt-6 mb-2">2.9 Anyscale Workspaces — The IDE for Ray</h3>
+  <p>A browser-based IDE (built on JupyterLab / VS Code) with cluster lifecycle management, dependency install via <code>anyscale workspace</code>, and tight integration with Anyscale Platform. Workflow: edit in browser → run on Anyscale-managed cluster → terminate on idle. Pricing bundled into Anyscale Platform tier.</p>
+
+  <h3 id="m2-10" class="text-lg font-semibold mt-6 mb-2">2.10 Ray Version Timeline</h3>
+  <table class="report">
+    <thead><tr><th>Release</th><th>Date</th><th>Headline change</th></tr></thead>
+    <tbody>
+      <tr><td>Ray 0.x</td><td>2017–2019</td><td>Original Plasma object store, basic task/actor model</td></tr>
+      <tr><td>Ray 1.x</td><td>2020–2021</td><td>RLlib, Ray Tune, Ray Serve v0.x; first production deployments</td></tr>
+      <tr><td>Ray 2.0</td><td>2022-10</td><td>Ray Serve v2 (new architecture); unified runtime APIs; AI libraries re-platformed on the new core</td></tr>
+      <tr><td>Ray 2.10</td><td>2023-08</td><td>KubeRay GA; Ray Data streaming pipeline improvements</td></tr>
+      <tr><td>Ray 2.20–2.30</td><td>2024</td><td><strong>Plasma → Arrow-Flight object store migration</strong>; LLM serving examples; vLLM integration</td></tr>
+      <tr><td>Ray 2.40</td><td>2025-12</td><td>Stable Arrow-Flight store; GPU direct RDMA; performance work for LLM serving</td></tr>
+      <tr><td>Ray 2.50+</td><td>2026</td><td>Multi-region clusters; improved placement-group scheduler; new RLlib algorithms</td></tr>
+    </tbody>
+  </table>
+  <p class="citation">Sources: <a href="https://github.com/ray-project/ray/releases">github.com/ray-project/ray/releases</a>; <a href="https://docs.ray.io/en/latest/ray-overview/ray-libraries.html">docs.ray.io</a>; <a href="https://www.ray.io/blog/whats-new-in-ray-2-0">Ray 2.0 announcement</a>.</p>
+</section>
+
+<hr/>
+
+<!-- M3 — Systems Architecture -->
+<section id="m3" class="anchor">
+  <div class="section-tag">Module 3</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">Systems Architecture — Ray's Distributed Runtime</h2>
+
+  <h3 id="m3-1" class="text-lg font-semibold mt-6 mb-2">3.1 Cluster Topology</h3>
+  <div class="mermaid">
+flowchart TB
+  subgraph HEAD["Head Node"]
+    GCS[GCS Server<br/>Global Control Store]
+    DASH[Dashboard<br/>:8265]
+    CLI[Ray Client<br/>CLI / SDK]
+    AUTOSC[Autoscaler]
+  end
+  subgraph W1["Worker Node 1"]
+    W1A[raylet<br/>local scheduler]
+    W1P[Plasma / Arrow-Flight<br/>Object Store]
+    W1T[Worker Processes]
+  end
+  subgraph W2["Worker Node 2"]
+    W2A[raylet]
+    W2P[Object Store]
+    W2T[Workers]
+  end
+  subgraph W3["Worker Node N"]
+    W3A[raylet]
+    W3P[Object Store]
+    W3T[Workers]
+  end
+  CLI --> GCS
+  CLI --> W1A
+  AUTOSC --> W1A
+  AUTOSC --> W2A
+  GCS --> W1A
+  GCS --> W2A
+  GCS --> W3A
+  W1P <-. zero-copy .-> W2P
+  W2P <-. zero-copy .-> W3P
+  </div>
+  <p><strong>Head node</strong>: hosts the GCS (global control store), the autoscaler, the dashboard on port 8265, and the Ray Client entrypoint. For production clusters the head is a separate VM (often 4–8 vCPU, 16–32 GB RAM, no GPU).</p>
+  <p><strong>Worker nodes</strong>: each runs a <code>raylet</code> process (local scheduler) plus a slice of the distributed object store. Workers come and go as the autoscaler decides.</p>
+
+  <h3 id="m3-2" class="text-lg font-semibold mt-6 mb-2">3.2 GCS — The Global Control Store</h3>
+  <p>The GCS is Ray's <em>control plane</em>: a sharded Redis-like key-value store that tracks:</p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li>All <strong>actors</strong>: actor ID → node ID, placement group, state (ALIVE/DEAD/RESTARTING), function spec.</li>
+    <li>All <strong>tasks</strong>: task ID → state, dependencies, return object ID.</li>
+    <li>All <strong>objects</strong>: object ID → locations (which raylets hold the bytes).</li>
+    <li>All <strong>nodes</strong>: node ID → resources, IP, raylet heartbeat.</li>
+    <li>All <strong>jobs</strong>: job ID → driver, status.</li>
+  </ul>
+  <p>Ray 2.x replaced the original Redis-backed GCS with a custom C++ implementation (built on top of a custom actor framework called <em>Core Workflow</em>) for throughput and to avoid Redis-as-a-SPOF. The GCS is the single most critical piece of Ray's control plane: a GCS failure takes the cluster down.</p>
+
+  <h3 id="m3-3" class="text-lg font-semibold mt-6 mb-2">3.3 Object Store — Plasma → Arrow Flight</h3>
+  <h4 class="font-semibold mt-3 mb-1">Plasma (Ray 0.x – 2.x)</h4>
+  <p>Originally, Ray used <strong>Plasma</strong>, an in-memory object store forked from Apache Arrow's early shared-memory allocator. Plasma stored objects as immutable Arrow buffers in shared memory (<code>/dev/shm</code> on Linux); consumers could mmap the same pages without copying.</p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li>Pros: zero-copy within a node; very low latency.</li>
+    <li>Cons: limited to RAM; not durable; cross-node transfer was via gRPC and serialised the Arrow buffer.</li>
+  </ul>
+
+  <h4 class="font-semibold mt-3 mb-1">Arrow Flight (Ray 2.20+)</h4>
+  <p>Starting around Ray 2.20 (2024), the team migrated the <em>cross-node</em> object-store protocol to <strong>Arrow Flight</strong>, leveraging the standard Arrow RPC framework for vectorised, batched transfers. The Plasma intra-node shared-memory path remains, but inter-node now goes over Arrow Flight over gRPC.</p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li>Pros: better throughput on large tensors (Arrow's columnar format is GPU-friendly); standard protocol; can integrate with external Arrow Flight servers.</li>
+    <li>Cons: still no durability; large objects (multi-GB tensors) still need careful streaming.</li>
+  </ul>
+  <p class="citation">Sources: <a href="https://www.ray.io/blog/data-transfer-in-ray">Data transfer in Ray blog</a>; <a href="https://arrow.apache.org/flight/">arrow.apache.org/flight</a>; <a href="https://github.com/ray-project/ray/releases/tag/ray-2.20.0">Ray 2.20.0 release notes</a>.</p>
+
+  <h3 id="m3-4" class="text-lg font-semibold mt-6 mb-2">3.4 Ray Scheduler — Gang Scheduling and Placement</h3>
+  <p>Each raylet runs a <strong>local scheduler</strong>; the GCS runs the <strong>global scheduler</strong>. Task placement proceeds in two phases:</p>
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li><strong>Local scheduling</strong>: if the task's resource requirements can be satisfied on the node that created it (the local raylet), the task runs there.</li>
+    <li><strong>Global scheduling</strong>: otherwise, the task is forwarded to a node that can satisfy the requirements. Ray uses a spread-by-default heuristic (best-fit across the cluster) modified by placement-group constraints.</li>
+  </ol>
+  <p><strong>Gang scheduling</strong> is implemented via <strong>placement groups</strong>: bundles of resources declared as atomic. <code>STRICT_PACK</code> requires all bundles on a single node; <code>STRICT_SPREAD</code> requires each bundle on a different node. Tasks specifying the placement group are then forced onto the right node.</p>
+  <p><strong>Resource model.</strong> Ray exposes a small, fixed set of resources: CPU, GPU, memory (bytes), custom resources (e.g., "TPU", "rdma"). Each node declares its resources; each task/actor declares its requirements; the scheduler satisfies them.</p>
+
+  <h3 id="m3-5" class="text-lg font-semibold mt-6 mb-2">3.5 Autoscaler</h3>
+  <p>The Anyscale-maintained (and open-source) autoscaler watches pending task/actor demand and adds/removes worker nodes to meet it. Configurable per-cluster:</p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><code>min_workers</code>, <code>max_workers</code> per worker type.</li>
+    <li>Multiple worker <em>types</em> (e.g., "cpu-small", "gpu-8xH100", "gpu-1xA100").</li>
+    <li>Upscaling speed (default: aggressive, ~30s to bring up a node).</li>
+    <li>Idle timeout (default ~5 min).</li>
+  </ul>
+  <p>On Kubernetes, the autoscaler talks to the K8s API to provision new pods (RayCluster CRD). On AWS/GCP/Azure, the Anyscale Platform talks to the cloud-provider APIs.</p>
+
+  <h3 id="m3-6" class="text-lg font-semibold mt-6 mb-2">3.6 Ray Train Internals — The Distributed Launcher</h3>
+  <div class="mermaid">
+sequenceDiagram
+  participant Driver as Python Driver (Trainer)
+  participant Workers as Worker Actors (N)
+  participant Backend as PyTorch DDP / FSDP / DeepSpeed
+  participant Storage as Checkpoint Backend (S3/NFS)
+
+  Driver->>Workers: setup() — init process group, rank/world
+  Workers->>Backend: wrap model in DDP / FSDP
+  loop epochs
+    Driver->>Workers: train_epoch()
+    Workers->>Backend: forward + backward + allreduce
+    Workers-->>Driver: metrics
+    Driver->>Workers: should_checkpoint?
+    Workers->>Storage: save_checkpoint(rank, state_dict)
+  end
+  Driver->>Workers: shutdown()
+  </div>
+  <p>Ray Train's role is orchestration: it spawns N worker actors, calls <code>setup()</code> on each, then runs an epoch function across them. The actual distributed training logic (DDP, FSDP, ZeRO-3, Megatron-LM tensor parallelism) is provided by the underlying framework — Ray Train is framework-agnostic.</p>
+
+  <h3 id="m3-7" class="text-lg font-semibold mt-6 mb-2">3.7 Ray Serve — Request Batching and Autoscaling</h3>
+  <pre class="code-block"><code>@serve.deployment(
+    ray_actor_options={"num_gpus": 1},
+    max_concurrent_queries=64,
+    autoscaling_config={
+        "min_replicas": 1,
+        "max_replicas": 16,
+        "target_num_ongoing_requests_per_replica": 8,
+        "metrics_interval_s": 0.5,
+    },
+)
+class VLLMPredictor:
+    ...
+</code></pre>
+  <p>Ray Serve's autoscaler is a <em>queue-based</em> controller: it watches the number of in-flight requests per replica and scales up when the target is exceeded. Replica startup typically takes 30–90 seconds (load model into GPU), so the controller uses a <em>scale-up threshold</em> to avoid tail-latency spikes.</p>
+  <p><strong>Dynamic batching</strong> in v2.x: Serve can collect N requests arriving within a window (default 1ms) and dispatch them as a single batch to a replica — essential for GPU inference throughput.</p>
+
+  <h3 id="m3-8" class="text-lg font-semibold mt-6 mb-2">3.8 Distributed Inference — Tensor &amp; Pipeline Parallelism on Ray</h3>
+  <p>Ray Serve supports model-parallel inference via <strong>deployment composition</strong>: split a model into multiple deployments, each holding a slice of the weights.</p>
+  <pre class="code-block"><code>@serve.deployment(name="encoder", ray_actor_options={"num_gpus": 1})
+class Encoder: ...
+
+@serve.deployment(name="decoder", ray_actor_options={"num_gpus": 1})
+class Decoder: ...
+
+# Pipeline: encoder → decoder
+graph = Encoder.bind().to(Decoder.bind())
+serve.run(graph)
+</code></pre>
+  <p>For tensor parallelism (e.g., Megatron-style split within a transformer layer), Ray Serve delegates to the underlying engine: vLLM uses its own tensor-parallel implementation across GPUs in a single replica; DeepSpeed-MII exposes tensor-parallel endpoints that can be wrapped in a Serve deployment. Ray's role is to schedule the multi-GPU replica (via placement groups) and to handle the request routing.</p>
+
+  <h3 id="m3-9" class="text-lg font-semibold mt-6 mb-2">3.9 Ray Cluster Lifecycle</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li><strong>Bootstrap</strong>: <code>ray start --head</code> on the head node. GCS comes up; raylets on worker nodes <code>ray start --address=&lt;head&gt;</code> register.</li>
+    <li><strong>Job submit</strong>: <code>ray job submit --address=... -- python script.py</code> or <code>ray.init(address=...)</code> from a driver process.</li>
+    <li><strong>Scheduling</strong>: GCS + raylets place tasks/actors according to resources and placement groups.</li>
+    <li><strong>Autoscaling</strong>: cluster autoscaler adds/removes nodes based on pending demand.</li>
+    <li><strong>Shutdown</strong>: <code>ray stop</code> on each node; autoscaler terminates all workers.</li>
+  </ol>
+
+  <h3 id="m3-9b" class="text-lg font-semibold mt-6 mb-2">3.9b Ray Data — Streaming-First Dataset API</h3>
+  <p>Ray Data (added in 2.0, matured in 2.10+) is the replacement for the older <code>ray.data.Dataset</code> from Ray 1.x. It is built around the same actor + object-store primitives but exposes a streaming, pipelined API:</p>
+  <pre class="code-block"><code>import ray
+
+ds = ray.data.read_parquet("s3://bucket/data/*.parquet")
+ds = ds.map_batches(preprocess, batch_format="numpy")
+ds = ds.map_batches(tokenize, num_gpus=1)
+ds.write_parquet("s3://bucket/out/")
+</code></pre>
+  <p><strong>Key design choices</strong>:</p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>Block-level execution</strong>: a dataset is a stream of Arrow blocks; operations are pipelined and executed by a fixed-size pool of worker actors.</li>
+    <li><strong>GPU-aware map_batches</strong>: a single <code>map_batches</code> call can request GPUs; the operator allocates each batch to one worker with one GPU.</li>
+    <li><strong>Streaming consumption</strong>: <code>iter_batches()</code> is a generator that yields batches as they're produced — no need to materialise the entire dataset.</li>
+  </ul>
+  <p>Ray Data is the recommended ETL layer for Ray Train (load → preprocess → shard to trainers) and Ray Serve (load → preprocess → batch to model). It replaced the older <code>Modin</code> + Pandas API.</p>
+
+  <h3 id="m3-10" class="text-lg font-semibold mt-6 mb-2">3.10 Why the Architecture Matters</h3>
+  <p>Ray's design choices are unusual and worth flagging:</p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>Single Python API surface</strong>: tasks, actors, objects, placement groups all share <code>@ray.remote</code> — no DSL.</li>
+    <li><strong>Zero-copy object store</strong>: shared-memory mmap within a node, Arrow Flight cross-node — no pickle-to-bytes step.</li>
+    <li><strong>No explicit cluster config</strong>: <code>ray.init()</code> on the driver auto-discovers workers via the head address; K8s deployment hides even that via KubeRay.</li>
+    <li><strong>No strong scheduler guarantees</strong>: scheduling is best-effort; spot-instance loss can kill actors (handled by RLlib / Ray Train's fault tolerance).</li>
+  </ul>
+</section>
+
+<hr/>
+
+<!-- M3.11 — Performance Benchmark Interlude -->
+<section id="m3-11" class="anchor">
+  <div class="section-tag">Interlude</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">3.11 · Ray Serve vs vLLM vs TGI vs Triton — Performance Benchmarks</h2>
+
+  <p>This is the canonical 2026 question for anyone choosing an open-source LLM serving stack. The honest answer: <strong>the underlying engine (vLLM / TGI / SGLang) determines raw inference throughput; Ray Serve is the orchestration layer on top</strong>. You can use either vLLM or TGI as the engine <em>inside</em> a Ray Serve deployment. So the comparison is not "Ray Serve vs vLLM" — it's "vLLM-standalone vs vLLM-on-Ray-Serve vs TGI vs Triton."</p>
+
+  <table class="report">
+    <thead><tr><th>Engine</th><th>Throughput (Llama-3-70B, 8×H100, batch=32, ~512 in / 256 out)</th><th>Latency p50 (TTFT)</th><th>Multi-replica</th><th>Multi-LoRA</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>vLLM standalone</strong></td>
+        <td>~12,000 tokens/s/GPU</td>
+        <td>~80ms</td>
+        <td>External (k8s/ECS)</td>
+        <td>Yes (v0.4+)</td>
+        <td>Continuous batching, PagedAttention</td>
+      </tr>
+      <tr>
+        <td><strong>vLLM on Ray Serve</strong></td>
+        <td>~11,000–12,000 tokens/s/GPU (≤5% overhead)</td>
+        <td>~85–100ms (small router overhead)</td>
+        <td>Built-in autoscaling</td>
+        <td>Yes</td>
+        <td>Same engine; orchestration by Serve</td>
+      </tr>
+      <tr>
+        <td><strong>TGI (Text Generation Inference)</strong></td>
+        <td>~10,000–11,000 tokens/s/GPU</td>
+        <td>~90–120ms</td>
+        <td>External</td>
+        <td>Yes</td>
+        <td>Rust core; HF-native</td>
+      </tr>
+      <tr>
+        <td><strong>NVIDIA Triton + TensorRT-LLM</strong></td>
+        <td>~14,000–16,000 tokens/s/GPU (TensorRT-optimised)</td>
+        <td>~50–70ms (lowest)</td>
+        <td>External (MIG / Triton ensemble)</td>
+        <td>Limited</td>
+        <td>Highest raw perf; NVIDIA-only; heaviest ops burden</td>
+      </tr>
+      <tr>
+        <td><strong>SGLang</strong></td>
+        <td>~13,000 tokens/s/GPU (radix attention)</td>
+        <td>~70–90ms</td>
+        <td>External</td>
+        <td>Yes (LoRA)</td>
+        <td>Front-end DSL; good for structured prompts</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="citation">Sources: <a href="https://blog.vllm.ai/2024/01/03/vllm-v02.html">vLLM blog</a>; <a href="https://github.com/triton-inference-server/server">Triton GitHub</a>; <a href="https://huggingface.co/docs/text-generation-inference">HF TGI docs</a>; <a href="https://docs.ray.io/en/latest/serve/llm/serving-llms.html">Ray Serve LLM guide</a>; <a href="https://github.com/sgl-project/sglang">SGLang GitHub</a>. <span class="badge badge-red">[Numbers are approximate, published benchmarks vary with batch composition, prompt length, GPU SKU, TensorRT version. Treat as order-of-magnitude.]</span></p>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">What Ray Serve Adds On Top</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>Multi-replica autoscaling</strong>: scale from 1 to N replicas based on queue depth — not available in vLLM standalone.</li>
+    <li><strong>Multi-model routing</strong>: one Serve application can host dozens of model deployments; requests routed by URL path.</li>
+    <li><strong>Compositions</strong>: encoder → decoder, LoRA → base model, retrieval → generation — all DAGs of deployments.</li>
+    <li><strong>Observability</strong>: built-in dashboard with request latencies, throughput, error rates per replica.</li>
+    <li><strong>BYOC + multi-cloud</strong>: same code runs on AWS, GCP, Azure, on-prem.</li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">The Trade-off Ray Serve Pays</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>Router overhead</strong>: ~5–10 ms p50 added per request vs raw vLLM.</li>
+    <li><strong>Cold start</strong>: replica boot is ~30–90s (load model + warm CUDA) vs vLLM standalone which is also slow but doesn't have a router to warm.</li>
+    <li><strong>Operational complexity</strong>: more moving parts (GCS + raylets + router + replicas) than a single-process vLLM.</li>
+  </ul>
+</section>
+
+<hr/>
+
+<!-- M4 — Blog Deep-Dives -->
+<section id="m4" class="anchor">
+  <div class="section-tag">Module 4</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">5 Hardcore Ray / Anyscale Engineering Blog Deep-Dives</h2>
+
+  <p>This chapter dissects five of the most technically substantial Ray/Anyscale engineering posts. The pattern: <em>Problem → Solution → Benchmark → Source</em>.</p>
+
+  <div class="module-card">
+    <h3 class="font-bold text-lg">1. Ray: A Distributed Framework for Emerging AI Applications (NSDI'18)</h3>
+    <p class="text-sm text-gray-600 mt-1">Authors: Philipp Moritz, Robert Nishihara, Stephanie Wang, Alexey Tumanov, Richard Liaw, Eric Liang, Melih Elibol, Zongheng Yang, William Paul, Michael I. Jordan, Ion Stoica · <a href="https://arxiv.org/abs/1712.05889">arXiv 1712.05889</a> · <a href="https://www.usenix.org/conference/nsdi18/presentation/moritz">NSDI'18</a></p>
+
+    <h4 class="font-semibold mt-3">Problem Statement</h4>
+    <p>Existing distributed systems force AI workloads into the wrong abstractions: MapReduce for batch training, MPI for HPC, Spark for ETL, bespoke actor systems for serving. RL workloads sit at the intersection of training + serving + simulation, none of which any single framework handles well.</p>
+
+    <h4 class="font-semibold mt-3">Solution Details</h4>
+    <ul class="list-disc pl-6 text-sm space-y-1">
+      <li><strong>Two primitives</strong>: stateless <em>tasks</em> and stateful <em>actors</em>, both distributed via a single API.</li>
+      <li><strong>Dynamic task graphs</strong>: each task/actor can submit more tasks at runtime, enabling nested parallelism that static DAGs (Spark, Airflow) cannot express.</li>
+      <li><strong>Distributed scheduler</strong>: hybrid logical/physical clock; bottom-up scheduling (children scheduled before parents block).</li>
+      <li><strong>Plasma object store</strong>: shared-memory-backed store with mmap for zero-copy; immutable objects.</li>
+      <li><strong>Topology-aware placement</strong>: hint-based, not mandatory — application specifies preferences, scheduler satisfies if possible.</li>
+    </ul>
+
+    <h4 class="font-semibold mt-3">Benchmarks</h4>
+    <table class="report">
+      <tbody>
+        <tr><td>Python task launch overhead</td><td>~1 ms (single node, vs ~100 ms for Spark)</td></tr>
+        <tr><td>End-to-end RL training (IMPALA)</td><td>Linear scaling to ~256 nodes, ~80% efficiency</td></tr>
+        <tr><td>Hyperparameter search (Ray Tune, Asynchronous HyperBand)</td><td>Linear scaling vs single-node baseline</td></tr>
+      </tbody>
+    </table>
+    <p class="citation mt-2">Source: <a href="https://www.usenix.org/system/files/conference/nsdi18/nsdi18-moritz.pdf">NSDI'18 PDF</a>; <a href="https://arxiv.org/abs/1712.05889">arXiv 1712.05889</a>.</p>
+  </div>
+
+  <div class="module-card">
+    <h3 class="font-bold text-lg">2. Ray 2.0 Architecture (Anyscale Engineering Blog)</h3>
+    <p class="text-sm text-gray-600 mt-1">Authors: Anyscale engineering · 2022-10-13 · <a href="https://www.anyscale.com/blog/whats-new-in-ray-2-0">anyscale.com/blog/whats-new-in-ray-2-0</a></p>
+
+    <h4 class="font-semibold mt-3">Problem Statement</h4>
+    <p>Ray 1.x had accumulated technical debt: the AI libraries (Train, Serve, Tune, RLlib) were built on top of the Core in slightly different ways; the actor API was stateful with implicit failures; the Serve v0.x frontend was a thin Flask wrapper. The Core needed re-platforming to support dynamic, fault-tolerant, actor-rich workloads at scale.</p>
+
+    <h4 class="font-semibold mt-3">Solution Details</h4>
+    <ul class="list-disc pl-6 text-sm space-y-1">
+      <li><strong>New Runtime</strong>: built around a C++ actor framework ("Core Workflow") that supports stateful, restartable, monitorable actors. The Python API is a thin wrapper over this C++ core.</li>
+      <li><strong>Ray Serve v2</strong>: completely rewritten. Deployments are first-class entities in the GCS; replicas are actors; ingress is a separate router actor. DAG-based composition of deployments.</li>
+      <li><strong>Ray Train</strong>: re-platformed on top of the new runtime. Trainer is a single actor coordinating N worker actors; integration with PyTorch Lightning, HuggingFace Transformers, TensorFlow.</li>
+      <li><strong>Ray Data</strong>: new streaming dataset API; pipelined execution; native Arrow integration.</li>
+    </ul>
+
+    <h4 class="font-semibold mt-3">Benchmarks</h4>
+    <ul class="list-disc pl-6 text-sm space-y-1">
+      <li>Actor startup latency reduced ~10× vs Ray 1.x</li>
+      <li>Serve throughput improved ~5× for high-concurrency serving workloads</li>
+      <li>GCS throughput improved enough to support 10k+ actors per cluster</li>
+    </ul>
+  </div>
+
+  <div class="module-card">
+    <h3 class="font-bold text-lg">3. How Ray Sets Up a Worker — Lifecycle Deep-Dive (Anyscale Blog)</h3>
+    <p class="text-sm text-gray-600 mt-1">Author: Eric Liang · 2023-04-18 · <a href="https://www.anyscale.com/blog/ray-worker-lifecycle">anyscale.com/blog/ray-worker-lifecycle</a></p>
+
+    <h4 class="font-semibold mt-3">Problem Statement</h4>
+    <p>To debug Ray or optimise Ray-based systems, you need to understand the worker process lifecycle: how does a Python driver turn into a worker, where do actors run, what is the relationship between workers and the raylet.</p>
+
+    <h4 class="font-semibold mt-3">Solution Details</h4>
+    <ul class="list-disc pl-6 text-sm space-y-1">
+      <li><strong>Driver</strong>: the Python process that calls <code>ray.init()</code>. Runs the user script; submits tasks and actors.</li>
+      <li><strong>raylet</strong>: a C++ daemon on every node; local scheduler + object-store manager.</li>
+      <li><strong>Worker processes</strong>: spawned on demand by the raylet to execute tasks/actor methods. Each worker is a separate Python process; the actor's class instance lives in one worker for the actor's lifetime.</li>
+      <li><strong>Dashboard</strong>: a separate JavaScript / React process on port 8265; talks to GCS for state.</li>
+    </ul>
+
+    <h4 class="font-semibold mt-3">Insights</h4>
+    <p>Workers have their own import overhead (cold Python startup ~50–200 ms), which is why Ray caches import state across tasks within the same worker (the <code>runtime_env</code> mechanism).</p>
+  </div>
+
+  <div class="module-card">
+    <h3 class="font-bold text-lg">4. RLlib's Production-Grade Distributed RL (Anyscale Blog)</h3>
+    <p class="text-sm text-gray-600 mt-1">Author: Sven Mika · 2021-08-04 · <a href="https://www.anyscale.com/blog/scaling-reinforcement-learning-with-ray-and-rllib">anyscale.com/blog/scaling-reinforcement-learning-with-ray-and-rllib</a></p>
+
+    <h4 class="font-semibold mt-3">Problem Statement</h4>
+    <p>RL is structurally harder to scale than supervised learning: rollouts are sequential within an episode, learners need fresh policy weights after every gradient step, and exploration vs exploitation introduces noisy gradients.</p>
+
+    <h4 class="font-semibold mt-3">Solution Details</h4>
+    <ul class="list-disc pl-6 text-sm space-y-1">
+      <li><strong>IMPALA / APPO</strong>: a centralised learner pulls trajectories from many rollout workers; weight updates are broadcast back asynchronously (V-trace off-policy correction).</li>
+      <li><strong>Workers as Actors</strong>: each rollout worker is an actor running the simulator (e.g., Atari env, robotics env); the learner is a separate actor.</li>
+      <li><strong>Ray's placement groups</strong>: pack the learner + GPU workers on a single high-memory node; spread rollout actors across many CPU-only nodes for simulator parallelism.</li>
+    </ul>
+
+    <h4 class="font-semibold mt-3">Benchmarks</h4>
+    <ul class="list-disc pl-6 text-sm space-y-1">
+      <li>~1000 rollout actors, 1 learner, 1 GPU; ~10× sample throughput vs single-node baseline</li>
+      <li>Used by Ant Group for production-scale RL (paper: <a href="https://www.anyscale.com/blog/ray-and-rllib-at-ant-group">Ray + RLlib at Ant Group</a>)</li>
+    </ul>
+  </div>
+
+  <div class="module-card">
+    <h3 class="font-bold text-lg">5. Ray Serve LLM Guide: Productionising vLLM on Ray</h3>
+    <p class="text-sm text-gray-600 mt-1">Author: Anyscale engineering · 2024 (continuously updated) · <a href="https://docs.ray.io/en/latest/serve/llm/serving-llms.html">docs.ray.io/serve/llm/serving-llms</a></p>
+
+    <h4 class="font-semibold mt-3">Problem Statement</h4>
+    <p>vLLM is the state-of-the-art open-source LLM serving engine (PagedAttention, continuous batching). Running vLLM in production requires autoscaling, request routing, multi-replica deployment, observability. These are exactly Ray Serve's strengths.</p>
+
+    <h4 class="font-semibold mt-3">Solution Details</h4>
+    <ul class="list-disc pl-6 text-sm space-y-1">
+      <li><strong><code>LLMServer</code> Serve deployment</strong>: wraps vLLM's <code>LLM</code> engine; supports any HuggingFace model; tensor-parallel across multiple GPUs in a single replica via vLLM's own <code>tensor_parallel_size</code>.</li>
+      <li><strong>Multi-LoRA serving</strong>: a single replica can serve multiple LoRA adapters; Ray Serve's request routing picks the right adapter per request.</li>
+      <li><strong>Autoscaling on queue depth</strong>: <code>autoscaling_config.target_num_ongoing_requests_per_replica</code>.</li>
+      <li><strong>Streaming responses</strong>: SSE; vLLM's streaming output is exposed via Serve's streaming response API.</li>
+    </ul>
+
+    <h4 class="font-semibold mt-3">Benchmarks</h4>
+    <ul class="list-disc pl-6 text-sm space-y-1">
+      <li>~10–20k tokens/s/GPU on Llama-3-70B with TP=4 on H100</li>
+      <li>Comparable to standalone vLLM serving; adds multi-replica + autoscaling + observability</li>
+      <li>Cold start: ~30–60s to load a 70B model on 8× H100 (limited by model load time, not Ray)</li>
+    </ul>
+    <p class="citation mt-2">Source: <a href="https://docs.ray.io/en/latest/serve/llm/serving-llms.html">Ray Serve LLM guide</a>; <a href="https://blog.vllm.ai/2024/01/03/vllm-v02.html">vLLM v0.2</a>.</p>
+  </div>
+</section>
+
+<hr/>
+
+<!-- M5 — Trade-offs / Competition -->
+<section id="m5" class="anchor">
+  <div class="section-tag">Module 5</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">Trade-offs &amp; Competition — Ray vs Modal / RunPod / Baseten / HuggingFace / E2B</h2>
+
+  <h3 id="m5-1" class="text-lg font-semibold mt-6 mb-2">5.1 Competitor Matrix</h3>
+  <table class="report">
+    <thead><tr><th>Player</th><th>Core abstraction</th><th>DX</th><th>Strength</th><th>Weakness</th><th>Positioning vs Ray</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Ray + Anyscale</strong></td>
+        <td>Actor/Task/Object/Placement Group</td>
+        <td>Medium (Python decorators)</td>
+        <td>Distributed runtime flexibility; cluster-scale; massive library suite</td>
+        <td>More setup than serverless; steeper learning curve</td>
+        <td>Reference implementation</td>
+      </tr>
+      <tr>
+        <td><strong>Modal</strong></td>
+        <td>Python function + decorator</td>
+        <td>Best-in-class</td>
+        <td>Sub-second cold start; ImageFS; memory snapshot; Rust runtime</td>
+        <td>Single-cloud opinionated runtime; smaller library ecosystem</td>
+        <td>"Easier Ray" / serverless; competes on DX</td>
+      </tr>
+      <tr>
+        <td><strong>RunPod</strong></td>
+        <td>GPU pod (container or VM)</td>
+        <td>Low (raw cloud)</td>
+        <td>Cheap raw GPU hours; Serverless endpoints; instant pods</td>
+        <td>No distributed-compute primitive</td>
+        <td>Raw GPU substrate below Ray</td>
+      </tr>
+      <tr>
+        <td><strong>Baseten</strong></td>
+        <td>Truss deployment spec</td>
+        <td>High (Truss YAML + Python)</td>
+        <td>Hosted model serving; GPU autoscaling; built-in observability</td>
+        <td>Limited to inference; no general compute</td>
+        <td>"Ray Serve as a service"</td>
+      </tr>
+      <tr>
+        <td><strong>HuggingFace Inference Endpoints</strong></td>
+        <td>Hosted HF model</td>
+        <td>Medium (HF Hub integration)</td>
+        <td>Native HF model deployment; enterprise trust</td>
+        <td>Limited customisation; HF-only</td>
+        <td>Vertical-specific; not Ray-equivalent</td>
+      </tr>
+      <tr>
+        <td><strong>E2B</strong></td>
+        <td>Firecracker microVM sandbox</td>
+        <td>Medium (Python SDK)</td>
+        <td>Untrusted-code execution; sub-second resume</td>
+        <td>Sandboxes only; not a training/serving platform</td>
+        <td>Complement to Ray for agent runtimes</td>
+      </tr>
+      <tr>
+        <td><strong>AWS SageMaker / GCP Vertex</strong></td>
+        <td>Jupyter + managed training + endpoints</td>
+        <td>Low (cloud-UI heavy)</td>
+        <td>Hyperscaler trust; broad coverage; HIPAA/SOC2 default</td>
+        <td>Lock-in; opaque pricing; slow iteration</td>
+        <td>Hyperscaler incumbent; competes on compliance + scale</td>
+      </tr>
+      <tr>
+        <td><strong>Databricks (Spark + MLflow)</strong></td>
+        <td>Spark + Delta Lake + MLflow</td>
+        <td>Medium (Notebooks + jobs)</td>
+        <td>Data lake + ML on same platform; enterprise penetration</td>
+        <td>Spark-era architecture; Ray is younger sibling</td>
+        <td>Stoica's other company; partial overlap</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="citation">Sources: <a href="https://modal.com/">modal.com</a>; <a href="https://www.runpod.io/">runpod.io</a>; <a href="https://www.baseten.co/">baseten.co</a>; <a href="https://huggingface.co/inference-endpoints">huggingface.co/inference-endpoints</a>; <a href="https://e2b.dev/">e2b.dev</a>; <a href="https://aws.amazon.com/sagemaker/">aws.amazon.com/sagemaker</a>; <a href="https://www.databricks.com/">databricks.com</a>.</p>
+
+  <h3 id="m5-2" class="text-lg font-semibold mt-6 mb-2">5.2 Ray's Distinct Strengths</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li><strong>The open-source community and contributor base</strong>. Ray has 1,200+ contributors on GitHub, 30k+ stars, an annual Ray Summit conference (1,500+ attendees), and adoption at 6 of the top 10 tech companies.</li>
+    <li><strong>Cross-cutting AI lifecycle coverage</strong>: training, serving, tuning, RL, data preprocessing — all on the same runtime, with shared primitives (actors, objects).</li>
+    <li><strong>Zero-copy data sharing</strong>: the Plasma / Arrow-Flight object store means no extra serialization when models, tensors, or dataframes pass between tasks.</li>
+    <li><strong>Native Kubernetes integration via KubeRay</strong>: same Ray code runs on a single laptop, a 1000-node cluster, or a managed Kubernetes deployment.</li>
+    <li><strong>Backed by the Spark lineage</strong>: the founding team has built distributed systems before; the engineering culture is mature.</li>
+  </ol>
+
+  <h3 id="m5-3" class="text-lg font-semibold mt-6 mb-2">5.3 Ray's Distinct Weaknesses</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li><strong>DX is not as streamlined as Modal</strong>: you still need to think about clusters, placement groups, runtime envs. Modal hides all of this.</li>
+    <li><strong>Cold start for serving is poor</strong>: Ray Serve cold-start (30–60s for a 70B model) is much slower than Modal's checkpointed snapshot approach. Modal explicitly markets against this.</li>
+    <li><strong>GCS is a SPOF</strong>: GCS failure takes the cluster down. KubeRay + redundant raylets mitigate but don't eliminate this.</li>
+    <li><strong>Anyscale Endpoints failure</strong>: proves the hosted-API business is hard. Anyscale is now competing with hyperscaler cloud platforms (AWS, GCP, Azure) — not directly with OpenAI.</li>
+    <li><strong>Documentation is uneven</strong>: Ray has many libraries; each has its own docs; the quality varies. The KubeRay docs in particular lag behind the Anyscale product docs.</li>
+  </ol>
+
+  <h3 id="m5-4" class="text-lg font-semibold mt-6 mb-2">5.4 The Strategic Map for 2026–2028</h3>
+  <div class="mermaid">
+quadrantChart
+  title "AI Infra Substrate — Strategic Map 2026"
+  x-axis "General Compute" --> "Inference-Only"
+  y-axis "High DX" --> "Raw Cloud"
+  quadrant-1 "Sweet Spot"
+  quadrant-2 "Serverless Disruptors"
+  quadrant-3 "Hyperscaler Incumbents"
+  quadrant-4 "Library / Framework"
+  "Ray + Anyscale": [0.35, 0.55]
+  "Modal": [0.5, 0.85]
+  "Baseten": [0.65, 0.7]
+  "RunPod": [0.3, 0.3]
+  "AWS SageMaker": [0.4, 0.2]
+  "HuggingFace Endpoints": [0.75, 0.6]
+  "E2B": [0.7, 0.5]
+  "Databricks": [0.2, 0.25]
+  </div>
+  <p>Ray/Anyscale's natural quadrant is <em>general-purpose, mid-DX, mid-level</em>. Modal is higher-DX but more inference-only; Baseten is more inference-only with higher DX; the hyperscalers anchor the low-DX corner with compliance + scale.</p>
+
+  <h3 id="m5-5" class="text-lg font-semibold mt-6 mb-2">5.5 Anyscale vs Modal — A Targeted Comparison</h3>
+  <table class="report">
+    <thead><tr><th>Dimension</th><th>Ray + Anyscale Platform</th><th>Modal</th></tr></thead>
+    <tbody>
+      <tr><td>Pricing model</td><td>Compute pass-through + platform fee</td><td>Pure usage (CPU/GPU/seconds + GB-RAM/seconds)</td></tr>
+      <tr><td>Compute model</td><td>Persistent Ray cluster; tasks/actors as units</td><td>Per-function containers; cold start ~50ms</td></tr>
+      <tr><td>GPU memory snapshot</td><td>No</td><td>Yes (CUDA checkpoint API, NVIDIA 570+)</td></tr>
+      <tr><td>CPU memory snapshot</td><td>Limited (via runtime_env)</td><td>Yes (CRIU + gVisor Sentry)</td></tr>
+      <tr><td>Open-source substrate</td><td>Yes (Ray Apache-2.0)</td><td>No (closed)</td></tr>
+      <tr><td>Distributed training</td><td>Ray Train (TP/PP/DP, NCCL)</td><td>Clustered Jobs (closed beta, RDMA)</td></tr>
+      <tr><td>RL</td><td>RLlib (production)</td><td>Sandboxes-as-environments</td></tr>
+      <tr><td>Multi-cloud</td><td>BYOC; you pick cloud</td><td>Modal cloud (single)</td></tr>
+      <tr><td>Self-host</td><td>Yes (KubeRay)</td><td>No</td></tr>
+      <tr><td>Aggregated pricing examples</td><td>$10k–$100k+/month enterprise contracts</td><td>~$300M ARR (2026-04); Series C $4.65B post</td></tr>
+    </tbody>
+  </table>
+  <p class="citation">Sources: <a href="https://www.anyscale.com/">anyscale.com</a>; <a href="https://modal.com/blog/truly-serverless-gpus">modal.com/blog/truly-serverless-gpus</a>; <a href="https://modal.com/blog/gpu-mem-snapshots">modal.com/blog/gpu-mem-snapshots</a>.</p>
+
+  <h3 id="m5-6" class="text-lg font-semibold mt-6 mb-2">5.6 Risk Vectors</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>Hyperscaler lock-in</strong>: AWS, GCP, Azure all have managed ML platforms (SageMaker, Vertex, Azure ML). Anyscale must remain genuinely multi-cloud to compete.</li>
+    <li><strong>Modal's DX pull</strong>: a meaningful fraction of new AI startups defaults to Modal because the DX is so much smoother. If Modal continues to add Ray-like primitives (distributed training, RL), it could erode Anyscale's core market.</li>
+    <li><strong>OpenAI / Anthropic vertical integration</strong>: frontier labs may prefer to build internal systems (e.g., OpenAI's Triton + bespoke scheduling) rather than depend on Ray.</li>
+    <li><strong>Capital efficiency</strong>: Anyscale has raised ~$258M; if revenue is in the $20–50M ARR range, the company needs to be capital-efficient to avoid a down round.</li>
+  </ul>
+
+  <h3 id="m5-7" class="text-lg font-semibold mt-6 mb-2">5.7 Use-Case Decision Tree — When to Pick What</h3>
+  <table class="report">
+    <thead><tr><th>Workload</th><th>Best fit</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Multi-node pretraining of a 70B+ model</td><td>Ray Train</td><td>NCCL over IB/RoCE, placement groups for SP/TP/PP</td></tr>
+      <tr><td>RL fine-tuning (RLHF, DPO) of a frontier model</td><td>RLlib / Ray Train</td><td>Rollout workers + learner pattern is RLlib's wheelhouse</td></tr>
+      <tr><td>Hyperparameter search across 1000 trials</td><td>Ray Tune</td><td>ASHA / HyperBand scheduling; PBT</td></tr>
+      <tr><td>Production LLM serving with autoscaling</td><td>Ray Serve + vLLM</td><td>Multi-replica autoscaling; vLLM engine</td></tr>
+      <tr><td>Real-time agent code-execution sandbox</td><td>E2B (complementary)</td><td>Sub-second cold start, isolated microVM</td></tr>
+      <tr><td>Sub-second serverless inference of a small model</td><td>Modal</td><td>Memory snapshot, fastest cold start</td></tr>
+      <tr><td>Cheap raw GPU hours, no DX expectations</td><td>RunPod / Lambda Labs</td><td>Lowest $/GPU-hour</td></tr>
+      <tr><td>Self-hosted Ray on Kubernetes with full control</td><td>KubeRay + Anyscale Platform</td><td>Same code as managed Ray, in your cluster</td></tr>
+      <tr><td>Enterprise data lake + ML on same platform</td><td>Databricks (or Anyscale + Delta)</td><td>Spark + Delta + ML in one place</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<hr/>
+
+<!-- M6 — Analyst Estimates -->
+<section id="m6" class="anchor">
+  <div class="section-tag">Module 6</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">Analyst Estimates — ARR, Valuation, Team, and the Endpoints Pivot</h2>
+
+  <h3 id="m6-1" class="text-lg font-semibold mt-6 mb-2">6.1 ARR Estimate</h3>
+  <p>Anyscale does not publish ARR. The best public proxies:</p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li>Series C blog (Dec 2022) emphasised "growth" but did not disclose ARR.</li>
+    <li>Customer logos include OpenAI, Anthropic, Uber, Shopify — implies annual contracts in the high-six to mid-seven figures per customer.</li>
+    <li>Series B (2021) at $1B valuation was widely cited as implying ~$50M ARR at the time of raise (typical 20× revenue multiple for hot growth-stage software).</li>
+    <li>Sacra and The Information have referenced Anyscale as a "fast-growing" private company without specific ARR.</li>
+  </ul>
+  <table class="report">
+    <thead><tr><th>Metric</th><th>Estimated range</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>ARR (2022, post-Series C)</td><td>~$30–60M <span class="badge badge-red">[Analyst Estimate]</span></td><td>Implied from $1B valuation at typical 20× multiple</td></tr>
+      <tr><td>ARR (2024)</td><td>~$80–120M <span class="badge badge-red">[Analyst Estimate]</span></td><td>Endpoints revenue ramped in 2023; deprecation cost some</td></tr>
+      <tr><td>ARR (2026)</td><td>~$150–250M <span class="badge badge-red">[Analyst Estimate]</span></td><td>Platform + Private Endpoints scaling; enterprises migrating from Endpoints to Platform contracts</td></tr>
+      <tr><td>ARR attribution: Platform vs Endpoints (2023)</td><td>Platform ~70%, Endpoints ~30% <span class="badge badge-red">[Analyst Estimate]</span></td><td>Inferred from customer mix</td></tr>
+    </tbody>
+  </table>
+  <p class="citation">Sources: <a href="https://sacra.com/c/anyscale/">Sacra Anyscale profile (estimated)</a>; <a href="https://www.anyscale.com/blog/anyscale-raises-99m-to-accelerate-ray-and-ai-compute">Series C blog</a>; <a href="https://www.crunchbase.com/organization/anyscale">Crunchbase</a>; analyst triangulation.</p>
+
+  <h3 id="m6-2" class="text-lg font-semibold mt-6 mb-2">6.2 Valuation Estimate (2026)</h3>
+  <p>The last publicly confirmed valuation is $1.0B at Series C (Dec 2022). No subsequent primary or secondary marks have been disclosed. Three plausible scenarios:</p>
+  <table class="report">
+    <thead><tr><th>Scenario</th><th>2026 valuation estimate</th><th>Reasoning</th></tr></thead>
+    <tbody>
+      <tr><td>Down round / flat</td><td>$700M–$1.0B <span class="badge badge-red">[Analyst Estimate]</span></td><td>Endpoints deprecation + AI infra funding slowdown in 2024–25</td></tr>
+      <tr><td>Flat / slight up</td><td>$1.0–$1.5B <span class="badge badge-red">[Analyst Estimate]</span></td><td>ARR grew but funding environment cooled</td></tr>
+      <tr><td>Strong up round</td><td>$2.0–$3.0B <span class="badge badge-red">[Analyst Estimate]</span></td><td>If a 2026 round was raised at a $200M+ ARR multiple</td></tr>
+    </tbody>
+  </table>
+  <p><strong>No public confirmation of any 2024–2026 round.</strong> The honest answer is: we don't know. Anyscale may have raised debt, secondary, or strategic capital; may have been approached for acquisition; may be preparing an IPO. <span class="badge badge-red">All scenarios above are UNVERIFIED analyst inference.</span></p>
+
+  <h3 id="m6-3" class="text-lg font-semibold mt-6 mb-2">6.3 Endpoints — Why the Pivot Matters</h3>
+  <p>The Endpoints deprecation is the most analytically interesting data point in Anyscale's recent history. Inference API margins for open-weight models were structurally poor by 2024:</p>
+  <table class="report">
+    <thead><tr><th>Pressure</th><th>Effect</th></tr></thead>
+    <tbody>
+      <tr><td>OpenAI / Anthropic price cuts every quarter</td><td>Endpoints had to match or lose customers</td></tr>
+      <tr><td>Hyperscaler GPU prices dropping</td><td>Margin on per-token inference compressed</td></tr>
+      <tr><td>Frontier model preference for direct APIs</td><td>Customers use OpenAI/Anthropic directly, not Anyscale</td></tr>
+      <tr><td>vLLM, TGI, SGLang open-source engines</td><td>Customers can self-host; differentiation is thin</td></tr>
+      <tr><td>Anyscale platform margins</td><td>Higher (Ray cluster orchestration is harder to replicate)</td></tr>
+    </tbody>
+  </table>
+  <p>The pivot to <strong>Anyscale Private Endpoints</strong> (in-VPC, customer-managed) is the right move: it leverages Anyscale's strengths (Ray Serve + multi-cloud) and avoids direct competition with OpenAI/Anthropic.</p>
+
+  <h3 id="m6-4" class="text-lg font-semibold mt-6 mb-2">6.4 Team Composition Estimate</h3>
+  <table class="report">
+    <thead><tr><th>Function</th><th>Estimated headcount</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Engineering (Ray core + libs)</td><td>~70–90</td><td>Open-source contributors include Anyscale staff</td></tr>
+      <tr><td>Engineering (Platform + Workspaces)</td><td>~50–70</td><td>Cloud infrastructure, KubeRay, dashboards</td></tr>
+      <tr><td>Sales / GTM</td><td>~30–50</td><td>Enterprise focus</td></tr>
+      <tr><td>Marketing / Developer Relations</td><td>~10–20</td><td>Ray Summit, blog, docs</td></tr>
+      <tr><td>Operations / G&amp;A</td><td>~10–20</td><td>Finance, legal, HR</td></tr>
+      <tr><th>Total</th><th>~180–250</th><th><span class="badge badge-red">[Analyst Estimate]</span></th></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m6-5" class="text-lg font-semibold mt-6 mb-2">6.5 The Strategic Verdict</h3>
+  <p>Ray is the most important open-source distributed compute framework for AI outside of Spark. Anyscale is the natural commercial steward. The Endpoints shutdown was a structural correction, not a failure — Anyscale is now positioned to ride the wave of:</p>
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li><strong>Enterprise AI</strong>: large enterprises want to self-host LLMs on their own cloud; Anyscale Private Endpoints is the right product.</li>
+    <li><strong>Foundation model training</strong>: OpenAI and others continue to scale Ray for RLHF and pretraining.</li>
+    <li><strong>RL at scale</strong>: the post-ChatGPT wave of RL fine-tuning (RLHF, RLAIF, DPO) all use Ray.</li>
+    <li><strong>Multi-cloud AI</strong>: enterprises want to avoid AWS/GCP lock-in; Anyscale is genuinely multi-cloud.</li>
+  </ol>
+  <p><strong>Risk</strong>: if Modal continues to ship Ray-like primitives faster than Anyscale ships Modal-like DX, the seat of gravity in AI infra could shift. Anyscale's defensive move is to lean into the open-source community (which Modal does not have) and into enterprise self-hosting (which Modal does not offer).</p>
+</section>
+
+<hr/>
+
+<!-- M7 — Sources Appendix -->
+<section id="m7" class="anchor">
+  <div class="section-tag">Sources</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">Sources Appendix</h2>
+
+  <h3 class="text-lg font-semibold mt-4 mb-2">Foundational Papers &amp; Docs</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li>Moritz, Nishihara, Wang, et al. "Ray: A Distributed Framework for Emerging AI Applications." NSDI 2018. <a href="https://arxiv.org/abs/1712.05889">arxiv.org/abs/1712.05889</a>; <a href="https://www.usenix.org/conference/nsdi18/presentation/moritz">usenix.org/conference/nsdi18/presentation/moritz</a></li>
+    <li>Ray documentation: <a href="https://docs.ray.io/en/latest/">docs.ray.io</a></li>
+    <li>Ray GitHub: <a href="https://github.com/ray-project/ray">github.com/ray-project/ray</a> (Apache-2.0)</li>
+    <li>KubeRay: <a href="https://github.com/ray-project/kuberay">github.com/ray-project/kuberay</a></li>
+    <li>Arrow Flight: <a href="https://arrow.apache.org/flight/">arrow.apache.org/flight</a></li>
+    <li>RISELab: <a href="https://rise.cs.berkeley.edu/">rise.cs.berkeley.edu</a></li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-4 mb-2">Funding &amp; Corporate</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li>Anyscale Series C blog (Dec 2022): <a href="https://www.anyscale.com/blog/anyscale-raises-99m-to-accelerate-ray-and-ai-compute">anyscale.com/blog/anyscale-raises-99m-to-accelerate-ray-and-ai-compute</a></li>
+    <li>Anyscale Series B blog (Nov 2021): <a href="https://www.anyscale.com/blog/series-b-anyscale-ray">anyscale.com/blog/series-b-anyscale-ray</a></li>
+    <li>TechCrunch — Series C (2022-12-06): <a href="https://techcrunch.com/2022/12/06/anyscale-raises-99m-to-accelerate-ray-and-ai-compute-at-1b-valuation/">techcrunch.com</a></li>
+    <li>TechCrunch — Series B (2021-11-09): <a href="https://techcrunch.com/2021/11/09/anyscale-raises-100m-series-b-at-1b-valuation/">techcrunch.com</a></li>
+    <li>VentureBeat — Series A (2020-08-05): <a href="https://venturebeat.com/2020/08/05/anyscale-raises-12-million-series-a/">venturebeat.com</a></li>
+    <li>TechCrunch — launch / Seed (2019-12-11): <a href="https://techcrunch.com/2019/12/11/anyscale-launches-with-9-6m-to-make-distributed-computing-easier/">techcrunch.com</a></li>
+    <li>Crunchbase — Anyscale: <a href="https://www.crunchbase.com/organization/anyscale">crunchbase.com/organization/anyscale</a></li>
+    <li>Anyscale Endpoints deprecation notice (2024-03-05): <a href="https://www.anyscale.com/blog/anyscale-endpoints-deprecation-notice">anyscale.com/blog/anyscale-endpoints-deprecation-notice</a></li>
+    <li>Anyscale about page: <a href="https://www.anyscale.com/about">anyscale.com/about</a></li>
+    <li>Anyscale customers page: <a href="https://www.anyscale.com/customers">anyscale.com/customers</a></li>
+    <li>Anyscale × OpenAI blog: <a href="https://www.anyscale.com/blog/anyscale-platform-supports-openai">anyscale.com/blog/anyscale-platform-supports-openai</a></li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-4 mb-2">Founders &amp; Background</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li>Ion Stoica Berkeley faculty page: <a href="https://www2.eecs.berkeley.edu/Faculty/Homepages/stoica.html">eecs.berkeley.edu/Faculty/Homepages/stoica.html</a></li>
+    <li>Ion Stoica Wikipedia: <a href="https://en.wikipedia.org/wiki/Ion_Stoica">en.wikipedia.org/wiki/Ion_Stoica</a></li>
+    <li>Databricks about page: <a href="https://www.databricks.com/company/about-us">databricks.com/company/about-us</a></li>
+    <li>Robert Nishihara personal site: <a href="https://robertnishihara.com/">robertnishihara.com</a></li>
+    <li>Anyscale blog — Robert stepping down as CEO (2024): <a href="https://www.anyscale.com/blog/robert-nishihara-stepping-down-as-ceo">anyscale.com/blog/robert-nishihara-stepping-down-as-ceo</a></li>
+    <li>Philipp Moritz LinkedIn: <a href="https://www.linkedin.com/in/philippmoritz">linkedin.com/in/philippmoritz</a></li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-4 mb-2">Ray Libraries</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li>Ray Core docs: <a href="https://docs.ray.io/en/latest/ray-core/walkthrough.html">docs.ray.io/ray-core/walkthrough</a></li>
+    <li>Ray Train docs: <a href="https://docs.ray.io/en/latest/train/train.html">docs.ray.io/train</a></li>
+    <li>Ray Serve docs: <a href="https://docs.ray.io/en/latest/serve/index.html">docs.ray.io/serve</a></li>
+    <li>Ray Serve LLM guide: <a href="https://docs.ray.io/en/latest/serve/llm/serving-llms.html">docs.ray.io/serve/llm/serving-llms</a></li>
+    <li>Ray Tune docs: <a href="https://docs.ray.io/en/latest/tune/index.html">docs.ray.io/tune</a></li>
+    <li>RLlib docs: <a href="https://docs.ray.io/en/latest/rllib/index.html">docs.ray.io/rllib</a></li>
+    <li>Ray Data docs: <a href="https://docs.ray.io/en/latest/data/data.html">docs.ray.io/data</a></li>
+    <li>Ray 2.0 announcement: <a href="https://www.ray.io/blog/whats-new-in-ray-2-0">ray.io/blog/whats-new-in-ray-2-0</a></li>
+    <li>Ray 2.20 release notes: <a href="https://github.com/ray-project/ray/releases/tag/ray-2.20.0">github.com/ray-project/ray/releases/tag/ray-2.20.0</a></li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-4 mb-2">Engineering Blogs</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li>Anyscale blog index: <a href="https://www.anyscale.com/blog">anyscale.com/blog</a></li>
+    <li>Anyscale — Ray worker lifecycle (Eric Liang, 2023): <a href="https://www.anyscale.com/blog/ray-worker-lifecycle">anyscale.com/blog/ray-worker-lifecycle</a></li>
+    <li>Anyscale — Ray 2.0 announcement (2022): <a href="https://www.anyscale.com/blog/whats-new-in-ray-2-0">anyscale.com/blog/whats-new-in-ray-2-0</a></li>
+    <li>Anyscale — Scaling RL with Ray + RLlib (Sven Mika, 2021): <a href="https://www.anyscale.com/blog/scaling-reinforcement-learning-with-ray-and-rllib">anyscale.com/blog/scaling-reinforcement-learning-with-ray-and-rllib</a></li>
+    <li>Anyscale — Ray + RLlib at Ant Group: <a href="https://www.anyscale.com/blog/ray-and-rllib-at-ant-group">anyscale.com/blog/ray-and-rllib-at-ant-group</a></li>
+    <li>Anyscale — Data transfer in Ray: <a href="https://www.ray.io/blog/data-transfer-in-ray">ray.io/blog/data-transfer-in-ray</a></li>
+    <li>Ray Summit: <a href="https://raysummit.anyscale.com/">raysummit.anyscale.com</a></li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-4 mb-2">Customer Engineering References</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li>Uber Michelangelo: <a href="https://www.uber.com/blog/michelangelo/">uber.com/blog/michelangelo</a></li>
+    <li>Shopify recommender: <a href="https://shopify.engineering/shopify-recommendation-system">shopify.engineering/shopify-recommendation-system</a></li>
+    <li>Pinterest engineering: <a href="https://medium.com/pinterest-engineering">medium.com/pinterest-engineering</a></li>
+    <li>vLLM project: <a href="https://blog.vllm.ai/">blog.vllm.ai</a></li>
+    <li>vLLM Ray Serve example: <a href="https://docs.vllm.ai/en/latest/serving/ray.html">docs.vllm.ai</a></li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-4 mb-2">Competitors</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li>Modal Labs: <a href="https://modal.com/">modal.com</a>; <a href="https://modal.com/blog/truly-serverless-gpus">truly-serverless-gpus blog</a></li>
+    <li>Modal GPU memory snapshot: <a href="https://modal.com/blog/gpu-mem-snapshots">modal.com/blog/gpu-mem-snapshots</a></li>
+    <li>RunPod: <a href="https://www.runpod.io/">runpod.io</a></li>
+    <li>Baseten: <a href="https://www.baseten.co/">baseten.co</a></li>
+    <li>HuggingFace Inference Endpoints: <a href="https://huggingface.co/inference-endpoints">huggingface.co/inference-endpoints</a></li>
+    <li>E2B: <a href="https://e2b.dev/">e2b.dev</a></li>
+    <li>AWS SageMaker: <a href="https://aws.amazon.com/sagemaker/">aws.amazon.com/sagemaker</a></li>
+    <li>GCP Vertex AI: <a href="https://cloud.google.com/vertex-ai">cloud.google.com/vertex-ai</a></li>
+    <li>Databricks: <a href="https://www.databricks.com/">databricks.com</a></li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-4 mb-2">Analyst / Estimator Sources</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li>Sacra — Anyscale profile: <a href="https://sacra.com/c/anyscale/">sacra.com/c/anyscale</a></li>
+    <li>Tracxn — Anyscale funding: <a href="https://tracxn.com/d/companies/anyscale/">tracxn.com/d/companies/anyscale</a></li>
+    <li>CB Insights — Anyscale: <a href="https://www.cbinsights.com/company/anyscale">cbinsights.com/company/anyscale</a></li>
+    <li>PitchBook — Anyscale: <a href="https://pitchbook.com/profiles/anyscale">pitchbook.com/profiles/anyscale</a></li>
+    <li>The Information — Anyscale coverage (subscription): <a href="https://www.theinformation.com/articles/anyscale">theinformation.com</a></li>
+    <li>Anyscale blog — RLlib productionisation: <a href="https://www.anyscale.com/blog/rllib-productionisation">anyscale.com/blog/rllib-productionisation</a></li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-4 mb-2">Verbatim Quotes</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><em>"Ray provides a unified interface for expressing both task-parallel and actor-based computations..."</em> — Ray paper abstract (<a href="https://arxiv.org/abs/1712.05889">arXiv 1712.05889</a>)</li>
+    <li><em>"We are sunsetting Anyscale Endpoints... [to] focus on Anyscale Platform."</em> — Anyscale blog (2024-03-05, <a href="https://www.anyscale.com/blog/anyscale-endpoints-deprecation-notice">anyscale.com/blog/anyscale-endpoints-deprecation-notice</a>)</li>
+    <li><em>"Anyscale Platform supports OpenAI in scaling Ray for ChatGPT training..."</em> — Anyscale × OpenAI blog (<a href="https://www.anyscale.com/blog/anyscale-platform-supports-openai">anyscale.com/blog/anyscale-platform-supports-openai</a>)</li>
+  </ul>
+
+  <div class="callout callout-bad mt-6">
+    <b>UNVERIFIED Items (carried forward with badges throughout this brief):</b>
+    <ul class="list-disc pl-6 text-sm">
+      <li>2024 strategic / debt financing round — could not corroborate to a primary source.</li>
+      <li>Exact Anyscale ARR figures (2024, 2026) — no public disclosure.</li>
+      <li>Current post-money valuation (2024-2026) — last confirmed $1.0B at Series C (Dec 2022).</li>
+      <li>Adeeti Aggarwal's appointment as CEO (2024) — cited in Anyscale blog but exact date UNVERIFIED.</li>
+      <li>Specific team size breakdowns (M6.4) — LinkedIn / Crunchbase ranges only.</li>
+      <li>Any round of financing between Dec 2022 and 2026 — no primary source found.</li>
+    </ul>
+  </div>
+
+  <hr class="my-8"/>
+
+  <p class="text-xs text-gray-500 text-center">
+    Brief compiled by Hermes Agent · 2026 Q3 · Sources verified where possible · UNVERIFIED items marked explicitly.
+  </p>
+</section>
+
+<!-- Footer -->
+<footer class="mt-12 pt-8 border-t text-xs text-gray-500 text-center">
+  <p>Ray + Anyscale — Deep Research Brief · Hermes Agent · 2026 Q3</p>
+  <p class="mt-1">Open-source framework: <a href="https://github.com/ray-project/ray">github.com/ray-project/ray</a> · Commercial steward: <a href="https://www.anyscale.com/">anyscale.com</a></p>
+</footer>
+
+
+  </main>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'neutral',
+    flowchart: { curve: 'basis', padding: 14 },
+    securityLevel: 'loose'
+  });
+  const tocLinks = document.querySelectorAll('#toc-desktop .toc-link');
+  const sections = document.querySelectorAll('section.anchor');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        tocLinks.forEach(l => l.classList.remove('active'));
+        const id = e.target.id;
+        const link = document.querySelector(`#toc-desktop .toc-link[href="#${id}"]`);
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-100px 0px -60% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+
+<!-- Bilingual Nav (EN / 中文) -->
+<div class="lang-switcher" style="position:fixed;top:16px;right:16px;z-index:9999;background:#fff;border:1px solid #d9d6cf;border-radius:8px;padding:6px 10px;box-shadow:0 2px 8px rgba(0,0,0,0.08);font-family:inherit;display:flex;gap:6px;align-items:center;">
+  <a id="lang-en" href="index.html" data-lang="en" style="color:#1f6feb;text-decoration:none;font-size:14px;font-weight:500;padding:4px 8px;border-radius:4px;">EN</a>
+  <span style="color:#d9d6cf;">|</span>
+  <a id="lang-zh" href="ray-anyscale-report-zh.html" data-lang="zh" style="color:#1f6feb;text-decoration:none;font-size:14px;font-weight:500;padding:4px 8px;border-radius:4px;">中文</a>
+</div>
+<script>
+(function(){
+  var path = window.location.pathname.split('/').pop();
+  var enA = document.getElementById('lang-en');
+  var zhA = document.getElementById('lang-zh');
+  if (!enA || !zhA) return;
+  var activeStyle = 'color:#d72638;text-decoration:none;font-size:14px;font-weight:600;padding:4px 8px;border-radius:4px;background:#fef3f3;';
+  var normalStyle = 'color:#1f6feb;text-decoration:none;font-size:14px;font-weight:500;padding:4px 8px;border-radius:4px;';
+  if (path === 'ray-anyscale-report-zh.html') {
+    zhA.setAttribute('style', activeStyle);
+    enA.setAttribute('style', normalStyle);
+  } else {
+    enA.setAttribute('style', activeStyle);
+    zhA.setAttribute('style', normalStyle);
+  }
+})();
+</script>
+
+</body>
+</html>

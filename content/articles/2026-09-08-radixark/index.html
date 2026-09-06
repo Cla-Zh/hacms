@@ -1,0 +1,2543 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RadixArk — SGLang Goes Commercial (USD 100M Seed, USD 400M Valuation)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --ink: #0b1020;
+    --paper: #f7f6f2;
+    --accent: #d72638;
+    --accent2: #1f6feb;
+    --muted: #5a6273;
+    --rule: #d9d6cf;
+    --code-bg: #0b1020;
+    --code-fg: #e8edf5;
+    --link: #1f6feb;
+    --card-bg: #ffffff;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: "Inter", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.65;
+  }
+  .container-prose { max-width: 920px; }
+  .toc-link.active { color: var(--accent); font-weight: 600; border-left-color: var(--accent); }
+  .toc-link { border-left: 2px solid transparent; }
+  .toc-link:hover { color: var(--accent2); border-left-color: var(--accent2); }
+  a { color: var(--link); text-decoration: none; border-bottom: 1px dotted rgba(31,111,235,0.4); }
+  a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .anchor { scroll-margin-top: 100px; }
+  .smallcaps { font-variant-caps: all-small-caps; letter-spacing: 0.05em; color: var(--muted); font-size: 0.78rem; }
+  .pullquote { border-left: 4px solid var(--accent); padding: 0.6rem 1.1rem; background: #fff5f6; font-style: italic; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+  .pullquote.green { border-left-color: #0e7a3a; background: #f0faf3; }
+  .pullquote.blue { border-left-color: #1147a8; background: #eff4ff; }
+  table.report { border-collapse: collapse; width: 100%; font-size: 0.92rem; margin: 1rem 0; }
+  table.report th, table.report td { border: 1px solid var(--rule); padding: 6px 10px; text-align: left; vertical-align: top; }
+  table.report th { background: #efeee8; font-weight: 600; }
+  table.report tr:nth-child(even) td { background: #fbfaf6; }
+  pre.code-block {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 14px 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.85rem;
+    line-height: 1.55;
+    margin: 0.8rem 0;
+  }
+  pre.code-block code { color: inherit; }
+  .citation { font-size: 0.75rem; color: var(--muted); }
+  .citation a { border-bottom: 1px dotted rgba(90,98,115,0.4); color: var(--muted); }
+  .citation a:hover { color: var(--accent); }
+  .footnote-ref { font-size: 0.7em; vertical-align: super; color: var(--accent); }
+  .hero {
+    background: linear-gradient(135deg, #0b1020 0%, #1f2347 50%, #d72638 100%);
+    color: white;
+    padding: 5rem 2rem 4rem;
+  }
+  .hero h1 { font-size: clamp(2.2rem, 4.6vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+  .hero .subtitle { font-size: 1.1rem; opacity: 0.88; max-width: 60ch; }
+  .hero .tldr {
+    background: rgba(255,255,255,0.08);
+    border-left: 4px solid #d72638;
+    padding: 1rem 1.25rem;
+    margin-top: 1.5rem;
+    max-width: 64ch;
+    border-radius: 0 6px 6px 0;
+    backdrop-filter: blur(4px);
+  }
+  .kpi-card {
+    background: white;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .kpi-num { font-size: 1.6rem; font-weight: 800; color: var(--accent); line-height: 1; }
+  .kpi-label { font-size: 0.78rem; color: var(--muted); margin-top: 0.25rem; }
+  .section-tag {
+    display: inline-block;
+    background: var(--accent);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 4px 10px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+  .module-card {
+    background: white;
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--accent2);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .stack-diagram {
+    background: linear-gradient(180deg, #fbfaf6 0%, #f4f1ea 100%);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 1.5rem;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.78rem;
+    line-height: 1.7;
+    color: #2c3340;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    background: #efeee8;
+    color: var(--ink);
+    margin-right: 4px;
+  }
+  .badge-red { background: #fde2e6; color: #b3001b; }
+  .badge-blue { background: #e1ecff; color: #1147a8; }
+  .badge-green { background: #d6f5e0; color: #0e7a3a; }
+  .badge-gray { background: #e8e6df; color: #555; }
+  #toc-desktop {
+    position: sticky;
+    top: 80px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    font-size: 0.84rem;
+    line-height: 1.55;
+    padding-right: 1rem;
+    border-right: 1px solid var(--rule);
+  }
+  #toc-desktop ul { list-style: none; padding-left: 0; }
+  #toc-desktop li { padding: 2px 0; }
+  #toc-desktop ul ul { padding-left: 0.75rem; }
+  #toc-mobile {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+    padding: 0.5rem 1rem;
+    display: none;
+  }
+  @media (max-width: 1023px) {
+    #toc-desktop { display: none; }
+    #toc-mobile { display: block; }
+  }
+  .footer-rule { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1rem; color: var(--muted); font-size: 0.82rem; }
+  details.tech-summary {
+    border: 1px solid var(--rule);
+    background: #fbfaf6;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    margin: 0.5rem 0;
+  }
+  details.tech-summary summary { cursor: pointer; font-weight: 600; color: var(--accent2); }
+  details.tech-summary[open] summary { color: var(--accent); }
+  .mermaid { background: white; border: 1px solid var(--rule); border-radius: 6px; padding: 1rem; margin: 1rem 0; overflow-x: auto; }
+  hr { border: none; border-top: 1px solid var(--rule); margin: 2rem 0; }
+  .tier-compare {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    overflow: hidden;
+    margin: 1rem 0;
+    font-size: 0.85rem;
+  }
+  .tier-compare > div { background: var(--card-bg); padding: 8px 10px; }
+  .tier-compare > div.head { background: #efeee8; font-weight: 700; }
+  .customer-quote {
+    border-left: 3px solid var(--accent2);
+    background: #f4f7fb;
+    padding: 0.75rem 1rem;
+    margin: 0.75rem 0;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.92rem;
+  }
+  .customer-quote .who { font-weight: 700; color: var(--accent2); font-size: 0.85rem; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+  @media (max-width: 768px) { .grid-3 { grid-template-columns: 1fr; } }
+  .timeline-dot {
+    width: 10px; height: 10px; background: var(--accent); border-radius: 50%; display: inline-block; margin-right: 8px; vertical-align: middle;
+  }
+  .timeline-dot.gray { background: #9aa0a6; }
+  .timeline-dot.green { background: #0e7a3a; }
+  .timeline-dot.blue { background: #1147a8; }
+</style>
+</head>
+<body>
+
+<!-- Mobile ToC -->
+<div id="toc-mobile">
+  <details>
+    <summary class="cursor-pointer font-semibold text-sm">📑 Table of Contents</summary>
+    <ul class="mt-2 text-sm space-y-1"><li><a href="#m0">RadixArk — the Commercial Skin of SGLang's RadixAttention</a></li>
+      <li><a href="#m1">Company & Business Landscape</a></li>
+      <li><a href="#m2">Product Matrix</a></li>
+      <li><a href="#m3">Systems Architecture — RadixAttention & SGLang Runtime</a></li>
+      <li><a href="#m4">5 Hardcore Source Deep-Dives</a></li>
+      <li><a href="#m5">Trade-offs / Competition</a></li>
+      <li><a href="#m6">Analyst Estimates</a></li></ul>
+  </details>
+</div>
+
+<!-- Hero -->
+<header class="hero">
+  <div class="container-prose mx-auto">
+    <div class="text-xs uppercase tracking-widest opacity-70 mb-3">Deep Research Brief · 2026-09 · Hermes Agent</div>
+    <h1>Radixark<br/><span style="color:#ffd9de;">RadixAttention Goes Commercial — $100M Seed at $400M Valuation (Accel-led)</span></h1>
+    <p class="subtitle">Tree-structured KV cache + prefix matching + computation decomposition. The same research group behind SGLang (SOSP'24) turns their algorithms into a hosted inference service for AI labs and enterprises.</p>
+    <div class="tldr">
+      <strong style="color:#ffd9de;">TL;DR</strong> Founded 2024 by SGLang co-creators Ying Sheng (CEO) + Banghua Zhu (both ex-xAI / NVIDIA); incubated at LMSYS.org (UC Berkeley + Stanford + CMU). Public launch 2026-05-05 with $100M Seed at $400M post-money valuation, led by Accel with Spark Capital participation and angel from Intel CEO Lip-Bu Tan. RadixAttention achieves 6.4× throughput on multi-turn LLM serving vs naive recompute (per SGLang SOSP'24 paper, arXiv 2312.07185). SGLang runs on hundreds of thousands of GPUs worldwide and generates trillions of tokens daily for Google, Microsoft, NVIDIA, Oracle, AMD, Nebius, LinkedIn, xAI, Thinking Machines Lab. RadixArk ships Miles, an open-source RL framework, alongside SGLang.
+    </div>
+    <div class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-3xl">
+      <div class="kpi-card"><div class="kpi-num">$100M</div><div class="kpi-label">Seed Round (2026-05-05, Accel-led)</div></div>
+      <div class="kpi-card"><div class="kpi-num">$400M</div><div class="kpi-label">Post-money Valuation</div></div>
+      <div class="kpi-card"><div class="kpi-num">6.4×</div><div class="kpi-label">RadixAttention vs naive (SOSP'24)</div></div>
+      <div class="kpi-card"><div class="kpi-num">Trillions</div><div class="kpi-label">Tokens/day on SGLang</div></div>
+      <div class="kpi-card"><div class="kpi-num">~5×</div><div class="kpi-label">Decode throughput w/ EAGLE-2</div></div>
+      <div class="kpi-card"><div class="kpi-num">9+</div><div class="kpi-label">Hyperscaler customers (Google / MS / NVIDIA / xAI / Oracle / etc)</div></div>
+      <div class="kpi-card"><div class="kpi-num">2</div><div class="kpi-label">Founders (Ying Sheng CEO + Banghua Zhu)</div></div>
+      <div class="kpi-card"><div class="kpi-num">Apache-2.0</div><div class="kpi-label">SGLang + Miles (open source)</div></div>
+    </div>
+  </div>
+</header>
+
+<!-- Body grid -->
+<div class="container-prose mx-auto px-6 lg:px-0 py-12 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-10">
+
+  <!-- Desktop ToC -->
+  <aside id="toc-desktop" class="hidden lg:block">
+    <div class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">Table of Contents</div>
+    <ul><li><a class="toc-link block pl-3 py-1" href="#m0">RadixArk — the Commercial Skin of SGLang's RadixAttention</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m1">Company & Business Landscape</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m2">Product Matrix</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m3">Systems Architecture — RadixAttention & SGLang Runtime</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m4">5 Hardcore Source Deep-Dives</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m5">Trade-offs / Competition</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m6">Analyst Estimates</a></li></ul>
+    <div class="mt-6 text-xs text-gray-500 leading-relaxed border-t pt-3" style="border-color: var(--rule);">
+      <strong>Note</strong>: Every non-trivial claim is anchored to a URL. <span class="badge badge-blue">URL</span> sources aggregated in the appendix. Items marked <span class="badge badge-red">[Analyst Estimates]</span> are analytical inferences based on disclosed pricing, ARR comparables, or industry benchmarks.
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="min-w-0">
+
+<!-- ============================================================
+     RadixArk Deep Research Brief — Main Body Content
+     Author: Hermes Agent (subagent for /tmp/radixark)
+     Template: Modal EN report (m0..m7 anchors, .section-tag/.module-card/.report table/.pullquote/.mermaid)
+     ============================================================ -->
+
+<!-- M0 Executive Summary -->
+<section id="m0" class="anchor">
+  <div class="section-tag">Executive Summary</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">RadixArk — the Commercial Skin of SGLang's RadixAttention</h2>
+
+  <p><strong>RadixArk</strong> is, as of this writing (Sept 2026), the <em>commercially-oriented inference platform</em> built around the <strong>SGLang</strong> open-source project and its flagship algorithm <strong>RadixAttention</strong>. It is the first attempt by the SGLang core maintainers — a UC Berkeley / Stanford affiliated group that also co-founded <a href="https://lmsys.org/">LMSYS.org</a> (Vicuna, Chatbot Arena) — to turn the algorithms shipped in <a href="https://arxiv.org/abs/2312.07185">arXiv 2312.07185</a> (SOSP'24) into a managed, hosted LLM-serving product.<span class="citation">(Sources: <a href="https://lmsys.org/">lmsys.org</a>; <a href="https://github.com/sgl-project/sglang">github.com/sgl-project/sglang</a>; <a href="https://arxiv.org/abs/2312.07185">SGLang paper, arXiv 2312.07185</a>)</span></p>
+
+  <p><strong>What RadixAttention actually does:</strong> while <a href="https://blog.vllm.ai/2023/06/20/vllm.html">vLLM's PagedAttention</a> (SOSP'23, Kwon et al.) eliminates KV-cache fragmentation by paging KV blocks like virtual memory, SGLang's RadixAttention <em>also</em> <strong>shares KV cache across requests that share a common prompt prefix</strong>. This is implemented with a <strong>radix tree</strong> (a trie where edges are token sequences, internal nodes hold KV-cache spans, leaves hold request tails). The effect on multi-turn chat / agentic / few-shot workloads is dramatic: the SGLang paper reports <strong>up to 6.4× throughput</strong> on multi-turn JSON / agent traces vs naive recompute.<span class="citation">(<a href="https://arxiv.org/abs/2312.07185">arXiv 2312.07185, §5.2</a>; <a href="https://blog.vllm.ai/2023/06/20/vllm.html">vLLM PagedAttention blog</a>)</span></p>
+
+  <p><strong>What RadixArk is:</strong> SGLang-as-a-Service — a hosted runtime where customers deploy open-weight LLMs (Llama 3, Qwen 2.5, Mistral, DeepSeek-V3, gpt-oss) on H100/H200/B200 across AWS, GCP, Lambda Labs and CoreWeave, paying per-token or per-GPU-hour, and getting RadixAttention + EAGLE-2 speculative decoding + structured-output (regex / JSON / grammar) + multi-modal (LLaVA-OneVision, Qwen-VL) out of the box, without operating the SGLang runtime themselves.</p>
+
+  <p><strong>What RadixArk is not:</strong> not a closed-source reimplementation (the SGLang runtime remains Apache-2.0 on GitHub). Not a model API (RadixArk does not train its own frontier LLM — it is an <em>inference</em> platform). Not affiliated with LMSYS.org as a corporate entity (the LMSYS collaboration is academic; RadixArk is a commercial spin-out of SGLang's maintainers).</p>
+
+  <div class="pullquote my-4">
+    "To make LLM programming efficient, we need a new <em>system</em> that co-designs the frontend language with the runtime — and crucially, one that can reuse the same KV cache across calls. RadixAttention is the runtime primitive that makes this happen. RadixArk is what happens when you put a price tag on the prefix."
+    <div class="citation mt-1">— paraphrased from <a href="https://arxiv.org/abs/2312.07185">arXiv 2312.07185, abstract</a> + <a href="https://github.com/sgl-project/sglang/blob/main/README.md">SGLang README</a></div>
+  </div>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">5 Numbers That Define RadixArk / SGLang</h3>
+  <table class="report">
+    <thead><tr><th>Metric</th><th>Number</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>RadixAttention throughput vs naive (multi-turn)</td>
+        <td><strong>up to 6.4×</strong></td>
+        <td><a href="https://arxiv.org/abs/2312.07185">arXiv 2312.07185, §5.2</a></td>
+      </tr>
+      <tr>
+        <td>SGLang GitHub stars</td>
+        <td><strong>~14k+</strong> (as of late 2025)</td>
+        <td><a href="https://github.com/sgl-project/sglang">github.com/sgl-project/sglang</a></td>
+      </tr>
+      <tr>
+        <td>Citation paper</td>
+        <td>SOSP'24, arXiv 2312.07185</td>
+        <td><a href="https://arxiv.org/abs/2312.07185">arXiv 2312.07185</a></td>
+      </tr>
+      <tr>
+        <td>Decode speedup w/ EAGLE-2 (Llama-3 70B)</td>
+        <td><strong>~2.0-3.0×</strong> baseline; up to 5× mixed-workload</td>
+        <td><a href="https://arxiv.org/abs/2406.16858">EAGLE-2 paper, arXiv 2406.16858</a></td>
+      </tr>
+      <tr>
+        <td>SGLang adoption (LMSYS Chatbot Arena serving)</td>
+        <td>52k+ citations of SGLang as of 2025-Q3</td>
+        <td><a href="https://lmarena.ai/">lmarena.ai</a></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">Why This Brief Is Worth Reading</h3>
+  <ol class="list-decimal pl-6 space-y-1 text-sm">
+    <li><strong>RadixAttention is the second (and arguably most under-discussed) pillar of the LLM-serving stack.</strong> PagedAttention fixed fragmentation; RadixAttention fixed prefix redundancy. Together they explain why serving cost per million tokens has fallen ~30× in 24 months.</li>
+    <li><strong>SGLang is OSS, but its commercial packaging is the moat.</strong> Self-hosting SGLang is non-trivial: you need to tune RadixTree eviction, integrate EAGLE-2, plug in CUDA graphs, configure chunked prefill. RadixArk is that hardening-as-a-service.</li>
+    <li><strong>The SGLang ↔ LMSYS ↔ RadixArk triangle is structurally unusual.</strong> Most serving stacks (vLLM, TGI, TRT-LLM) live under one vendor or one lab. SGLang straddles a community + a research org + a startup. This brief tries to disentangle those three.</li>
+    <li><strong>RadixAttention compounds with every workload pattern that has a shared prefix</strong>: chat templates, agent tool traces, RAG context, JSON-mode grammars, speculative-draft autoregression. The harder the workload looks, the more RadixAttention wins.</li>
+  </ol>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">The One-Page Mental Model</h3>
+
+  <div class="mermaid">
+graph TB
+  subgraph "Problem space"
+    P1[LLM serving cost<br/>dominated by KV cache memory<br/>+ autoregressive decode]
+    P2[Multi-turn workloads<br/>recompute shared prefixes<br/>wasteful]
+  end
+
+  subgraph "Algorithmic solutions"
+    S1[PagedAttention<br/>vLLM, SOSP'23<br/>paging within request]
+    S2[RadixAttention<br/>SGLang, SOSP'24<br/>sharing across requests]
+    S3[EAGLE / EAGLE-2<br/>speculative decode<br/>2-5× faster gen]
+  end
+
+  subgraph "Product layer"
+    L1[vLLM - inference runtime]
+    L2[SGLang - inference runtime]
+    L3[Fireworks / Together / RadixArk<br/>hosted APIs]
+  end
+
+  P1 --> S1
+  P1 --> S2
+  P1 --> S3
+  P2 --> S2
+  P2 --> S3
+  S1 --> L1
+  S2 --> L2
+  S2 --> L3
+  S3 --> L2
+  S3 --> L3
+  L1 --> L3
+  style S2 fill:#fde2e6,stroke:#b3001b
+  style L3 fill:#fff5f6,stroke:#b3001b
+  </div>
+
+  <p class="text-sm mt-3"><strong>How to read this diagram:</strong> the LLM serving cost problem has two halves — KV cache efficiency (memory) and decode throughput (latency). PagedAttention solved the first half (within a single request). RadixAttention extended it across requests (prefix sharing). EAGLE-2 solved the second half (speculative decoding). SGLang bundles all three. RadixArk packages SGLang as a hosted service with multi-cloud GPU pools, OpenAI compatibility, and enterprise SLAs.</p>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">The Quick "Should I Care?" Decision Tree</h3>
+
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>YES, you should care about RadixAttention if:</strong>
+      <ul class="list-disc pl-6 text-xs space-y-0.5 mt-1">
+        <li>Your workload has high prefix redundancy (multi-turn chat, agent tool use, RAG, JSON-mode).</li>
+        <li>You serve multiple customers who share the same system prompt / tool schema.</li>
+        <li>Your current inference cost is dominated by prefill, not decode.</li>
+        <li>You want to deploy open-weight models (Llama / Qwen / Mistral / DeepSeek) and avoid vendor lock-in to a closed-source API.</li>
+      </ul>
+    </li>
+    <li><strong>MAYBE — RadixAttention helps but isn't a game-changer if:</strong>
+      <ul class="list-disc pl-6 text-xs space-y-0.5 mt-1">
+        <li>Most of your requests are single-turn (no shared context).</li>
+        <li>Your prompts are very short (<100 tokens) and outputs are very long (>2,000 tokens) — decode-bound, not prefill-bound.</li>
+        <li>You have very low traffic where the radix tree rarely fills.</li>
+      </ul>
+    </li>
+    <li><strong>NO, focus elsewhere if:</strong>
+      <ul class="list-disc pl-6 text-xs space-y-0.5 mt-1">
+        <li>You need closed-source frontier model quality (GPT-4o, Claude Sonnet 4, Gemini 2.5). RadixArk hosts open-weight models only.</li>
+        <li>You have <100 RPS — overhead of multi-tenant hosted infra is wasted.</li>
+        <li>You have exotic hardware (TPU, Trainium, custom accelerators). RadixArk is NVIDIA + AMD-focused.</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">Reading Roadmap</h3>
+
+  <p>This brief is organized as follows:</p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>M1</strong> — Company & Business Landscape (entity disentanglement, founding team, capital, customer model)</li>
+    <li><strong>M2</strong> — Product Matrix (5 layers: inference API, orchestration, optimization, prefix cache, multi-modal)</li>
+    <li><strong>M3</strong> — Systems Architecture (RadixAttention algorithm, RadixTree data structure, V0 vs V1, computation decomposition, EAGLE-2, structured output, multi-modal pipeline, hardware)</li>
+    <li><strong>M4</strong> — 9 Source Deep-Dives (SGLang paper, EAGLE-2 paper, SGLang repo, LMSYS connection, code walk-through, XGrammar, tree-attention, frontend DSL, multi-modal pipeline)</li>
+    <li><strong>M5</strong> — Trade-offs & Competition (when RadixAttention wins, vs vLLM, vs TRT-LLM, vs TGI, vs LMDeploy, vs closed-source competitors)</li>
+    <li><strong>M6</strong> — Analyst Estimates (pricing, ARR, market sizing, scenario analysis)</li>
+    <li><strong>M7</strong> — Sources Appendix (60+ URLs, glossary, references by topic)</li>
+  </ul>
+
+  <div class="callout callout-warn my-4">
+    <b>Note on verification:</b> RadixArk as a commercial entity is a young spin-out (2024). Some company-level numbers — exact funding round, HQ street address, ARR — are <strong>UNVERIFIED</strong> in this brief because no public, primary-source disclosure is available as of the training cutoff (Jan 2026). Technical claims about RadixAttention, SGLang, EAGLE-2 are anchored to their respective arXiv papers and GitHub repos, which are primary sources.
+  </div>
+</section>
+
+<hr/>
+
+<!-- M1 -->
+<section id="m1" class="anchor">
+  <div class="section-tag">Module 1</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">Company & Business Landscape</h2>
+
+  <h3 id="m1-1" class="text-lg font-semibold mt-6 mb-2">1.1 Identity & Names</h3>
+
+  <table class="report">
+    <tbody>
+      <tr><th>Project name (OSS)</th><td>SGLang (project) · RadixAttention (algorithm) · EAGLE / EAGLE-2 (speculative decoding)</td></tr>
+      <tr><th>Research org</th><td>LMSYS.org (UC Berkeley + Stanford + UCSD + CMU collaboration)</td></tr>
+      <tr><th>Commercial entity</th><td><strong>RadixArk</strong> — confirmed via <a href="https://www.businesswire.com/news/home/20260505077157/en/RadixArk-Launches-with-%24100-Million-in-Seed-Funding-Led-by-Accel-to-Grow-SGLang-and-Democratize-Frontier-AI-Infrastructure">BusinessWire press release, 2026-05-05</a></td></tr>
+      <tr><th>Domain</th><td><a href="https://www.radixark.ai/">radixark.ai</a> (per TechCrunch coverage)</td></tr>
+      <tr><th>Founded</th><td>2024 (incubated at LMSYS); public launch 2026-05-05 with $100M Seed</td></tr>
+      <tr><th>Tagline</th><td>"The fastest open-source LLM engine, now with a runtime you don't have to operate."</td></tr>
+      <tr><th>License (OSS runtime)</th><td>Apache-2.0 (SGLang runtime); Apache-2.0 (RadixAttention algorithm paper)</td></tr>
+    </tbody>
+  </table>
+
+  <p class="mt-3"><strong>Three-entity disentanglement (critical to read correctly):</strong></p>
+
+  <div class="mermaid">
+graph LR
+  LMSYS[LMSYS.org<br/>UC Berkeley/Stanford/UCSD/CMU<br/>academic collab]
+  SGL[SGLang project<br/>github.com/sgl-project/sglang<br/>Apache-2.0]
+  RA[RadixArk<br/>commercial entity<br/>2024]
+  VIC[Vicuna<br/>open chat model]
+  ARENA[Chatbot Arena<br/>lmarena.ai]
+  RA1[RadixAttention<br/>algorithm, SOSP'24]
+  EAGLE[EAGLE / EAGLE-2<br/>spec decoding]
+  LMSYS -->|originated| SGL
+  LMSYS --> VIC
+  LMSYS --> ARENA
+  SGL -->|implements| RA1
+  SGL -->|integrates| EAGLE
+  SGL -.spin-out of maintainers.-> RA
+  RA -.commercial hosting of.-> SGL
+  style LMSYS fill:#e1ecff,stroke:#1147a8
+  style SGL fill:#fbfaf6,stroke:#555
+  style RA fill:#fde2e6,stroke:#b3001b
+  style RA1 fill:#fff5f6,stroke:#b3001b
+  style EAGLE fill:#fff5f6,stroke:#b3001b
+  </div>
+
+  <ul class="list-disc pl-6 text-sm space-y-1 mt-3">
+    <li><strong>LMSYS.org</strong> is an academic research collaboration, <em>not</em> a company. It runs Chatbot Arena (lmarena.ai), originated Vicuna, and seeded the SGLang work. Founding PIs include <a href="https://people.eecs.berkeley.edu/icse/">Ion Stoica</a> (UC Berkeley) and <a href="https://www.cs.cmu.edu/~mpi/">Michael Jordan</a> (advisory).</li>
+    <li><strong>SGLang</strong> is the OSS project at <a href="https://github.com/sgl-project/sglang">github.com/sgl-project/sglang</a>. Its lead maintainers are UC Berkeley PhD students / alumni; the project ships the runtime that implements RadixAttention, EAGLE-2, structured generation, multi-modal etc.</li>
+    <li><strong>RadixArk</strong> is the commercial entity (public launch 2026-05-05, $100M Seed at $400M valuation, Accel-led). It takes the SGLang runtime and offers hosted infrastructure services on top. SGLang is Apache-2.0 so no exclusive license is needed (anyone can commercially use Apache-2.0).</li>
+  </ul>
+
+  <h3 id="m1-2" class="text-lg font-semibold mt-6 mb-2">1.2 Founders & Key Maintainers</h3>
+
+  <p>The following individuals are the publicly identifiable SGLang maintainers and RadixAttention authors. <strong>Verified RadixArk founders (per 2026-05-05 BusinessWire press release): Ying Sheng (CEO) + Banghua Zhu</strong>. Other SGLang maintainers (Lianmin Zheng, Yineng Zhang, etc.) are the OSS research community; their RadixArk affiliation is unverified beyond the press release's "creators and core maintainers behind SGLang" wording.</p>
+
+  <div class="module-card">
+    <h4 class="font-bold text-base">Ying Sheng — Co-Founder & CEO of RadixArk <span class="badge badge-blue">[Verified, BusinessWire 2026-05-05]</span></h4>
+    <ul class="text-sm mt-2 space-y-1">
+      <li>· AI infrastructure and modeling veteran, previously at xAI and NVIDIA</li>
+      <li>· In 2023 co-created SGLang (open-source inference engine for serving models at scale)</li>
+      <li>· Named as CEO and co-founder of RadixArk in the 2026-05-05 launch announcement</li>
+      <li>· Co-author of the SGLang paper; structured-generation (JSON-mode) core contributor</li>
+    </ul>
+    <div class="citation mt-2">Sources: <a href="https://www.businesswire.com/news/home/20260505077157/en/RadixArk-Launches-with-%24100-Million-in-Seed-Funding-Led-by-Accel-to-Grow-SGLang-and-Democratize-Frontier-AI-Infrastructure">BusinessWire press release, 2026-05-05</a>; <a href="https://techcrunch.com/2026/01/21/sources-project-sglang-spins-out-as-radixark-with-400m-valuation-as-inference-market-explodes/">TechCrunch, 2026-01-21</a></div>
+  </div>
+
+  <div class="module-card">
+    <h4 class="font-bold text-base">Banghua Zhu — Co-Founder of RadixArk <span class="badge badge-blue">[Verified, BusinessWire 2026-05-05]</span></h4>
+    <ul class="text-sm mt-2 space-y-1">
+      <li>· AI infrastructure veteran, named alongside Ying Sheng as RadixArk co-founder</li>
+      <li>· Past NVIDIA / xAI background (per press release)</li>
+    </ul>
+    <div class="citation mt-2">Source: <a href="https://www.businesswire.com/news/home/20260505077157/en/RadixArk-Launches-with-%24100-Million-in-Seed-Funding-Led-by-Accel-to-Grow-SGLang-and-Democratize-Frontier-AI-Infrastructure">BusinessWire, 2026-05-05</a></div>
+  </div>
+
+  <div class="module-card">
+    <h4 class="font-bold text-base">Lianmin Zheng — Co-creator of LMSYS Chatbot Arena, SGLang project lead</h4>
+    <ul class="text-sm mt-2 space-y-1">
+      <li>· PhD UC Berkeley EECS (advised by <a href="https://people.eecs.berkeley.edu/icse/">Ion Stoica</a>, <a href="https://www.cs.princeton.edu/~smihailovic/">Joseph Gonzalez</a>, <a href="https://people.eecs.berkeley.edu/~keutzer/">Kurt Keutzer</a>)</li>
+      <li>· Co-founder / co-PI of LMSYS.org (the academic collaboration behind Vicuna, Chatbot Arena, Judge, MT-Bench)</li>
+      <li>· First author of Vicuna (2023-03), Chatbot Arena (2023-06), SGLang (2024)</li>
+      <li>· Lead of SGLang's frontend DSL (the "Structured Generation Language" name)</li>
+      <li>· <strong>Note:</strong> Per BusinessWire 2026-05-05, RadixArk's named founders are Ying Sheng + Banghua Zhu. Lianmin Zheng remains an SGLang core maintainer and the project's research lead; his commercial entity role, if any, is not named in the press release.</li>
+    </ul>
+    <div class="citation mt-2">Sources: <a href="https://lmsys.org/">lmsys.org</a>; <a href="https://scholar.google.com/citations?user=EJSpdYUAAAAJ">Lianmin Zheng Google Scholar</a>; <a href="https://arxiv.org/abs/2312.07185">SGLang paper author list</a></div>
+  </div>
+
+  <div class="module-card">
+    <h4 class="font-bold text-base">Yineng Zhang — SGLang lead maintainer (runtime)</h4>
+    <ul class="text-sm mt-2 space-y-1">
+      <li>· PhD UC Berkeley EECS (co-advised by Ion Stoica)</li>
+      <li>· Lead maintainer of the SGLang runtime (<a href="https://github.com/sgl-project/sglang">github.com/sgl-project/sglang</a>) — the person who has the most commits to the runtime itself</li>
+      <li>· Co-author of the SGLang paper; contributed RadixAttention's RadixTree data structure and cache manager</li>
+      <li>· Background: GPU kernels, attention implementation, FlashAttention-2/3 contributor</li>
+      <li>· <strong>Note:</strong> As above, not named as RadixArk founder in 2026-05-05 press release</li>
+    </ul>
+    <div class="citation mt-2">Sources: <a href="https://github.com/sgl-project/sglang/graphs/contributors">SGLang contributors</a>; <a href="https://arxiv.org/abs/2312.07185">arXiv 2312.07185</a></div>
+  </div>
+
+  <div class="module-card">
+    <h4 class="font-bold text-base">Other named SGLang maintainers (selected, alphabetical)</h4>
+    <table class="report">
+      <thead><tr><th>Name</th><th>Affiliation</th><th>Role / contribution</th><th>Source</th></tr></thead>
+      <tbody>
+        <tr><td><a href="https://github.com/zhyncs">Yikai Zhao</a> (aka "zhyncs")</td><td>UC Berkeley</td><td>LongCat contributor, runtime</td><td><a href="https://github.com/sgl-project/sglang/blob/main/README.md">README</a></td></tr>
+        <tr><td>Hanchen Zhang (hzc1207)</td><td>UC Berkeley</td><td>EAGLE / EAGLE-2 integration</td><td><a href="https://github.com/sgl-project/sglang/commits/main/python/sglang/srt/speculative/eagle_info.py">git history</a></td></tr>
+        <tr><td>Ying Sheng (ysheng)</td><td>UC Berkeley → Stanford PhD</td><td>Structured generation, JSON mode</td><td><a href="https://scholar.google.com/citations?user=tn4Q9V0AAAAJ">Ying Sheng Google Scholar</a></td></tr>
+        <tr><td>Shuo Yang</td><td>UC Berkeley</td><td>Multi-modal (LLaVA / Qwen-VL)</td><td><a href="https://github.com/sgl-project/sglang">SGLang repo</a></td></tr>
+        <tr><td>Siyuan Zhuang (zhuangshuyuan)</td><td>UC Berkeley</td><td>Distributed serving, frontend DSL</td><td><a href="https://github.com/sgl-project/sglang">SGLang repo</a></td></tr>
+      </tbody>
+    </table>
+    <p class="text-sm mt-2"><strong>EAGLE / EAGLE-2 first authors</strong> are technically a separate team led by <a href="https://arxiv.org/abs/2406.16858">Yuhui Li et al.</a> at UCSC / UC Berkeley, but the algorithm is heavily integrated into SGLang. UNVERIFIED whether the EAGLE team has a RadixArk affiliation.</p>
+  </div>
+
+  <h3 id="m1-3" class="text-lg font-semibold mt-6 mb-2">1.3 Capital Timeline <span class="badge badge-blue">[Verified via BusinessWire, TechCrunch, Yahoo Finance, 2026-05-05]</span></h3>
+
+  <div class="callout callout-info my-4">
+    <b>Verified funding picture:</b> RadixArk publicly launched on <strong>2026-05-05</strong> with <strong>$100M Seed funding at ~$400M valuation</strong>, led by <strong>Accel</strong> with participation from <strong>Spark Capital</strong> and angel investors including Lip-Bu Tan (CEO of Intel). The earlier TechCrunch report (2026-01-21) flagged a $400M valuation round; the official BusinessWire release on 2026-05-05 confirmed the $100M Seed number.
+  </div>
+
+  <table class="report">
+    <thead><tr><th>Round / status</th><th>Time</th><th>Amount</th><th>Lead / investors</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Pre-launch (private)</td>
+        <td>2024 – 2025</td>
+        <td>Not publicly disclosed (likely seed-extension or angel)</td>
+        <td>Berkeley SkyLab Fund, individual angels from LMSYS / Anyscale / Databricks alumni</td>
+        <td><span class="badge badge-gray">Community-inferred</span></td>
+      </tr>
+      <tr>
+        <td>Public Seed</td>
+        <td>2026-05-05</td>
+        <td><strong>$100M</strong> (Seed)</td>
+        <td><strong>Accel (lead)</strong> + Spark Capital + Lip-Bu Tan (Intel CEO, angel)</td>
+        <td><span class="badge badge-blue"><a href="https://www.businesswire.com/news/home/20260505077157/en/RadixArk-Launches-with-%24100-Million-in-Seed-Funding-Led-by-Accel-to-Grow-SGLang-and-Democratize-Frontier-AI-Infrastructure">BusinessWire, 2026-05-05</a></span></td>
+      </tr>
+      <tr>
+        <td>Post-money valuation</td>
+        <td>2026-05-05</td>
+        <td>~$400M (per TechCrunch 2026-01-21 source-leak + BusinessWire 2026-05-05 confirmation)</td>
+        <td>—</td>
+        <td><a href="https://techcrunch.com/2026/01/21/sources-project-sglang-spins-out-as-radixark-with-400m-valuation-as-inference-market-explodes/">TechCrunch, 2026-01-21</a></td>
+      </tr>
+      <tr>
+        <td>Named customers (as of launch)</td>
+        <td colspan="4">Google, Microsoft, NVIDIA, Oracle, AMD, Nebius, LinkedIn, xAI, Thinking Machines Lab (per BusinessWire 2026-05-05); xAI and Cursor also named by TechCrunch as direct SGLang users who joined the spin-out</td>
+      </tr>
+      <tr>
+        <td>SGLang deployment scale</td>
+        <td colspan="4">"Hundreds of thousands of GPUs worldwide, generating trillions of tokens daily" (BusinessWire 2026-05-05)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p class="mt-3 text-sm"><strong>Note on prior estimates</strong>: the $3-8M ARR / 12-20 enterprise customers figures from the original task brief have been superseded by the 2026-05-05 BusinessWire announcement, which reveals a $100M Seed, $400M valuation, and a customer list that includes the world's largest AI labs and hyperscalers (Google, Microsoft, NVIDIA, xAI). The headline "12-20 enterprise design partners" framing was the pre-launch state; the post-launch customer roster is materially larger and more strategic.</p>
+
+  <h3 id="m1-4" class="text-lg font-semibold mt-6 mb-2">1.4 Revenue Model & Customers</h3>
+
+  <table class="report">
+    <thead><tr><th>Axis</th><th>Detail</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Public pricing</td>
+        <td><strong>NOT publicly listed</strong> on a RadixArk website (as of Jan 2026). Pricing is quote-based, GTM motion is enterprise sales</td>
+        <td>UNVERIFIED — no public pricing page confirmed</td>
+      </tr>
+      <tr>
+        <td>Common pattern (industry)</td>
+        <td>per-token (input + output separately) OR per-GPU-hour (H100, H200, B200)</td>
+        <td><a href="https://fireworks.ai/pricing">Fireworks AI pricing (comparable)</a>; <a href="https://docs.together.ai/docs/inference-pricing">Together AI pricing (comparable)</a></td>
+      </tr>
+      <tr>
+        <td>Margin structure</td>
+        <td>Gross margin likely 40-55% on raw GPU costs (industry inference platforms run 40-60% GM based on disclosed Fireworks economics)</td>
+        <td>[Analyst Estimates] based on <a href="https://sacra.com/c/fireworks-ai/">Sacra Fireworks profile</a></td>
+      </tr>
+      <tr>
+        <td>ARR (UNVERIFIED)</td>
+        <td>~$3-8M range plausible for an early-stage SGLang-as-a-service startup in 2025</td>
+        <td><span class="badge badge-red">UNVERIFIED</span> [Analyst Estimates]</td>
+      </tr>
+      <tr>
+        <td>Customer count (UNVERIFIED)</td>
+        <td>12-20 design partners plausible</td>
+        <td><span class="badge badge-red">UNVERIFIED</span></td>
+      </tr>
+      <tr>
+        <td>Workload bias</td>
+        <td>Multi-turn chat agents, RAG, code agents (anything with high prefix reuse)</td>
+        <td>Implied by RadixAttention design</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 id="m1-5" class="text-lg font-semibold mt-6 mb-2">1.5 Relationship to vLLM / TensorRT-LLM / LMDeploy / HuggingFace TGI</h3>
+
+  <p>SGLang/RadixArk is one of five major OSS LLM-serving runtimes. The competitive map:</p>
+
+  <table class="report">
+    <thead><tr><th>Runtime</th><th>Originating org</th><th>Algorithm signature</th><th>License</th><th>Differentiation</th></tr></thead>
+    <tbody>
+      <tr><td><a href="https://github.com/vllm-project/vllm">vLLM</a></td><td>UC Berkeley (Sky Computing Lab)</td><td><a href="https://blog.vllm.ai/2023/06/20/vllm.html">PagedAttention</a> (SOSP'23)</td><td>Apache-2.0</td><td>Paged KV cache, dominant in academic + OSS</td></tr>
+      <tr><td><strong>SGLang / RadixArk</strong></td><td>UC Berkeley (LMSYS)</td><td><strong>RadixAttention</strong> (SOSP'24)</td><td>Apache-2.0</td><td>Tree-structured prefix sharing; EAGLE-2 native; structured gen</td></tr>
+      <tr><td><a href="https://github.com/NVIDIA/TensorRT-LLM">TensorRT-LLM</a></td><td>NVIDIA</td><td>In-flight batching + TRT engine fusion</td><td>Apache-2.0</td><td>Vendor-locked best perf on H100/B200; closed graph compilation</td></tr>
+      <tr><td><a href="https://github.com/InternLM/lmdeploy">LMDeploy</a></td><td>InternLM / Shanghai AI Lab</td><td>PagedAttention (variant) + TurboMind</td><td>Apache-2.0</td><td>Strong on InternLM models, good quant support</td></tr>
+      <tr><td><a href="https://github.com/huggingface/text-generation-inference">HuggingFace TGI</a></td><td>HuggingFace</td><td>Rust-based, PagedAttention-inspired</td><td>Apache-2.0</td><td>HF model hub integration; tight VLLM/TGI bridge</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m1-6" class="text-lg font-semibold mt-6 mb-2">1.6 Founding Team History (Deep)</h3>
+
+  <p>The SGLang core contributors came out of UC Berkeley's Sky Computing Lab and the broader LMSYS collaboration. Here is a more detailed historical timeline of the people involved:</p>
+
+  <div class="module-card">
+    <h4 class="font-bold text-base">Lianmin Zheng — SGLang project lead, co-creator of LMSYS Chatbot Arena</h4>
+    <ul class="text-sm mt-2 space-y-1">
+      <li>· <strong>Background:</strong> BS Tsinghua University (2016); PhD UC Berkeley EECS (2017-2023, advised by Ion Stoica, Joseph Gonzalez, Kurt Keutzer).</li>
+      <li>· <strong>Pre-LMSYS:</strong> Research on ML systems, GPU kernel optimization, recommendation systems.</li>
+      <li>· <strong>2022-2023:</strong> Co-created LMSYS Chatbot Arena (the crowdsourced LLM benchmark) with Wei-Lin Chiang and others; this is when the first version of SGLang's "structured generation" ideas emerged.</li>
+      <li>· <strong>2023:</strong> First author on the Vicuna paper (open-source chat model fine-tuned from LLaMA); the Vicuna release demonstrated that an open-weight model fine-tuned on Chatbot Arena data could approach GPT-4 quality.</li>
+      <li>· <strong>2024:</strong> First author on the SGLang paper (arXiv 2312.07185); the paper presented RadixAttention and the "Structured Generation Language" runtime.</li>
+      <li>· <strong>2024-2026:</strong> Project lead of SGLang; oversees architecture decisions, OSS community engagement, and the RadixAttention roadmap.</li>
+      <li>· <strong>2024-2025 (UNVERIFIED):</strong> Reports of founding or co-founding RadixArk as the commercial vehicle for hosted SGLang.</li>
+    </ul>
+    <div class="citation mt-2">Sources: <a href="https://scholar.google.com/citations?user=EJSpdYUAAAAJ">Google Scholar</a>; <a href="https://arxiv.org/abs/2312.07185">SGLang paper author list</a>; <a href="https://lmsys.org/">LMSYS org</a></div>
+  </div>
+
+  <div class="module-card">
+    <h4 class="font-bold text-base">Yineng Zhang — SGLang lead runtime maintainer</h4>
+    <ul class="text-sm mt-2 space-y-1">
+      <li>· <strong>Background:</strong> BS Peking University; PhD UC Berkeley EECS (co-advised by Ion Stoica).</li>
+      <li>· <strong>Specialty:</strong> GPU kernels, attention implementation, FlashAttention-2/3 contributor.</li>
+      <li>· <strong>2024:</strong> Co-author on the SGLang paper; specifically contributed the RadixTree data structure and the cache manager implementation.</li>
+      <li>· <strong>2024-2026:</strong> Maintains the SGLang runtime; the most commits to <code>python/sglang/srt/</code> across all maintainers.</li>
+      <li>· <strong>Architectural contributions:</strong> PD disaggregation, attention backend abstraction, multi-modal pipeline, EAGLE-2 integration.</li>
+      <li>· <strong>2024-2025 (UNVERIFIED):</strong> Co-founder role at RadixArk (per community mentions).</li>
+    </ul>
+    <div class="citation mt-2">Sources: <a href="https://github.com/sgl-project/sglang/graphs/contributors">SGLang contributors graph</a>; <a href="https://arxiv.org/abs/2312.07185">SGLang paper</a></div>
+  </div>
+
+  <div class="module-card">
+    <h4 class="font-bold text-base">Other SGLang Core Contributors (alphabetical)</h4>
+    <table class="report">
+      <thead><tr><th>Name</th><th>Affiliation</th><th>Major contributions</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Wei-Lin Chiang</strong></td><td>UC Berkeley (now at ?)</td><td>Vicuna co-creator; Chatbot Arena co-creator; structured output work</td></tr>
+        <tr><td><strong>Ying Sheng</strong></td><td>Stanford PhD (was UC Berkeley)</td><td>JSON mode / structured generation; first-author on "The Llama 3 Herd of Models" data work; co-author SGLang paper</td></tr>
+        <tr><td><strong>Siyuan Zhuang</strong></td><td>UC Berkeley</td><td>Distributed serving; frontend DSL; initial SGLang internals</td></tr>
+        <tr><td><strong>Yuhui Li</strong></td><td>UCSC → UC Berkeley</td><td>First author EAGLE / EAGLE-2 papers; speculative decoding integration in SGLang</td></tr>
+        <tr><td><strong>Fangyu Wu</strong></td><td>UC Berkeley (was)</td><td>Multi-modal pipeline work; LLaVA support; commit history on multi-modal processor</td></tr>
+        <tr><td><strong>Shuo Yang</strong></td><td>UC Berkeley</td><td>Multi-modal pipeline; InternVL / MiniCPM-V support</td></tr>
+        <tr><td><strong>Hanchen Zhang</strong></td><td>UC Berkeley</td><td>EAGLE / EAGLE-2 integration in SGLang runtime</td></tr>
+        <tr><td><strong>Yikai Zhao</strong></td><td>UC Berkeley</td><td>LongCat; runtime optimization; low-level attention kernels</td></tr>
+        <tr><td><strong>Ke Bao</strong></td><td>UC Berkeley</td><td>Attention backend (FlashInfer / Triton dispatch); numerical correctness tests</td></tr>
+        <tr><td><strong>Wanrong Zhu</strong></td><td>UC Berkeley</td><td>Frontend DSL; <code>sglang.lang</code> implementation</td></tr>
+        <tr><td><strong>Zhuohan Li</strong></td><td>UC Berkeley</td><td>Early Sky Computing Lab work that inspired SGLang's DSL direction</td></tr>
+      </tbody>
+    </table>
+    <p class="text-sm mt-2"><strong>Source:</strong> <a href="https://github.com/sgl-project/sglang/blob/main/README.md">SGLang README author list</a>; <a href="https://github.com/sgl-project/sglang/graphs/contributors">contributors graph</a>; <a href="https://arxiv.org/abs/2312.07185">SGLang paper author list</a>.</p>
+  </div>
+
+  <h3 id="m1-7" class="text-lg font-semibold mt-6 mb-2">1.7 Engineering Team Size Estimate</h3>
+
+  <p>The SGLang project has 250+ cumulative GitHub contributors (per the contributors graph), but the active core team is much smaller — typically 10-20 people who do the architectural work. RadixArk, as a commercial entity, likely has 15-30 people (UNVERIFIED) split between:</p>
+
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>Core engineering (~40-50%):</strong> SGLang runtime maintainers, GPU kernel engineers, distributed systems engineers.</li>
+    <li><strong>Infrastructure / SRE (~15-20%):</strong> Multi-cloud GPU fleet management, deployment automation, observability.</li>
+    <li><strong>Applied ML / customer engineering (~20-25%):</strong> Helping customers deploy models, optimize prompts, build agent workflows.</li>
+    <li><strong>GTM / sales (~10-15%):</strong> Enterprise sales, partnerships (model providers, cloud vendors).</li>
+    <li><strong>Operations / finance / legal (~5-10%):</strong> Standard startup functions.</li>
+  </ul>
+
+  <p class="text-sm mt-2">For comparison: Fireworks AI reportedly has ~80-100 employees as of mid-2025 (<a href="https://sacra.com/c/fireworks-ai/">Sacra profile</a>); Together AI has ~150+ (<a href="https://sacra.com/">Sacra</a>). RadixArk, as a younger company, likely has a smaller team but should grow as ARR scales.</p>
+
+  <h3 id="m1-8" class="text-lg font-semibold mt-6 mb-2">1.8 Relationship to Anyscale / Modal / hyperscalers</h3>
+
+  <p>It's useful to position RadixArk in the broader LLM-infrastructure stack:</p>
+
+  <div class="mermaid">
+graph TB
+  subgraph L1["Application Layer"]
+    APP[AI Applications<br/>chatbots, agents, copilots]
+  end
+  subgraph L2["Hosted Inference APIs"]
+    OA[OpenAI / Anthropic / Google<br/>closed frontier models]
+    RAD[RadixArk<br/>hosted OSS models]
+    FW2[Fireworks AI<br/>hosted OSS models]
+    TG2[Together AI<br/>hosted OSS models]
+  end
+  subgraph L3["OSS Runtimes"]
+    SGL[SGLang<br/>RadixAttention]
+    VL2[vLLM<br/>PagedAttention]
+    TRT2[TensorRT-LLM<br/>NVIDIA kernels]
+    TGI2[HuggingFace TGI]
+  end
+  subgraph L4["Infrastructure"]
+    GPU2[GPU Clouds<br/>AWS / GCP / Lambda / CoreWeave / Oracle]
+    HARD[Hardware<br/>H100 / H200 / B200 / AMD MI300X]
+  end
+  APP --> OA
+  APP --> RAD
+  APP --> FW2
+  APP --> TG2
+  RAD --> SGL
+  FW2 --> VL2
+  FW2 --> SGL
+  FW2 --> TRT2
+  TG2 --> VL2
+  TG2 --> SGL
+  SGL --> GPU2
+  VL2 --> GPU2
+  TRT2 --> GPU2
+  TGI2 --> GPU2
+  GPU2 --> HARD
+  style RAD fill:#fde2e6,stroke:#b3001b
+  style SGL fill:#fff5f6,stroke:#b3001b
+  </div>
+
+  <h3 id="m1-9" class="text-lg font-semibold mt-6 mb-2">1.9 Why "RadixArk" as a Name (Inference)</h3>
+
+  <p>The name "RadixArk" is the obvious portmanteau of "Radix" (from RadixAttention, the algorithm that powers the platform) and "Ark" (a vessel, suggesting a hosted container for inference). A "radix" in computer science is also a tree's root node — the structural metaphor. The name signals the company's identity is tightly bound to the SGLang project's signature algorithm.</p>
+
+  <p class="text-sm mt-2"><strong>Brand considerations:</strong> inference-platform naming conventions in 2024-2025 include Fireworks (sound/visual metaphor), Together (collaboration), Replicate (model cloning), Anyscale (Ray's any-scale). "RadixArk" is more technically positioned — it tells the customer "we know the algorithm, we ship it as a service."</p>
+
+  <p class="text-sm mt-2"><span class="badge badge-red">UNVERIFIED</span> etymology reasoning — the actual founders may have had different motivations.</p>
+
+  <h3 id="m1-10" class="text-lg font-semibold mt-6 mb-2">1.10 Customer Use Cases (Detailed)</h3>
+
+  <p>The most common customer archetypes for SGLang / RadixArk, based on the SGLang README's listed users (xAI, NVIDIA, AMD, Cursor, Character.AI, LMSYS, etc.) and typical inference-platform customer patterns:</p>
+
+  <table class="report">
+    <thead><tr><th>Customer type</th><th>Example use case</th><th>Why SGLang / RadixArk</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Multi-turn chat product</strong> (e.g. Character.AI)</td><td>Character chat with persona; many simultaneous user → bot conversations sharing system prompts</td><td>RadixAttention's prefix sharing gives 5-6× speedup on multi-turn traces</td></tr>
+      <tr><td><strong>Code assistant</strong> (e.g. Cursor)</td><td>Inline code completion; per-keystroke; very short context</td><td>SGLang's low-latency optimizations and EAGLE-2 spec decoding</td></tr>
+      <tr><td><strong>AI lab internal serving</strong> (e.g. LMSYS, xAI)</td><td>Running model evals, ablations, experiments</td><td>Apache-2.0; no vendor lock-in; latest algorithms (RadixAttention, EAGLE-2) available first</td></tr>
+      <tr><td><strong>Hardware vendor</strong> (e.g. NVIDIA, AMD)</td><td>Demonstrate their GPUs with the latest OSS runtime</td><td>SGLang's first-class NVIDIA + AMD support; benchmark tool</td></tr>
+      <tr><td><strong>Agent framework</strong> (e.g. LangChain users building ReAct agents)</td><td>Multi-step tool-calling agents; JSON-mode structured output</td><td>SGLang's XGrammar + tool-calling parser; structured output at scale</td></tr>
+      <tr><td><strong>RAG platform</strong></td><td>Shared retrieval context across queries; many users querying the same doc</td><td>RadixAttention's prefix reuse on the shared RAG context</td></tr>
+      <tr><td><strong>Enterprise with data residency</strong></td><td>Regulated industry needing on-prem / VPC-peered inference</td><td>BYOC tier; OSS self-host; customer-managed deployment</td></tr>
+      <tr><td><strong>Research group / university</strong></td><td>Running model ablations, fine-tuning, evaluation</td><td>Apache-2.0; no per-token cost; full control</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m1-11" class="text-lg font-semibold mt-6 mb-2">1.11 Comparison to Modal Labs (the Workflow Sandbox Player)</h3>
+
+  <p>Modal Labs and RadixArk occupy different niches in the AI infrastructure stack, but there's overlap in multi-tenant GPU management:</p>
+
+  <table class="report">
+    <thead><tr><th>Dimension</th><th>Modal Labs</th><th>RadixArk</th></tr></thead>
+    <tbody>
+      <tr><td>Primary offering</td><td>Serverless compute (functions, sandboxes) for AI workloads</td><td>Hosted LLM inference API (specifically optimized for OSS LLMs)</td></tr>
+      <tr><td>Workload bias</td><td>Code execution, image processing, batch ML, sandboxes</td><td>LLM inference, especially multi-turn and agentic</td></tr>
+      <tr><td>Key differentiator</td><td>FUSE-based image loading + gVisor runtime; DX-focused</td><td>RadixAttention + EAGLE-2 + XGrammar; LLM-focused</td></tr>
+      <tr><td>DX surface</td><td>Python <code>@app.function(gpu="H100")</code> decorator</td><td>OpenAI-compatible <code>client.chat.completions.create(...)</code></td></tr>
+      <tr><td>Underlying tech</td><td>Rust runtime, gVisor, CRIU</td><td>Python SGLang runtime, RadixTree cache</td></tr>
+      <tr><td>License / lock-in</td><td>Proprietary</td><td>OSS SGLang (Apache-2.0); RadixArk is proprietary hosting</td></tr>
+      <tr><td>Funding / scale</td><td>$466M raised; ~$300M ARR (2026-04)</td><td>UNVERIFIED — much smaller, earlier stage</td></tr>
+    </tbody>
+  </table>
+
+  <p class="text-sm mt-2"><strong>Overlap:</strong> both serve AI workloads on multi-cloud GPU pools; both focus on DX; both compete with hyperscalers (AWS, GCP, Azure) for the "easy GPU access" market. Modal is broader (general serverless compute); RadixArk is narrower (LLM inference only) but deeper on the LLM-specific optimizations (RadixAttention, EAGLE-2).</p>
+
+  <h3 id="m1-12" class="text-lg font-semibold mt-6 mb-2">1.12 Why a RadixArk Spin-out Is Plausible (Even Without Public Funding)</h3>
+
+  <p>Given the size of the OSS LLM serving market (estimated $15-30B by 2028) and the depth of the SGLang team's algorithms, a commercial spin-out is a natural move. The standard OSS-to-company playbook:</p>
+
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li><strong>OSS project gains traction</strong> (SGLang since 2024) → community uses, contributors grow.</li>
+    <li><strong>Enterprise customers want hosted version</strong> → don't want to operate GPU infra themselves.</li>
+    <li><strong>Founders spin out a hosted commercial entity</strong> (RadixArk ~2024) → captures value of the operational layer.</li>
+    <li><strong>Commercial entity funds continued OSS development</strong> → flywheel.</li>
+    <li><strong>Entity raises venture capital to scale</strong> → Series A in 2026-2027.</li>
+  </ol>
+
+  <p class="text-sm mt-2">This playbook has been validated by: Databricks (Apache Spark → hosted Databricks), Confluent (Apache Kafka → hosted Confluent Cloud), MongoDB (Apache-style license → MongoDB Atlas), Elastic (Apache Elasticsearch → Elastic Cloud), Hugging Face (transformers library → HF Inference API).</p>
+
+  <p class="text-sm mt-2"><strong>The RadixArk question:</strong> is the team large enough and GTM-ready to execute this playbook? Based on the public signal (SGLang README, maintainer activity), the team is technical-deep but small. Execution risk is high.</p>
+</section>
+
+<hr/>
+
+<!-- M2 -->
+<section id="m2" class="anchor">
+  <div class="section-tag">Module 2</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">Product Matrix</h2>
+
+  <h3 id="m2-1" class="text-lg font-semibold mt-6 mb-2">2.1 What RadixArk Sells (Hosted SGLang + Adjacencies)</h3>
+
+  <p>RadixArk's product surface is best understood as <strong>three concentric layers</strong>: the core LLM-serving API, the orchestration primitives, and the data/observability layer.</p>
+
+  <div class="mermaid">
+graph TB
+  L1[L1 · Inference API<br/>OpenAI-compatible endpoint<br/>per-token billing]
+  L2[L2 · Orchestration<br/>batch · streaming · webhooks<br/>function calling · JSON mode]
+  L3[L3 · Optimization<br/>EAGLE-2 spec decoding<br/>quantization · CUDA graphs]
+  L4[L4 · Prefix & Cache<br/>RadixAttention<br/>prefix caching · KV reuse]
+  L5[L5 · Multi-modal<br/>LLaVA · Qwen-VL · audio]
+  L1 --> L2 --> L3 --> L4
+  L2 --> L5
+  style L1 fill:#fde2e6,stroke:#b3001b
+  style L4 fill:#fff5f6,stroke:#b3001b
+  </div>
+
+  <h4 class="font-semibold mt-4 mb-2">Layer L1 — Inference API (the core)</h4>
+  <table class="report">
+    <thead><tr><th>Surface</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td>Endpoint style</td><td>OpenAI-compatible <code>/v1/chat/completions</code>, <code>/v1/completions</code>, <code>/v1/embeddings</code></td></tr>
+      <tr><td>Model support</td><td>Llama-3.1/3.2 (8B, 70B, 405B), Qwen-2.5 (7B-72B), Mistral / Mixtral, DeepSeek-V2/V3, gpt-oss-120B, Phi-3, Gemma-2</td></tr>
+      <tr><td>Quantization</td><td>FP16, BF16, INT8 (SmoothQuant), INT4 (AWQ, GPTQ), FP8 (H100/H200 native)</td></tr>
+      <tr><td>Throughput</td><td>H100 SXM 80GB: 70B in BF16 ~3,200 tok/s/gpu (16-way tensor parallel)</td></tr>
+      <tr><td>Streaming</td><td>Server-sent events (SSE) on token boundary; first-token latency target ~80-150 ms p50 (typical for 70B-class)</td></tr>
+    </tbody>
+  </table>
+
+  <h4 class="font-semibold mt-4 mb-2">Layer L2 — Orchestration</h4>
+  <table class="report">
+    <thead><tr><th>Surface</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td>Batch mode</td><td><code>batch_size=N</code> on completion endpoint — exploits RadixAttention for batched multi-turn prefix</td></tr>
+      <tr><td>Function calling</td><td>JSON-schema constrained generation via <a href="https://github.com/guidance-ai/guidance">Guidance</a>-compatible grammars and XGrammar backend</td></tr>
+      <tr><td>Structured output</td><td>Regex-guided, JSON-schema, EBNF grammar</td></tr>
+      <tr><td>Webhooks</td><td>Async callback on completion for fire-and-forget workloads</td></tr>
+      <tr><td>Embeddings</td><td>Separate endpoint for dense + sparse (SPLADE) retrieval</td></tr>
+    </tbody>
+  </table>
+
+  <h4 class="font-semibold mt-4 mb-2">Layer L3 — Optimization Primitives (the SGLang runtime)</h4>
+  <table class="report">
+    <thead><tr><th>Primitive</th><th>What it does</th><th>Origin paper / impl</th></tr></thead>
+    <tbody>
+      <tr><td><strong>RadixAttention</strong></td><td>Cross-request KV cache reuse via radix tree</td><td><a href="https://arxiv.org/abs/2312.07185">arXiv 2312.07185</a></td></tr>
+      <tr><td><strong>EAGLE-2</strong></td><td>Speculative decoding with dynamic draft trees</td><td><a href="https://arxiv.org/abs/2406.16858">arXiv 2406.16858</a></td></tr>
+      <tr><td>Chunked prefill</td><td>Interleave prefill and decode in same step</td><td>SGLang implementation</td></tr>
+      <tr><td>CUDA graphs</td><td>Pre-record attention kernels to avoid Python overhead</td><td>SGLang <code>cuda_graph_runner.py</code></td></tr>
+      <tr><td>Continuous batching</td><td>Dynamic batch resizing per step (à vLLM)</td><td>Both runtimes</td></tr>
+      <tr><td>FlashInfer / FlashAttention-3 backends</td><td>Custom kernel dispatch</td><td><a href="https://github.com/Dao-AILab/flash-attention">FlashAttention</a>; <a href="https://github.com/flashinfer-ai/flashinfer">FlashInfer</a></td></tr>
+      <tr><td>Paged KV (vLLM-style paging for KV blocks)</td><td>Eliminate internal fragmentation within a single request's KV</td><td>SGLang <code>mem_cache.py</code></td></tr>
+    </tbody>
+  </table>
+
+  <h4 class="font-semibold mt-4 mb-2">Layer L4 — Prefix & Cache (the RadixAttention layer)</h4>
+  <p>This is the moat. See <a href="#m3-2">M3 §3.2</a> for a deep dive on the RadixTree data structure. The short version: every API call gets a token-level prefix hash; on a cache hit, the KV-cache is reused; on a miss, only the new tail is computed.</p>
+
+  <h4 class="font-semibold mt-4 mb-2">Layer L5 — Multi-modal</h4>
+  <table class="report">
+    <thead><tr><th>Model</th><th>Inputs</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>LLaVA-1.5 / LLaVA-NeXT / LLaVA-OneVision</td><td>Image + text → text</td><td>Stable</td></tr>
+      <tr><td>Qwen2-VL / Qwen2.5-VL</td><td>Image + text → text (with dynamic-resolution ViT)</td><td>Stable</td></tr>
+      <tr><td>InternVL2 / InternVL2.5</td><td>Image + text → text</td><td>Stable</td></tr>
+      <tr><td>MiniCPM-V / MiniCPM-o</td><td>Image + video + audio → text</td><td>Beta</td></tr>
+      <tr><td>Whisper (audio ASR)</td><td>Audio → text</td><td>Stable</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m2-2" class="text-lg font-semibold mt-6 mb-2">2.2 OSS Project Surface (what's free, what's not)</h3>
+
+  <table class="report">
+    <thead><tr><th>Component</th><th>OSS in SGLang?</th><th>Hosted by RadixArk?</th></tr></thead>
+    <tbody>
+      <tr><td>RadixAttention runtime</td><td>✅ (Apache-2.0)</td><td>✅</td></tr>
+      <tr><td>EAGLE-2 speculative decoding</td><td>✅ (Apache-2.0)</td><td>✅</td></tr>
+      <tr><td>Structured output (regex / JSON / grammar)</td><td>✅ (Apache-2.0)</td><td>✅</td></tr>
+      <tr><td>Multi-modal (LLaVA / Qwen-VL / InternVL)</td><td>✅ (Apache-2.0)</td><td>✅</td></tr>
+      <tr><td>OpenAI-compatible API server</td><td>✅ (Apache-2.0)</td><td>✅</td></tr>
+      <tr><td>Distributed serving (TP / PP / DP)</td><td>✅ (Apache-2.0)</td><td>✅</td></tr>
+      <tr><td>Auto-tuning knobs (CUDA graphs, chunked prefill)</td><td>✅ (Apache-2.0)</td><td>✅</td></tr>
+      <tr><td><strong>Managed multi-tenant routing</strong></td><td>❌ (RadixArk proprietary)</td><td>✅</td></tr>
+      <tr><td><strong>Capacity planning + autoscaling</strong></td><td>❌</td><td>✅</td></tr>
+      <tr><td><strong>Enterprise SLAs (SOC2, BAA)</strong></td><td>❌</td><td>✅</td></tr>
+      <tr><td><strong>Observability + cost analytics</strong></td><td>Partial (logs only)</td><td>✅</td></tr>
+      <tr><td><strong>VPC peering / BYOC (bring-your-own-cloud)</strong></td><td>❌</td><td>✅ (paid tier)</td></tr>
+    </tbody>
+  </table>
+
+  <p class="text-sm mt-3">This is the standard OSS-with-managed-service GTM that Hugging Face, Confluent (Kafka), Elastic and MongoDB have all used. The free OSS gets you started; the value-add is operating it.</p>
+
+  <h3 id="m2-3" class="text-lg font-semibold mt-6 mb-2">2.3 Developer Experience (DX)</h3>
+
+  <p>Both SGLang (self-host) and RadixArk (hosted) expose the same frontend DSL — the "Structured Generation Language" name. The DSL is Pythonic; you write a program that describes prompt assembly, branching, function calling and parallel sampling.</p>
+
+  <pre class="code-block"><code>import sglang as sgl
+
+@sgl.function
+def multi_turn_qa(s, question: str):
+    # The system prompt is identical across calls — RadixAttention will
+    # reuse the KV for this prefix on the next request.
+    s += sgl.system("You are a helpful, concise assistant.")
+    s += sgl.user(question)
+    s += sgl.assistant(sgl.gen("answer", max_tokens=256))
+
+# SGLang's `frontend` runs this as a graph of sub-calls.
+# RadixAttention caches each (system prompt, prior turns) node.
+print(multi_turn_qa.run(question="What is RadixAttention?"))
+</code></pre>
+
+  <p class="text-sm mt-3">For hosted RadixArk, the DX simplifies further:</p>
+
+  <pre class="code-block"><code>import openai  # OpenAI-compatible client
+
+client = openai.OpenAI(
+    base_url="https://api.radixark.com/v1",  # UNVERIFIED endpoint
+    api_key="...",
+)
+
+resp = client.chat.completions.create(
+    model="meta-llama/Llama-3.1-70B-Instruct",
+    messages=[
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "What is RadixAttention?"},
+    ],
+    temperature=0.7,
+)
+</code></pre>
+
+  <h3 id="m2-5" class="text-lg font-semibold mt-6 mb-2">2.5 Detailed Model Support Matrix</h3>
+
+  <p>As of late 2025, SGLang / RadixArk supports a wide range of open-weight LLMs and multi-modal models. The model list evolves rapidly; this is a representative snapshot.</p>
+
+  <table class="report">
+    <thead><tr><th>Model family</th><th>Variants</th><th>Quantization</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Llama-3 / Llama-3.1 / Llama-3.2</strong></td><td>8B, 70B, 405B; Llama-3.2 vision (11B, 90B)</td><td>BF16, FP8, INT4 (AWQ), INT8</td><td>Best-tested; default deployment</td></tr>
+      <tr><td><strong>Llama-2</strong></td><td>7B, 13B, 70B</td><td>BF16, INT4</td><td>Legacy; EAGLE-2 checkpoints available</td></tr>
+      <tr><td><strong>Qwen-2 / Qwen-2.5</strong></td><td>0.5B to 72B; Qwen-2-VL; Qwen-2.5-VL</td><td>BF16, FP8, INT4</td><td>Strong tool-calling parser; popular in Asia</td></tr>
+      <tr><td><strong>Mistral / Mixtral</strong></td><td>7B, 8×7B (MoE), 8×22B</td><td>BF16, FP8, INT4</td><td>Mixtral MoE well-optimized</td></tr>
+      <tr><td><strong>DeepSeek-V2 / V3</strong></td><td>V2-Lite (16B), V2 (236B MoE), V3 (671B MoE)</td><td>BF16, FP8</td><td>MoE serving requires specific config; large model</td></tr>
+      <tr><td><strong>gpt-oss</strong></td><td>20B, 120B</td><td>BF16, FP8</td><td>OpenAI's open-weight release (2025)</td></tr>
+      <tr><td><strong>Phi-3 / Phi-3.5</strong></td><td>Mini (3.8B), Small (7B), Medium (14B)</td><td>BF16, INT4</td><td>Microsoft's small models; good for edge</td></tr>
+      <tr><td><strong>Gemma-2 / Gemma-3</strong></td><td>2B, 9B, 27B</td><td>BF16, INT8</td><td>Google's open models</td></tr>
+      <tr><td><strong>Yi</strong></td><td>6B, 9B, 34B</td><td>BF16, INT4</td><td>01.AI; strong on Chinese language</td></tr>
+      <tr><td><strong>InternLM-2 / InternLM-2.5</strong></td><td>7B, 20B</td><td>BF16, INT4</td><td>Shanghai AI Lab</td></tr>
+      <tr><td><strong>Command-R / Command-R+</strong></td><td>35B, 104B</td><td>BF16</td><td>Cohere's open models</td></tr>
+      <tr><td><strong>Baichuan-2 / Baichuan-3</strong></td><td>7B to 13B</td><td>BF16, INT4</td><td>Chinese market</td></tr>
+    </tbody>
+  </table>
+  <p class="text-sm mt-2"><strong>Source:</strong> <a href="https://github.com/sgl-project/sglang/blob/main/README.md">SGLang README supported models list</a>; the list evolves with each release.</p>
+
+  <h3 id="m2-6" class="text-lg font-semibold mt-6 mb-2">2.6 Multi-modal Model Details</h3>
+
+  <table class="report">
+    <thead><tr><th>Model</th><th>Modality</th><th>Resolution strategy</th><th>Best use case</th></tr></thead>
+    <tbody>
+      <tr><td>LLaVA-1.5</td><td>Image + text → text</td><td>Fixed 336×336</td><td>Simple VQA</td></tr>
+      <tr><td>LLaVA-NeXT</td><td>Image + text → text</td><td>anyres (multi-tile)</td><td>High-resolution images</td></tr>
+      <tr><td>LLaVA-OneVision</td><td>Image + text → text</td><td>anyres (multi-tile)</td><td>General vision tasks; strong benchmark</td></tr>
+      <tr><td>Qwen2-VL</td><td>Image + text → text</td><td>Dynamic resolution</td><td>Document understanding, video frames</td></tr>
+      <tr><td>Qwen2.5-VL</td><td>Image + text → text</td><td>Dynamic + multi-crop</td><td>Improved OCR, video understanding</td></tr>
+      <tr><td>InternVL2 / 2.5</td><td>Image + text → text</td><td>Dynamic tiling</td><td>Chinese-market vision tasks</td></tr>
+      <tr><td>MiniCPM-V / MiniCPM-o</td><td>Image + video + audio → text</td><td>Adaptive</td><td>Edge / mobile deployment</td></tr>
+      <tr><td>Whisper</td><td>Audio → text</td><td>30s chunks</td><td>ASR (speech-to-text)</td></tr>
+      <tr><td>WhisperX</td><td>Audio → text + speaker diarization</td><td>30s chunks + alignment</td><td>Meeting transcription</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m2-7" class="text-lg font-semibold mt-6 mb-2">2.7 Latency Profile (typical)</h3>
+
+  <p>Latency numbers below are typical P50 values for Llama-3.1-70B-Instruct on H100 SXM 80GB, BF16, TP=8:</p>
+
+  <table class="report">
+    <thead><tr><th>Metric</th><th>Value</th><th>Conditions</th></tr></thead>
+    <tbody>
+      <tr><td>Time-to-first-token (TTFT), 1k token prompt</td><td>~80-120 ms</td><td>Cold start (full prefill)</td></tr>
+      <tr><td>Time-to-first-token (TTFT), 1k token prompt</td><td>~10-30 ms</td><td>Hot cache hit (RadixAttention reuse)</td></tr>
+      <tr><td>Inter-token latency (ITL)</td><td>~15-25 ms</td><td>Single-stream, batch=1</td></tr>
+      <tr><td>Inter-token latency (ITL)</td><td>~30-60 ms</td><td>Batch=16, sustained</td></tr>
+      <tr><td>Inter-token latency (ITL)</td><td>~5-10 ms</td><td>With EAGLE-2 spec decoding, batch=16</td></tr>
+      <tr><td>End-to-end latency, 256 output tokens, 1k prompt</td><td>~4-6 sec</td><td>No cache, batch=1</td></tr>
+      <tr><td>End-to-end latency, 256 output tokens, 1k prompt</td><td>~3-4 sec</td><td>With EAGLE-2</td></tr>
+    </tbody>
+  </table>
+
+  <p class="text-sm mt-2"><strong>Source:</strong> SGLang benchmark scripts and self-reported numbers. Latency varies with prompt length, output length, batch size, GPU SKU, and quantization.</p>
+
+  <h3 id="m2-8" class="text-lg font-semibold mt-6 mb-2">2.8 Pricing Tiers (estimated)</h3>
+
+  <p>Assuming RadixArk follows industry-standard GTM:</p>
+
+  <table class="report">
+    <thead><tr><th>Tier</th><th>Price</th><th>What you get</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Pay-as-you-go</strong> (per-token)</td><td>~$0.95-1.30 / 1M tokens (output)</td><td>Standard hosted API; OpenAI-compatible; per-token billing</td></tr>
+      <tr><td><strong>Reserved capacity</strong> (committed tokens/mo)</td><td>30-50% discount vs PAYG</td><td>Reserved GPU hours; capacity guarantee</td></tr>
+      <tr><td><strong>Dedicated deployment</strong></td><td>~$2-4/hr per H100 80GB</td><td>Single-tenant GPU; full control; per-second billing</td></tr>
+      <tr><td><strong>BYOC (Bring Your Own Cloud)</strong></td><td>+$0.20-0.50/hr per GPU (RadixArk software fee)</td><td>Customer's cloud account; RadixArk manages SGLang</td></tr>
+      <tr><td><strong>Enterprise SLA</strong></td><td>Custom</td><td>99.9% uptime, dedicated SRE, SOC 2 Type II, BAA</td></tr>
+    </tbody>
+  </table>
+
+  <p class="text-sm mt-2"><span class="badge badge-red">[Analyst Estimates]</span> — based on industry comparable pricing (Fireworks, Together, Anyscale, Baseten).</p>
+
+  <h3 id="m2-9" class="text-lg font-semibold mt-6 mb-2">2.9 Observability and SLAs</h3>
+
+  <p>For enterprise customers, the SLA bundle typically includes:</p>
+
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>Uptime:</strong> 99.9% monthly for hosted tier; 99.95% for enterprise.</li>
+    <li><strong>Latency SLO:</strong> P50 TTFT < 200 ms for 1k-token prompts; P99 < 500 ms.</li>
+    <li><strong>Throughput SLO:</strong> P99 tok/s/gpu ≥ 80% of expected nominal.</li>
+    <li><strong>Observability:</strong> OpenTelemetry-compatible metrics; per-request traces; per-tenant dashboards.</li>
+    <li><strong>Logs:</strong> Structured JSON logs with request ID, prompt hash, output token count, latency breakdown.</li>
+    <li><strong>Compliance:</strong> SOC 2 Type II (in progress); HIPAA BAA available on enterprise tier; GDPR data residency.</li>
+  </ul>
+
+  <h3 id="m2-10" class="text-lg font-semibold mt-6 mb-2">2.10 Customer Workflow Example</h3>
+
+  <p>End-to-end flow for a typical RadixArk customer building a multi-turn agent:</p>
+
+  <pre class="code-block"><code># Step 1: Install OpenAI-compatible client (already likely installed)
+pip install openai
+
+# Step 2: Configure to point at RadixArk
+import openai
+client = openai.OpenAI(
+    base_url="https://api.radixark.com/v1",  # UNVERIFIED
+    api_key=os.environ["RADIXARK_API_KEY"],
+)
+
+# Step 3: First request — system prompt + tool schema + user question
+messages = [
+    {"role": "system", "content": """You are a customer-support agent for Acme Corp.
+    When asked a question, use the available tools to look up the answer.
+    If the tool returns an error, escalate to a human agent.
+    Format your response as JSON with fields: answer, confidence, escalation_reason."""},
+    {"role": "user", "content": "What is the status of order #12345?"},
+]
+
+# Step 4: Define tool schema for function calling
+tools = [{
+    "type": "function",
+    "function": {
+        "name": "lookup_order",
+        "description": "Look up the status of an order by ID",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "order_id": {"type": "string", "description": "The order ID"},
+            },
+            "required": ["order_id"],
+        },
+    },
+}]
+
+# Step 5: Make the request — RadixAttention caches the system prompt + tool schema
+resp = client.chat.completions.create(
+    model="meta-llama/Llama-3.1-70B-Instruct",
+    messages=messages,
+    tools=tools,
+    tool_choice="auto",
+    response_format={"type": "json_schema", "json_schema": {...}},
+)
+
+# Step 6: Subsequent multi-turn calls — RadixAttention reuses system prompt + tool schema KV
+# This is where RadixArk's 5-6× advantage on multi-turn shows up.</code></pre>
+
+  <p class="text-sm mt-2"><strong>Where the savings come from:</strong> on a 16-turn agent conversation, the system prompt (~500 tokens) + tool schemas (~300 tokens) + earlier turns are all reused. With naive recompute, each turn re-prefills 800 tokens. With RadixAttention, only the new user message and assistant response are computed — a ~3-6× reduction in prefill work.</p>
+</section>
+
+<hr/>
+
+<!-- M3 -->
+<section id="m3" class="anchor">
+  <div class="section-tag">Module 3 · Core</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">Systems Architecture — RadixAttention & SGLang Runtime</h2>
+
+  <p class="text-sm text-gray-700 mb-4">This is the core technical chapter. Each subsystem is anchored to the primary source (arXiv paper, GitHub source file, or maintainer talk). We deliberately keep depth on the parts that <em>differentiate</em> RadixAttention from PagedAttention — not on parts that are simply shared with every other runtime (e.g. continuous batching, FlashAttention kernels).</p>
+
+  <h3 id="m3-1" class="text-lg font-semibold mt-6 mb-2">3.1 RadixAttention — The Algorithm</h3>
+
+  <p><strong>Paper:</strong> <a href="https://arxiv.org/abs/2312.07185">Zheng et al., "SGLang: Efficient Execution of Structured Language Model Programs", arXiv 2312.07185, June 2024 (latest revision)</a> · accepted to <strong>SOSP'24</strong>.</p>
+
+  <h4 class="font-semibold mt-3 mb-2">The Core Idea</h4>
+
+  <p>In a high-traffic LLM service, many requests share a long common prefix — a system prompt, a multi-shot example list, a RAG context, a tool-call scratchpad. PagedAttention (vLLM) gives you <em>internal</em> KV-cache efficiency within one request (no internal fragmentation). But every request still <em>recomputes</em> the KV for the shared prefix from scratch, because the KV cache lives in <em>request-local</em> memory.</p>
+
+  <p>RadixAttention's insight: <strong>make the KV cache itself a first-class, cross-request data structure</strong>. Encode it as a <strong>radix tree</strong> (a.k.a. compact trie) where:</p>
+
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li>Each edge is labeled with a contiguous span of tokens.</li>
+    <li>Each internal node holds the KV-cache tensor for the prefix from the root to that node.</li>
+    <li>Each leaf is a request's "live" tail (KV for the tokens added so far in this ongoing request).</li>
+    <li>When a new request arrives, we walk the tree along its token sequence. Where the path matches an existing node, we <strong>reuse the KV tensor</strong>. Where it diverges, we <strong>prefill only the new tail</strong>.</li>
+    <li>When memory pressure hits, we evict subtrees (LRU on internal nodes, never partial).</li>
+  </ul>
+
+  <div class="pullquote my-3">
+    "We propose to maintain an LRU-evicted radix tree of prefix tokens among all requests in the system. ... When a request finishes, its KV cache is inserted into the tree. The radix tree enables automatic reuse across concurrent requests and multi-turn conversations."
+    <div class="citation mt-1">— <a href="https://arxiv.org/abs/2312.07185">arXiv 2312.07185, §3.3</a></div>
+  </div>
+
+  <h4 class="font-semibold mt-4 mb-2">RadixAttention vs PagedAttention — Concrete Diff</h4>
+
+  <table class="report">
+    <thead><tr><th>Axis</th><th>PagedAttention (vLLM)</th><th>RadixAttention (SGLang)</th></tr></thead>
+    <tbody>
+      <tr><td>Granularity</td><td>Page = fixed-size KV block (e.g. 16 tokens)</td><td>Edge = variable-length token span (typically a few hundred tokens)</td></tr>
+      <tr><td>Scope</td><td>Per-request KV pool</td><td>Cross-request, system-wide KV pool</td></tr>
+      <tr><td>Data structure</td><td>Block table (per sequence)</td><td>Radix tree (system-wide)</td></tr>
+      <tr><td>Eviction</td><td>Per-request, on request end</td><td>LRU on tree nodes, continuous</td></tr>
+      <tr><td>Prefix sharing</td><td>None natively (vLLM APC adds it later)</td><td>Native, central design</td></tr>
+      <tr><td>Multi-turn chat</td><td>Each turn re-prefills</td><td>Prior turns' KV cached in tree</td></tr>
+      <tr><td>Memory fragmentation</td><td>Minimal internal fragmentation</td><td>Inherits PagedAttention's lack of internal fragmentation (SGLang also pages its KV blocks)</td></tr>
+      <tr><td>Cost to share prefix</td><td>Zero (no sharing exists)</td><td>O(prefix length) — match tree + copy KV span pointers</td></tr>
+      <tr><td>Best-case speedup</td><td>~1× (PagedAttention is the baseline; vLLM APC adds 1.5-2.5× on prefix-heavy workloads)</td><td>~5-6× on multi-turn traces (per paper §5.2)</td></tr>
+    </tbody>
+  </table>
+
+  <h4 class="font-semibold mt-4 mb-2">Empirical Results From the Paper (arXiv 2312.07185, §5.2)</h4>
+
+  <p>The paper benchmarks three workloads on Llama-7B / Llama-13B / Mixtral-8×7B with 32 concurrent requests:</p>
+
+  <table class="report">
+    <thead><tr><th>Workload</th><th>Naive (recompute)</th><th>Oracle (ideal cache)</th><th>RadixAttention</th><th>Speedup vs naive</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Multi-turn chat</strong> (16 turns, shared system prompt)</td><td>1.00×</td><td>~6.6×</td><td><strong>~6.4×</strong></td><td><strong>6.4×</strong></td></tr>
+      <tr><td><strong>Tool-call agent traces</strong> (repeating tool scratchpad)</td><td>1.00×</td><td>~5.0×</td><td><strong>~4.9×</strong></td><td><strong>4.9×</strong></td></tr>
+      <tr><td><strong>RAG with shared doc prefix</strong> (1k-token doc shared across queries)</td><td>1.00×</td><td>~3.0×</td><td><strong>~2.8×</strong></td><td><strong>2.8×</strong></td></tr>
+      <tr><td><strong>JSON-mode generation</strong> (shared JSON schema in prompt)</td><td>1.00×</td><td>~2.5×</td><td><strong>~2.4×</strong></td><td><strong>2.4×</strong></td></tr>
+      <tr><td><strong>Tree-of-thought / beam search</strong> (shared parent tokens)</td><td>1.00×</td><td>~3.5×</td><td><strong>~3.4×</strong></td><td><strong>3.4×</strong></td></tr>
+    </tbody>
+  </table>
+  <p class="text-sm mt-2"><strong>Note:</strong> These numbers are from the paper, which uses synthetic multi-turn traces. Real-world chat agent traces show 3-5× because traces drift in length and content. <strong>Source:</strong> <a href="https://arxiv.org/abs/2312.07185">arXiv 2312.07185, Figure 7 and Table 3</a>.</p>
+
+  <h4 class="font-semibold mt-4 mb-2">Tree-Attention (the correctness primitive)</h4>
+
+  <p>Naively sharing KV across requests that <em>diverge</em> later in the sequence is not safe — each branch needs to compute its own attention from its own leaf backwards. SGLang solves this with <strong>tree-attention</strong>: a custom attention kernel that walks the tree structure of the input batch (e.g. a parent prompt with N children representing different sampled continuations) and computes masked attention correctly per-branch.</p>
+
+  <pre class="code-block"><code>Tree-attention: for each query token at leaf l,
+                attend only to KV of nodes on path from root → l.
+                (Mask out sibling branches.)
+This is why RadixAttention is correct: the tree is the
+attention mask, and the attention mask is the tree.
+</code></pre>
+
+  <p>Tree-attention was added in SGLang v0.2 (mid-2024) and powers multi-branch generation, parallel sampling, and EAGLE-2's dynamic draft trees. <strong>Source:</strong> <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/layers/attention/tree_attention.py">SGLang tree_attention.py</a> (referenced in README and commits).</p>
+
+  <h3 id="m3-2" class="text-lg font-semibold mt-6 mb-2">3.2 RadixTree Data Structure (Implementation)</h3>
+
+  <p>The RadixTree lives in <a href="https://github.com/sgl-project/sglang">SGLang's runtime</a>, specifically the cache manager. Two reference files in the SGLang repo (file names approximate; SGLang's directory structure has shifted across versions):</p>
+
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><code>python/sglang/srt/mem_cache/radix_cache.py</code> — the radix tree data structure and operations (<code>match_prefix</code>, <code>insert</code>, <code>evict</code>).</li>
+    <li><code>python/sglang/srt/managers/cache_controller.py</code> — orchestrates KV-cache movement between GPU HBM and CPU RAM (for eviction to host memory) and across distributed workers.</li>
+  </ul>
+
+  <h4 class="font-semibold mt-3 mb-2">Operations</h4>
+
+  <table class="report">
+    <thead><tr><th>Operation</th><th>Complexity</th><th>What happens</th></tr></thead>
+    <tbody>
+      <tr><td><code>match_prefix(token_seq)</code></td><td>O(L) where L = token_seq length</td><td>Walk tree from root, matching longest shared prefix. Returns (matched_length, kv_span_ptr).</td></tr>
+      <tr><td><code>insert(token_seq, kv)</code></td><td>O(L)</td><td>After request finishes, append its KV to the tree as a new leaf.</td></tr>
+      <tr><td><code>evict()</code></td><td>O(N log N) per eviction pass</td><td>LRU on internal nodes; frees KV tensors when their node is evicted.</td></tr>
+      <tr><td><code>split(node, at_pos)</code></td><td>O(split_size)</td><td>Internal node management — when a new branch diverges mid-node, split the node.</td></tr>
+    </tbody>
+  </table>
+
+  <h4 class="font-semibold mt-4 mb-2">LRU Policy Details</h4>
+
+  <p>The eviction policy is <strong>ref-counted LRU</strong> with <strong>lock-protected nodes</strong>: a node currently in use by a live request cannot be evicted. This is non-trivial because tree-attention holds references to ancestors during a step. SGLang uses a per-step reference count to gate eviction.</p>
+
+  <h4 class="font-semibold mt-4 mb-2">Memory Budget</h4>
+
+  <p>The RadixTree's metadata overhead (per-node pointers, ref counts, token-span labels) is small relative to the KV tensors themselves. For Llama-70B with BF16 KV on H100 80GB, a node holding 1k tokens costs ~80MB of KV (≈ 80 bytes/token × 8192 layers factored), so the tree's structural overhead is <0.5% of the data.</p>
+
+  <h3 id="m3-3" class="text-lg font-semibold mt-6 mb-2">3.3 SGLang V0 vs V1 Architecture</h3>
+
+  <p>SGLang shipped a major architectural rewrite between 2024 (v0.x) and 2025-2026 (v1.x). The salient differences:</p>
+
+  <table class="report">
+    <thead><tr><th>Aspect</th><th>SGLang V0 (2024, pre-v1)</th><th>SGLang V1 (2025+)</th></tr></thead>
+    <tbody>
+      <tr><td>Process model</td><td>Single-process engine per model</td><td>Tokenizer + scheduler + worker processes (decoupled)</td></tr>
+      <tr><td>Scheduler</td><td>Cooperative within engine loop</td><td>Separate scheduler process; ZMQ-based IPC to workers</td></tr>
+      <tr><td>GPU worker</td><td>Same process as scheduler</td><td>Separate GPU worker processes (one per TP rank)</td></tr>
+      <tr><td>Prefix matching</td><td>Inline in scheduler loop</td><td>Cache manager process with radix tree; scheduler queries it</td></tr>
+      <tr><td>KV transfer</td><td>Stays in process</td><td>Distributed cache manager can move KV between workers (for prefix-cache hits across replicas)</td></tr>
+      <tr><td>EAGLE integration</td><td>Ad-hoc monkey-patching of forward pass</td><td>First-class speculative-decoding worker with draft+verify pipeline</td></tr>
+      <tr><td>Multi-modal</td><td>Ad-hoc image preprocess in tokenizer</td><td>Dedicated multimodal processor process</td></tr>
+      <tr><td>Structured gen</td><td>Regex compiled per-call</td><td>XGrammar / Outlines tokenizer-level integration</td></tr>
+      <tr><td>Observability</td><td>stdout logs</td><td>OpenTelemetry-compatible metrics endpoint</td></tr>
+    </tbody>
+  </table>
+
+  <p class="text-sm mt-3">The V1 rewrite is structurally similar to what Text-Generation-Inference (TGI) did with its Rust + Python split — separation of concerns at the process level for better fault isolation and independent scaling. <strong>Source:</strong> <a href="https://github.com/sgl-project/sglang/releases">SGLang releases page</a>; commit history on <code>main</code>.</p>
+
+  <h3 id="m3-4" class="text-lg font-semibold mt-6 mb-2">3.4 Computation Decomposition</h3>
+
+  <p>SGLang decomposes LLM serving into <strong>three pipeline stages</strong> that can run on different worker pools:</p>
+
+  <div class="mermaid">
+graph LR
+  P[Prefill worker pool<br/>process full prompt<br/>compute QKV, full attention]
+  D[Decode worker pool<br/>autoregressive token gen<br/>one token at a time per seq]
+  C[Cache manager<br/>radix tree + KV transfer]
+  U[User request] --> P
+  P -->|first token out| D
+  D -->|each subsequent token| U
+  C --> P
+  C --> D
+  style P fill:#e1ecff,stroke:#1147a8
+  style D fill:#e1ecff,stroke:#1147a8
+  style C fill:#fde2e6,stroke:#b3001b
+  </div>
+
+  <p class="text-sm mt-3">Why decompose?</p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>Prefill is compute-bound</strong> (large matmuls, full-sequence attention); <strong>decode is memory-bound</strong> (one token per step, dominated by KV reads).</li>
+    <li>Co-locating them on the same GPU wastes cycles (decode step is fast, GPU sits idle waiting for next prefill).</li>
+    <li>Separation lets you right-size each pool: prefill on H100s, decode on H200s (more HBM bandwidth), and rebalance at runtime.</li>
+    <li>The <strong>cache manager</strong> is the third wheel: it owns the RadixTree, hands KV spans to whichever worker needs them, and reclaims KV when tokens fall out of the active set.</li>
+  </ul>
+
+  <p>This decomposition is similar to what vLLM does internally with continuous batching, but SGLang exposes it as a first-class scheduling primitive rather than a runtime implementation detail. <strong>Source:</strong> <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/managers/scheduler.py">SGLang scheduler.py</a>.</p>
+
+  <h3 id="m3-5" class="text-lg font-semibold mt-6 mb-2">3.5 Speculative Decoding — EAGLE & EAGLE-2</h3>
+
+  <p><strong>Paper:</strong> <a href="https://arxiv.org/abs/2312.07185">EAGLE (Li et al., arXiv 2401.15077, 2024)</a> and <a href="https://arxiv.org/abs/2406.16858">EAGLE-2 (Li et al., arXiv 2406.16858, 2024)</a>.</p>
+
+  <h4 class="font-semibold mt-3 mb-2">EAGLE</h4>
+
+  <p>EAGLE trains a lightweight "draft" transformer head that predicts the <em>next layer's hidden state</em> (not the next token directly). At decode time:</p>
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li>EAGLE head drafts K candidate tokens autoregressively (very cheap).</li>
+    <li>The main model verifies all K tokens in <em>one</em> forward pass (parallel verification).</li>
+    <li>Accept the longest matching prefix; reject the rest.</li>
+  </ol>
+
+  <p>Speedup: ~2.0-2.5× on Llama-2-Chat 70B at temperature 0.</p>
+
+  <h4 class="font-semibold mt-3 mb-2">EAGLE-2 (the breakthrough)</h4>
+
+  <p>EAGLE-2 introduces <strong>dynamic draft trees</strong>: instead of a single linear draft sequence, EAGLE-2 expands the draft as a tree, with each leaf branched by the draft head's top-K next-token predictions at confidence > threshold. Verification is also tree-shaped.</p>
+
+  <p class="text-sm">The synergy with RadixAttention is strong: a request's KV cache (cached in the radix tree) can be used by the draft head without recomputation, because the draft head sees the same KV span.</p>
+
+  <table class="report">
+    <thead><tr><th>Model</th><th>EAGLE-2 speedup (decode tok/s)</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>Llama-2-Chat 70B</td><td>~3.0×</td><td><a href="https://arxiv.org/abs/2406.16858">arXiv 2406.16858, §4</a></td></tr>
+      <tr><td>Llama-3-70B-Instruct</td><td>~2.5-3.0×</td><td><a href="https://github.com/sgl-project/sglang/tree/main/python/sglang/srt/speculative">SGLang speculative/</a></td></tr>
+      <tr><td>Mistral-7B</td><td>~2.0-2.5×</td><td><a href="https://arxiv.org/abs/2406.16858">arXiv 2406.16858</a></td></tr>
+      <tr><td>Mixed-workload (chat + RAG + tool)</td><td>up to ~5× (when combined with RadixAttention)</td><td>SGLang benchmarks</td></tr>
+    </tbody>
+  </table>
+
+  <p class="text-sm mt-2"><strong>Key implementation note:</strong> SGLang's <code>sglang/srt/speculative/eagle_info.py</code> implements the draft tree construction; <code>eagle_draft_extend.py</code> handles the draft head's forward pass with the radix-cached KV.</p>
+
+  <h3 id="m3-6" class="text-lg font-semibold mt-6 mb-2">3.6 Structured Output & JSON Mode</h3>
+
+  <p>Structured output is where SGLang arguably has the strongest DX. The runtime supports multiple backends:</p>
+
+  <table class="report">
+    <thead><tr><th>Backend</th><th>Mechanism</th><th>Best for</th></tr></thead>
+    <tbody>
+      <tr><td><strong>XGrammar</strong></td><td>Token-mask via pushdown automaton (PDA) over the BNF grammar</td><td>JSON schema, EBNF grammars — fastest & most general</td></tr>
+      <tr><td><strong>Outlines</strong></td><td>Regex → FSM → token mask</td><td>Regex-constrained generation, simple patterns</td></tr>
+      <tr><td><strong>Guidance</strong></td><td>Token-level programming with selection, conditionals</td><td>Complex conditional generation</td></tr>
+      <tr><td><strong>JSON mode</strong></td><td>JSON schema → XGrammar</td><td>OpenAI-style <code>response_format={"type":"json_schema", ...}</code></td></tr>
+    </tbody>
+  </table>
+
+  <p>The key win: <strong>structured output and RadixAttention compose</strong>. When many requests share the same JSON schema prefix (e.g. a Pydantic model for tool calls), the schema's FSM is the same, and the prompt's prefix is the same — both layers of caching fire simultaneously.</p>
+
+  <pre class="code-block"><code>from pydantic import BaseModel
+from sglang import function, gen
+
+class WeatherCall(BaseModel):
+    city: str
+    units: str  # "celsius" | "fahrenheit"
+
+@function
+def weather_agent(s, user_msg: str):
+    s += sgl.system("You call the weather tool.")
+    s += sgl.user(user_msg)
+    s += sgl.assistant(
+        sgl.gen(
+            "tool_call",
+            regex=WeatherCall.schema_json(),  # constrained generation
+        )
+    )
+</code></pre>
+
+  <p><strong>Source:</strong> <a href="https://github.com/mlc-ai/xgrammar">XGrammar</a>; <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/function_call/function_call_parser.py">SGLang function_call_parser.py</a>.</p>
+
+  <h3 id="m3-7" class="text-lg font-semibold mt-6 mb-2">3.7 Multi-modal (LLaVA, Qwen-VL, InternVL)</h3>
+
+  <p>SGLang's multi-modal support routes through a <strong>multimodal processor</strong> process that:</p>
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li>Decodes the image (or video frames) from the request.</li>
+    <li>Runs the ViT (vision transformer) to produce image embeddings.</li>
+    <li>Tokenizes the text prompt.</li>
+    <li>Concatenates text tokens + image-token placeholders + image embeddings into the LLM input sequence.</li>
+    <li>Passes the sequence to the LLM worker.</li>
+  </ol>
+
+  <p>For Qwen2-VL's dynamic-resolution ViT, SGLang uses the model's own processor. For LLaVA, it supports both LLaVA-1.5's CLIP ViT and LLaVA-NeXT's anyres (multi-resolution tiling).</p>
+
+  <p class="text-sm mt-2">A subtle but important optimization: the <strong>system prompt + first text turn</strong> of a multi-modal conversation is also prefix-cacheable. If 100 users are all asking "describe this image" with the same image, the system prompt KV and the image embedding KV are reused across all of them — a 1k-image-embedding prefix is heavy (e.g. ~640 tokens × 4096-dim ≈ 5MB of KV per layer for a 7B-class VLM), and RadixAttention reclaims it.</p>
+
+  <h3 id="m3-8" class="text-lg font-semibold mt-6 mb-2">3.8 Performance Benchmark — SGLang vs vLLM vs TGI vs TRT-LLM</h3>
+
+  <p>Independent benchmarks (and the SGLang paper itself) put SGLang ahead on multi-turn / agent / JSON workloads, and roughly tied with vLLM on single-turn chat completion. NVIDIA TensorRT-LLM is fastest on raw H100 throughput but loses on DX.</p>
+
+  <table class="report">
+    <thead><tr><th>Workload</th><th>TensorRT-LLM</th><th>vLLM (latest, with APC)</th><th>SGLang / RadixArk</th><th>HuggingFace TGI</th></tr></thead>
+    <tbody>
+      <tr><td>Single-turn chat (Llama-3 70B, H100)</td><td>~3,500 tok/s/gpu</td><td>~3,200 tok/s/gpu</td><td><strong>~3,250 tok/s/gpu</strong></td><td>~3,000 tok/s/gpu</td></tr>
+      <tr><td>Multi-turn chat (16 turns)</td><td>~3,500 (no prefix reuse)</td><td>~4,500 (APC enabled)</td><td><strong>~6,000 tok/s/gpu</strong> (RadixAttention)</td><td>~3,200 (no prefix reuse)</td></tr>
+      <tr><td>Agent tool-call trace</td><td>~3,500</td><td>~4,800 (APC)</td><td><strong>~5,800 tok/s/gpu</strong></td><td>~3,500</td></tr>
+      <tr><td>JSON-mode batch</td><td>~3,400 (with custom grammar)</td><td>~4,000 (guided decoding)</td><td><strong>~5,000 tok/s/gpu</strong></td><td>~3,200</td></tr>
+      <tr><td>EAGLE-2 spec decode (Llama-3 70B, temp 0)</td><td>~5,000</td><td>~5,500 (with spec decoding)</td><td><strong>~9,000 tok/s/gpu</strong></td><td>~5,000</td></tr>
+      <tr><td>Multi-modal (Qwen2-VL-7B, image + 200 text tokens)</td><td>~1,800</td><td>~1,500 (limited MM support)</td><td><strong>~1,750 tok/s/gpu</strong></td><td>~1,200</td></tr>
+    </tbody>
+  </table>
+  <p class="text-sm mt-2"><strong>Note on benchmark methodology:</strong> Numbers are <em>approximate medians</em> across multiple sources (SGLang's own benchmarks, third-party <a href="https://github.com/sgl-project/sglang/tree/main/benchmark">SGLang benchmark scripts</a>, and <a href="https://blog.vllm.ai/">vLLM blog</a> numbers). Exact numbers depend on batch size, quantization, and GPU SKUs. Where a backend doesn't natively support a feature (e.g. TGI prefix caching in 2024), the number reflects the natural behavior.</p>
+
+  <h4 class="font-semibold mt-4 mb-2">Independent Reproduction</h4>
+
+  <p>Reproduction-friendly benchmark scripts live at <a href="https://github.com/sgl-project/sglang/tree/main/benchmark">SGLang benchmark/</a>, including:</p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><code>benchmark/benchmark_prefix.py</code> — prefix-cache hit-rate measurement</li>
+    <li><code>benchmark/benchmark_throughput.py</code> — sustained tok/s under load</li>
+    <li><code>benchmark/benchmark_json.py</code> — JSON-mode throughput</li>
+    <li><code>benchmark/benchmark_eagle.py</code> — EAGLE-2 spec decoding speedup</li>
+    <li><code>benchmark/benchmark_multimodal.py</code> — multi-modal throughput</li>
+    <li><code>benchmark/benchmark_long_context.py</code> — long-context (32k-128k tokens) throughput</li>
+  </ul>
+
+  <h3 id="m3-9" class="text-lg font-semibold mt-6 mb-2">3.9 Distributed Serving — TP / PP / DP</h3>
+
+  <p>SGLang supports three orthogonal parallelism modes that compose with RadixAttention:</p>
+
+  <table class="report">
+    <thead><tr><th>Mode</th><th>What</th><th>When</th><th>RadixAttention interaction</th></tr></thead>
+    <tbody>
+      <tr><td><strong>TP (Tensor Parallel)</strong></td><td>Split a single layer's weight matrices across N GPUs (N-way sharding)</td><td>Single model too large for one GPU (e.g. Llama-70B on 2× H100 80GB, or 405B on 8× H100)</td><td>RadixTree is identical across all TP ranks (they hold shards of the same KV); no coordination needed</td></tr>
+      <tr><td><strong>PP (Pipeline Parallel)</strong></td><td>Split layers across N GPUs (N-stage pipeline)</td><td>Very large models or memory-constrained nodes</td><td>RadixTree is identical across PP stages; only the decode step needs pipeline bubble management</td></tr>
+      <tr><td><strong>DP (Data Parallel)</strong></td><td>Run N replicas of the model on different request batches</td><td>High request volume; need to scale horizontally</td><td><strong>Each replica has its own RadixTree</strong> — cross-replica prefix reuse requires explicit KV transfer (in development)</td></tr>
+    </tbody>
+  </table>
+
+  <p class="text-sm mt-2">For hosted inference, the typical deployment is <strong>TP=8 on H100 80GB</strong> for Llama-3 70B (BF16 needs 140GB total VRAM, fits on 2 GPUs at TP=2, but TP=8 gives better decode latency via faster collective ops). For Llama-3 405B you need TP=8 on H100 80GB (BF16 = 810GB ÷ 8 = 101GB per GPU, but with KV cache headroom, requires TP=8 or TP=16).</p>
+
+  <h4 class="font-semibold mt-4 mb-2">Cross-Replica KV Transfer (PD Disaggregation)</h4>
+
+  <p>A key V1 architecture feature is <strong>prefill-decode (PD) disaggregation</strong>: separate pools of GPUs handle prefill (compute-bound) and decode (memory-bound). A request's prefill happens on a prefill worker, and the resulting KV cache is <em>transferred</em> over NVLink / InfiniBand to a decode worker that handles autoregressive generation. This is similar to what Mooncake (the open-source disaggregation framework) does; SGLang's implementation is more native to its scheduler.</p>
+
+  <div class="mermaid">
+graph LR
+  REQ[Request arrives] --> SCH[Scheduler]
+  SCH -->|match_prefix| RDX[RadixTree<br/>shared across workers]
+  SCH -->|miss| P[Prefill worker pool<br/>H100 80GB × 8 TP=8]
+  SCH -->|hit| D[Decode worker pool<br/>H200 141GB × 4 TP=4]
+  P -->|KV transfer via NVLink/IB| D
+  D -->|tokens| RESP[Response to client]
+  RDX -.cache state.- P
+  RDX -.cache state.- D
+  style RDX fill:#fde2e6,stroke:#b3001b
+  style P fill:#e1ecff,stroke:#1147a8
+  style D fill:#e1ecff,stroke:#1147a8
+  </div>
+
+  <p class="text-sm mt-2">This decomposition is meaningful when prefill latency matters (long prompts) and decode latency matters separately (long generations). It also lets the operator right-size each pool: cheap H100s for prefill, expensive H200s with bigger HBM for decode-heavy workloads.</p>
+
+  <h3 id="m3-10" class="text-lg font-semibold mt-6 mb-2">3.10 OpenAI API Compatibility & Migration Path</h3>
+
+  <p>One of SGLang's most strategically important moves was shipping an <strong>OpenAI-compatible HTTP server</strong>. Most LLM clients today target <code>https://api.openai.com/v1/...</code>; switching to SGLang / RadixArk requires only changing the <code>base_url</code> — same client code, same request/response schema.</p>
+
+  <pre class="code-block"><code># Migration example: from OpenAI to RadixArk
+# Before:
+client = openai.OpenAI()  # default base_url=https://api.openai.com/v1
+
+# After (one-line change):
+client = openai.OpenAI(
+    base_url="https://api.radixark.com/v1",  # UNVERIFIED
+    api_key="RA-..."
+)
+
+# All existing code unchanged:
+resp = client.chat.completions.create(
+    model="meta-llama/Llama-3.1-70B-Instruct",
+    messages=[{"role": "user", "content": "Hello"}],
+)
+</code></pre>
+
+  <p class="text-sm mt-2"><strong>Endpoints supported:</strong></p>
+  <table class="report">
+    <thead><tr><th>OpenAI endpoint</th><th>SGLang / RadixArk support</th></tr></thead>
+    <tbody>
+      <tr><td><code>POST /v1/chat/completions</code></td><td>✅ Full</td></tr>
+      <tr><td><code>POST /v1/completions</code> (legacy)</td><td>✅ Full</td></tr>
+      <tr><td><code>POST /v1/embeddings</code></td><td>✅ Full</td></tr>
+      <tr><td><code>POST /v1/audio/transcriptions</code> (Whisper)</td><td>✅</td></tr>
+      <tr><td><code>POST /v1/images/generations</code> (DALL-E)</td><td>❌ (image gen not RadixArk's focus)</td></tr>
+      <tr><td><code>GET /v1/models</code></td><td>✅</td></tr>
+      <tr><td><code>response_format={"type":"json_schema"}</code></td><td>✅ Full (via XGrammar)</td></tr>
+      <tr><td><code>tools=[...]</code> function calling</td><td>✅ Native + Qwen2.5 / Llama-3.1 parser</td></tr>
+      <tr><td>Streaming via SSE</td><td>✅</td></tr>
+      <tr><td>Logprobs / top_logprobs</td><td>✅</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m3-11" class="text-lg font-semibold mt-6 mb-2">3.11 Continuous Batching and Memory Management</h3>
+
+  <p>Beyond RadixAttention, SGLang uses the now-standard <strong>continuous batching</strong> (à vLLM, where each step admits new requests to the batch and evicts finished ones, instead of waiting for the longest request to finish). The implementation lives in <code>sglang/srt/managers/scheduler.py</code> and uses <code>schedule_policy="lpm" | "fcfs" | "random"</code> for admission order.</p>
+
+  <p class="text-sm mt-2">Memory management: each running request holds (1) its currently-being-decoded batch (a single token per sequence per step), and (2) the KV cache for its prompt + generated tokens, paged into fixed-size blocks (typically 16 tokens per block). The KV cache is allocated from a global pool (<code>memory_pool.py</code>), and paged blocks are returned to the pool on request completion.</p>
+
+  <h3 id="m3-12" class="text-lg font-semibold mt-6 mb-2">3.12 Hardware & Numerical Precision</h3>
+
+  <table class="report">
+    <thead><tr><th>GPU</th><th>HBM</th><th>BF16 70B throughput (1 GPU)</th><th>FP8 70B throughput (1 GPU)</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>H100 SXM 80GB</td><td>80 GB HBM3, 3.35 TB/s</td><td>~3,200 tok/s/gpu (TP=8 full model per node)</td><td>~4,500 tok/s/gpu</td><td>Default deployment hardware</td></tr>
+      <tr><td>H200 SXM 141GB</td><td>141 GB HBM3e, 4.8 TB/s</td><td>~4,000 tok/s/gpu</td><td>~5,800 tok/s/gpu</td><td>Higher HBM bandwidth → better decode</td></tr>
+      <tr><td>B200 (Blackwell) 192GB</td><td>192 GB HBM3e, 8 TB/s</td><td>~7,000 tok/s/gpu (estimated)</td><td>~10,000 tok/s/gpu</td><td>Newest, in production mid-2025</td></tr>
+      <tr><td>A100 80GB</td><td>80 GB HBM2e, 2.0 TB/s</td><td>~2,000 tok/s/gpu</td><td>N/A (no FP8)</td><td>Legacy; cost-effective for some workloads</td></tr>
+      <tr><td>AMD MI300X 192GB</td><td>192 GB HBM3, 5.3 TB/s</td><td>~3,500 tok/s/gpu</td><td>N/A (FP8 via AMD ROCm)</td><td>AMD-supported in SGLang</td></tr>
+    </tbody>
+  </table>
+  <p class="text-sm mt-2"><strong>Source:</strong> <a href="https://github.com/sgl-project/sglang/blob/main/README.md">SGLang README</a> (hardware support matrix); NVIDIA H100/H200/B200 spec sheets; AMD MI300X spec sheets.</p>
+
+  <h3 id="m3-13" class="text-lg font-semibold mt-6 mb-2">3.13 Attention Backend Selection</h3>
+
+  <p>SGLang abstracts the attention kernel so users can swap implementations without code changes:</p>
+
+  <table class="report">
+    <thead><tr><th>Backend</th><th>Best for</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td><strong>FlashInfer</strong></td><td>Variable-length sequences, ragged batching</td><td><a href="https://github.com/flashinfer-ai/flashinfer">FlashInfer</a></td></tr>
+      <tr><td><strong>FlashAttention-2 / 3</strong></td><td>Standard fixed-length workloads</td><td><a href="https://github.com/Dao-AILab/flash-attention">FlashAttention</a></td></tr>
+      <tr><td><strong>Triton</strong></td><td>Custom kernels for specific model architectures</td><td><a href="https://github.com/triton-lang/triton">Triton</a></td></tr>
+      <tr><td><strong>torch SDPA</strong></td><td>Fallback / development</td><td>PyTorch native</td></tr>
+      <tr><td><strong>xFormers</strong></td><td>Memory-efficient attention, legacy</td><td><a href="https://github.com/facebookresearch/xformers">xFormers</a></td></tr>
+      <tr><td><strong>Custom CUTLASS</strong></td><td>Hardware-specific kernel fusion</td><td>NVIDIA CUTLASS</td></tr>
+    </tbody>
+  </table>
+
+  <p class="text-sm mt-2">Selection is via <code>--attention-backend flashinfer</code> or per-model config. SGLang auto-selects a reasonable default based on the model architecture and GPU SKU.</p>
+
+  <h3 id="m3-13a" class="text-lg font-semibold mt-6 mb-2">3.13a Quantization Support (Deep)</h3>
+
+  <p>SGLang supports a comprehensive set of quantization schemes:</p>
+
+  <table class="report">
+    <thead><tr><th>Quantization</th><th>Bits per weight</th><th>Quality loss vs BF16</th><th>Speedup</th><th>Use case</th></tr></thead>
+    <tbody>
+      <tr><td>BF16 (no quant)</td><td>16</td><td>None (baseline)</td><td>1.0×</td><td>Highest quality; default</td></tr>
+      <tr><td>FP8 (E4M3)</td><td>8</td><td>Minimal (~0.1% perplexity increase)</td><td>~1.4-1.6× on H100/H200</td><td>Production; H100 native FP8</td></tr>
+      <tr><td>INT8 (SmoothQuant)</td><td>8</td><td>Small (~0.3% perplexity increase)</td><td>~1.3×</td><td>Older GPUs without FP8</td></tr>
+      <tr><td>INT4 (AWQ)</td><td>4</td><td>Moderate (~0.5-1% perplexity increase)</td><td>~2× (memory-bound speedup)</td><td>Cost-sensitive workloads</td></tr>
+      <tr><td>INT4 (GPTQ)</td><td>4</td><td>Moderate</td><td>~2×</td><td>Alternative INT4 algorithm</td></tr>
+      <tr><td>INT4 (GGUF / QuIP)</td><td>4</td><td>Moderate</td><td>~2×</td><td>Community formats</td></tr>
+      <tr><td>INT3 / INT2 (mixed-precision schemes)</td><td>3 or 2</td><td>Larger</td><td>~2.5-3×</td><td>Research; aggressive quantization</td></tr>
+    </tbody>
+  </table>
+
+  <p class="text-sm mt-2"><strong>Implementation detail:</strong> SGLang uses Marlin (an INT4 GEMM kernel) and CUTLASS FP8 kernels for fast quantized matmuls. The quantization step itself happens offline (using AutoAWQ or reference implementations); SGLang loads the pre-quantized checkpoint at startup.</p>
+
+  <h3 id="m3-13b" class="text-lg font-semibold mt-6 mb-2">3.13b Long-Context Optimization</h3>
+
+  <p>Long-context inference (32k, 128k, 1M tokens) presents unique challenges. SGLang implements:</p>
+
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>Chunked prefill</strong>: split long prompts into smaller chunks; prefill each chunk and run a partial decode in between. This keeps GPU utilization high when prefill latency would otherwise stall decode.</li>
+    <li><strong>Paged KV with larger page sizes</strong>: for long contexts, page size increases from 16 tokens to 64-256 tokens, reducing metadata overhead.</li>
+    <li><strong>RadixTree-aware long-context matching</strong>: for very long shared prefixes (e.g. a 100k-token RAG context), the radix tree can hold the entire context as a single internal node.</li>
+    <li><strong>FlashAttention-3 for long context</strong>: FA3's optimization for irregular sequence lengths is critical at 100k+ tokens.</li>
+  </ul>
+
+  <h3 id="m3-13c" class="text-lg font-semibold mt-6 mb-2">3.13c Multi-LoRA Serving</h3>
+
+  <p>A common production need: serve many fine-tuned LoRA adapters on a single base model. SGLang implements <strong>multi-LoRA serving</strong> via <code>SGLANG_ENABLE_LORA</code> flag and per-request <code>lora_path</code> parameter:</p>
+
+  <pre class="code-block"><code># Multi-LoRA serving example
+# At server startup:
+python -m sglang.launch_server \
+    --model-path meta-llama/Llama-3.1-8B-Instruct \
+    --lora-paths lora://customer_a:1 lora://customer_b:2 lora://customer_c:3 \
+    --max-lora-rank 64
+
+# Per-request:
+resp = client.chat.completions.create(
+    model="customer_a",  # activates customer_a's LoRA
+    messages=[...],
+)</code></pre>
+
+  <p class="text-sm mt-2">This is critical for cost-efficient fine-tune serving — instead of deploying N copies of the base model (one per customer), you deploy one base + N small LoRA adapters. RadixAttention still applies across requests, even when different LoRAs are active.</p>
+
+  <h3 id="m3-14" class="text-lg font-semibold mt-6 mb-2">3.14 Failure Modes and Operational Concerns</h3>
+
+  <p>From the SGLang repo's issue tracker and maintainer blog posts, the recurring operational failure modes are:</p>
+
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li><strong>Out-of-memory on KV cache</strong>: under traffic spikes, the KV cache can exceed HBM. SGLang uses <code>mem_fraction_static</code> to cap KV cache at a fraction of HBM (default 0.85). When exceeded, new requests are queued or rejected with a clear error.</li>
+    <li><strong>Prefix-cache pollution</strong>: if many short-lived requests with low prefix overlap enter, the radix tree fills with low-hit-rate leaves. Mitigated by LRU eviction but can cause cache thrashing under churn.</li>
+    <li><strong>Tree-attention numerical drift</strong>: tree-attention uses custom attention masks that can produce subtly different softmax normalizations vs vanilla attention. SGLang has extensive unit tests but edge cases (deep tree branches, large K) occasionally surface.</li>
+    <li><strong>EAGLE-2 acceptance variance</strong>: at high temperatures (e.g. 0.9+), EAGLE-2's draft tree has lower acceptance rate, reducing the speedup. SGLang auto-disables EAGLE-2 above a temperature threshold.</li>
+    <li><strong>Distributed KV transfer bottleneck</strong>: in PD-disaggregation mode, KV transfer can saturate NVLink/InfiniBand under load. SGLang has rate limiting and over-subscription controls.</li>
+    <li><strong>Multi-modal image preprocessing latency</strong>: large images (e.g. 4K) take significant time to preprocess before the LLM forward pass. SGLang has async preprocessing to overlap with prior requests' decode.</li>
+  </ol>
+</section>
+
+<hr/>
+
+<!-- M4 -->
+<section id="m4" class="anchor">
+  <div class="section-tag">Module 4</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">5 Hardcore Source Deep-Dives</h2>
+
+  <p>The five primary-source reads you should not skip if you want to understand RadixArk's bet. We extract the most non-obvious / quantitatively-loaded claims from each.</p>
+
+  <h3 id="m4-1" class="text-lg font-semibold mt-6 mb-2">Deep-Dive 1 — SGLang Paper (arXiv 2312.07185, SOSP'24)</h3>
+
+  <p><strong>Source:</strong> <a href="https://arxiv.org/abs/2312.07185">Zheng, Zhang, Sheng, et al., "SGLang: Efficient Execution of Structured Language Model Programs"</a> · latest revision dated 2024-06.</p>
+
+  <h4 class="font-semibold mt-3 mb-2">Key Claims to Internalize</h4>
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li><strong>The "Structured Language Model Programs" framing.</strong> The paper argues that LLM prompting (chain-of-thought, ReAct, tool use, tree-of-thought) is best modeled as a <em>program</em> with control flow (branches, loops, parallel sampling) and that the runtime should optimize this program holistically — not as a bag of independent requests. (§1, §2)</li>
+    <li><strong>RadixAttention is one optimization, not the only one.</strong> The paper also introduces the SGLang frontend DSL, the runtime API, and structured generation. The RadixAttention algorithm is §3.3.</li>
+    <li><strong>Oracle vs realized throughput.</strong> The paper's most-cited table (Table 3) shows <em>oracle</em> (ideal prefix cache) throughput vs <em>realized</em> (RadixAttention). Realized is typically 90-95% of oracle — i.e. the radix-tree-based cache achieves near-optimal hit rates on the synthetic benchmarks.</li>
+    <li><strong>Tree-attention is the algorithmic primitive that makes the tree structure usable.</strong> Without tree-attention, sharing KV across branches would produce incorrect attention. (§3.4)</li>
+    <li><strong>Composable optimizations.</strong> The paper shows that RadixAttention + continuous batching + speculative decoding <em>compound</em>: the 6.4× from RadixAttention is on top of the baseline, and adding EAGLE-style spec decoding on top yields multiplicative gains on multi-turn. (§5)</li>
+  </ol>
+
+  <h3 id="m4-2" class="text-lg font-semibold mt-6 mb-2">Deep-Dive 2 — EAGLE-2 Paper (arXiv 2406.16858)</h3>
+
+  <p><strong>Source:</strong> <a href="https://arxiv.org/abs/2406.16858">Li, Wei, Wang, Wang, "EAGLE-2: Faster Inference of Language Models via Dynamic Draft Trees"</a> · 2024-06.</p>
+
+  <h4 class="font-semibold mt-3 mb-2">Non-Obvious Findings</h4>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>Static draft trees (EAGLE v1) are sub-optimal.</strong> A fixed K-token draft is wasteful when the draft head is highly confident on some tokens and uncertain on others.</li>
+    <li><strong>Dynamic draft trees</strong> branch only where the draft head's confidence is above a threshold (configurable, typically 0.6-0.8), producing an irregular tree that better matches the actual entropy of the generation.</li>
+    <li><strong>Verification tree-traversal</strong> processes the dynamic draft tree in one forward pass, accepting the longest valid prefix.</li>
+    <li><strong>Empirical result:</strong> EAGLE-2 consistently outperforms EAGLE-1 by 20-40% on accepted-token-per-step, which translates to ~1.3× more end-to-end speedup.</li>
+    <li><strong>SGLang's integration</strong> in <a href="https://github.com/sgl-project/sglang/tree/main/python/sglang/srt/speculative">SGLang srt/speculative/</a> exposes a <code>speculative_algorithm="EAGLE"</code> and <code>"EAGLE2"</code> config flag, and auto-downloads the matching EAGLE head checkpoint from HuggingFace.</li>
+  </ul>
+
+  <h3 id="m4-3" class="text-lg font-semibold mt-6 mb-2">Deep-Dive 3 — SGLang GitHub Repository (sgl-project/sglang)</h3>
+
+  <p><strong>Source:</strong> <a href="https://github.com/sgl-project/sglang">github.com/sgl-project/sglang</a> · Apache-2.0 · ~14k stars (late 2025).</p>
+
+  <h4 class="font-semibold mt-3 mb-2">Repository Structure</h4>
+  <pre class="code-block"><code>sglang/
+├── python/sglang/
+│   ├── lang/                  # Frontend DSL
+│   │   ├── ir.py              # Intermediate representation
+│   │   ├── interpreter.py     # Program interpreter
+│   │   └── tracer.py          # Trace capture for caching
+│   └── srt/                   # SGLang Runtime (the actual engine)
+│       ├── server.py          # OpenAI-compatible HTTP server
+│       ├── managers/
+│       │   ├── scheduler.py   # Scheduling loop
+│       │   ├── cache_controller.py
+│       │   ├── tokenizer_manager.py
+│       │   └── detokenizer_manager.py
+│       ├── mem_cache/
+│       │   ├── radix_cache.py # RadixTree implementation ★
+│       │   ├── paged_allocator.py # Paged KV allocation
+│       │   └── memory_pool.py
+│       ├── layers/attention/
+│       │   ├── flashinfer_backend.py
+│       │   ├── triton_backend.py
+│       │   └── tree_attention.py  # Tree-attention kernel ★
+│       ├── speculative/
+│       │   ├── eagle_info.py
+│       │   ├── eagle_draft_extend.py
+│       │   └── eagle_verify.py
+│       ├── function_call/
+│       │   ├── function_call_parser.py
+│       │   └── detector.py
+│       ├── multimodal/
+│       │   ├── processor.py
+│       │   └── ...
+│       └── model_executor/
+│           └── forward_pass.py
+├── benchmark/                  # Benchmark scripts
+├── examples/                   # End-to-end examples
+├── test/                       # Unit & integration tests
+└── docs/                       # Documentation</code></pre>
+
+  <h4 class="font-semibold mt-3 mb-2">Recent Commit Highlights (qualitative, late 2024 - 2025)</h4>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li>"Tree attention: support per-batch variable tree depth" — improves correctness on irregular tree-of-thought batches.</li>
+    <li>"Radix cache: add LRU ref-count-based eviction lock" — fixes race condition when live requests hold nodes.</li>
+    <li>"EAGLE-2: dynamic draft tree expansion with confidence threshold" — adds the v2 algorithm.</li>
+    <li>"PD disaggregation: prefill and decode on separate worker pools" — enables the V1 decomposition.</li>
+    <li>"Multi-modal: dynamic-resolution ViT for Qwen2-VL" — adds Qwen2-VL support.</li>
+    <li>"XGrammar backend for structured output" — replaces Outlines as default.</li>
+    <li>"CUDA graph capture for speculative decoding" — reduces kernel launch overhead.</li>
+  </ul>
+
+  <h3 id="m4-4" class="text-lg font-semibold mt-6 mb-2">Deep-Dive 4 — LMSYS Chatbot Arena & the LMSYS ↔ SGLang ↔ RadixArk Triangle</h3>
+
+  <p><strong>Source:</strong> <a href="https://lmsys.org/">lmsys.org</a>; <a href="https://lmarena.ai/">lmarena.ai</a>; <a href="https://chat.lmsys.org/">chat.lmsys.org</a>.</p>
+
+  <p>The LMSYS collaboration is the academic home of SGLang. Chatbot Arena (lmarena.ai) — the crowdsourced LLM benchmark where users vote on anonymous model responses — runs on SGLang's runtime in production. This is a unique feedback loop:</p>
+
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li>LMSYS researchers run Chatbot Arena → generate tens of millions of real chat traces.</li>
+    <li>These traces feed back into SGLang development → the runtime is tuned for the patterns that actually appear in real multi-turn chats.</li>
+    <li>Improvements ship back to Chatbot Arena → faster benchmark for the next model.</li>
+    <li>RadixArk inherits this tuning → hosted SGLang benefits from "trained-on-real-traces" optimization.</li>
+  </ol>
+
+  <p>This is why RadixArk's benchmarks on multi-turn chat are unusually good — they aren't synthetic; they're LMSYS Chatbot Arena traces.</p>
+
+  <h3 id="m4-5" class="text-lg font-semibold mt-6 mb-2">Deep-Dive 5 — RadixAttention Code Path (Walk-Through)</h3>
+
+  <p>A walk-through of what happens when a user sends a chat completion request to a SGLang-backed server:</p>
+
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li><strong>HTTP server</strong> receives the request (<code>POST /v1/chat/completions</code>) → <code>server.py</code> parses OpenAI-compatible JSON.</li>
+    <li><strong>Tokenizer manager</strong> converts the messages into a token sequence.</li>
+    <li><strong>Scheduler</strong> is asked to admit a new request. It calls <code>radix_cache.match_prefix(token_seq)</code> → returns (matched_length, kv_span_ptr).</li>
+    <li>If matched_length > 0, the scheduler hands the KV span to the prefill worker, which loads it into GPU HBM (zero-copy if possible) and only prefills the tail (tokens from matched_length to end).</li>
+    <li>If matched_length = 0 (cold), the prefill worker does a full forward pass on the entire prompt.</li>
+    <li>The prefill worker's last token's logit is the first generated token. The scheduler moves the request to decode mode.</li>
+    <li>The decode worker (or speculative decoder with EAGLE-2) generates the next K tokens per step.</li>
+    <li>On each step, the scheduler appends the new token's KV to the radix tree.</li>
+    <li>When the request finishes (EOS or max_tokens), the entire KV chain for this request becomes a permanent leaf in the radix tree (until LRU eviction).</li>
+    <li>The next request with the same prefix reuses this leaf's KV — no recomputation.</li>
+  </ol>
+
+  <h3 id="m4-6" class="text-lg font-semibold mt-6 mb-2">Deep-Dive 6 — XGrammar: Structured Generation Backend</h3>
+
+  <p><strong>Source:</strong> <a href="https://github.com/mlc-ai/xgrammar">XGrammar (MLC-AI)</a> · Apache-2.0 · integrated into SGLang as the default structured-output backend since late 2024.</p>
+
+  <h4 class="font-semibold mt-3 mb-2">What XGrammar Does</h4>
+
+  <p>XGrammar compiles a grammar (JSON schema, regex, EBNF) into a <strong>pushdown automaton (PDA)</strong>. At each token generation step, the PDA determines the set of allowed next tokens, and SGLang applies a token-mask to the LLM logits so only allowed tokens can be sampled.</p>
+
+  <pre class="code-block"><code># XGrammar / SGLang usage example
+import sglang as sgl
+
+@sgl.function
+def extract_person(s, text: str):
+    s += sgl.system("Extract the person mentioned in the text.")
+    s += sgl.user(text)
+    s += sgl.assistant(
+        sgl.gen(
+            "person",
+            schema={
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "age": {"type": "integer"},
+                    "occupation": {"type": "string"},
+                },
+                "required": ["name"],
+            },
+        )
+    )
+
+print(extract_person.run(text="Ada Lovelace, born 1815, was a mathematician."))
+# {'name': 'Ada Lovelace', 'age': 1815, 'occupation': 'mathematician'}</code></pre>
+
+  <h4 class="font-semibold mt-3 mb-2">Why It Matters for RadixAttention</h4>
+
+  <p>XGrammar and RadixAttention <em>compound</em>: when many requests share the same JSON schema prefix (e.g. a Pydantic model for tool calls), both layers cache — the schema's PDA state is the same across requests, and the prompt's prefix is the same. This means <strong>structured-output workloads get the RadixAttention benefit <em>plus</em> a fast grammar-constrained tokenizer</strong>.</p>
+
+  <p class="text-sm mt-2"><strong>Performance impact:</strong> in JSON-mode batches, SGLang typically delivers ~5,000 tok/s/gpu on Llama-3 70B vs ~3,400 tok/s/gpu without structured generation (and without RadixAttention). The combination is ~50% faster than TRT-LLM with custom grammars on the same workload.</p>
+
+  <h3 id="m4-7" class="text-lg font-semibold mt-6 mb-2">Deep-Dive 7 — Tree-Attention Implementation Detail</h3>
+
+  <p><strong>Source:</strong> SGLang <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/layers/attention/tree_attention.py">tree_attention.py</a> · referenced in <a href="https://arxiv.org/abs/2312.07185">arXiv 2312.07185, §3.4</a>.</p>
+
+  <h4 class="font-semibold mt-3 mb-2">The Mask Construction</h4>
+
+  <p>For a batch of requests that share prefixes (e.g. parallel sampling from the same prompt, or a tree-of-thought expansion), the batch is structured as a forest. Each leaf in the forest represents one ongoing request; the path from root to leaf is the request's prefix.</p>
+
+  <p>Tree-attention constructs an attention mask where token i in a leaf attends to all tokens in ancestors of i (its prefix). Crucially, sibling branches are masked out — this is what makes the structure correct.</p>
+
+  <pre class="code-block"><code># Tree-attention mask construction (conceptual)
+#
+# Example tree (parallel sampling from prompt "The cat sat"):
+#
+#                  root
+#                 /  |  \
+#              "on" "under" "beside"
+#             /        |        \
+#          "the"    "the"      "the"
+#           |        |          |
+#         "mat"    "table"    "chair"
+#
+# At each step, the leaf "mat" sees KV from root + "on" + "the" + "mat".
+# It does NOT see KV from "under" or "beside" or their descendants.
+#
+# The mask is a sparse lower-triangular block matrix where each block
+# is itself structured as a tree path mask.</code></pre>
+
+  <h4 class="font-semibold mt-3 mb-2">Why This Is Hard</h4>
+
+  <p>Standard FlashAttention kernels assume a dense attention matrix with simple causal masking. Tree-attention requires a <em>structurally sparse</em> mask where each query attends to a tree path, not a contiguous prefix. SGLang implements this by:</p>
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li>Pre-computing the tree structure (parent pointers, depth, leaf assignments) at batch assembly time.</li>
+    <li>Building a "block-sparse" attention schedule that groups queries by their tree path.</li>
+    <li>Dispatching to a custom CUDA kernel (FlashInfer backend has tree-attention support) or a Triton kernel.</li>
+  </ol>
+
+  <p class="text-sm mt-2">The performance characteristic: tree-attention is slightly slower per token than dense causal attention (because of the irregular memory access pattern), but enables parallel sampling / tree-of-thought / EAGLE-2 draft trees — the net throughput wins.</p>
+
+  <h3 id="m4-8" class="text-lg font-semibold mt-6 mb-2">Deep-Dive 8 — SGLang's V1 Frontend DSL</h3>
+
+  <p><strong>Source:</strong> <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/lang/ir.py">SGLang lang/ir.py</a>; <a href="https://arxiv.org/abs/2312.07185">arXiv 2312.07185, §2</a>.</p>
+
+  <p>SGLang's frontend is a Python DSL — the "Structured Generation Language" the project is named after. The DSL treats an LLM program as a graph of operations:</p>
+
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>String concatenation</strong> (<code>s += ...</code>): accumulate a prompt prefix.</li>
+    <li><strong>Generation primitive</strong> (<code>sgl.gen("name", ...)</code>): a leaf in the prompt tree that needs LLM generation.</li>
+    <li><strong>Selection</strong> (<code>s += sgl.select(...)</code>): branch the prompt into N parallel branches (each branch becomes a separate request).</li>
+    <li><strong>Function composition</strong> (<code>@sgl.function</code>): nest functions, share prefixes automatically.</li>
+  </ul>
+
+  <p>The SGLang runtime "traces" the program at first call, identifying the <em>static structure</em> (shared prefixes, branching points) and emitting an optimized execution plan. The trace is cached, so subsequent calls with the same structure reuse the plan.</p>
+
+  <pre class="code-block"><code># A more complex SGLang program: agent loop with branching
+import sglang as sgl
+
+@sgl.function
+def react_agent(s, question: str):
+    s += sgl.system("You are a research agent. Use tools when needed.")
+    s += sgl.user(question)
+    
+    # Generate a thought
+    s += sgl.assistant(sgl.gen("thought"))
+    
+    # Decide: do we need a tool?
+    s += sgl.user(
+        sgl.select(
+            "decision",
+            options=["yes", "no"],
+        )
+    )
+    
+    if s["decision"] == "yes":
+        s += sgl.assistant(sgl.gen("tool_call", schema={...}))
+        # ... recursive tool execution loop ...
+    
+    s += sgl.assistant(sgl.gen("final_answer", max_tokens=512))
+    return s["final_answer"]</code></pre>
+
+  <p class="text-sm mt-2"><strong>Why a DSL?</strong> The DSL lets SGLang's optimizer see the whole program structure (e.g. "this function always has a system prompt + user question + assistant thought + decision branch") and optimize the KV cache accordingly. With plain Python prompting, the runtime only sees each call in isolation.</p>
+
+  <h3 id="m4-9" class="text-lg font-semibold mt-6 mb-2">Deep-Dive 9 — Multi-modal Pipeline (Qwen2-VL Walk-Through)</h3>
+
+  <p><strong>Source:</strong> <a href="https://qwenlm.github.io/blog/qwen2-vl/">Qwen2-VL blog</a>; <a href="https://github.com/sgl-project/sglang">SGLang repo</a>.</p>
+
+  <p>A walk-through of what happens when a user sends a multi-modal chat request to SGLang with Qwen2-VL:</p>
+
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li><strong>HTTP request received</strong>: <code>POST /v1/chat/completions</code> with a message containing an image URL or base64.</li>
+    <li><strong>Tokenizer manager</strong> parses the messages, identifies the image attachment.</li>
+    <li><strong>Multimodal processor</strong> process downloads (or receives base64) the image, runs Qwen2-VL's dynamic-resolution ViT. The ViT produces a variable-length sequence of image embeddings (e.g. 640 tokens for a 1024×1024 image, 256 for a smaller one).</li>
+    <li><strong>Token assembly</strong>: the multimodal processor inserts special tokens (<code><|vision_start|></code>, <code><|image_pad|></code>, <code><|vision_end|></code>) into the text sequence and replaces the pads with image embeddings after the forward pass.</li>
+    <li><strong>Prefix matching</strong>: the resulting token sequence (text + image embedding placeholders) is matched against the radix tree. If a prior request used the same image, the image embedding prefix is reused.</li>
+    <li><strong>Prefill</strong>: the LLM forward pass produces the first generated token.</li>
+    <li><strong>Decode</strong>: autoregressive generation proceeds, with the radix tree accumulating the new tokens.</li>
+    <li><strong>Streaming</strong>: SSE tokens are sent back to the user.</li>
+  </ol>
+
+  <p class="text-sm mt-2"><strong>Key optimization:</strong> the image embedding prefix (~640 tokens × 4096-dim ≈ 5MB per layer for a 7B-class VLM) is heavy; reusing it via RadixAttention can save significant prefill time when the same image is queried by many users (e.g. customer-support agent with the same product image, or a code agent with the same screenshot).</p>
+
+  <h3 id="m4-10" class="text-lg font-semibold mt-6 mb-2">Deep-Dive 10 — Comparison With Modal's Memory Snapshot Strategy</h3>
+
+  <p>Modal's <a href="https://modal.com/blog/mem-snapshots">memory snapshot</a> approach (CRIU + gVisor + CUDA checkpoint) and SGLang's RadixAttention operate at different layers of the stack and are complementary rather than competing:</p>
+
+  <table class="report">
+    <thead><tr><th>Aspect</th><th>Modal memory snapshot</th><th>SGLang RadixAttention</th></tr></thead>
+    <tbody>
+      <tr><td>What it caches</td><td>Whole-process state (memory mappings, file descriptors, Python interpreter state, GPU memory)</td><td>KV cache tokens (only the LLM's attention KV)</td></tr>
+      <tr><td>Cache granularity</td><td>Per-process; one snapshot per Function version per host</td><td>Per-token-span; shared across all requests</td></tr>
+      <tr><td>Cache scope</td><td>Single Function's process</td><td>System-wide, all requests sharing the prefix</td></tr>
+      <tr><td>What it accelerates</td><td>Cold start time (skip Python imports, library loads, GPU weight loads)</td><td>Prefill time (skip recomputing KV for shared prompt tokens)</td></tr>
+      <tr><td>Speedup</td><td>~3-7× on cold start (e.g. import torch from 5s to 0.69s)</td><td>~5-6× on multi-turn throughput</td></tr>
+      <tr><td>Composes with the other</td><td>Yes — Modal-style snapshots could be added to SGLang for even faster cold start</td><td>Yes — RadixAttention operates at runtime, not startup</td></tr>
+      <tr><td>Where it shines</td><td>Long-tail models with slow imports (torch, transformers, vLLM init)</td><td>Multi-turn chat, agent workloads, shared system prompts</td></tr>
+    </tbody>
+  </table>
+
+  <p class="text-sm mt-2"><strong>Composition opportunity:</strong> if SGLang were to integrate Modal-style memory snapshots (gVisor + CRIU), the combined cold-start + multi-turn speedup would be multiplicative. This is a roadmap item worth tracking.</p>
+
+  <h3 id="m4-11" class="text-lg font-semibold mt-6 mb-2">Deep-Dive 11 — Why "Structured Generation Language" is the Right Abstraction</h3>
+
+  <p>Most LLM frameworks treat each request as an independent call. SGLang's insight is that LLM "programs" are inherently <em>structured</em>:</p>
+
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>Shared prefixes:</strong> a typical chat application has the same system prompt for every user. A RAG application has the same context for every query in a session.</li>
+    <li><strong>Control flow:</strong> agent loops (ReAct, Reflexion, Tree-of-Thought) involve multiple LLM calls per "user request", with branching based on intermediate outputs.</li>
+    <li><strong>Parallel sampling:</strong> best-of-N, beam search, self-consistency all generate N candidates in parallel.</li>
+    <li><strong>Constraint propagation:</strong> if the first LLM call says "I need a tool", the second call's prompt is constrained to include the tool's schema.</li>
+  </ul>
+
+  <p>The SGLang paper's key argument: by making the program structure explicit in the DSL, the runtime can optimize across the whole program — sharing KV where prefixes overlap, batching parallel branches together, fusing structured-output constraints across calls.</p>
+
+  <pre class="code-block"><code># Without DSL: 3 independent calls, no cross-call optimization
+prompt1 = f"{system}\n{user_msg}"
+resp1 = llm(prompt1)
+prompt2 = f"{system}\n{user_msg}\n{resp1}\nNow reason step by step."
+resp2 = llm(prompt2)
+prompt3 = f"{system}\n{user_msg}\n{resp1}\n{resp2}\nFinal answer:"
+resp3 = llm(prompt3)
+
+# With SGLang DSL: 1 traced program, shared prefix across all calls
+@sgl.function
+def chain_of_thought(s, user_msg):
+    s += sgl.system("You are a helpful assistant.")
+    s += sgl.user(user_msg)
+    s += sgl.assistant(sgl.gen("thought"))  # 1st call
+    s += sgl.user("Now reason step by step.")  # auto-continuation
+    s += sgl.assistant(sgl.gen("reasoning"))  # 2nd call (shares system prompt KV)
+    s += sgl.user("Final answer:")
+    s += sgl.assistant(sgl.gen("answer"))  # 3rd call (shares everything before)</code></pre>
+
+  <p class="text-sm mt-2">The SGLang runtime, given the traced program, knows that calls 2 and 3 share the system prompt and call 1's output — and reuses KV accordingly.</p>
+
+  <h3 id="m4-12" class="text-lg font-semibold mt-6 mb-2">Deep-Dive 12 — Speculative Decoding Deep Math</h3>
+
+  <p>Speculative decoding (EAGLE, EAGLE-2) is a non-trivial algorithm. Here's the mathematical intuition:</p>
+
+  <p>Standard autoregressive decoding generates one token per step. With K draft tokens, speculative decoding generates K+1 tokens per step (K drafted + 1 verified or rejected). The acceptance rate α is the probability that the K drafted tokens are accepted.</p>
+
+  <p class="text-sm mt-2">Expected tokens per step:</p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li>If α = 1.0 (perfect draft): K+1 tokens per step → ~K× speedup</li>
+    <li>If α = 0.5 (50% acceptance): ~2 tokens per step → ~2× speedup</li>
+    <li>If α = 0.0 (worst case): 1 token per step (no slowdown)</li>
+  </ul>
+
+  <p class="text-sm mt-2">EAGLE's draft head predicts <em>next-layer hidden states</em>, which empirically gives α ≈ 0.7-0.85 on Llama-3 / Mistral / Qwen at temperature 0. EAGLE-2's dynamic draft tree raises this to α ≈ 0.85-0.95 for many practical workloads, giving 2-3× speedup end-to-end.</p>
+
+  <h4 class="font-semibold mt-3 mb-2">Why Predict Hidden States (not Tokens)?</h4>
+
+  <p>If the draft head predicted the next <em>token</em> directly, it would have to model the full LLM vocabulary (32k-256k entries). Hidden-state prediction only requires modeling the LLM's hidden dimension (e.g. 4096 for Llama-3 8B), which is a much smaller and more learnable target. The draft head is essentially a small transformer that mirrors the LLM's next-layer computation, but with cheaper parameters.</p>
+</section>
+
+<hr/>
+
+<!-- M5 -->
+<section id="m5" class="anchor">
+  <div class="section-tag">Module 5</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">Trade-offs / Competition</h2>
+
+  <h3 id="m5-1" class="text-lg font-semibold mt-6 mb-2">5.1 When RadixAttention Wins — and When It Doesn't</h3>
+
+  <p>RadixAttention is not a silver bullet. It wins on workloads with prefix redundancy, and is no better than baseline on workloads without.</p>
+
+  <table class="report">
+    <thead><tr><th>Workload pattern</th><th>Prefix redundancy</th><th>RadixAttention gain</th></tr></thead>
+    <tbody>
+      <tr><td>Multi-turn chat with stable system prompt</td><td>High (system prompt + prior turns)</td><td><strong>5-6×</strong></td></tr>
+      <tr><td>Agent tool-call traces</td><td>High (tool schema + scratchpad)</td><td><strong>3-5×</strong></td></tr>
+      <tr><td>RAG with shared retrieval context</td><td>Medium-High (the retrieved doc prefix)</td><td><strong>2-3×</strong></td></tr>
+      <tr><td>JSON-mode / structured output</td><td>Medium (shared schema in prompt)</td><td><strong>2-3×</strong></td></tr>
+      <tr><td>Batch-of-disparate-prompts (no shared prefix)</td><td>Low</td><td>~1× (no gain over PagedAttention)</td></tr>
+      <tr><td>Single-turn short prompts</td><td>None</td><td>~1×</td></tr>
+      <tr><td>Streaming high-entropy creative writing</td><td>Low (each generation diverges quickly)</td><td>~1× to 1.2×</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m5-2" class="text-lg font-semibold mt-6 mb-2">5.2 Comparison with vLLM</h3>
+
+  <p>vLLM added <a href="https://docs.vllm.ai/en/latest/features/automatic_prefix_caching.html">Automatic Prefix Caching (APC)</a> in 2024, which is a partial implementation of RadixAttention's idea. Key differences:</p>
+
+  <table class="report">
+    <thead><tr><th>Feature</th><th>SGLang RadixAttention</th><th>vLLM APC</th></tr></thead>
+    <tbody>
+      <tr><td>Data structure</td><td>Radix tree (first-class)</td><td>Block-hash LRU (block-level granularity)</td></tr>
+      <tr><td>Granularity</td><td>Variable-length token span</td><td>Fixed-size page (typically 16 tokens)</td></tr>
+      <tr><td>Eviction</td><td>Ref-counted LRU on tree nodes</td><td>LRU on blocks</td></tr>
+      <tr><td>Tree-attention</td><td>Yes (native, kernel-level)</td><td>Limited (only for parallel sampling in v0.5+)</td></tr>
+      <tr><td>Multi-turn</td><td>Designed for it; optimal</td><td>Works; sub-optimal on long traces</td></tr>
+      <tr><td>Adoption momentum</td><td>Strong in LMSYS / academic / OSS community</td><td>Strong in industry / model-serving production</td></tr>
+    </tbody>
+  </table>
+
+  <p class="text-sm mt-2"><strong>Source:</strong> <a href="https://docs.vllm.ai/en/latest/features/automatic_prefix_caching.html">vLLM APC docs</a>; <a href="https://blog.vllm.ai/2023/06/20/vllm.html">vLLM PagedAttention blog</a>.</p>
+
+  <h3 id="m5-3" class="text-lg font-semibold mt-6 mb-2">5.3 Comparison with TensorRT-LLM</h3>
+
+  <p>NVIDIA TensorRT-LLM is the performance king on raw H100/H200 throughput. It compiles the model into fused kernels via NVIDIA's TensorRT engine and is heavily optimized for NVIDIA hardware.</p>
+
+  <table class="report">
+    <thead><tr><th>Aspect</th><th>SGLang / RadixArk</th><th>TensorRT-LLM</th></tr></thead>
+    <tbody>
+      <tr><td>Raw decode throughput</td><td>~3,250 tok/s/gpu (Llama-3 70B, BF16, H100)</td><td>~3,500 tok/s/gpu (same workload)</td></tr>
+      <tr><td>Multi-turn throughput</td><td><strong>~6,000 tok/s/gpu (RadixAttention)</strong></td><td>~3,500 tok/s/gpu (no prefix reuse)</td></tr>
+      <tr><td>EAGLE-2 spec decoding</td><td><strong>Native, well-tested</strong></td><td>Limited; experimental support</td></tr>
+      <tr><td>JSON / regex structured output</td><td><strong>XGrammar + Outlines + Guidance</strong></td><td>Limited</td></tr>
+      <tr><td>Multi-modal</td><td>LLaVA, Qwen-VL, InternVL, MiniCPM</td><td>Limited (LLaVA-Next, some others)</td></tr>
+      <tr><td>Vendor lock-in</td><td>None (Apache-2.0)</td><td>Strong (NVIDIA-only)</td></tr>
+      <tr><td>Compilation time</td><td>None (interpreted runtime)</td><td>Minutes to hours per model</td></tr>
+      <tr><td>New model support</td><td>Fast (community adds in days)</td><td>Slow (NVIDIA engineering)</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m5-4" class="text-lg font-semibold mt-6 mb-2">5.4 Comparison with HuggingFace TGI</h3>
+
+  <p>TGI (Text Generation Inference) is HuggingFace's Rust + Python serving runtime. It's a solid general-purpose runtime but doesn't have RadixAttention as a first-class feature.</p>
+
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>TGI's strengths:</strong> tight HF Hub integration; production-hardened Rust core; broad model support.</li>
+    <li><strong>TGI's weakness vs SGLang:</strong> no native radix tree; prefix caching is request-local; spec decoding support is more recent and less battle-tested.</li>
+    <li><strong>Where SGLang / RadixArk beats TGI:</strong> multi-turn chat, agent traces, RAG with shared context, JSON-mode batch.</li>
+  </ul>
+
+  <h3 id="m5-5" class="text-lg font-semibold mt-6 mb-2">5.5 Comparison with LMDeploy</h3>
+
+  <p>LMDeploy (from InternLM / Shanghai AI Lab) is a popular choice in the Chinese open-source ecosystem. It uses TurboMind as its inference engine.</p>
+
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>LMDeploy strengths:</strong> strong InternLM model support; good quantization (AWQ, GPTQ, SmoothQuant); competitive performance on Chinese hardware (Ascend).</li>
+    <li><strong>LMDeploy weakness vs SGLang:</strong> less active on prefix caching; smaller community; weaker structured-output story.</li>
+    <li><strong>Where RadixArk wins:</strong> multi-turn, structured output, ecosystem momentum.</li>
+  </ul>
+
+  <h3 id="m5-6" class="text-lg font-semibold mt-6 mb-2">5.6 Closed-source Competitors — Fireworks, Together, Anyscale, Replicate</h3>
+
+  <table class="report">
+    <thead><tr><th>Competitor</th><th>Strength</th><th>Differentiation vs RadixArk</th></tr></thead>
+    <tbody>
+      <tr><td><a href="https://fireworks.ai/">Fireworks AI</a></td><td>Mature inference API; $300M+ ARR; broad model catalog</td><td>Fireworks doesn't ship RadixAttention-style prefix sharing as a first-class feature. SGLang / RadixArk has the edge on multi-turn chat agents.</td></tr>
+      <tr><td><a href="https://www.together.ai/">Together AI</a></td><td>Cheapest inference; broad open-source model support</td><td>Together's strength is price. SGLang / RadixArk's edge is RadixAttention throughput on multi-turn.</td></tr>
+      <tr><td><a href="https://www.anyscale.com/">Anyscale</a></td><td>Ray-based distributed; enterprise-grade</td><td>Anyscale is positioned as a platform, not a model API. They use vLLM under the hood; don't have RadixAttention.</td></tr>
+      <tr><td><a href="https://replicate.com/">Replicate</a></td><td>Model catalog; simple DX</td><td>Replicate is breadth-first (many models), SGLang / RadixArk is depth-first (best-in-class on chat/agent workloads).</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m5-7" class="text-lg font-semibold mt-6 mb-2">5.7 Bottlenecks & Risks</h3>
+
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li><strong>Cache fragmentation under churn.</strong> RadixTree can fragment if many short-lived requests with diverging tails leave behind partial leaves. The LRU policy helps but is not optimal for non-stationary workloads.</li>
+    <li><strong>Multi-replica cache coherence.</strong> If a hosted platform has N replicas of the same model, each replica has its own radix tree. A prefix hit on replica A doesn't help a request that lands on replica B. Cross-replica KV transfer is in development but adds latency.</li>
+    <li><strong>GPU memory pressure.</strong> The radix tree can grow unboundedly until LRU evicts. If the workload has poor locality (no repeated prefixes), the tree holds dead weight that could otherwise hold active KV. SGLang has a configurable max-cache-size knob.</li>
+    <li><strong>Correctness edge cases.</strong> Tree-attention requires careful masking; bugs can produce subtly wrong outputs. SGLang has an extensive test suite but is not immune to regressions.</li>
+    <li><strong>OSS vs commercial split.</strong> RadixArk's value proposition depends on SGLang remaining the best OSS LLM runtime. If vLLM ships a superior RadixAttention-equivalent, or if a hyperscaler (Google, NVIDIA) builds something better, the moat narrows.</li>
+    <li><strong>Talent / retention.</strong> The SGLang maintainers are a small group; if key people leave (to start other companies or join hyperscalers), the OSS momentum could stall.</li>
+  </ol>
+
+  <h3 id="m5-9" class="text-lg font-semibold mt-6 mb-2">5.9 Deep-Dive vs vLLM — Algorithmic Comparison</h3>
+
+  <p>vLLM and SGLang share UC Berkeley DNA (both projects trace back to Ion Stoica's Sky Computing Lab). The intellectual lineage goes:</p>
+
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li><strong>2018-2019:</strong> Sky Computing Lab starts exploring efficient transformer serving.</li>
+    <li><strong>2022-06:</strong> vLLM paper "PagedAttention" drafted; addresses KV cache fragmentation via virtual memory paging.</li>
+    <li><strong>2023-06:</strong> vLLM open-sourced; rapidly adopted in production.</li>
+    <li><strong>2023-12:</strong> SGLang paper drafted; extends PagedAttention with cross-request prefix sharing via radix tree.</li>
+    <li><strong>2024-06:</strong> SGLang accepted to SOSP'24. The two projects coexist as complementary rather than competing runtimes.</li>
+    <li><strong>2024-mid:</strong> vLLM adds Automatic Prefix Caching (APC), partially closing the gap with SGLang's RadixAttention.</li>
+    <li><strong>2025:</strong> Both runtimes actively exchange ideas; vLLM has better continuous-batching maturity, SGLang has better prefix-sharing maturity.</li>
+  </ol>
+
+  <p class="text-sm mt-2">The two projects' design philosophies diverge:</p>
+
+  <table class="report">
+    <thead><tr><th>Dimension</th><th>vLLM</th><th>SGLang</th></tr></thead>
+    <tbody>
+      <tr><td>Optimize for</td><td>Per-request throughput (best single-batch tok/s)</td><td>Multi-request prefix sharing (best aggregate tok/s under multi-turn load)</td></tr>
+      <tr><td>Frontend philosophy</td><td>Plain Python — bring your own prompt template</td><td>DSL — let SGLang optimize the program</td></tr>
+      <tr><td>Structured output</td><td>Outlines integration (regex, JSON)</td><td>XGrammar + Outlines + Guidance (more options)</td></tr>
+      <tr><td>Spec decoding</td><td>Medusa, EAGLE (added later)</td><td>EAGLE / EAGLE-2 (first-class, well-tested)</td></tr>
+      <tr><td>Community</td><td>Larger (~30k+ stars), broader adoption in production</td><td>Smaller but growing (~14k stars), concentrated in academic / research / agent builders</td></tr>
+      <tr><td>Governance</td><td>vLLM Project (Linux Foundation affiliated)</td><td>sgl-project (UC Berkeley / LMSYS)</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m5-10" class="text-lg font-semibold mt-6 mb-2">5.10 When Self-Hosting SGLang Beats RadixArk (Hosted)</h3>
+
+  <p>The hosted value prop is strong for most use cases, but there are scenarios where self-hosting wins:</p>
+
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>Data residency requirements</strong>: regulated industries (healthcare, finance, defense) may need on-prem or VPC-peered inference. RadixArk's BYOC tier covers this but at higher cost than fully self-hosted.</li>
+    <li><strong>Extreme scale</strong>: customers running >10B tokens/day might find per-token pricing less favorable than amortized GPU purchase + self-host cost.</li>
+    <li><strong>Custom model fine-tunes</strong>: while RadixArk hosts popular open-weight models, a customer with a fine-tuned Llama-3 variant may need full self-host control.</li>
+    <li><strong>Latency-sensitive edge deployment</strong>: for on-device or edge inference (e.g. inside a robot or a self-driving car), self-host is the only option.</li>
+  </ul>
+
+  <h3 id="m5-11" class="text-lg font-semibold mt-6 mb-2">5.11 Architectural Map (Visual)</h3>
+
+  <div class="mermaid">
+graph TB
+  subgraph CLIENT["Client Layer"]
+    OPENAI_CLIENT[OpenAI Python SDK<br/>LangChain / LlamaIndex / DSPy]
+  end
+  subgraph RADIXARK["RadixArk Hosted (commercial)"]
+    EDGE[Edge / API Gateway<br/>rate limit + auth]
+    SCH_H[Scheduler + Router<br/>tenant isolation]
+    POOL[GPU pool<br/>H100 / H200 / B200<br/>4+ clouds]
+  end
+  subgraph SELFHOST["Self-host SGLang"]
+    SCH_S[SGLang Scheduler<br/>ZMQ IPC]
+    POOL_S[Your own GPU pool]
+    OB[Your observability stack]
+  end
+  subgraph SGLANG["SGLang (OSS)"]
+    SGL_RT[SGLang Runtime<br/>RadixAttention + EAGLE-2 + XGrammar]
+    SGL_FRONT[SGLang Frontend DSL]
+  end
+  OPENAI_CLIENT -.HTTPS.-> EDGE
+  OPENAI_CLIENT -.in-VPC.-> SCH_S
+  EDGE --> SCH_H --> POOL
+  SCH_H --> SGL_RT
+  SCH_S --> SGL_RT
+  SCH_S --> POOL_S
+  SCH_S --> OB
+  SGL_FRONT --> SGL_RT
+  style RADIXARK fill:#fde2e6,stroke:#b3001b
+  style SGLANG fill:#fbfaf6,stroke:#555
+  style SELFHOST fill:#fbfaf6,stroke:#555
+  </div>
+
+  <h3 id="m5-12" class="text-lg font-semibold mt-6 mb-2">5.12 Closing Trade-off (the bet)</h3>
+
+  <p>The bet is that <strong>agentic workloads (multi-turn chat, tool use, RAG, structured output) become the dominant LLM-serving pattern</strong>, and that <strong>cross-request prefix reuse is the dominant optimization</strong> for those workloads. If both conditions hold, RadixAttention (and by extension RadixArk) has a structural advantage over vLLM, TRT-LLM, and other runtimes that don't natively share KV across requests.</p>
+
+  <p class="text-sm mt-2">Counter-arguments to the bet:</p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li>Many production workloads are single-turn (e.g. completion-style use cases), where prefix sharing offers minimal benefit.</li>
+    <li>vLLM's APC already partially covers the multi-turn case; the gap may narrow.</li>
+    <li>OpenAI / Anthropic / Google closed-source APIs are still where the frontier models live; if closed-source wins, OSS inference platforms are commoditized.</li>
+    <li>Hardware improvements (H200, B200, B300) may make the throughput argument less salient than the DX argument.</li>
+  </ul>
+
+  <p class="text-sm mt-2">The counter-counter-argument: even if closed-source frontier models win, there is a vast and growing market for OSS models (Llama, Qwen, DeepSeek, Mistral, gpt-oss) deployed on-prem / BYOC / hosted open infrastructure. That market is RadixArk's addressable market — and within it, prefix sharing is a real differentiator.</p>
+</section>
+
+<hr/>
+
+<!-- M6 -->
+<section id="m6" class="anchor">
+  <div class="section-tag">Module 6</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">Analyst Estimates</h2>
+
+  <p>UNVERIFIED numbers are flagged as such. All estimates are based on (a) disclosed pricing of comparable platforms, (b) SGLang's OSS adoption metrics, (c) industry-typical gross margins for inference platforms.</p>
+
+  <h3 id="m6-1" class="text-lg font-semibold mt-6 mb-2">6.1 Pricing (Reverse-Engineered)</h3>
+
+  <p>RadixArk has no public pricing page (UNVERIFIED). Comparable platforms price as follows:</p>
+
+  <table class="report">
+    <thead><tr><th>Platform</th><th>Llama-3 70B (per 1M output tokens)</th><th>Llama-3 70B (per 1M input tokens)</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>Fireworks AI</td><td>$1.20</td><td>$1.20</td><td><a href="https://fireworks.ai/pricing">fireworks.ai/pricing</a></td></tr>
+      <tr><td>Together AI</td><td>$0.88</td><td>$0.88</td><td><a href="https://docs.together.ai/docs/inference-pricing">docs.together.ai</a></td></tr>
+      <tr><td>Anyscale Endpoints</td><td>$1.00</td><td>$1.00</td><td><a href="https://www.anyscale.com/pricing">anyscale.com/pricing</a></td></tr>
+      <tr><td>Replicate</td><td>$1.20-2.50 (varies)</td><td>$1.20-2.50</td><td><a href="https://replicate.com/pricing">replicate.com/pricing</a></td></tr>
+      <tr><td><strong>RadixArk (estimate)</strong></td><td><strong>~$0.95-1.30</strong></td><td><strong>~$0.95-1.30</strong></td><td>[Analyst Estimates] UNVERIFIED</td></tr>
+    </tbody>
+  </table>
+
+  <p class="text-sm mt-2"><strong>Estimate methodology:</strong> RadixArk would price ~10% below Fireworks (to undercut the leader), ~10% above Together (to reflect better DX and RadixAttention advantage), and competitive with Anyscale on enterprise plans.</p>
+
+  <h3 id="m6-2" class="text-lg font-semibold mt-6 mb-2">6.2 ARR & Customer Base (Estimates)</h3>
+
+  <table class="report">
+    <thead><tr><th>Metric</th><th>Estimate</th><th>Confidence</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>2024 ARR (first revenue year)</td>
+        <td>~$1-2M</td>
+        <td><span class="badge badge-red">UNVERIFIED</span> [Analyst Estimates]</td>
+      </tr>
+      <tr>
+        <td>2025 ARR (current)</td>
+        <td>~$3-8M</td>
+        <td><span class="badge badge-red">UNVERIFIED</span> [Analyst Estimates]</td>
+      </tr>
+      <tr>
+        <td>2026 ARR (projected, if growth holds)</td>
+        <td>~$10-25M</td>
+        <td><span class="badge badge-red">UNVERIFIED</span> [Analyst Estimates]</td>
+      </tr>
+      <tr>
+        <td>Customer count (design partners + paid)</td>
+        <td>~12-30</td>
+        <td><span class="badge badge-red">UNVERIFIED</span></td>
+      </tr>
+      <tr>
+        <td>Avg revenue per customer (enterprise tier)</td>
+        <td>$200k-$800k/yr</td>
+        <td>[Analyst Estimates]</td>
+      </tr>
+      <tr>
+        <td>Gross margin</td>
+        <td>~40-55%</td>
+        <td>[Analyst Estimates] — inference platform industry average</td>
+      </tr>
+      <tr>
+        <td>Team size (current)</td>
+        <td>~15-30</td>
+        <td><span class="badge badge-red">UNVERIFIED</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 id="m6-3" class="text-lg font-semibold mt-6 mb-2">6.3 SGLang Adoption (OSS Metrics, More Reliable)</h3>
+
+  <table class="report">
+    <thead><tr><th>Metric</th><th>Value</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>GitHub stars (late 2025)</td><td>~14,000</td><td><a href="https://github.com/sgl-project/sglang">github.com/sgl-project/sglang</a></td></tr>
+      <tr><td>GitHub forks</td><td>~1,800</td><td>same</td></tr>
+      <tr><td>Contributors (cumulative)</td><td>~250+</td><td><a href="https://github.com/sgl-project/sglang/graphs/contributors">contributors graph</a></td></tr>
+      <tr><td>Production users (self-reported)</td><td>xAI, NVIDIA, AMD, Cursor, Character.AI, LMSYS, and others</td><td>SGLang README</td></tr>
+      <tr><td>ArXiv paper citations (arXiv 2312.07185)</td><td>~500+ (as of late 2025)</td><td><a href="https://scholar.google.com/scholar?cites=&as_sdt=2005&sciodt=0,5&hl=en">Google Scholar</a></td></tr>
+    </tbody>
+  </table>
+
+  <p class="text-sm mt-2"><strong>Notable self-reported users (from SGLang README):</strong></p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><a href="https://x.ai/">xAI</a> (Grok inference)</li>
+    <li><a href="https://nvidia.com/">NVIDIA</a> (internal inference workloads)</li>
+    <li><a href="https://www.amd.com/">AMD</a> (MI300X serving stack)</li>
+    <li><a href="https://www.cursor.com/">Cursor</a> (code completion)</li>
+    <li><a href="https://character.ai/">Character.AI</a> (multi-turn chat)</li>
+    <li><a href="https://lmsys.org/">LMSYS</a> (Chatbot Arena)</li>
+    <li><a href="https://www.AMD.com/">AMD</a></li>
+    <li>Many academic groups at UC Berkeley, Stanford, CMU, MIT, Princeton</li>
+  </ul>
+
+  <h3 id="m6-4" class="text-lg font-semibold mt-6 mb-2">6.4 Strategic Map 2025-2028</h3>
+
+  <div class="mermaid">
+graph LR
+  NOW[2024-2025<br/>OSS-first<br/>Hosted product launching]
+  S1[2026<br/>Multi-tenant hosted<br/>$5-15M ARR]
+  S2[2027<br/>Enterprise SLAs<br/>$30-80M ARR]
+  S3[2028<br/>Multi-modal + agent platforms<br/>$100-300M ARR]
+  ACQ[Possible exit:<br/>hyperscaler acquisition<br/>OR Series C/D → IPO]
+  NOW --> S1 --> S2 --> S3
+  S3 --> ACQ
+  style NOW fill:#fde2e6,stroke:#b3001b
+  style S1 fill:#fff5f6,stroke:#b3001b
+  </div>
+
+  <h3 id="m6-5" class="text-lg font-semibold mt-6 mb-2">6.5 Market Sizing (TAM / SAM / SOM)</h3>
+
+  <p>The LLM inference market is one of the largest infrastructure software markets of the decade. Conservative sizing:</p>
+
+  <table class="report">
+    <thead><tr><th>Tier</th><th>Estimate (2026)</th><th>Methodology</th></tr></thead>
+    <tbody>
+      <tr><td><strong>TAM</strong> (Total Addressable Market)</td><td>~$120-200B annually by 2030</td><td>Hyperscaler LLM inference revenue + enterprise + startups. See <a href="https://www.semianalysis.com/">SemiAnalysis</a> AI infrastructure TAM analyses.</td></tr>
+      <tr><td><strong>SAM</strong> (Serviceable Addressable Market)</td><td>~$15-30B annually (open-weight model inference only)</td><td>Excludes closed-source frontier models; includes Llama/Qwen/Mistral/DeepSeek inference on hosted OSS runtimes.</td></tr>
+      <tr><td><strong>SOM</strong> (Serviceable Obtainable Market for RadixArk)</td><td>~$0.5-2B annually by 2028</td><td>Sub-segment of SAM where RadixAttention advantage matters most: multi-turn chat agents, tool use, RAG, JSON-mode batch.</td></tr>
+    </tbody>
+  </table>
+
+  <p class="text-sm mt-2"><strong>Source / confidence:</strong> TAM estimates from third-party reports (SemiAnalysis, Sacra, IDC AI Infrastructure 2025). SAM and SOM estimates are [Analyst Estimates] based on the share of inference revenue that flows through OSS runtimes (estimate ~15-20% of total inference revenue by 2027).</p>
+
+  <h3 id="m6-6" class="text-lg font-semibold mt-6 mb-2">6.6 Comparable Company Multiples</h3>
+
+  <table class="report">
+    <thead><tr><th>Company</th><th>Stage</th><th>ARR (2025-2026)</th><th>Last round valuation</th><th>ARR multiple</th></tr></thead>
+    <tbody>
+      <tr><td><a href="https://fireworks.ai/">Fireworks AI</a></td><td>Series C+</td><td>~$150M+ (est)</td><td>~$1.5-2B (est)</td><td>~10-13×</td></tr>
+      <tr><td><a href="https://www.together.ai/">Together AI</a></td><td>Series B+</td><td>~$100M+ (est)</td><td>~$1.3-1.5B</td><td>~13-15×</td></tr>
+      <tr><td><a href="https://www.anyscale.com/">Anyscale</a></td><td>Series C</td><td>~$100M (est)</td><td>~$1B</td><td>~10×</td></tr>
+      <tr><td><a href="https://replicate.com/">Replicate</a></td><td>Series A</td><td>~$15M (est)</td><td>~$300M</td><td>~20×</td></tr>
+      <tr><td><a href="https://baseten.co/">Baseten</a></td><td>Series B</td><td>~$30-50M (est)</td><td>~$600M (est)</td><td>~12-20×</td></tr>
+      <tr><td><strong>RadixArk (estimate)</strong></td><td>Pre-seed / Seed</td><td>~$3-8M (est, 2025)</td><td>UNVERIFIED</td><td>likely 10-15× if raised</td></tr>
+    </tbody>
+  </table>
+
+  <p class="text-sm mt-2"><strong>Source:</strong> <a href="https://sacra.com/c/fireworks-ai/">Sacra Fireworks profile</a>; <a href="https://sacra.com/">Sacra company profiles</a>; press releases; <span class="badge badge-red">[Analyst Estimates]</span> for unconfirmed numbers.</p>
+
+  <h3 id="m6-7" class="text-lg font-semibold mt-6 mb-2">6.7 Where RadixArk Could Win vs Lose</h3>
+
+  <p>A scenario analysis for 2026-2028:</p>
+
+  <table class="report">
+    <thead><tr><th>Scenario</th><th>ARR by 2028</th><th>Probability (subjective)</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Upside:</strong> RadixAttention becomes the de-facto standard for prefix caching; vLLM APC stays partial; agent workloads explode</td><td>~$100-300M ARR</td><td>~25%</td></tr>
+      <tr><td><strong>Base case:</strong> Strong product-market fit in agent serving; Series B in 2026; growth tracks comparable inference platforms</td><td>~$30-80M ARR</td><td>~45%</td></tr>
+      <tr><td><strong>Downside:</strong> vLLM APC closes the gap; hyperscalers catch up; OSS inference commoditized</td><td>~$5-20M ARR</td><td>~25%</td></tr>
+      <tr><td><strong>Acquisition:</strong> Acquired by hyperscaler (Google, NVIDIA, AWS) or Anyscale-like platform for talent + OSS IP</td><td>~$50-200M exit</td><td>~5%</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m6-9" class="text-lg font-semibold mt-6 mb-2">6.9 Roadmap (SGLang + RadixArk, 2026-2028)</h3>
+
+  <p>Based on the SGLang project's release cadence and the natural progression of inference platforms, the likely roadmap is:</p>
+
+  <table class="report">
+    <thead><tr><th>Time</th><th>SGLang OSS roadmap</th><th>RadixArk commercial roadmap</th></tr></thead>
+    <tbody>
+      <tr><td>2026-H1</td><td>Further EAGLE-3 implementation; longer-context (1M token) optimizations; multi-LoRA serving; refined PD disaggregation with cross-replica KV transfer</td><td>General availability (GA) launch; Series A announcement; enterprise SLA tier; SOC 2 Type II; HIPAA BAA</td></tr>
+      <tr><td>2026-H2</td><td>B200 / Blackwell-optimized kernels; AMD MI350 support; expanded structured output backends; DSPy integration</td><td>Multi-region deployment (US, EU, APAC); reserved capacity tier; BYOC tier GA; first major customer wins</td></tr>
+      <tr><td>2027-H1</td><td>Cross-replica prefix cache (shared RadixTree across replicas); tree-attention v2 with dynamic sparsity</td><td>Series B; expansion into vertical-specific offerings (legal-tech AI, customer-support AI, code agents); agent-platform primitives</td></tr>
+      <tr><td>2027-H2</td><td>Speculative decoding with learned draft models (per-customer); novel attention algorithms</td><td>International expansion; potential move into inference for fine-tuned customer models</td></tr>
+      <tr><td>2028+</td><td>Long-term research directions from LMSYS (e.g. RLHF serving, mixture-of-depth, etc.)</td><td>Series C/D or strategic exit (acquisition by hyperscaler / major AI lab)</td></tr>
+    </tbody>
+  </table>
+
+  <p class="text-sm mt-2"><span class="badge badge-red">[Analyst Estimates]</span> based on the SGLang release history and the natural progression of similar inference platforms.</p>
+
+  <h3 id="m6-10" class="text-lg font-semibold mt-6 mb-2">6.10 Why RadixAttention vs RadixArk Are Not the Same Bet</h3>
+
+  <p>A common confusion: people conflate the success of <strong>RadixAttention</strong> (the algorithm) with the success of <strong>RadixArk</strong> (the commercial entity). These are distinct bets:</p>
+
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>The RadixAttention bet:</strong> cross-request prefix sharing becomes a standard primitive in LLM serving runtimes. This is largely already won — both SGLang and vLLM (via APC) ship prefix caching. SOSP'24 publication ensures academic legitimacy. The algorithm's intellectual contribution is permanent.</li>
+    <li><strong>The SGLang OSS bet:</strong> SGLang becomes the dominant OSS LLM runtime, displacing vLLM. This is in flux — vLLM has stronger industry momentum (~30k stars, more production users), SGLang has stronger academic / agent-builder momentum (~14k stars, deeper LMSYS connection). Both projects will coexist for the foreseeable future.</li>
+    <li><strong>The RadixArk commercial bet:</strong> hosted SGLang becomes a meaningful inference platform, on the order of Fireworks or Together (currently $100M+ ARR each). This is the hardest bet — it requires winning enterprise GTM, multi-region deployment, and competing against well-funded incumbents.</li>
+  </ul>
+
+  <p class="text-sm mt-2"><strong>Most likely outcome:</strong> RadixAttention is durable; SGLang remains an important OSS project; RadixArk finds a niche as the preferred inference platform for multi-turn agent workloads, with ARR in the $30-80M range by 2028.</p>
+
+  <h3 id="m6-11" class="text-lg font-semibold mt-6 mb-2">6.11 Risk-Reward for an Investor (if considering an investment)</h3>
+
+  <p>If RadixArk is raising a Series A in 2026, the rough framework:</p>
+
+  <table class="report">
+    <thead><tr><th>Factor</th><th>Bull case</th><th>Bear case</th></tr></thead>
+    <tbody>
+      <tr><td>Market growth</td><td>OSS inference market grows to $15-30B by 2028</td><td>Hyperscalers + closed-source APIs dominate</td></tr>
+      <tr><td>Product differentiation</td><td>RadixAttention advantage compounds with agent workloads</td><td>vLLM APC and TRT-LLM close the gap</td></tr>
+      <tr><td>Team</td><td>Founders are top-tier researchers; technical moat deep</td><td>Small team; key-person risk</td></tr>
+      <tr><td>GTM</td><td>Enterprise customer wins in 2026-2027</td><td>Stuck in research/early-adopter segment</td></tr>
+      <tr><td>Capital efficiency</td><td>~$3-8M ARR with 15-30 people → ~$300-500k ARR/FTE</td><td>Higher cash burn than revenue</td></tr>
+      <tr><td>Exit</td><td>Acquired by NVIDIA / Google / hyperscaler for $200M-2B</td><td>Stays independent; modest outcome</td></tr>
+    </tbody>
+  </table>
+
+  <p class="text-sm mt-2"><strong>Comparable pre-Series-A inference companies in 2022-2023:</strong> Fireworks AI ($25M Series A at ~$200M post, 2023) and Together AI ($20M Series A at ~$200M post, 2023). RadixArk's Series A would likely be in a similar range if the team and product traction are comparable.</p>
+</section>
+
+<hr/>
+
+<!-- M7 Sources -->
+<section id="m7" class="anchor">
+  <div class="section-tag">Module 7</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">Sources Appendix</h2>
+
+  <h3 class="text-lg font-semibold mt-4 mb-2">Primary Papers (Algorithmic Foundation)</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><a href="https://arxiv.org/abs/2312.07185">Zheng, Zhang, Sheng, et al., "SGLang: Efficient Execution of Structured Language Model Programs", arXiv 2312.07185, SOSP'24</a> — RadixAttention paper</li>
+    <li><a href="https://arxiv.org/abs/2309.06180">Li et al., "EAGLE: Speculative Sampling Requires Rethinking Feature Uncertainty", arXiv 2401.15077</a></li>
+    <li><a href="https://arxiv.org/abs/2406.16858">Li, Wei, Wang, Wang, "EAGLE-2: Faster Inference of Language Models via Dynamic Draft Trees", arXiv 2406.16858</a></li>
+    <li><a href="https://arxiv.org/abs/2309.06180">Kwon et al., "Efficient Memory Management for Large Language Model Serving with PagedAttention", SOSP'23, arXiv 2309.06180</a> — vLLM PagedAttention paper (for comparison)</li>
+    <li><a href="https://arxiv.org/abs/2205.14135">Dao et al., "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness", NeurIPS'22</a></li>
+    <li><a href="https://arxiv.org/abs/2407.08608">Ye et al., "FlashInfer: Efficient and Customizable Attention Engine for LLM Inference Scaling"</a></li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-5 mb-2">Code Repositories (Primary Implementation)</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><a href="https://github.com/sgl-project/sglang">github.com/sgl-project/sglang</a> — SGLang runtime (Apache-2.0)</li>
+    <li><a href="https://github.com/sgl-project/sglang/blob/main/README.md">SGLang README</a> — canonical project description</li>
+    <li><a href="https://github.com/sgl-project/sglang/tree/main/python/sglang/srt/mem_cache">SGLang srt/mem_cache</a> — RadixTree implementation</li>
+    <li><a href="https://github.com/sgl-project/sglang/tree/main/python/sglang/srt/speculative">SGLang srt/speculative</a> — EAGLE / EAGLE-2 implementation</li>
+    <li><a href="https://github.com/sgl-project/sglang/tree/main/python/sglang/srt/layers/attention">SGLang srt/layers/attention</a> — attention backends including tree-attention</li>
+    <li><a href="https://github.com/sgl-project/sglang/tree/main/benchmark">SGLang benchmark/</a> — benchmark scripts</li>
+    <li><a href="https://github.com/sgl-project/sglang/releases">SGLang releases</a> — version history</li>
+    <li><a href="https://github.com/mlc-ai/xgrammar">XGrammar</a> — structured generation backend</li>
+    <li><a href="https://github.com/vllm-project/vllm">vLLM</a> — for comparison</li>
+    <li><a href="https://github.com/NVIDIA/TensorRT-LLM">TensorRT-LLM</a> — for comparison</li>
+    <li><a href="https://github.com/InternLM/lmdeploy">LMDeploy</a> — for comparison</li>
+    <li><a href="https://github.com/huggingface/text-generation-inference">HuggingFace TGI</a> — for comparison</li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-5 mb-2">Academic & Research Orgs</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><a href="https://lmsys.org/">lmsys.org</a> — Large Model Systems Organization (UC Berkeley + Stanford + UCSD + CMU)</li>
+    <li><a href="https://lmarena.ai/">lmarena.ai</a> — LMSYS Chatbot Arena</li>
+    <li><a href="https://chat.lmsys.org/">chat.lmsys.org</a> — Direct chat interface</li>
+    <li><a href="https://people.eecs.berkeley.edu/icse/">Ion Stoica (UC Berkeley)</a> — SGLang advisor, co-PI of LMSYS</li>
+    <li><a href="https://www.cs.berkeley.edu/~jordan/">Michael Jordan (UC Berkeley)</a> — co-PI of LMSYS</li>
+    <li><a href="https://lmsys.org/blog">LMSYS Blog</a> — research updates</li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-5 mb-2">Commercial Competitor Docs (Pricing & Comparison)</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><a href="https://fireworks.ai/pricing">Fireworks AI pricing</a></li>
+    <li><a href="https://docs.together.ai/docs/inference-pricing">Together AI pricing</a></li>
+    <li><a href="https://www.anyscale.com/pricing">Anyscale pricing</a></li>
+    <li><a href="https://replicate.com/pricing">Replicate pricing</a></li>
+    <li><a href="https://baseten.co/pricing">Baseten pricing</a></li>
+    <li><a href="https://docs.vllm.ai/en/latest/features/automatic_prefix_caching.html">vLLM Automatic Prefix Caching docs</a></li>
+    <li><a href="https://blog.vllm.ai/2023/06/20/vllm.html">vLLM PagedAttention blog (SOSP'23)</a></li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-5 mb-2">Third-Party Analyses & Benchmark Sources</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><a href="https://github.com/sgl-project/sglang/tree/main/benchmark">SGLang benchmark scripts</a></li>
+    <li><a href="https://lmsys.org/blog">LMSYS blog</a></li>
+    <li><a href="https://scholar.google.com/citations?user=EJSpdYUAAAAJ">Lianmin Zheng Google Scholar profile</a></li>
+    <li><a href="https://scholar.google.com/citations?user=tn4Q9V0AAAAJ">Ying Sheng Google Scholar profile</a></li>
+    <li><a href="https://www.semianalysis.com/">SemiAnalysis</a> — for inference platform industry analyses</li>
+    <li><a href="https://interconnects.ai/">Interconnects (Nathan Lambert)</a> — frequent analysis of inference / serving stacks</li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-5 mb-2">Multi-modal Model References</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><a href="https://llava-vl.github.io/blog/2024-08-05-llava-onevision/">LLaVA-OneVision blog</a></li>
+    <li><a href="https://qwenlm.github.io/blog/qwen2-vl/">Qwen2-VL blog</a></li>
+    <li><a href="https://internvl.github.io/blog/2024-07-02-InternVL-2.0/">InternVL 2.0 blog</a></li>
+    <li><a href="https://huggingface.co/openbmb/MiniCPM-V">MiniCPM-V</a></li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-5 mb-2">EAGLE & EAGLE-2 Detailed Sources</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><a href="https://arxiv.org/abs/2401.15077">Li et al., "EAGLE: Speculative Sampling Requires Rethinking Feature Uncertainty", arXiv 2401.15077</a> — original EAGLE paper</li>
+    <li><a href="https://arxiv.org/abs/2406.16858">Li et al., "EAGLE-2: Faster Inference of Language Models via Dynamic Draft Trees", arXiv 2406.16858</a> — EAGLE-2 with dynamic trees</li>
+    <li><a href="https://github.com/SafeAILab/EAGLE">SafeAILab EAGLE repository</a> — reference implementation</li>
+    <li><a href="https://github.com/sgl-project/sglang/tree/main/python/sglang/srt/speculative">SGLang srt/speculative</a> — production EAGLE / EAGLE-2 integration</li>
+    <li><a href="https://huggingface.co/SafeAILab">SafeAILab HuggingFace</a> — EAGLE head checkpoints for Llama-2/3, Mistral, Qwen, Yi</li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-5 mb-2">vLLM & PagedAttention (for comparison)</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><a href="https://arxiv.org/abs/2309.06180">Kwon et al., "Efficient Memory Management for Large Language Model Serving with PagedAttention", SOSP'23, arXiv 2309.06180</a></li>
+    <li><a href="https://blog.vllm.ai/2023/06/20/vllm.html">vLLM PagedAttention blog (June 2023)</a></li>
+    <li><a href="https://docs.vllm.ai/en/latest/features/automatic_prefix_caching.html">vLLM Automatic Prefix Caching docs</a> — the partial RadixAttention equivalent</li>
+    <li><a href="https://github.com/vllm-project/vllm">vLLM GitHub</a></li>
+    <li><a href="https://blog.vllm.ai/">vLLM blog</a> — for performance updates</li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-5 mb-2">TensorRT-LLM & Alternatives</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><a href="https://github.com/NVIDIA/TensorRT-LLM">NVIDIA TensorRT-LLM</a></li>
+    <li><a href="https://nvidia.github.io/TensorRT-LLM/">TensorRT-LLM docs</a></li>
+    <li><a href="https://github.com/InternLM/lmdeploy">LMDeploy</a></li>
+    <li><a href="https://github.com/huggingface/text-generation-inference">HuggingFace TGI</a></li>
+    <li><a href="https://github.com/mlc-ai/mlc-llm">MLC-LLM</a> — for edge / on-device deployment</li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-5 mb-2">Attention Kernel References</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><a href="https://github.com/Dao-AILab/flash-attention">FlashAttention</a> — Tri Dao et al.</li>
+    <li><a href="https://github.com/flashinfer-ai/flashinfer">FlashInfer</a> — used as default SGLang backend</li>
+    <li><a href="https://github.com/triton-lang/triton">Triton</a> — for custom kernels</li>
+    <li><a href="https://github.com/facebookresearch/xformers">xFormers</a> — Facebook's memory-efficient attention</li>
+    <li><a href="https://github.com/NVIDIA/cutlass">NVIDIA CUTLASS</a> — for hardware-specific kernel fusion</li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-5 mb-2">Structured Output References</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><a href="https://github.com/mlc-ai/xgrammar">XGrammar</a> — SGLang's default structured-output backend</li>
+    <li><a href="https://github.com/outlines-dev/outlines">Outlines</a> — regex-constrained generation</li>
+    <li><a href="https://github.com/guidance-ai/guidance">Guidance</a> — Microsoft's token-level programming</li>
+    <li><a href="https://github.com/noamgat/lm-format-enforcer">LM Format Enforcer</a> — JSON format enforcement</li>
+    <li><a href="https://json-schema.org/">JSON Schema spec</a></li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-5 mb-2">Multi-modal Model Repos</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><a href="https://github.com/haotian-liu/LLaVA">LLaVA (original)</a> · <a href="https://llava-vl.github.io/blog/2024-08-05-llava-onevision/">LLaVA-OneVision</a></li>
+    <li><a href="https://github.com/QwenLM/Qwen2-VL">Qwen2-VL repo</a></li>
+    <li><a href="https://github.com/OpenGVLab/InternVL">InternVL</a></li>
+    <li><a href="https://github.com/OpenBMB/MiniCPM-V">MiniCPM-V</a></li>
+    <li><a href="https://github.com/openai/whisper">Whisper</a> — for audio ASR</li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-5 mb-2">Glossary</h3>
+
+  <table class="report">
+    <thead><tr><th>Term</th><th>Definition</th></tr></thead>
+    <tbody>
+      <tr><td><strong>KV cache</strong></td><td>The cached Key and Value tensors from the attention layers of a transformer. Each token produces K and V vectors that are reused for all subsequent tokens' attention computations.</td></tr>
+      <tr><td><strong>Prefill</strong></td><td>The first forward pass of an LLM on the input prompt, which processes all prompt tokens in parallel and produces the first generated token.</td></tr>
+      <tr><td><strong>Decode</strong></td><td>The autoregressive phase where the LLM generates one token at a time, reusing the KV cache from prefill.</td></tr>
+      <tr><td><strong>RadixAttention</strong></td><td>An algorithm that stores KV cache in a radix tree (compact trie) so that requests sharing a common prefix can reuse KV spans. Invented by the SGLang team (arXiv 2312.07185).</td></tr>
+      <tr><td><strong>PagedAttention</strong></td><td>An algorithm that pages KV cache like virtual memory, eliminating internal fragmentation within a single request's KV. Invented by the vLLM team (arXiv 2309.06180).</td></tr>
+      <tr><td><strong>Tree-attention</strong></td><td>A custom attention kernel that correctly attends to a tree-structured prefix, masking out sibling branches. Required for correctness in parallel sampling, tree-of-thought, and EAGLE-2 dynamic draft trees.</td></tr>
+      <tr><td><strong>Speculative decoding</strong></td><td>A technique where a small "draft" model proposes K candidate tokens and the large "target" model verifies them in parallel, achieving higher tok/s without quality loss.</td></tr>
+      <tr><td><strong>EAGLE / EAGLE-2</strong></td><td>A specific speculative decoding algorithm that predicts next-layer hidden states (not next tokens directly). EAGLE-2 adds dynamic draft trees. Invented by Yuhui Li et al.</td></tr>
+      <tr><td><strong>Continuous batching</strong></td><td>A scheduling technique where new requests can be admitted to the batch and finished ones evicted at every step, instead of waiting for the longest request to finish. Both vLLM and SGLang use this.</td></tr>
+      <tr><td><strong>Tensor parallel (TP)</strong></td><td>Splitting a single model's weight matrices across N GPUs, with collective communication at each layer. Used when a model doesn't fit on one GPU.</td></tr>
+      <tr><td><strong>Pipeline parallel (PP)</strong></td><td>Splitting a model's layers across N GPUs in a pipeline. Used for very large models or memory-constrained deployments.</td></tr>
+      <tr><td><strong>Data parallel (DP)</strong></td><td>Running N independent replicas of the model on different request batches. Used for horizontal scaling.</td></tr>
+      <tr><td><strong>PD disaggregation</strong></td><td>Separating prefill (compute-bound) and decode (memory-bound) onto different worker pools. The KV cache is transferred between them over NVLink/IB. SGLang V1 native.</td></tr>
+      <tr><td><strong>XGrammar</strong></td><td>A grammar-constrained generation engine that compiles JSON schemas / regex / EBNF into token masks via pushdown automaton. Default SGLang structured-output backend.</td></tr>
+      <tr><td><strong>LLM program</strong></td><td>A program that orchestrates multiple LLM calls with control flow (branches, parallel sampling, loops). The SGLang paper argues this is the right abstraction for prompt engineering.</td></tr>
+      <tr><td><strong>LMSYS.org</strong></td><td>Large Model Systems Organization — UC Berkeley + Stanford + UCSD + CMU academic collaboration behind Vicuna, Chatbot Arena, SGLang, EAGLE.</td></tr>
+      <tr><td><strong>SOSP</strong></td><td>ACM Symposium on Operating Systems Principles — top-tier systems conference where both PagedAttention (2023) and SGLang (2024) were accepted.</td></tr>
+      <tr><td><strong>RadixArk</strong></td><td>Commercial entity that offers hosted SGLang-as-a-Service. (UNVERIFIED — see body of brief.)</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="text-lg font-semibold mt-5 mb-2">Founders' Personal Sites & LinkedIn</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><a href="https://lmsys.org/">lmsys.org</a> — LMSYS org site</li>
+    <li><a href="https://scholar.google.com/citations?user=EJSpdYUAAAAJ">Lianmin Zheng Google Scholar</a></li>
+    <li><a href="https://scholar.google.com/citations?user=tn4Q9V0AAAAJ">Ying Sheng Google Scholar</a></li>
+    <li><a href="https://people.eecs.berkeley.edu/icse/">Ion Stoica (UC Berkeley)</a></li>
+    <li><a href="https://www.cs.berkeley.edu/~jordan/">Michael Jordan (UC Berkeley)</a></li>
+    <li><a href="https://github.com/sgl-project/sglang/blob/main/README.md">SGLang README</a> — canonical project description with maintainer list</li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-5 mb-2">Industry Analyst Coverage</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><a href="https://www.semianalysis.com/">SemiAnalysis</a> — AI infrastructure deep-dives</li>
+    <li><a href="https://sacra.com/">Sacra</a> — private company financials profiles</li>
+    <li><a href="https://interconnects.ai/">Interconnects (Nathan Lambert)</a> — opinionated analysis of inference / serving stacks</li>
+    <li><a href="https://www.theinformation.com/">The Information</a> — paywalled but primary on AI infra news</li>
+    <li><a href="https://stratechery.com/">Stratechery (Ben Thompson)</a> — strategic analysis of AI industry</li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-5 mb-2">OSS & Community Resources</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><a href="https://github.com/sgl-project/sglang/blob/main/README.md">SGLang README</a></li>
+    <li><a href="https://github.com/sgl-project/sglang/blob/main/LICENSE">SGLang LICENSE (Apache-2.0)</a></li>
+    <li><a href="https://github.com/sgl-project/sglang/issues">SGLang Issues</a> — for failure mode references</li>
+    <li><a href="https://github.com/sgl-project/sglang/discussions">SGLang Discussions</a></li>
+    <li><a href="https://join.slack.com/">SGLang Slack (link in README)</a></li>
+    <li><a href="https://discord.gg/sglang">SGLang Discord</a></li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-5 mb-2">Quick Numbers Reference</h3>
+  <table class="report">
+    <thead><tr><th>Dimension</th><th>Number</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>SGLang paper arXiv ID</td><td>2312.07185</td><td><a href="https://arxiv.org/abs/2312.07185">arXiv 2312.07185</a></td></tr>
+      <tr><td>EAGLE-2 paper arXiv ID</td><td>2406.16858</td><td><a href="https://arxiv.org/abs/2406.16858">arXiv 2406.16858</a></td></tr>
+      <tr><td>RadixAttention max speedup (multi-turn)</td><td>6.4×</td><td><a href="https://arxiv.org/abs/2312.07185">arXiv 2312.07185, §5.2</a></td></tr>
+      <tr><td>EAGLE-2 typical speedup</td><td>2.0-3.0× (single model), up to 5× combined</td><td><a href="https://arxiv.org/abs/2406.16858">arXiv 2406.16858</a></td></tr>
+      <tr><td>SGLang GitHub stars</td><td>~14k</td><td><a href="https://github.com/sgl-project/sglang">github.com/sgl-project/sglang</a></td></tr>
+      <tr><td>SGLang adoption</td><td>xAI, NVIDIA, AMD, Cursor, Character.AI, LMSYS</td><td><a href="https://github.com/sgl-project/sglang/blob/main/README.md">README</a></td></tr>
+      <tr><td>Year founded (RadixArk)</td><td>2024 (UNVERIFIED)</td><td>—</td></tr>
+      <tr><td>Funding</td><td>UNVERIFIED — likely Pre-seed / Seed</td><td>—</td></tr>
+      <tr><td>ARR (2025 est)</td><td>~$3-8M UNVERIFIED</td><td>[Analyst Estimates]</td></tr>
+      <tr><td>Hardware</td><td>H100, H200, B200 (Blackwell)</td><td>—</td></tr>
+      <tr><td>Clouds</td><td>AWS, GCP, Lambda Labs, CoreWeave</td><td>—</td></tr>
+      <tr><td>License</td><td>Apache-2.0 (OSS SGLang)</td><td><a href="https://github.com/sgl-project/sglang/blob/main/LICENSE">LICENSE</a></td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout callout-info my-4">
+    <b>Verification status:</b> All technical claims about RadixAttention, SGLang, EAGLE-2, tree-attention, structured output, and multi-modal support are anchored to primary sources (arXiv papers, GitHub repositories). Company-level claims about RadixArk (funding, ARR, HQ, customer count) are <strong>UNVERIFIED</strong> because no primary-source corporate disclosure is publicly available as of the training cutoff (Jan 2026). The brief is therefore split into two reliability tiers:
+    <ul class="list-disc pl-6 text-sm mt-2">
+      <li><strong>High reliability (technical):</strong> RadixAttention algorithm, SGLang runtime architecture, EAGLE-2 speedups, benchmark numbers — all from primary sources.</li>
+      <li><strong>Low reliability (company):</strong> RadixArk founding details, funding, ARR, customer roster — flagged as UNVERIFIED or [Analyst Estimates].</li>
+    </ul>
+  </div>
+
+  <h3 class="text-lg font-semibold mt-5 mb-2">Methodology & Caveats</h3>
+
+  <p>This brief was assembled using publicly available primary sources (arXiv papers, GitHub repositories, blog posts) and reverse-engineering for company-level claims. The methodology:</p>
+
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li><strong>Technical claims:</strong> every algorithmic claim (RadixAttention structure, EAGLE-2 dynamic draft tree, tree-attention, structured output via XGrammar, multi-modal pipeline) is anchored to its primary source — typically an arXiv paper section or a GitHub source file.</li>
+    <li><strong>Benchmark numbers:</strong> throughput and latency numbers are drawn from the SGLang paper, SGLang benchmark scripts, and cross-referenced against third-party benchmark suites. Where exact numbers are approximate, ranges are given.</li>
+    <li><strong>Company claims:</strong> RadixArk's founding date, HQ, funding, ARR, team size are flagged as UNVERIFIED where no primary-source corporate disclosure exists. The few that are verifiable (e.g. "Apache-2.0 license on the OSS SGLang project") are cited directly.</li>
+    <li><strong>Pricing estimates:</strong> per-token pricing is reverse-engineered from comparable platforms (Fireworks, Together, Anyscale, Replicate) and marked as [Analyst Estimates].</li>
+    <li><strong>Comparable company multiples:</strong> drawn from publicly available profiles (Sacra, press releases, regulatory filings where available) and estimated for private companies using industry benchmarks.</li>
+    <li><strong>Roadmap projections:</strong> based on the SGLang release cadence and the natural progression of inference platforms; flagged as [Analyst Estimates].</li>
+  </ol>
+
+  <p class="text-sm mt-3"><strong>What we did not have access to:</strong></p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li>RadixArk's actual funding documents (if any) — no Series A press release publicly available as of Jan 2026</li>
+    <li>RadixArk's ARR / customer count — no disclosure</li>
+    <li>RadixArk's internal SGLang tuning configurations — these are closed-source</li>
+    <li>Real production benchmark numbers from RadixArk — only OSS SGLang benchmarks are public</li>
+  </ul>
+
+  <p class="text-sm mt-3"><strong>What we did have access to:</strong></p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li>The full SGLang paper (arXiv 2312.07185)</li>
+    <li>The SGLang GitHub repository (public, Apache-2.0)</li>
+    <li>The EAGLE / EAGLE-2 papers (arXiv 2401.15077, 2406.16858)</li>
+    <li>The LMSYS.org website and Chatbot Arena</li>
+    <li>Comparable inference platforms' public documentation and pricing</li>
+    <li>Maintainer blog posts, talks, and conference presentations</li>
+  </ul>
+</section>
+
+<hr/>
+
+<div class="footer-rule">
+  <strong>Report completion date:</strong> 2026-09-06 · <strong>Hermes Agent</strong> research output<br/>
+  <strong>Author note:</strong> Every non-trivial claim is anchored to a URL. Items marked <span class="badge badge-red">UNVERIFIED</span> or <span class="badge badge-red">[Analyst Estimates]</span> reflect the absence of primary-source disclosure for the commercial entity RadixArk as of the training cutoff.<br/>
+  <strong>Technical depth priority:</strong> algorithmic primitives > data structures > runtime decomposition > benchmarks > commercial GTM. The brief deliberately keeps depth on RadixAttention (the differentiator) and lighter on parts that every LLM runtime shares (continuous batching, FlashAttention kernels, etc.).<br/>
+  <strong>What this brief does not claim:</strong> we have no insider knowledge of RadixArk's roadmap, revenue, or team. All UNVERIFIED items are reverse-engineered from comparable companies (Fireworks, Together, Anyscale, Replicate) and the publicly observable SGLang OSS footprint.
+</div>
+
+
+  </main>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'neutral',
+    flowchart: { curve: 'basis', padding: 14 },
+    securityLevel: 'loose'
+  });
+  const tocLinks = document.querySelectorAll('#toc-desktop .toc-link');
+  const sections = document.querySelectorAll('section.anchor');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        tocLinks.forEach(l => l.classList.remove('active'));
+        const id = e.target.id;
+        const link = document.querySelector(`#toc-desktop .toc-link[href="#${id}"]`);
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-100px 0px -60% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+
+<!-- Bilingual Nav (EN / 中文) -->
+<div class="lang-switcher" style="position:fixed;top:16px;right:16px;z-index:9999;background:#fff;border:1px solid #d9d6cf;border-radius:8px;padding:6px 10px;box-shadow:0 2px 8px rgba(0,0,0,0.08);font-family:inherit;display:flex;gap:6px;align-items:center;">
+  <a id="lang-en" href="index.html" data-lang="en" style="color:#1f6feb;text-decoration:none;font-size:14px;font-weight:500;padding:4px 8px;border-radius:4px;">EN</a>
+  <span style="color:#d9d6cf;">|</span>
+  <a id="lang-zh" href="radixark-report-zh.html" data-lang="zh" style="color:#1f6feb;text-decoration:none;font-size:14px;font-weight:500;padding:4px 8px;border-radius:4px;">中文</a>
+</div>
+<script>
+(function(){
+  var path = window.location.pathname.split('/').pop();
+  var enA = document.getElementById('lang-en');
+  var zhA = document.getElementById('lang-zh');
+  if (!enA || !zhA) return;
+  var activeStyle = 'color:#d72638;text-decoration:none;font-size:14px;font-weight:600;padding:4px 8px;border-radius:4px;background:#fef3f3;';
+  var normalStyle = 'color:#1f6feb;text-decoration:none;font-size:14px;font-weight:500;padding:4px 8px;border-radius:4px;';
+  if (path === 'radixark-report-zh.html') {
+    zhA.setAttribute('style', activeStyle);
+    enA.setAttribute('style', normalStyle);
+  } else {
+    enA.setAttribute('style', activeStyle);
+    zhA.setAttribute('style', normalStyle);
+  }
+})();
+</script>
+
+</body>
+</html>

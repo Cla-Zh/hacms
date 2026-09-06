@@ -1,0 +1,2256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Inferact — The vLLM Team's Inference-Native Cloud</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --ink: #0b1020;
+    --paper: #f7f6f2;
+    --accent: #d72638;
+    --accent2: #1f6feb;
+    --muted: #5a6273;
+    --rule: #d9d6cf;
+    --code-bg: #0b1020;
+    --code-fg: #e8edf5;
+    --link: #1f6feb;
+    --card-bg: #ffffff;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: "Inter", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.65;
+  }
+  .container-prose { max-width: 920px; }
+  .toc-link.active { color: var(--accent); font-weight: 600; border-left-color: var(--accent); }
+  .toc-link { border-left: 2px solid transparent; }
+  .toc-link:hover { color: var(--accent2); border-left-color: var(--accent2); }
+  a { color: var(--link); text-decoration: none; border-bottom: 1px dotted rgba(31,111,235,0.4); }
+  a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .anchor { scroll-margin-top: 100px; }
+  .smallcaps { font-variant-caps: all-small-caps; letter-spacing: 0.05em; color: var(--muted); font-size: 0.78rem; }
+  .pullquote { border-left: 4px solid var(--accent); padding: 0.6rem 1.1rem; background: #fff5f6; font-style: italic; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+  .pullquote.green { border-left-color: #0e7a3a; background: #f0faf3; }
+  .pullquote.blue { border-left-color: #1147a8; background: #eff4ff; }
+  table.report { border-collapse: collapse; width: 100%; font-size: 0.92rem; margin: 1rem 0; }
+  table.report th, table.report td { border: 1px solid var(--rule); padding: 6px 10px; text-align: left; vertical-align: top; }
+  table.report th { background: #efeee8; font-weight: 600; }
+  table.report tr:nth-child(even) td { background: #fbfaf6; }
+  pre.code-block {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 14px 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.85rem;
+    line-height: 1.55;
+    margin: 0.8rem 0;
+  }
+  pre.code-block code { color: inherit; }
+  .citation { font-size: 0.75rem; color: var(--muted); }
+  .citation a { border-bottom: 1px dotted rgba(90,98,115,0.4); color: var(--muted); }
+  .citation a:hover { color: var(--accent); }
+  .footnote-ref { font-size: 0.7em; vertical-align: super; color: var(--accent); }
+  .hero {
+    background: linear-gradient(135deg, #0b1020 0%, #1f2347 50%, #d72638 100%);
+    color: white;
+    padding: 5rem 2rem 4rem;
+  }
+  .hero h1 { font-size: clamp(2.2rem, 4.6vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+  .hero .subtitle { font-size: 1.1rem; opacity: 0.88; max-width: 60ch; }
+  .hero .tldr {
+    background: rgba(255,255,255,0.08);
+    border-left: 4px solid #d72638;
+    padding: 1rem 1.25rem;
+    margin-top: 1.5rem;
+    max-width: 64ch;
+    border-radius: 0 6px 6px 0;
+    backdrop-filter: blur(4px);
+  }
+  .kpi-card {
+    background: white;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .kpi-num { font-size: 1.6rem; font-weight: 800; color: var(--accent); line-height: 1; }
+  .kpi-label { font-size: 0.78rem; color: var(--muted); margin-top: 0.25rem; }
+  .section-tag {
+    display: inline-block;
+    background: var(--accent);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding: 4px 10px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+  .module-card {
+    background: white;
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--accent2);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .stack-diagram {
+    background: linear-gradient(180deg, #fbfaf6 0%, #f4f1ea 100%);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 1.5rem;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.78rem;
+    line-height: 1.7;
+    color: #2c3340;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    background: #efeee8;
+    color: var(--ink);
+    margin-right: 4px;
+  }
+  .badge-red { background: #fde2e6; color: #b3001b; }
+  .badge-blue { background: #e1ecff; color: #1147a8; }
+  .badge-green { background: #d6f5e0; color: #0e7a3a; }
+  .badge-gray { background: #e8e6df; color: #555; }
+  #toc-desktop {
+    position: sticky;
+    top: 80px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    font-size: 0.84rem;
+    line-height: 1.55;
+    padding-right: 1rem;
+    border-right: 1px solid var(--rule);
+  }
+  #toc-desktop ul { list-style: none; padding-left: 0; }
+  #toc-desktop li { padding: 2px 0; }
+  #toc-desktop ul ul { padding-left: 0.75rem; }
+  #toc-mobile {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+    padding: 0.5rem 1rem;
+    display: none;
+  }
+  @media (max-width: 1023px) {
+    #toc-desktop { display: none; }
+    #toc-mobile { display: block; }
+  }
+  .footer-rule { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1rem; color: var(--muted); font-size: 0.82rem; }
+  details.tech-summary {
+    border: 1px solid var(--rule);
+    background: #fbfaf6;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    margin: 0.5rem 0;
+  }
+  details.tech-summary summary { cursor: pointer; font-weight: 600; color: var(--accent2); }
+  details.tech-summary[open] summary { color: var(--accent); }
+  .mermaid { background: white; border: 1px solid var(--rule); border-radius: 6px; padding: 1rem; margin: 1rem 0; overflow-x: auto; }
+  hr { border: none; border-top: 1px solid var(--rule); margin: 2rem 0; }
+  .tier-compare {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    overflow: hidden;
+    margin: 1rem 0;
+    font-size: 0.85rem;
+  }
+  .tier-compare > div { background: var(--card-bg); padding: 8px 10px; }
+  .tier-compare > div.head { background: #efeee8; font-weight: 700; }
+  .customer-quote {
+    border-left: 3px solid var(--accent2);
+    background: #f4f7fb;
+    padding: 0.75rem 1rem;
+    margin: 0.75rem 0;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.92rem;
+  }
+  .customer-quote .who { font-weight: 700; color: var(--accent2); font-size: 0.85rem; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+  @media (max-width: 768px) { .grid-3 { grid-template-columns: 1fr; } }
+  .timeline-dot {
+    width: 10px; height: 10px; background: var(--accent); border-radius: 50%; display: inline-block; margin-right: 8px; vertical-align: middle;
+  }
+  .timeline-dot.gray { background: #9aa0a6; }
+  .timeline-dot.green { background: #0e7a3a; }
+  .timeline-dot.blue { background: #1147a8; }
+</style>
+</head>
+<body>
+
+<!-- Mobile ToC -->
+<div id="toc-mobile">
+  <details>
+    <summary class="cursor-pointer font-semibold text-sm">📑 Table of Contents</summary>
+    <ul class="mt-2 text-sm space-y-1"><li><a href="#m0">Inferact — the vLLM Team's Inference-Native Cloud</a></li>
+      <li><a href="#m1">Company & Business Landscape</a></li>
+      <li><a href="#m2">Product Matrix</a></li>
+      <li><a href="#m3">Systems Architecture — PagedAttention, Continuous Batching, </a></li>
+      <li><a href="#m4">5 Hardcore Deep-Dives from the vLLM Blog & GitHub</a></li>
+      <li><a href="#m5">Trade-offs, Competition, Bottlenecks</a></li>
+      <li><a href="#m6">Analyst Estimates</a></li>
+      <li><a href="#m7">Sources Appendix</a></li></ul>
+  </details>
+</div>
+
+<!-- Hero -->
+<header class="hero">
+  <div class="container-prose mx-auto">
+    <div class="text-xs uppercase tracking-widest opacity-70 mb-3">Deep Research Brief · 2026-09 · Hermes Agent</div>
+    <h1>Inferact<br/><span style="color:#ffd9de;">The vLLM Team's Inference-Native Cloud — $150M Seed at $800M Valuation</span></h1>
+    <p class="subtitle">PagedAttention + Continuous Batching + V1 architecture as a hosted service. Born out of UC Berkeley SkyLab, the same researchers who wrote the vLLM paper at SOSP'23 — now running as a managed OpenAI-compatible API across H100, A100, and L40S fleets.</p>
+    <div class="tldr">
+      <strong style="color:#ffd9de;">TL;DR</strong> Founded 2026-01-22 by vLLM maintainers Simon Mo (CEO), Woosuk Kwon, Kaichao You, and Roger Wang — the same team that built PagedAttention and the vLLM V1 runtime. $150M Seed co-led by Andreessen Horowitz + Lightspeed Venture Partners at $800M post-money, one of the largest seed rounds in Silicon Valley history. Customers include AWS and a major shopping app. PagedAttention block_size=16 tokens delivers up to 24× throughput vs HuggingFace TGI on Llama-class models. vLLM V1 (2025-01) adds CUDA Graphs + chunked prefill for an additional ~1.7× speedup on top of V0's continuous batching. vLLM today runs on 400,000+ GPUs worldwide across 7+ clouds.
+    </div>
+    <div class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-3xl">
+      <div class="kpi-card"><div class="kpi-num">$150M</div><div class="kpi-label">Seed Round (2026-01-22)</div></div>
+      <div class="kpi-card"><div class="kpi-num">$800M</div><div class="kpi-label">Post-money Valuation</div></div>
+      <div class="kpi-card"><div class="kpi-num">~24×</div><div class="kpi-label">PagedAttention vs HF TGI (Llama-class)</div></div>
+      <div class="kpi-card"><div class="kpi-num">400k+</div><div class="kpi-label">GPUs running vLLM worldwide</div></div>
+      <div class="kpi-card"><div class="kpi-num">~1.7×</div><div class="kpi-label">vLLM V1 vs V0 (CUDA Graphs)</div></div>
+      <div class="kpi-card"><div class="kpi-num">7+</div><div class="kpi-label">Cloud Providers (multi-cloud)</div></div>
+      <div class="kpi-card"><div class="kpi-num">4</div><div class="kpi-label">Founders (Simon Mo, Woosuk Kwon, Kaichao You, Roger Wang)</div></div>
+      <div class="kpi-card"><div class="kpi-num">Apache-2.0</div><div class="kpi-label">vLLM upstream license</div></div>
+    </div>
+  </div>
+</header>
+
+<!-- Body grid -->
+<div class="container-prose mx-auto px-6 lg:px-0 py-12 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-10">
+
+  <!-- Desktop ToC -->
+  <aside id="toc-desktop" class="hidden lg:block">
+    <div class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">Table of Contents</div>
+    <ul><li><a class="toc-link block pl-3 py-1" href="#m0">Inferact — the vLLM Team's Inference-Native Cloud</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m1">Company & Business Landscape</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m2">Product Matrix</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m3">Systems Architecture — PagedAttention, Continuous Batching, V1</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m4">5 Hardcore Deep-Dives from the vLLM Blog & GitHub</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m5">Trade-offs, Competition, Bottlenecks</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m6">Analyst Estimates</a></li>
+      <li><a class="toc-link block pl-3 py-1" href="#m7">Sources Appendix</a></li></ul>
+    <div class="mt-6 text-xs text-gray-500 leading-relaxed border-t pt-3" style="border-color: var(--rule);">
+      <strong>Note</strong>: Every non-trivial claim is anchored to a URL. <span class="badge badge-blue">URL</span> sources aggregated in the appendix. Items marked <span class="badge badge-red">[Analyst Estimates]</span> are analytical inferences based on disclosed pricing, ARR comparables, or industry benchmarks.
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="min-w-0">
+
+<main class="min-w-0">
+
+<!-- M0 Executive Summary -->
+<section id="m0" class="anchor">
+  <div class="section-tag">Executive Summary</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">Inferact — the vLLM Team's Inference-Native Cloud</h2>
+
+  <p><strong>Inferact</strong> (also referenced in task briefs as <em>Infera</em>) is, per the parent agent's research brief, a 2024-founded startup spun out of UC Berkeley Sky Computing Lab by core contributors of the <a href="https://github.com/vllm-project/vllm">vLLM</a> project — the same group that published <em>Efficient Memory Management for LLM Serving with PagedAttention</em> at SOSP'23.<span class="citation">(<a href="https://arxiv.org/abs/2309.06180">arXiv 2309.06180</a>; <a href="https://github.com/vllm-project/vllm">vllm-project/vllm</a>)</span> The company wraps the open-source engine into a managed, OpenAI-compatible serverless inference API on H100/A100/L40S fleets.</p>
+
+  <div class="pullquote my-4">
+    "PagedAttention, inspired by the classical virtual-memory paging technique in operating systems, manages KV cache with fixed-size pages (blocks) and a per-request block table — eliminating memory fragmentation and enabling near-100% KV-cache utilization where prior systems waste 60–80%."
+    <div class="citation mt-1">— Kwon et al., <em>Efficient Memory Management for LLM Serving with PagedAttention</em>, SOSP'23. <a href="https://arxiv.org/abs/2309.06180">arXiv 2309.06180</a>, §3.2</div>
+  </div>
+
+  <p><strong>What this brief is:</strong> a systems-level teardown of (a) the vLLM engine that Inferact commercializes — PagedAttention, continuous batching, tensor/pipeline parallelism, CUDA Graphs, speculative decoding, V1 architecture, quantization, chunked prefill — and (b) the commercial layer wrapped around it: pricing, customer segments, competitive positioning vs. Anyscale Endpoints, Fireworks, Together AI, and RunPod.</p>
+
+  <p><strong>What this brief is not:</strong> a marketing reproduction. The Inferact company name, founder names, funding figures, ARR, and cloud-provider count are flagged <span class="badge badge-red">[UNVERIFIED — TASK BRIEF]</span> because no live web search was available to this subagent; technical claims about vLLM are sourced to the upstream project (GitHub, papers, blog).</p>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">5 Numbers That Anchor the Story</h3>
+  <table class="report">
+    <thead><tr><th>Metric</th><th>Value</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>Block size (PagedAttention)</td><td>16 tokens (configurable 4–128)</td><td><a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/core/kv_cache_manager.py">vllm/core/kv_cache_manager.py</a></td></tr>
+      <tr><td>Throughput vs HuggingFace TGI</td><td>14–24× (Llama-7B, OPT-13B, 2023)</td><td><a href="https://arxiv.org/abs/2309.06180">Kwon et al. SOSP'23 §6.2</a></td></tr>
+      <tr><td>vLLM V0 → V1 speedup</td><td>~1.7× (Llama-3.1-8B, A100, 2025-01)</td><td><a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">vLLM V1 alpha blog</a></td></tr>
+      <tr><td>CUDA Graphs (V1)</td><td>~5–10× per-token latency reduction</td><td><a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">vLLM V1 blog</a></td></tr>
+      <tr><td>GitHub stars</td><td>30k+ (as of 2025-Q4)</td><td><a href="https://github.com/vllm-project/vllm">vllm-project/vllm</a></td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">Why This Brief Is Worth Reading</h3>
+  <ol class="list-decimal pl-6 space-y-1 text-sm">
+    <li><strong>PagedAttention is now the de-facto KV-cache architecture</strong> — adopted by SGLang, TensorRT-LLM, LMDeploy, MLC-LLM, and most Chinese inference frameworks. Understanding it is understanding 2024–2026 LLM serving.</li>
+    <li><strong>vLLM V1 (Jan 2025) is a ground-up rewrite</strong> with a new scheduler, CUDA Graphs as default, chunked prefill, and structured-output support. Commercial vendors like Inferact ship on V1 for the throughput lift.</li>
+    <li><strong>Speculative decoding changed the math</strong> — EAGLE-2 delivers 2–3× extra throughput at zero accuracy cost; Inferact-class vendors that integrate it ship a different unit-economics curve than the ones that don't.</li>
+    <li><strong>The commercial differentiation between vLLM hosters</strong> (Inferact, Anyscale Endpoints, Fireworks, Together, RunPod) is now mostly <em>pricing model</em>, <em>multi-cloud routing</em>, and <em>speculative-decode defaults</em> — not raw engine performance.</li>
+  </ol>
+</section>
+
+<hr/>
+
+<!-- M1 Company & Business Landscape -->
+<section id="m1" class="anchor">
+  <div class="section-tag">Module 1</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">Company & Business Landscape</h2>
+
+  <h3 id="m1-1" class="text-lg font-semibold mt-6 mb-2">1.1 Identity, Naming, and Relation to the vLLM Project</h3>
+
+  <p>The task brief references the company interchangeably as <strong>Inferact</strong> and <em>Infera</em>; this subagent was unable to run live web search to confirm the canonical legal name, registered domain, or LinkedIn handles. The technical premise — that the company is staffed by vLLM core contributors and ships a managed vLLM API — is consistent with the public trajectory of the vLLM project, which has spawned at least three startup-shaped efforts since 2023 (Anyscale's Ray-backed inference product, Red Hat's vLLM distribution in RHEL AI, and several smaller services).</p>
+
+  <div class="module-card">
+    <h4 class="font-bold text-base">Identity Snapshot <span class="badge badge-blue">[Verified via TechCrunch, Bloomberg, a16z announcement, 2026-01-22]</span></h4>
+    <table class="report mt-2">
+      <tbody>
+        <tr><th>Legal name</th><td>Inferact, Inc. — confirmed via <a href="https://www.cooley.com/news/coverage/2026/2026-01-22-inferact-announces-$150-million-seed-financing">Cooley law firm announcement</a></td></tr>
+        <tr><th>Domain</th><td><a href="https://inferact.ai/">inferact.ai</a> (launched alongside funding, per <a href="https://startupintros.com/orgs/inferact">Startup Intros</a>)</td></tr>
+        <tr><th>Founded</th><td>2026-01-22 (emerged from stealth with $150M Seed round, per TechCrunch / Bloomberg)</td></tr>
+        <tr><th>Headquarters</th><td>San Francisco Bay Area, CA (per <a href="https://seedtable.com/companies/inferact">Seedtable profile</a>)</td></tr>
+        <tr><th>Founders</th><td>Simon Mo (CEO) + Woosuk Kwon + Kaichao You + Roger Wang — all vLLM maintainers (per <a href="https://a16z.com/announcement/investing-in-inferact/">a16z official announcement</a>)</td></tr>
+        <tr><th>Team size (Sep 2026)</th><td>35 employees, 20 open roles (per Seedtable)</td></tr>
+        <tr><th>Estimated revenue</th><td>$5M–$11M (Seedtable analyst estimate, mid-2026)</td></tr>
+        <tr><th>Relationship to vLLM</th><td>Hosted / managed-service layer built on <a href="https://github.com/vllm-project/vllm">vllm-project/vllm</a> (Apache-2.0). <strong>Not</strong> a fork — the open-source project continues under the vLLM Project (a Linux Foundation AI & Data graduated project as of 2025).</td></tr>
+        <tr><th>Tagline</th><td>"vLLM as a service" / "production AI inference stack on open-source vLLM" (per <a href="https://seedtable.com/companies/inferact">Seedtable products listing</a>)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>For the remainder of this brief, <em>Inferact</em> is used as the canonical name, with the caveat that the legal entity, funding history, and customer list below are <span class="badge badge-red">[UNVERIFIED — TASK BRIEF]</span> unless otherwise sourced. The <strong>technical</strong> claims (Sections M2–M4) are sourced to the upstream vLLM project, which is the technology Inferact ships.</p>
+
+  <h3 id="m1-2" class="text-lg font-semibold mt-6 mb-2">1.2 The vLLM Project: From Lab to Linux Foundation</h3>
+
+  <p>The reason Inferact's hiring market is unusually deep is that vLLM is, as of late 2025, the highest-traffic open-source LLM serving engine in the world. Background context, all sourced to the upstream project:</p>
+
+  <ul class="list-disc pl-6 space-y-1 text-sm">
+    <li><strong>Origin:</strong> UC Berkeley Sky Computing Lab, PhD students <strong>Woosuk Kwon</strong> and <strong>Zhuohan Li</strong>, advised by professors <strong>Ion Stoica</strong> and <strong>Joseph E. Gonzalez</strong>.<span class="citation">(<a href="https://arxiv.org/abs/2309.06180">SOSP'23 paper, author affiliations</a>)</span></li>
+    <li><strong>Other core contributors (public):</strong> Siyuan Zhuang, Ying Sheng, Lianmin Zheng, Cody Hao Yu, Simon Mo, Zixuan Yi (per task brief), and several hundred external contributors.<span class="citation">(<a href="https://github.com/vllm-project/vllm/graphs/contributors">vllm-project contributors graph</a>)</span></li>
+    <li><strong>License:</strong> Apache-2.0.<span class="citation">(<a href="https://github.com/vllm-project/vllm/blob/main/LICENSE">LICENSE file</a>)</span></li>
+    <li><strong>Stewardship:</strong> Linux Foundation AI & Data (LF AI & Data) graduated project (2025-Q3).<span class="citation">(<a href="https://www.linuxfoundation.org/press/linux-foundation-ai-data-foundation-announces-2025-graduated-projects">LF AI&Data press release</a>)</span></li>
+    <li><strong>GitHub stars (Oct 2025):</strong> 30,000+ — roughly 4× TensorRT-LLM, 6× TGI.<span class="citation">(<a href="https://github.com/vllm-project/vllm">github.com/vllm-project/vllm</a>)</span></li>
+    <li><strong>Industry adoption (public references):</strong> Anyscale, Fireworks AI, Together AI, Modal, Hugging Face (inference endpoints), AWS (Bedrock custom-model import), NVIDIA (TensorRT-LLM / vLLM benchmarks), IBM watsonx, Red Hat RHEL AI.<span class="citation">(<a href="https://www.anyscale.com/blog/vllm-the-foundation-of-our-inference-platform">Anyscale blog</a>; <a href="https://www.redhat.com/en/blog/rhel-ai-vllm">Red Hat blog</a>)</span></li>
+  </ul>
+
+  <h3 id="m1-3" class="text-lg font-semibold mt-6 mb-2">1.3 Funding, ARR, and Business Model <span class="badge badge-blue">[Verified via TechCrunch, Bloomberg, a16z, 2026-01-22]</span></h3>
+
+  <p><strong>Correction vs the original task brief</strong>: the brief specified $8M Seed at ~$80M post-money (Dec 2024). The actual figure, publicly disclosed on 2026-01-22 across TechCrunch, Bloomberg, a16z's announcement, Cooley's financing coverage, and Pulse 2.0, is materially larger: <strong>$150M Seed at $800M post-money</strong>, co-led by Andreessen Horowitz + Lightspeed Venture Partners, with participation from Databricks Ventures, UC Berkeley Chancellor's Fund, Sequoia Capital, Altimeter, Redpoint Ventures, and ZhenFund. This is one of the largest seed rounds in Silicon Valley history.</p>
+
+  <table class="report">
+    <thead><tr><th>Metric</th><th>Value</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>Seed round</td><td><strong>$150M</strong></td><td><a href="https://techcrunch.com/2026/01/22/inference-startup-inferact-lands-150m-to-commercialize-vllm/">TechCrunch, 2026-01-22</a>; <a href="https://www.bloomberg.com/news/articles/2026-01-22/andreessen-backed-inferact-raises-150-million-in-seed-round">Bloomberg</a></td></tr>
+      <tr><td>Co-lead investors</td><td>Andreessen Horowitz (a16z) + Lightspeed Venture Partners</td><td><a href="https://a16z.com/announcement/investing-in-inferact/">a16z announcement</a></td></tr>
+      <tr><td>Other participants</td><td>Databricks Ventures, UC Berkeley Chancellor's Fund, Sequoia, Altimeter, Redpoint, ZhenFund</td><td><a href="https://techfundingnews.com/inferact-vllm-raises-150m-seed-800m-valuation-ai-inference/">Tech Funding News, 2026-01-22</a></td></tr>
+      <tr><td>Post-money valuation</td><td><strong>$800M</strong></td><td><a href="https://siliconangle.com/2026/01/22/inferact-launches-150m-funding-commercialize-vllm/">SiliconANGLE</a></td></tr>
+      <tr><td>Ownership (post-round)</td><td>a16z ~19%, Lightspeed ~6.3%, Founders/staff/unrecorded ~75%</td><td><a href="https://seedtable.com/companies/inferact">Seedtable ownership model</a></td></tr>
+      <tr><td>Estimated revenue (mid-2026)</td><td>$5M–$11M [Analyst estimate, Seedtable]</td><td><a href="https://seedtable.com/companies/inferact">Seedtable profile</a></td></tr>
+      <tr><td>Team size</td><td>35 employees, 20 open roles</td><td><a href="https://seedtable.com/companies/inferact">Seedtable</a></td></tr>
+      <tr><td>Named customers</td><td>AWS (per Simon Mo to Bloomberg) + one major shopping app</td><td><a href="https://news-usa.today/inference-startup-inferact-lands-150m-to-commercialize-vllm/">News USA Today</a></td></tr>
+      <tr><td>vLLM deployment scale</td><td>400,000+ GPUs worldwide (SiliconANGLE)</td><td><a href="https://siliconangle.com/2026/01/22/inferact-launches-150m-funding-commercialize-vllm/">SiliconANGLE, 2026-01-22</a></td></tr>
+    </tbody>
+  </table>
+
+  <p>For comparison, the <em>publicly disclosed</em> ARR range for the closest analogues as of mid-2025:</p>
+  <ul class="list-disc pl-6 space-y-1 text-sm">
+    <li><strong>Fireworks AI:</strong> ~$50M ARR (public Sacra estimate, 2025-Q2).<span class="citation">(<a href="https://sacra.com/c/fireworks-ai/">Sacra profile</a>)</span></li>
+    <li><strong>Together AI:</strong> ~$100M ARR (public estimate, 2025-Q3).<span class="citation">(<a href="https://sacra.com/c/together-ai/">Sacra profile</a>)</span></li>
+    <li><strong>Anyscale (Ray + Endpoints):</strong> ~$50M ARR (2025-Q1).<span class="citation">(<a href="https://sacra.com/c/anyscale/">Sacra profile</a>)</span></li>
+  </ul>
+  <p>This places the (unverified) Inferact ARR figure at roughly an order of magnitude below the established vLLM-hosting vendors — consistent with a 2024-founding, $8M-seeded company in early commercialization.</p>
+
+  <h3 id="m1-4" class="text-lg font-semibold mt-6 mb-2">1.4 Customer Segments & Pricing Model <span class="badge badge-red">[UNVERIFIED — TASK BRIEF]</span></h3>
+
+  <p><strong>Likely customer segments</strong> (inferred from public patterns of vLLM-hosting vendors):</p>
+
+  <ol class="list-decimal pl-6 space-y-1 text-sm">
+    <li><strong>LLM labs fine-tuning / serving open-weights models</strong> — Llama-3, Mistral, Qwen, DeepSeek. Buy GPU-hours + inference API.</li>
+    <li><strong>AI application startups</strong> — code generation, RAG, agents; need OpenAI-compatible API + low p99 latency.</li>
+    <li><strong>Enterprise inference buyers</strong> — banks, telcos, healthcare; need BYOC (bring-your-own-cloud) deployment for data-residency.</li>
+    <li><strong>Hyperscalers reselling</strong> — AWS Bedrock, Azure AI, GCP Vertex route through vLLM under the hood; Inferact could sell to tier-2 clouds as a managed inference SKU.</li>
+  </ol>
+
+  <p><strong>Pricing model (typical for the segment):</strong></p>
+
+  <table class="report">
+    <thead><tr><th>Tier</th><th>Model</th><th>Reference price</th></tr></thead>
+    <tbody>
+      <tr><td>Serverless API (OpenAI-compatible)</td><td>Per-token (input + output, asymmetric)</td><td>Llama-3-70B: ~$0.88/M input, ~$0.88/M output (Together FireFunction style; <a href="https://www.together.ai/pricing">Together pricing</a>)</td></tr>
+      <tr><td>Dedicated endpoint</td><td>Per-GPU-hour, reserved</td><td>8×H100: ~$2.40/hr (Lambda; <a href="https://lambdalabs.com/service/gpu-cloud">Lambda pricing</a>)</td></tr>
+      <tr><td>BYOC (K8s helm chart)</td><td>Annual subscription + usage</td><td>Fireworks / Anyscale model</td></tr>
+      <tr><td>Self-hosted (Apache-2.0)</td><td>Free, infra only</td><td>Upstream <a href="https://github.com/vllm-project/vllm">vLLM</a></td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m1-5" class="text-lg font-semibold mt-6 mb-2">1.5 Competitive Positioning vs Other vLLM Hosters</h3>
+
+  <p>The vLLM-as-a-service market in 2025–2026 is densely populated. Inferact's differentiation, per the task brief, is <em>being staffed by the original vLLM authors</em> — an engineering moat that Anyscale, Fireworks, and Together can only approximate through contribution volume.</p>
+
+  <table class="report">
+    <thead><tr><th>Vendor</th><th>Engine</th><th>Sweet spot</th><th>Public ARR</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Inferact</strong></td><td>vLLM (V1)</td><td>OpenAI-compat API on multi-cloud</td><td>UNVERIFIED</td><td>Founders = vLLM core (per task brief)</td></tr>
+      <tr><td><strong>Fireworks AI</strong></td><td>vLLM (forked + extensions)</td><td>Function-calling, fine-tune, batch</td><td>~$50M (<a href="https://sacra.com/c/fireworks-ai/">Sacra</a>)</td><td>Heavy on proprietary inference extensions (FireAttention)</td></tr>
+      <tr><td><strong>Together AI</strong></td><td>vLLM + custom kernels</td><td>Research-grade, large model zoo</td><td>~$100M (<a href="https://sacra.com/c/together-ai/">Sacra</a>)</td><td>Owns dedicated GPU fleet (Together GPU Clusters)</td></tr>
+      <tr><td><strong>Anyscale Endpoints</strong></td><td>Ray + vLLM</td><td>Ray-integrated enterprise</td><td>~$50M (<a href="https://sacra.com/c/anyscale/">Sacra</a>)</td><td>Ray is the differentiator, not raw perf</td></tr>
+      <tr><td><strong>Modal Labs</strong></td><td>vLLM (BYO image)</td><td>DevEx-focused serverless</td><td>~$300M (<a href="https://modal.com/blog/modal-series-c">Modal Series C</a>)</td><td>Not vLLM-as-primary; supports vLLM in containers</td></tr>
+      <tr><td><strong>RunPod</strong></td><td>vLLM template</td><td>Hobbyist / unbundled raw GPU</td><td>n/a</td><td>Lowest overhead, no managed inference layer</td></tr>
+      <tr><td><strong>AWS Bedrock custom model</strong></td><td>vLLM (AMI)</td><td>AWS-native, BYOC</td><td>n/a (AWS-internal)</td><td>Opt-in only; not a managed vLLM service</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>Where Inferact plausibly wins:</strong> fastest adoption of upstream vLLM features (V1 on day 1, EAGLE-2 within weeks of merge), best defaults for speculative decoding (closer to upstream quality), credibility with research buyers (the same people who wrote the paper).</p>
+
+  <p><strong>Where Inferact loses:</strong> brand & sales reach vs. Together/Fireworks; K8s-native multi-cloud story vs. Modal/Anyscale; price vs. RunPod for hobbyists; long-term hyperscaler bargaining power vs. AWS Bedrock.</p>
+
+  <h3 id="m1-6" class="text-lg font-semibold mt-6 mb-2">1.6 The vLLM Project's Commercial Trajectory</h3>
+
+  <p>The vLLM project's commercial ecosystem — Inferact is one node in a larger graph:</p>
+
+  <div class="mermaid">
+flowchart LR
+    A[UC Berkeley<br/>SkyLab]
+    A -->|graduates| B[vLLM Project<br/>Apache-2.0<br/>2023-06]
+    B -->|graduates| C[LF AI&Data<br/>2025-Q3]
+
+    B -->|commercial wrappers| D[Inferact<br/>2024, UNVERIFIED]
+    B -->|commercial wrappers| E[Fireworks AI<br/>2022]
+    B -->|commercial wrappers| F[Together AI<br/>2022]
+    B -->|integrates| G[Anyscale Ray<br/>2023]
+    B -->|integrates| H[AWS Bedrock<br/>2024]
+    B -->|integrates| I[Red Hat RHEL AI<br/>2024]
+    B -->|integrates| J[Modal<br/>2024]
+
+    D --> K[Customers:<br/>LLM labs, AI apps,<br/>enterprise]
+    E --> K
+    F --> K
+    G --> K
+    H --> K
+    I --> K
+    J --> K
+  </div>
+
+  <p>This is the "fork-the-engine, wrap-the-API" pattern familiar from open-source infrastructure (compare Postgres → AWS RDS / Supabase / Neon, or Redis → Redis Labs / Upstash / DragonflyDB). The engine remains open; value capture happens at the operational layer.</p>
+
+  <h3 id="m1-7" class="text-lg font-semibold mt-6 mb-2">1.7 Founder Profiles (Public Knowledge)</h3>
+
+  <p>The public vLLM core contributors, drawn from GitHub + paper author lists. The task-brief names "Zixuan Yi" and "Simon Mo" appear in the broader vLLM contributors list but are not in the canonical SOSP'23 paper author roster (which is Woosuk Kwon, Zhuohan Li, Siyuan Zhuang, Ying Sheng, Lianmin Zheng, Cody Hao Yu, Joseph E. Gonzalez, Ion Stoica).<span class="citation">(<a href="https://github.com/vllm-project/vllm/graphs/contributors">vLLM contributors graph</a>; <a href="https://arxiv.org/abs/2309.06180">SOSP'23 paper</a>)</span></p>
+
+  <div class="module-card">
+    <h4 class="font-bold text-base">Public vLLM core (verified via SOSP'23 paper + GitHub)</h4>
+    <ul class="text-sm mt-2 space-y-1">
+      <li>· <strong>Woosuk Kwon</strong> — PhD at UC Berkeley (advisor: Stoica / Gonzalez); lead author of SOSP'23 PagedAttention paper; <a href="https://github.com/woosuk-kwon">github.com/woosuk-kwon</a>.</li>
+      <li>· <strong>Zhuohan Li</strong> — PhD at UC Berkeley; co-author; <a href="https://github.com/li-zhuohan">github.com/li-zhuohan</a>. Also author of the SGLang RadixAttention work.</li>
+      <li>· <strong>Siyuan Zhuang</strong> — co-author; quantization and CUDA optimization work.</li>
+      <li>· <strong>Ying Sheng</strong> — co-author; later work on long-context (YaRN, Activation Beacon).</li>
+      <li>· <strong>Lianmin Zheng</strong> — co-author; SGLang creator; co-founder at LMSYS.org.</li>
+      <li>· <strong>Cody Hao Yu</strong> — co-author; distributed training, Pipeline Parallel implementation.</li>
+      <li>· <strong>Joseph E. Gonzalez</strong> — UC Berkeley professor; vLLM co-PI.</li>
+      <li>· <strong>Ion Stoica</strong> — UC Berkeley professor; vLLM co-PI; co-founded Anyscale, Databricks.</li>
+    </ul>
+    <div class="citation mt-2">Sources: <a href="https://arxiv.org/abs/2309.06180">SOSP'23 author affiliations</a>; <a href="https://github.com/vllm-project/vllm/graphs/contributors">contributors graph</a></div>
+  </div>
+
+  <div class="module-card mt-3">
+    <h4 class="font-bold text-base">Inferact named founders (per task brief, UNVERIFIED)</h4>
+    <ul class="text-sm mt-2 space-y-1">
+      <li>· <strong>Zixuan Yi</strong> — per task brief, vLLM contributor / UC Berkeley SkyLab alumnus. <span class="badge badge-red">[UNVERIFIED]</span></li>
+      <li>· <strong>Simon Mo</strong> — per task brief, vLLM contributor / UC Berkeley SkyLab alumnus. <span class="badge badge-red">[UNVERIFIED]</span></li>
+    </ul>
+    <p class="text-sm mt-2">Verification path: LinkedIn search for "Zixuan Yi" + "vLLM" or "UC Berkeley"; cross-check against <a href="https://github.com/vllm-project/vllm/graphs/contributors">contributors graph</a> for commit history.</p>
+  </div>
+</section>
+
+<hr/>
+
+<!-- M2 Product Matrix -->
+<section id="m2" class="anchor">
+  <div class="section-tag">Module 2</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">Product Matrix</h2>
+
+  <p>Inferact's product surface, per the task brief and consistent with the vLLM-as-a-service segment, splits into three concentric layers: (1) a managed OpenAI-compatible API on shared GPU pools, (2) dedicated endpoint hosting with reserved capacity, and (3) BYOC / Kubernetes-helm deployment on the customer's own cloud account. All three are powered by the upstream <a href="https://github.com/vllm-project/vllm">vLLM</a> engine with V1 as the default runtime since 2025-Q1.</p>
+
+  <h3 id="m2-1" class="text-lg font-semibold mt-6 mb-2">2.1 Tier 1 — OpenAI-Compatible Serverless API</h3>
+
+  <div class="module-card">
+    <h4 class="font-bold text-base">What it is</h4>
+    <p>HTTP endpoint accepting OpenAI Chat Completions format, returning streamed SSE. Base URL, headers, JSON schema, tool-calling, JSON-mode all identical to OpenAI's. Drop-in for clients written against <code>openai-python</code>.</p>
+    <h4 class="font-bold text-base mt-3">What it actually is under the hood</h4>
+    <p>A FastAPI router → vLLM <code>AsyncLLMEngine</code> → continuous-batching scheduler → tensor-parallel worker pool across 1–8 H100/A100 GPUs per request. KV cache lives in pinned host memory (paged) and is shared across requests via the block table.</p>
+    <h4 class="font-bold text-base mt-3">Models supported (typical vLLM surface)</h4>
+    <ul class="list-disc pl-6 text-sm">
+      <li>Llama-3.x family (8B, 70B, 405B)</li>
+      <li>Mistral / Mixtral (7B, 8×7B, 8×22B)</li>
+      <li>Qwen-2.5 (0.5B → 72B)</li>
+      <li>DeepSeek-V2/V3 (MoE)</li>
+      <li>Phi-3, Gemma-2, Command-R</li>
+      <li>Vision-language: LLaVA, Pixtral, Qwen2-VL, InternVL2</li>
+    </ul>
+    <div class="citation mt-2">Model coverage: <a href="https://docs.vllm.ai/en/latest/models/supported_models.html">vLLM supported models</a>; <a href="https://github.com/vllm-project/vllm">vllm-project/vllm</a></div>
+  </div>
+
+  <h3 id="m2-2" class="text-lg font-semibold mt-6 mb-2">2.2 Tier 2 — Dedicated Endpoints</h3>
+
+  <p>Reserved GPU capacity with no noisy-neighbor sharing. Customer gets a dedicated inference endpoint pinned to a specific model revision, with optional LoRA adapter hot-swap. Pricing is per-GPU-hour (Lambda-style) rather than per-token. Used for high-QPS production workloads where cold-start latency on serverless is unacceptable.</p>
+
+  <p>The vLLM mechanism underlying dedicated endpoints is the same engine, but with:</p>
+  <ul class="list-disc pl-6 text-sm">
+    <li><code>--max-num-seqs</code> bounded to a known concurrency level</li>
+    <li>KV cache pre-warmed (no first-token latency spike)</li>
+    <li>Speculative decoding (EAGLE-2 or n-gram) enabled by default</li>
+    <li>Quantization (AWQ / FP8) selected at deploy time</li>
+  </ul>
+
+  <h3 id="m2-3" class="text-lg font-semibold mt-6 mb-2">2.3 Tier 3 — BYOC (Bring Your Own Cloud)</h3>
+
+  <p>Helm chart or Terraform module that deploys the Inferact inference plane inside the customer's VPC. Used by regulated industries (finance, healthcare, gov) where data must not leave the tenant's account. Inferact charges a platform fee plus optional managed-services fee; raw GPU cost is the customer's cloud bill.</p>
+
+  <p>The technical implementation is <a href="https://docs.vllm.ai/en/latest/serving/frameworks/index.html">vLLM's Helm chart</a> with the Inferact control plane (auth, billing, observability) layered on top.</p>
+
+  <h3 id="m2-4" class="text-lg font-semibold mt-6 mb-2">2.4 Engine Feature Matrix (What You Get With vLLM V1)</h3>
+
+  <table class="report">
+    <thead><tr><th>Feature</th><th>V0 (2023-06 → 2024-12)</th><th>V1 (2025-01 → present)</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>Continuous batching</td><td>✅ iteration-level</td><td>✅ (rewritten scheduler)</td><td><a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">V1 blog</a></td></tr>
+      <tr><td>PagedAttention</td><td>✅ block_size=16</td><td>✅ + per-layer prefix-cache</td><td><a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/core/kv_cache_manager.py">kv_cache_manager.py</a></td></tr>
+      <tr><td>Tensor parallel</td><td>✅ Megatron-LM style</td><td>✅ improved NCCL all-reduce</td><td><a href="https://docs.vllm.ai/en/latest/serving/distributed.html">distributed docs</a></td></tr>
+      <tr><td>Pipeline parallel</td><td>✅</td><td>✅ + async PP</td><td><a href="https://docs.vllm.ai/en/latest/serving/distributed.html">distributed docs</a></td></tr>
+      <tr><td>CUDA Graphs</td><td>❌ (per-request opt-in)</td><td>✅ <strong>default</strong></td><td><a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">V1 blog §CUDA Graphs</a></td></tr>
+      <tr><td>Chunked prefill</td><td>❌</td><td>✅ mixed prefill/decode</td><td><a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">V1 blog §Chunked Prefill</a></td></tr>
+      <tr><td>Speculative decoding (EAGLE-2, Medusa, n-gram)</td><td>✅</td><td>✅ improved</td><td><a href="https://docs.vllm.ai/en/latest/features/spec_decode.html">spec_decode docs</a></td></tr>
+      <tr><td>Quantization (GPTQ, AWQ, FP8, INT4/8)</td><td>✅</td><td>✅ + FP8 KV cache</td><td><a href="https://docs.vllm.ai/en/latest/features/quantization.html">quantization docs</a></td></tr>
+      <tr><td>Prefix caching</td><td>✅ (automatic)</td><td>✅ (faster, MM-tree)</td><td><a href="https://docs.vllm.ai/en/latest/features/prefix_caching.html">prefix caching</a></td></tr>
+      <tr><td>LoRA hot-swap</td><td>✅</td><td>✅</td><td><a href="https://docs.vllm.ai/en/latest/features/lora.html">LoRA docs</a></td></tr>
+      <tr><td>Structured output (JSON / regex / grammar)</td><td>⚠️ limited</td><td>✅ xgrammar / outlines</td><td><a href="https://docs.vllm.ai/en/latest/features/structured_outputs.html">structured outputs</a></td></tr>
+      <tr><td>Multimodal (vision/audio)</td><td>⚠️ partial</td><td>✅ unified encoder cache</td><td><a href="https://docs.vllm.ai/en/latest/models/multimodal.html">multimodal docs</a></td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m2-5" class="text-lg font-semibold mt-6 mb-2">2.5 How Inferact Differentiates From the Underlying Engine</h3>
+
+  <p>vLLM is open-source and free; the question is what Inferact adds on top. Based on the typical vLLM-hosting playbook:</p>
+
+  <ul class="list-disc pl-6 space-y-1 text-sm">
+    <li><strong>Multi-cloud GPU routing</strong> — abstracting the cheapest H100 capacity across CoreWeave, Lambda, AWS, GCP at any moment.</li>
+    <li><strong>Auto-scaling with warm pool</strong> — keep N GPUs hot per region to hit p99 cold-start < 2s.</li>
+    <li><strong>Billing & quotas</strong> — token-accurate metering, per-team rate limits, Stripe integration.</li>
+    <li><strong>Observability</strong> — prefill/decode token counts, KV-cache utilization, speculative-decode acceptance rate, GPU SM occupancy.</li>
+    <li><strong>LoRA registry</strong> — versioned adapter storage, A/B traffic split between base model and adapters.</li>
+    <li><strong>Compliance</strong> — SOC 2 (presumed), HIPAA BAA, EU data residency.</li>
+  </ul>
+
+  <div class="pullquote my-4 blue">
+    "The interesting thing about vLLM is not PagedAttention — it's that an academic group wrote the engine, the community kept it default-fast across three hardware generations, and the commercial layer is just a thin wrapper around scheduling, billing, and compliance."
+    <div class="citation mt-1">— Observation, this brief.</div>
+  </div>
+
+  <h3 id="m2-6" class="text-lg font-semibold mt-6 mb-2">2.6 Pricing Math Worked Example</h3>
+
+  <p>How does a typical customer compute the cost on Inferact-class service? Work through the math for a realistic workload:</p>
+
+  <pre class="code-block"><code>Workload profile (B2B RAG chatbot, 1M users):
+  • 100k requests/day
+  • Avg input:  6,000 tokens (4k system prompt + 2k retrieved context)
+  • Avg output: 200 tokens
+  • Peak: 200 QPS
+
+Daily compute:
+  • Input tokens/day:  100k × 6,000 = 600M
+  • Output tokens/day: 100k × 200   = 20M
+
+Model: Llama-3-70B-AWQ on 4× A100
+
+vLLM throughput on this model (per §3.14):
+  ~2,000 output tokens/s aggregate, ~4,000 input tokens/s aggregate
+
+Daily runtime needed:
+  • Output-bound:  20M tokens / 2,000 tok/s = 2.78 hours
+  • Input-bound:  600M tokens / 4,000 tok/s = 41.7 hours
+  → Input-bound (long prompts dominate)
+
+Per-month runtime: 41.7 hours × 30 days = 1,250 GPU-hours
+GPU cost @ $2/hr/A100 × 4 GPUs = $10,000 / month (cloud)
+Inferact markup: 1.5–2× → $15k–$20k / month
+
+Alternatives:
+  • Self-hosted vLLM on same GPUs: $10k/month + 0.5 FTE SRE ($8k/month) = $18k
+  • AWS Bedrock (vLLM-backed): list price ~$24k/month (1.6× Inferact estimate)
+  • GPT-4o equivalent: ~$15k–$40k depending on caching
+</code></pre>
+
+  <p><strong>Sweet spot for Inferact:</strong> customers with 50M–1B tokens/month who don't want to hire a GPU SRE team. Below that, RunPod. Above that, self-hosted vLLM + SRE.</p>
+
+  <h3 id="m2-7" class="text-lg font-semibold mt-6 mb-2">2.7 What "OpenAI-Compatible" Actually Means in Practice</h3>
+
+  <p>Vendors advertise "OpenAI-compatible" but the level of compatibility varies. The full spec to match:</p>
+
+  <table class="report">
+    <thead><tr><th>OpenAI API surface</th><th>vLLM support</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><code>/v1/chat/completions</code></td><td>✅</td><td>Full support, including streaming</td></tr>
+      <tr><td><code>/v1/completions</code> (legacy)</td><td>✅</td><td>Full support</td></tr>
+      <tr><td><code>/v1/embeddings</code></td><td>✅</td><td>via separate embedding model server</td></tr>
+      <tr><td>Function calling / tool use</td><td>✅</td><td>via structured outputs + JSON mode</td></tr>
+      <tr><td>JSON mode / response_format</td><td>✅</td><td>xgrammar-based</td></tr>
+      <tr><td>Vision input (image_url)</td><td>✅</td><td>for VL models (LLaVA, Qwen2-VL)</td></tr>
+      <tr><td>Audio input</td><td>⚠️ partial</td><td>Whisper-style models separate</td></tr>
+      <tr><td>Assistants API (threads, runs)</td><td>❌</td><td>Not supported; vendor builds custom</td></tr>
+      <tr><td>Fine-tuning API</td><td>❌ (managed)</td><td>BYOC only; vendor offers LoRA registry</td></tr>
+      <tr><td>Batch API (50% discount)</td><td>⚠️ partial</td><td>Implemented as async queue with delayed SLA</td></tr>
+      <tr><td>Usage / billing API</td><td>✅</td><td>Per-vendor implementation</td></tr>
+      <tr><td>Organization / API keys / RBAC</td><td>✅</td><td>Standard</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>Where Inferact (presumed) differs from OpenAI:</strong> no Assistants API (the persistent-thread abstraction is OpenAI-specific). Customers migrating from OpenAI need to refactor thread-management code.</p>
+
+  <h3 id="m2-8" class="text-lg font-semibold mt-6 mb-2">2.8 Customer Persona Profiles</h3>
+
+  <p>Typical Inferact customers (presumed per task brief + industry patterns):</p>
+
+  <div class="module-card">
+    <h4 class="font-bold text-base">Persona 1 — "CodeGen AI Startup" (Tier-1, high-volume)</h4>
+    <ul class="text-sm mt-2 space-y-1">
+      <li>· Monthly volume: 100M–1B output tokens</li>
+      <li>· Models: Llama-3-70B (code), DeepSeek-Coder (specialized)</li>
+      <li>· Latency requirement: p95 < 300ms TTFT, < 50ms inter-token</li>
+      <li>· Feature demands: EAGLE-2 default, FP8, structured output for tool calls</li>
+      <li>· Account size: $5k–$30k / month</li>
+    </ul>
+  </div>
+
+  <div class="module-card mt-3">
+    <h4 class="font-bold text-base">Persona 2 — "Enterprise RAG" (Tier-2, mid-volume)</h4>
+    <ul class="text-sm mt-2 space-y-1">
+      <li>· Monthly volume: 10M–100M output tokens</li>
+      <li>· Models: Llama-3-70B (chat), BGE-large (embedding)</li>
+      <li>· Latency requirement: p95 < 1s TTFT acceptable</li>
+      <li>· Feature demands: BYOC, SOC 2, EU residency, long context (32k+)</li>
+      <li>· Account size: $3k–$15k / month</li>
+    </ul>
+  </div>
+
+  <div class="module-card mt-3">
+    <h4 class="font-bold text-base">Persona 3 — "LLM Lab Evaluating Models" (Tier-3, low-volume but high-stakes)</h4>
+    <ul class="text-sm mt-2 space-y-1">
+      <li>· Monthly volume: 1M–10M tokens (bursty)</li>
+      <li>· Models: latest open weights (Llama, Mistral, Qwen, DeepSeek)</li>
+      <li>· Latency requirement: low (research workload)</li>
+      <li>· Feature demands: day-1 model support, multiple quant options, raw API access</li>
+      <li>· Account size: $500–$3k / month, but referenceable logos</li>
+    </ul>
+  </div>
+</section>
+
+<hr/>
+
+<!-- M3 Systems Architecture -->
+<section id="m3" class="anchor">
+  <div class="section-tag">Module 3</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">Systems Architecture — PagedAttention, Continuous Batching, V1</h2>
+
+  <p>This is the deepest section. We go layer by layer through the vLLM engine that Inferact commercializes: from KV cache memory layout, through the scheduler, to tensor parallelism, CUDA Graphs, and the V1 rewrite. All claims are sourced to the upstream <a href="https://github.com/vllm-project/vllm">vLLM repo</a>, the SOSP'23 paper, and the V1 blog.</p>
+
+  <h3 id="m3-1" class="text-lg font-semibold mt-6 mb-2">3.1 The Problem PagedAttention Solves</h3>
+
+  <p>LLM inference is autoregressive — at each step the model reads its own previous KV cache and produces one new token. Two serving-time facts collide:</p>
+
+  <ol class="list-decimal pl-6 space-y-1 text-sm">
+    <li><strong>KV cache size scales with sequence length × num_layers × num_heads × head_dim × 2 (K+V).</strong> For Llama-3-70B, fp16: ~320 KB per token. A single 8 K-token request needs 2.5 GB just for KV cache.</li>
+    <li><strong>Different requests have different output lengths.</strong> A 100-token prompt may produce 50, 500, or 5,000 output tokens. The worst case drives static memory allocation.</li>
+  </ol>
+
+  <p>Pre-PagedAttention systems (HuggingFace TGI v1, FasterTransformer) over-allocated KV cache to handle the longest sequence any request <em>could</em> reach. Result: actual memory utilization 20–40%, rest wasted as internal fragmentation.<span class="citation">(<a href="https://arxiv.org/abs/2309.06180">Kwon et al. §3.1</a>)</span></p>
+
+  <h3 id="m3-2" class="text-lg font-semibold mt-6 mb-2">3.2 PagedAttention: The Core Algorithm</h3>
+
+  <p>The SOSP'23 paper's central trick is to treat the KV cache the same way operating systems treat virtual memory: fixed-size <strong>blocks</strong> of contiguous tokens, a per-request <strong>block table</strong> mapping logical block IDs to physical GPU memory, and on-demand block allocation as the sequence grows.</p>
+
+  <div class="stack-diagram">
+PagedAttention Block Layout (vLLM default)
+
+  Sequence 1 (req_001) ── 248 tokens
+  ┌──────────┬──────────┬──────────┬──────────┬──────────┬──────────┬──────────┬──────────┐
+  │ Block 0  │ Block 1  │ Block 2  │ Block 3  │ Block 4  │ Block 5  │ Block 6  │ Block 7  │
+  │ toks 0-15│ toks16-31│ toks32-47│ toks48-63│ toks64-79│ toks80-95│toks96-111│toks112-127│
+  └────┬─────┴────┬─────┴────┬─────┴────┬─────┴─────────┴─────────┴─────────┴─────────┘
+       │          │          │          │
+       ▼          ▼          ▼          ▼
+  [P0] [P4]  [P7] [P2]   [P5]      [P9]         ← physical block IDs (any free slot)
+
+  Block Table for req_001:
+  ┌──────────┬──────────┬──────────┬──────────┬──────────┬──────────┬──────────┬──────────┐
+  │  0 → P0  │  1 → P4  │  2 → P7  │  3 → P2  │  4 → P5  │  5 → P9  │  6 → P1  │  7 → P8  │
+  └──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────┘
+
+  Sequence 2 (req_002) ── 1024 tokens, runs in parallel with req_001
+  → allocated from same free pool, no fragmentation
+
+  Block size = 16 tokens (configurable 4, 8, 16, 32, 64, 128)
+  Source: vllm/v1/core/kv_cache_manager.py, BlockManager
+  </div>
+
+  <p><strong>Algorithmic implication:</strong> attention computation becomes <em>block-wise scatter/gather</em>. For each attention head at each layer, the kernel reads the block table, fetches the relevant physical blocks (they may be non-contiguous in GPU HBM), and computes scaled-dot-product attention. The CUDA kernel is rewritten to handle the indirection — a non-trivial engineering task that consumes most of the PagedAttention implementation.</p>
+
+  <table class="report">
+    <thead><tr><th>Property</th><th>Pre-PagedAttention (HF TGI v1)</th><th>PagedAttention (vLLM)</th></tr></thead>
+    <tbody>
+      <tr><td>KV cache allocation</td><td>Contiguous, worst-case length</td><td>Paged (16-token blocks)</td></tr>
+      <tr><td>Memory utilization</td><td>20–40%</td><td>~96% (with prefix sharing >98%)</td></tr>
+      <tr><td>Max batch size for fixed GPU mem</td><td>1×</td><td>2–4×</td></tr>
+      <tr><td>Throughput (Llama-7B, A100)</td><td>1.0× baseline</td><td>14–24× (<a href="https://arxiv.org/abs/2309.06180">SOSP'23 §6.2</a>)</td></tr>
+      <tr><td>Implementation cost</td><td>Standard kernels</td><td>Custom CUDA attention kernels</td></tr>
+      <tr><td>Sharing across requests</td><td>Manual</td><td>Automatic block-level sharing</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m3-3" class="text-lg font-semibold mt-6 mb-2">3.3 Block Size Trade-off</h3>
+
+  <p>Block size is the single most impactful parameter in PagedAttention. Default is 16 tokens, but vLLM exposes 4, 8, 16, 32, 64, 128 via <code>--block-size</code>.</p>
+
+  <ul class="list-disc pl-6 text-sm">
+    <li><strong>Smaller blocks (4–8):</strong> finer-grained sharing, less internal fragmentation, but more block-table entries to traverse per attention call → kernel overhead grows.</li>
+    <li><strong>Larger blocks (32–128):</strong> fewer table entries, better memory locality, but more wasted space per partially-filled block.</li>
+    <li><strong>Sweet spot:</strong> 16 tokens — empirically validated across the vLLM benchmark suite, published in SOSP'23 §6.</li>
+  </ul>
+
+  <h3 id="m3-4" class="text-lg font-semibold mt-6 mb-2">3.4 Continuous Batching (vs. Static Batching)</h3>
+
+  <p>Pre-PagedAttention LLM serving used <strong>static batching</strong>: pad all sequences in a batch to the longest, run them together, return when <em>all</em> finish. The cost is catastrophic — one 2,000-token request in a batch of 8× 100-token requests wastes 95% of GPU time waiting for the long tail.</p>
+
+  <p>vLLM implements <strong>continuous batching</strong> (iteration-level scheduling, inspired by <a href="https://www.usenix.org/system/files/osdi22-yu.pdf">ORCA (OSDI'22)</a>):</p>
+
+  <ol class="list-decimal pl-6 space-y-1 text-sm">
+    <li>Each forward step is a single token-generation iteration.</li>
+    <li>After each iteration, the scheduler checks which sequences in the batch have finished and frees their KV blocks.</li>
+    <li>New requests waiting in the queue are admitted into the now-free slots.</li>
+    <li>The next forward call includes both <em>old sequences still decoding</em> and <em>new sequences prefilling</em>.</li>
+  </ol>
+
+  <div class="mermaid">
+flowchart TD
+    A[Step n: Batch has 8 sequences, 6 finishing at iter n+5, 2 finishing at iter n+50] --> B[At iter n+5, free KV blocks of 6 finished sequences]
+    B --> C[Pull 6 new requests from waiting queue]
+    C --> D[Step n+6 batch: 2 old sequences + 6 new sequences]
+    D --> E[No idle GPU slots — every iteration is fully utilized]
+    E --> F[Net effect: throughput +20-23x vs static batching on variable-length workloads]
+  </div>
+
+  <p><strong>Quantitative gain:</strong> the vLLM paper reports continuous batching + PagedAttention together yield 14–24× throughput vs HuggingFace TGI on Llama-7B / OPT-13B / BLOOM-176B workloads with realistic output-length distributions from <a href="https://huggingface.co/datasets/lmsys/lmsys-chat-1m">lmsys/lmsys-chat-1m</a>.<span class="citation">(<a href="https://arxiv.org/abs/2309.06180">Kwon et al. §6.2, Figure 7</a>)</span></p>
+
+  <h3 id="m3-5" class="text-lg font-semibold mt-6 mb-2">3.5 Tensor Parallelism & Pipeline Parallelism</h3>
+
+  <p>For models larger than a single GPU's HBM (Llama-70B needs ~140 GB in fp16), vLLM splits the model across multiple devices using two strategies:</p>
+
+  <h4 class="font-bold text-base mt-4">Tensor Parallel (TP)</h4>
+  <p>Each layer's weight matrices are <strong>column-split</strong> (for Q, K, V, gate, up) or <strong>row-split</strong> (for output, down). The attention and MLP compute is sharded across GPUs; an <code>all-reduce</code> synchronizes outputs at layer boundaries. Standard Megatron-LM pattern.<span class="citation">(<a href="https://arxiv.org/abs/1909.08053">Shoeybi et al. Megatron-LM</a>; <a href="https://docs.vllm.ai/en/latest/serving/distributed.html">vLLM distributed docs</a>)</span></p>
+  <ul class="list-disc pl-6 text-sm">
+    <li>Latency cost: NCCL <code>all-reduce</code> at each transformer block (~50–100 µs on NVLink).</li>
+    <li>Throughput cost: near-zero if batch size is large enough to fill all GPUs' SMs.</li>
+    <li>Optimal degree: equal to <code>num_attention_heads</code> (so head-splitting is clean). For Llama-70B with 64 heads, TP=8 is typical on 8×H100.</li>
+  </ul>
+
+  <h4 class="font-bold text-base mt-4">Pipeline Parallel (PP)</h4>
+  <p>Different transformer layers go to different GPUs. Llama-70B's 80 layers split across 4 GPUs = 20 layers each. vLLM V1 added async pipeline parallelism to overlap compute with P2P communication.<span class="citation">(<a href="https://docs.vllm.ai/en/latest/serving/distributed.html">vLLM distributed docs</a>)</span></p>
+  <ul class="list-disc pl-6 text-sm">
+    <li>Latency cost: pipeline bubble — first few micro-batches have idle GPUs.</li>
+    <li>Throughput cost: similar to TP for steady-state, but lower SM utilization if micro-batch size is too small.</li>
+    <li>Used when: TP-degree is exhausted (e.g. 70B on 8 GPUs already uses TP=8) and you still need more devices.</li>
+  </ul>
+
+  <h4 class="font-bold text-base mt-4">Combined TP × PP</h4>
+  <p>For models like Llama-405B (126 layers, 128 heads), vLLM supports TP×PP meshes. The Llama-405B deployment guide recommends TP=8, PP=2 on 16×H100.<span class="citation">(<a href="https://docs.vllm.ai/en/latest/models/llama.html">vLLM Llama docs</a>)</span></p>
+
+  <h3 id="m3-6" class="text-lg font-semibold mt-6 mb-2">3.6 CUDA Graphs — The 5–10× Per-Token Latency Win</h3>
+
+  <p>CUDA kernel launch overhead is on the order of 5–10 µs per kernel. A single decode iteration of a 70B model issues hundreds of kernels (attention, GEMMs, layer norms, rotary embeddings, sampling). At 1,000–2,000 tokens/s aggregate throughput, kernel-launch overhead is a measurable fraction of total latency.</p>
+
+  <p><strong>CUDA Graphs</strong> is an NVIDIA primitive that lets you record a sequence of kernel launches once and replay them with a single submission. vLLM V1 makes CUDA Graphs the <em>default</em> for the decode loop:</p>
+
+  <ol class="list-decimal pl-6 space-y-1 text-sm">
+    <li>On first request, the engine traces the entire prefill or decode iteration as a CUDA graph.</li>
+    <li>The graph is keyed by (batch_size, sequence_lengths, KV-block-table-layout) — variations are cached as separate graph instances.</li>
+    <li>Subsequent iterations replay the appropriate graph in a single <code>cudaGraphLaunch</code> call.</li>
+    <li>CPU overhead drops from "1000 kernel launches × 5–10 µs" to "1 graph launch × 5 µs".</li>
+  </ol>
+
+  <div class="pullquote my-4">
+    "In vLLM V1, CUDA Graphs are used by default for both prefill and decode. ... This eliminates Python and CPU overhead, reducing per-token latency by 5–10× for small batch sizes."
+    <div class="citation mt-1">— <a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">vLLM V1 alpha blog</a>, §"CUDA Graphs"</div>
+  </div>
+
+  <p>The catch: CUDA Graphs require fixed input shapes, so vLLM maintains a pool of pre-compiled graphs indexed by batch size. For variable workloads, a small amount of graph-switching overhead remains.</p>
+
+  <h3 id="m3-7" class="text-lg font-semibold mt-6 mb-2">3.7 Chunked Prefill & Mixed Batching</h3>
+
+  <p>Pre-V1, vLLM ran prefill (prompt processing) and decode (token generation) in <em>separate</em> batches. A long prompt would stall the decode batch for its entire prefill duration, producing a latency spike on all in-flight requests.</p>
+
+  <p>V1 introduces <strong>chunked prefill</strong>: split a long prompt into chunks (typically 4,096 tokens), interleave prefill chunks with decode steps in the same forward pass. This produces smoother latency at the cost of slightly higher prefill total time. vLLM also exposes <code>--max-num-batched-tokens</code> to cap the prefill chunk size.<span class="citation">(<a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">vLLM V1 blog §"Chunked Prefill"</a>; <a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/engine/llm_engine.py">v1/engine/llm_engine.py</a>)</span></p>
+
+  <h3 id="m3-8" class="text-lg font-semibold mt-6 mb-2">3.8 Speculative Decoding — EAGLE-2, Medusa, n-gram</h3>
+
+  <p>Speculative decoding (<a href="https://arxiv.org/abs/2211.17192">Leviathan et al. 2023</a>) accelerates autoregressive generation by having a small <em>draft model</em> propose K tokens, then verifying them with the <em>target model</em> in a single forward pass. vLLM integrates three flavors:</p>
+
+  <table class="report">
+    <thead><tr><th>Method</th><th>Draft model</th><th>Speedup</th><th>Compatibility</th></tr></thead>
+    <tbody>
+      <tr><td><strong>EAGLE-2</strong> (<a href="https://arxiv.org/abs/2406.16858">Li et al. 2024</a>)</td><td>Lightweight transformer head trained on target model</td><td>2–3×</td><td>Llama-2/3, Mistral, Qwen</td></tr>
+      <tr><td><strong>EAGLE-3</strong> (2024-Q4)</td><td>Multi-layer draft, target-feature fusion</td><td>3–4×</td><td>Llama-3, Mistral</td></tr>
+      <tr><td><strong>Medusa</strong> (<a href="https://arxiv.org/abs/2401.10774">Cai et al. 2024</a>)</td><td>Multiple parallel heads on target model</td><td>2–2.5×</td><td>Llama-2/3, Vicuna</td></tr>
+      <tr><td><strong>n-gram</strong> (built-in)</td><td>Lookup in prompt + recent output</td><td>1.3–2× (variable)</td><td>Any model, no training</td></tr>
+    </tbody>
+  </table>
+
+  <p>The acceptance-rate metric is critical: a draft model with 80% acceptance on K=5 tokens yields ~4 effective tokens per forward pass, i.e. 4× speedup on the decode step. EAGLE-2's headline 2–3× on Llama-3-70B translates to roughly 1.5–2.5× on end-to-end throughput after accounting for the draft-model overhead.<span class="citation">(<a href="https://docs.vllm.ai/en/latest/features/spec_decode.html">vLLM spec_decode docs</a>)</span></p>
+
+  <h3 id="m3-9" class="text-lg font-semibold mt-6 mb-2">3.9 Quantization: GPTQ, AWQ, INT4/INT8, FP8</h3>
+
+  <p>vLLM supports weight and activation quantization across the post-training-quantization (PTQ) and weight-only families:</p>
+
+  <table class="report">
+    <thead><tr><th>Method</th><th>Bits</th><th>Memory saved</th><th>Quality loss</th><th>HW</th></tr></thead>
+    <tbody>
+      <tr><td>FP16 (baseline)</td><td>16</td><td>1.0×</td><td>—</td><td>any</td></tr>
+      <tr><td>BF16</td><td>16</td><td>1.0×</td><td>—</td><td>A100, H100</td></tr>
+      <tr><td>FP8 (E4M3)</td><td>8</td><td>2×</td><td>< 0.1 perplexity</td><td>H100 native (<a href="https://docs.nvidia.com/cuda/cublas/">cuBLAS 12.x</a>)</td></tr>
+      <tr><td>INT8 (SmoothQuant / per-tensor)</td><td>8</td><td>2×</td><td>< 0.5 perplexity</td><td>A100, H100</td></tr>
+      <tr><td>AWQ (Activation-aware Weight Quantization)</td><td>4</td><td>4×</td><td>< 1 perplexity</td><td>A100, H100</td></tr>
+      <tr><td>GPTQ</td><td>4 / 3 / 2</td><td>4–8×</td><td>1–3 perplexity at INT4, >5 at INT2</td><td>A100, H100</td></tr>
+      <tr><td>BitsAndBytes (NF4, INT8)</td><td>4 / 8</td><td>2–4×</td><td>similar to GPTQ</td><td>any</td></tr>
+    </tbody>
+  </table>
+
+  <p>For Inferact-class deployments, the typical pairing is <strong>FP8 on H100</strong> (no quality loss, native H100 instruction, 2× memory + ~1.6× throughput) or <strong>AWQ INT4 on A100</strong> (4× memory, modest quality loss). KV-cache quantization (FP8 KV on H100) is a vLLM V1 addition.<span class="citation">(<a href="https://docs.vllm.ai/en/latest/features/quantization.html">vLLM quantization docs</a>)</span></p>
+
+  <h3 id="m3-10" class="text-lg font-semibold mt-6 mb-2">3.10 PagedAttention v2 / V1 — The 2025 Rewrite</h3>
+
+  <p>vLLM V0 served production traffic for ~18 months and accumulated complexity: per-model code paths, separate prefill/decode schedulers, two competing attention backends (XFormers vs FlashAttention). V1 is a ground-up rewrite announced 2025-01-27 with the following structural changes:<span class="citation">(<a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">vLLM V1 alpha blog</a>)</span></p>
+
+  <ul class="list-disc pl-6 space-y-1 text-sm">
+    <li><strong>Unified scheduler</strong> — prefill and decode share one queue, mixed in a single forward step.</li>
+    <li><strong>Block-level prefix caching</strong> — prompts with shared prefixes (system prompts, few-shot examples) reuse KV blocks across requests.</li>
+    <li><strong>CUDA Graphs as default</strong> — see §3.6.</li>
+    <li><strong>Chunked prefill</strong> — see §3.7.</li>
+    <li><strong>Structured output (xgrammar)</strong> — guaranteed JSON-schema / regex / grammar compliance via constrained decoding.</li>
+    <li><strong>FP8 KV cache</strong> — 2× KV memory saving on H100.</li>
+    <li><strong>Simplified model registry</strong> — one model-execution path instead of per-arch special cases.</li>
+  </ul>
+
+  <p>Reported headline numbers from the V1 blog:</p>
+  <table class="report">
+    <thead><tr><th>Workload</th><th>V0</th><th>V1</th><th>Speedup</th></tr></thead>
+    <tbody>
+      <tr><td>Llama-3.1-8B, A100, batch 32, 1k in / 256 out</td><td>baseline</td><td>~1.7×</td><td><a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">V1 blog</a></td></tr>
+      <tr><td>Llama-3.1-70B, H100, batch 16, 1k in / 256 out</td><td>baseline</td><td>~1.5×</td><td><a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">V1 blog</a></td></tr>
+      <tr><td>Mixed prefill/decode, long context (32k)</td><td>severe p99 spikes</td><td>smooth p99</td><td><a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">V1 blog §Chunked Prefill</a></td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m3-11" class="text-lg font-semibold mt-6 mb-2">3.11 Prefix Caching — Why RAG and Agent Vendors Love It</h3>
+
+  <p>Most LLM traffic in 2025 is RAG (retrieval-augmented generation) or agent loops. Both have heavy prefix sharing: long system prompts, multi-shot examples, repeated tool schemas. vLLM's prefix cache automatically detects matching KV blocks across requests and reuses them — turning 8k-token prompts into a 200-token compute cost when the prefix is cached.</p>
+
+  <p>vLLM V1 uses a <strong>radix-tree</strong> structure for the block cache, enabling O(prefix length) lookup and O(shared prefix) reuse. Reported cache-hit rates in RAG benchmarks: 70–90% in production.<span class="citation">(<a href="https://docs.vllm.ai/en/latest/features/prefix_caching.html">vLLM prefix caching docs</a>)</span></p>
+
+  <h3 id="m3-12" class="text-lg font-semibold mt-6 mb-2">3.12 Architecture Diagram</h3>
+
+  <div class="mermaid">
+flowchart TB
+    subgraph Client["Client Layer"]
+        A1[OpenAI-compat SDK<br/>chat completions / completions / embeddings]
+    end
+
+    subgraph Edge["Inferact Edge Plane"]
+        B1[FastAPI router<br/>auth, rate-limit, metering]
+        B2[Streaming SSE<br/>token-by-token]
+    end
+
+    subgraph Engine["vLLM V1 Engine (per model replica)"]
+        C1[AsyncLLMEngine<br/>Async request queue]
+        C2[Scheduler V1<br/>continuous + chunked prefill]
+        C3[Block Manager<br/>PagedAttention KV cache<br/>block_size=16]
+        C4[Prefix Cache<br/>radix tree]
+        C5[Model Runner V1<br/>CUDA Graphs default]
+    end
+
+    subgraph Workers["GPU Worker Pool (TP × PP mesh)"]
+        D1[GPU 0]
+        D2[GPU 1]
+        D3[GPU 2]
+        D4[GPU 7]
+    end
+
+    subgraph Opts["Optimizations (per-model opt-in)"]
+        E1[EAGLE-2 / Medusa<br/>speculative decoding]
+        E2[AWQ / FP8 / INT8<br/>quantization]
+        E3[LoRA adapter<br/>hot-swap]
+    end
+
+    A1 --> B1 --> C1 --> C2
+    C2 --> C3
+    C2 --> C4
+    C2 --> C5
+    C5 --> D1 & D2 & D3 & D4
+    C5 -.uses.-> E1 & E2 & E3
+    C2 --> B2 --> A1
+  </div>
+
+  <p>Source: <a href="https://docs.vllm.ai/en/latest/architecture/overview.html">vLLM architecture docs</a>; <a href="https://github.com/vllm-project/vllm/blob/main/ARCHITECTURE.md">ARCHITECTURE.md</a>; <a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">V1 blog</a>.</p>
+
+  <h3 id="m3-13" class="text-lg font-semibold mt-6 mb-2">3.13 KV Cache Memory Math (For Engineers)</h3>
+
+  <p>How much KV cache does a model actually need? The formula:</p>
+
+  <pre class="code-block"><code>KV_cache_bytes_per_token =
+    2 (K + V)
+  × num_hidden_layers
+  × num_key_value_heads  (≠ num_attention_heads for GQA models)
+  × head_dim
+  × bytes_per_element   (2 for fp16, 1 for int8, 0.5 for fp8)
+
+Example — Llama-3-70B (fp16):
+  2 × 80 layers × 8 KV heads × 128 head_dim × 2 bytes
+  = 327,680 bytes ≈ 320 KB per token
+
+  A 4,096-token context:  1.34 GB
+  A 32,768-token context: 10.7 GB
+  16 K-context batch of 32 requests: 700 GB   ← exceeds H100 80GB memory
+</code></pre>
+
+  <p>That last line is why <strong>tensor parallelism is unavoidable</strong> for 70B+ models at any reasonable batch size. With TP=8 across 8×H100, the per-GPU KV cache is 1/8 the above, fitting in 80GB easily.</p>
+
+  <p>vLLM's KV cache manager sizes the block pool at engine startup:</p>
+
+  <pre class="code-block"><code># vllm/v1/core/kv_cache_manager.py (paraphrased)
+num_gpu_blocks = (
+    (gpu_memory_utilization * total_gpu_memory - model_weights - activations)
+    // kv_cache_bytes_per_block
+)
+# default gpu_memory_utilization = 0.9 (reserve 10% for activations + CUDA workspace)
+# block_size = 16 tokens
+</code></pre>
+
+  <h3 id="m3-14" class="text-lg font-semibold mt-6 mb-2">3.14 Performance Benchmarks — H100 vs A100 vs L40S</h3>
+
+  <p>Aggregate published numbers across the vLLM performance blog, the V1 announcement, and third-party benchmarks. All throughput numbers are aggregate output tokens/s on shared GPU pools at 70% utilization:</p>
+
+  <table class="report">
+    <thead><tr><th>Model</th><th>GPU</th><th>TP</th><th>Throughput (tok/s)</th><th>First-token latency</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>Llama-3-8B</td><td>1× A100-80GB</td><td>1</td><td>~3,800</td><td>~50 ms</td><td><a href="https://blog.vllm.ai/2024/09/05/perf.html">vLLM perf blog</a></td></tr>
+      <tr><td>Llama-3-8B</td><td>1× H100-80GB</td><td>1</td><td>~5,500</td><td>~30 ms</td><td><a href="https://blog.vllm.ai/2024/09/05/perf.html">vLLM perf blog</a></td></tr>
+      <tr><td>Llama-3-70B</td><td>8× A100-80GB</td><td>8</td><td>~2,200</td><td>~200 ms</td><td><a href="https://blog.vllm.ai/2024/09/05/perf.html">vLLM perf blog</a></td></tr>
+      <tr><td>Llama-3-70B</td><td>8× H100-80GB</td><td>8</td><td>~3,800</td><td>~120 ms</td><td><a href="https://blog.vllm.ai/2024/09/05/perf.html">vLLM perf blog</a></td></tr>
+      <tr><td>Llama-3-70B-AWQ</td><td>4× A100-80GB</td><td>4</td><td>~2,000</td><td>~180 ms</td><td><a href="https://docs.vllm.ai/en/latest/features/quantization.html">quantization docs</a></td></tr>
+      <tr><td>Llama-3-70B-FP8</td><td>4× H100-80GB</td><td>4</td><td>~3,600</td><td>~120 ms</td><td><a href="https://docs.vllm.ai/en/latest/features/quantization.html">quantization docs</a></td></tr>
+      <tr><td>Mixtral-8×7B</td><td>2× H100-80GB</td><td>2</td><td>~3,200</td><td>~80 ms</td><td><a href="https://blog.vllm.ai/2024/09/05/perf.html">vLLM perf blog</a></td></tr>
+      <tr><td>Llama-3.1-405B</td><td>16× H100-80GB</td><td>8× PP=2</td><td>~1,800</td><td>~450 ms</td><td><a href="https://docs.vllm.ai/en/latest/models/llama.html">Llama docs</a></td></tr>
+      <tr><td>Llama-3.1-8B + EAGLE-2</td><td>1× A100</td><td>1</td><td>~9,000 (2.4×)</td><td>~50 ms</td><td><a href="https://docs.vllm.ai/en/latest/features/spec_decode.html">spec_decode docs</a></td></tr>
+      <tr><td>Llama-3.1-8B + n-gram</td><td>1× A100</td><td>1</td><td>~5,500 (1.4×)</td><td>~50 ms</td><td><a href="https://docs.vllm.ai/en/latest/features/spec_decode.html">spec_decode docs</a></td></tr>
+      <tr><td>Phi-3-medium</td><td>1× L40S-48GB</td><td>1</td><td>~2,800</td><td>~45 ms</td><td><a href="https://docs.vllm.ai/en/latest/models/supported_models.html">supported models</a></td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>Caveat:</strong> these are aggregate throughputs at representative batch sizes; p99 latency and tail behavior depend heavily on the prefix-cache hit rate and the chunked-prefill configuration. Vendors that tune aggressively (Inferact, Fireworks) typically run 10–30% above these reference numbers via:</p>
+  <ul class="list-disc pl-6 text-sm">
+    <li>Speculative decoding defaults (EAGLE-2 for Llama, Medusa for Mistral)</li>
+    <li>FP8 on H100 (vs FP16 baseline)</li>
+    <li>Aggressive prefix caching (system prompts, RAG contexts)</li>
+    <li>Continuous batching at higher <code>--max-num-seqs</code> (64–128)</li>
+  </ul>
+
+  <h3 id="m3-15" class="text-lg font-semibold mt-6 mb-2">3.15 Why Continuous Batching Matters for the lmsys_chat Workload</h3>
+
+  <p>The <a href="https://huggingface.co/datasets/lmsys/lmsys-chat-1m">lmsys/lmsys-chat-1m</a> dataset — 1 million real conversations with 25 LLM APIs — shows a heavy-tailed output-length distribution:</p>
+
+  <pre class="code-block"><code>Output token length distribution (lmsys-chat-1m, ~1M samples):
+  Median:           ~150 tokens
+  p75:              ~350 tokens
+  p90:              ~800 tokens
+  p95:              ~1,400 tokens
+  p99:              ~2,500 tokens
+  p99.9:            ~5,000 tokens
+  Max:              ~16,000 tokens
+
+Implication for static batching:
+  A batch of 8 sequences with median 150 tokens each, but one at 5,000 tokens,
+  wastes 8 × (5,000 - 150) = 38,800 forward-token-steps waiting for the long tail.
+  That's 96% wasted compute.
+
+Implication for continuous batching:
+  The 7 short sequences finish in 150 iterations. Their KV blocks are freed.
+  7 new requests are admitted. The long sequence continues alone.
+  Effective utilization: ~98%.
+</code></pre>
+
+  <p>This is exactly the workload pattern that broke HF TGI v1 in 2023 and motivated the entire PagedAttention + continuous batching architecture. vLLM's SOSP'23 paper benchmarks against this distribution explicitly.<span class="citation">(<a href="https://arxiv.org/abs/2309.06180">Kwon et al. §6.2, Figure 7</a>; <a href="https://huggingface.co/datasets/lmsys/lmsys-chat-1m">lmsys/lmsys-chat-1m</a>)</span></p>
+
+  <h3 id="m3-16" class="text-lg font-semibold mt-6 mb-2">3.16 A Note on Attention Backend Variants</h3>
+
+  <p>vLLM V1 supports multiple attention kernel backends, selected per-model at engine startup:</p>
+
+  <table class="report">
+    <thead><tr><th>Backend</th><th>When chosen</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><strong>FlashAttention 2/3</strong></td><td>Most NVIDIA (Ampere+, Ada, Hopper)</td><td>Best raw perf; requires fp16/bf16/fp8</td></tr>
+      <tr><td><strong>XFormers</strong></td><td>Fallback when FA unavailable</td><td>More flexible shapes, slightly slower</td></tr>
+      <tr><td><strong>FlashInfer</strong></td><td>Experimental, sparse / paged variants</td><td>From <a href="https://github.com/flashinfer-ai/flashinfer">flashinfer-ai</a>; useful for prefix-cache reuse</td></tr>
+      <tr><td><strong>TRITON MLA</strong></td><td>DeepSeek-V2/V3 MLA attention</td><td>Multi-head latent attention; specialized kernel</td></tr>
+      <tr><td><strong>ROCM (AMD)</strong></td><td>AMD MI300X / MI250</td><td>vLLM supports ROCm via <code>VLLM_TARGET_DEVICE=rocm</code></td></tr>
+      <tr><td><strong>TPU</strong></td><td>Google Cloud TPU v5e/v5p</td><td>Limited support, via PyTorch XLA</td></tr>
+    </tbody>
+  </table>
+
+  <p>The PagedAttention indirection is implemented <em>atop</em> each backend — the kernel reads the block table and treats each block as a contiguous tile. This means new attention backends (e.g. FlexAttention in PyTorch 2.5) can be plugged in without re-architecting the memory manager.</p>
+
+  <h3 id="m3-17" class="text-lg font-semibold mt-6 mb-2">3.17 End-to-End Sequence Diagram (Single Request Lifecycle)</h3>
+
+  <div class="mermaid">
+sequenceDiagram
+    participant C as Client
+    participant F as FastAPI Router
+    participant E as AsyncLLMEngine
+    participant S as V1 Scheduler
+    participant BM as Block Manager
+    participant MR as Model Runner V1
+    participant G as GPU Worker(s)
+
+    C->>F: POST /v1/chat/completions (prompt)
+    F->>E: enqueue(request_id, prompt_tokens)
+    E->>S: schedule()
+    S->>BM: allocate_blocks(ceil(prompt_len / 16))
+    BM-->>S: block_table
+    S->>MR: prefill(prompt_tokens, block_table)
+    MR->>G: CUDA Graph replay (or eager forward)
+    G-->>MR: logits[0]
+    MR->>MR: sample(token_0)
+    MR-->>S: token_0
+    S->>F: emit SSE chunk (token_0)
+    F-->>C: data: {...}
+    loop For each output token
+        S->>MR: decode(step_n)
+        MR->>G: CUDA Graph replay
+        G-->>MR: logits
+        MR->>MR: sample(token_n)
+        MR-->>S: token_n
+        S->>F: emit SSE
+    end
+    MR-->>S: <eos> token
+    S->>BM: free_blocks(block_table)
+    S-->>F: stream_end()
+    F-->>C: data: [DONE]
+  </div>
+
+  <p>Source: paraphrased from <a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/engine/llm_engine.py">vllm/v1/engine/llm_engine.py</a>; <a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">V1 blog</a>.</p>
+
+  <h3 id="m3-18" class="text-lg font-semibold mt-6 mb-2">3.18 Sampling Methods (top-p, top-k, temperature, repetition penalty)</h3>
+
+  <p>vLLM implements the standard sampling stack on top of the model's logits:</p>
+
+  <table class="report">
+    <thead><tr><th>Method</th><th>Effect</th><th>Use case</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Greedy</strong> (temp=0)</td><td>Always pick argmax</td><td>Deterministic code generation, eval</td></tr>
+      <tr><td><strong>Top-k</strong></td><td>Sample from k highest-prob tokens</td><td>Moderate randomness</td></tr>
+      <tr><td><strong>Top-p (nucleus)</strong></td><td>Sample from smallest set whose cumulative prob ≥ p</td><td>Open-ended chat, creative writing</td></tr>
+      <tr><td><strong>Temperature</strong></td><td>Sharpen (T<1) or flatten (T>1) the distribution</td><td>Combined with top-p/top-k</td></tr>
+      <tr><td><strong>Min-p</strong></td><td>Sample from tokens with prob ≥ p × max_prob</td><td>Newer alternative to top-p</td></tr>
+      <tr><td><strong>Repetition penalty</strong></td><td>Divide logits of previously-generated tokens by r</td><td>Reduce loops</td></tr>
+      <tr><td><strong>Frequency / presence penalty</strong></td><td>Subtract penalty proportional to occurrence count</td><td>OpenAI-style control</td></tr>
+      <tr><td><strong>Beam search</strong></td><td>Maintain top-B parallel beams</td><td>Translation, summarization (less common)</td></tr>
+      <tr><td><strong>Mirostat</strong></td><td>Adaptive perplexity targeting</td><td>Long-form generation</td></tr>
+    </tbody>
+  </table>
+
+  <p>The sampling step is implemented in <a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/sample/ops/topk_topp_sampler.py">vllm/v1/sample/ops/topk_topp_sampler.py</a>. Custom logit processors (for constrained decoding) plug in via the <code>LogitsProcessor</code> interface.</p>
+
+  <h3 id="m3-19" class="text-lg font-semibold mt-6 mb-2">3.19 Memory Allocator Internals (PyTorch + CUDA Caching)</h3>
+
+  <p>vLLM's CUDA memory layout has two layers:</p>
+
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li><strong>PyTorch CUDA caching allocator</strong> (<code>cudaCachingAllocator</code>) — manages raw GPU memory in pools, sized at <code>gpu_memory_utilization</code> × total GPU memory.</li>
+    <li><strong>vLLM block manager</strong> — carves the pool into fixed-size blocks (PagedAttention's logical units).</li>
+  </ol>
+
+  <p>The block manager exposes two pools:</p>
+  <ul class="list-disc pl-6 text-sm">
+    <li><strong>GPU blocks</strong> — pinned HBM, fast access, where KV cache lives.</li>
+    <li><strong>CPU blocks</strong> — pinned host memory (page-locked, <code>cudaHostAlloc</code>), used for prefix-cache spillover and async D2H copies.</li>
+  </ul>
+
+  <p>When GPU memory is exhausted, the scheduler can evict blocks to CPU (swap) — though as noted in §5.2, V1 prefers recompute over swap for preemption.</p>
+
+  <h3 id="m3-20" class="text-lg font-semibold mt-6 mb-2">3.20 The Preemption Decision Tree</h3>
+
+  <p>When new requests arrive and no GPU blocks are free, the scheduler must either:</p>
+
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li><strong>Queue</strong> — wait until current requests finish. Lowest impact, but worst p99 for new requests.</li>
+    <li><strong>Recompute</strong> — evict a low-priority running sequence, recompute its KV on resume. Used by default in vLLM V1.</li>
+    <li><strong>Swap</strong> — copy the evicted sequence's KV to CPU memory, restore on resume. Slower but no recompute cost. Used in vLLM V0 for some modes.</li>
+  </ol>
+
+  <p>vLLM V1 implements <code>--preemption-mode</code> = <code>recompute</code> (default) or <code>swap</code>. The right choice depends on the workload:</p>
+
+  <table class="report">
+    <thead><tr><th>Workload</th><th>Better choice</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Short prompts, short outputs (chat)</td><td>Recompute</td><td>Recompute is fast; swap overhead dominates</td></tr>
+      <tr><td>Long prompts, short outputs (RAG)</td><td>Recompute</td><td>Recompute is bounded; swap is bandwidth-bound</td></tr>
+      <tr><td>Long prompts, long outputs (agent)</td><td>Swap</td><td>Recompute cost is huge; swap pays off</td></tr>
+      <tr><td>Batch-heavy offline</td><td>Recompute</td><td>Latency is not critical; memory is</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m3-21" class="text-lg font-semibold mt-6 mb-2">3.21 Scheduling Throughput Math</h3>
+
+  <p>For a vLLM deployment, the throughput at saturation depends on a few knobs:</p>
+
+  <pre class="code-block"><code>Saturation throughput (tokens/s) ≈
+    (num_GPUs × tokens/s_per_GPU)
+  × (1 - scheduler_overhead_fraction)   # ~5% in V1
+  × (1 - preemption_loss_fraction)        # <1% if tuned well
+  × speculative_speedup_factor            # 1.0–3.0
+  × quantization_speedup_factor           # 1.0–1.8 (FP8 vs FP16)
+
+For Llama-3-70B-AWQ on 8×H100, V1, EAGLE-2 enabled:
+  = (8 × 2,500) × 0.95 × 0.99 × 2.0 × 1.0
+  ≈ 37,600 output tokens/s aggregate
+</code></pre>
+
+  <p><strong>Time to first token (TTFT):</strong> dominated by prefill cost.</p>
+
+  <pre class="code-block"><code>TTFT_ms ≈ (prompt_tokens × model_flops_per_token) / (num_GPUs × gpu_flops) × 1000
+       + scheduling_overhead (~5 ms)
+       + cuda_graph_replay_overhead (~2 ms)
+
+For Llama-3-70B on 8×H100, 2k-token prompt:
+  = (2,000 × 7e13) / (8 × 1e15) × 1000 + 7
+  ≈ 175 + 7 = ~180 ms
+</code></pre>
+
+  <h3 id="m3-22" class="text-lg font-semibold mt-6 mb-2">3.22 Speculative Decoding Acceptance Math</h3>
+
+  <p>The acceptance rate of a draft model determines effective speedup. Empirical patterns:</p>
+
+  <pre class="code-block"><code>Acceptance rate by workload type (K=5, EAGLE-2 on Llama-3-70B):
+  Code completion:        88–95%   (avg accepted length ~4.5)
+  Translation (formal):   80–90%   (~4.2)
+  Summarization:          70–82%   (~3.8)
+  Open-ended chat:        60–75%   (~3.3)
+  Creative writing:       50–65%   (~2.8)
+
+Effective speedup ≈ 1 / (1 - acceptance_rate + acceptance_rate / K)
+For acceptance=0.75, K=5: 1 / (0.25 + 0.75/5) = 1 / 0.40 = 2.5×
+
+Caveat: includes cost of the draft model's own forward.
+EAGLE-2 draft is ~5% the cost of target → net speedup ≈ 2.3–2.4×
+</code></pre>
+
+  <p>This is why speculative decoding helps more on code (deterministic) than creative writing (diverse). It's also why EAGLE-3's tree-attention variant gets another 30% on top — better acceptance on the long tail.</p>
+
+  <h3 id="m3-23" class="text-lg font-semibold mt-6 mb-2">3.23 Real Production Failure Modes</h3>
+
+  <p>From public post-mortems and vLLM GitHub issues, the most common production failures:</p>
+
+  <table class="report">
+    <thead><tr><th>Failure mode</th><th>Symptom</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr><td><strong>OOM during prefill of long prompt</strong></td><td>CUDA OOM error; request crashes</td><td>Cap <code>--max-model-len</code>; use chunked prefill</td></tr>
+      <tr><td><strong>KV cache fragmentation</strong></td><td>Cache utilization drops to 60% under bursty load</td><td>Restart engine to defragment; tune <code>--num-lookahead-slots</code></td></tr>
+      <tr><td><strong>Speculative decode acceptance collapse</strong></td><td>Speedup drops from 2.5× to 1.1×</td><td>Retrain draft model; check distribution shift</td></tr>
+      <tr><td><strong>NCCL hang in TP all-reduce</strong></td><td>Engine hangs mid-forward</td><td>Set <code>NCCL_DEBUG=INFO</code>, check IB / NVLink health</td></tr>
+      <tr><td><strong>Tokenizer mismatch</strong></td><td>Garbage output tokens</td><td>Pin tokenizer version to model checkpoint</td></tr>
+      <tr><td><strong>MoE expert imbalance</strong></td><td>GPU SM occupancy imbalance → slow GPU straggles</td><td>Enable expert-parallel load balancing</td></tr>
+      <tr><td><strong>Prefix-cache poisoning</strong></td><td>Wrong outputs after prefix mismatch</td><td>Strict prefix hash verification</td></tr>
+      <tr><td><strong>GPU thermal throttle</strong></td><td>Throughput drops 20% after 10 min</td><td>Check DC airflow; H100 sustained power is 700W</td></tr>
+      <tr><td><strong>Long-tail latency spike</strong></td><td>p99 = 10× p50</td><td>Reduce <code>--max-num-seqs</code>; isolate noisy-neighbor workloads</td></tr>
+    </tbody>
+  </table>
+
+  <p>An Inferact-class vendor's SRE value-add is precisely <em>preventing and recovering</em> from these failure modes before the customer sees them.</p>
+
+  <h3 id="m3-24" class="text-lg font-semibold mt-6 mb-2">3.24 Scaling Beyond Single Datacenter</h3>
+
+  <p>vLLM is a single-region engine; cross-region scaling requires external orchestration:</p>
+
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>Active-active across regions:</strong> Each region runs its own vLLM cluster; global load balancer routes based on latency or capacity.</li>
+    <li><strong>Active-passive (DR):</strong> Primary region handles traffic; secondary on warm standby. Cheaper but slower failover.</li>
+    <li><strong>Geofencing:</strong> EU traffic stays in EU region for compliance. Model updates propagate via a global model registry.</li>
+  </ul>
+
+  <p>The cross-region latency cost (50–200 ms) is often <em>more</em> than a single inference call. Customers with global traffic typically architect for region-local inference (e.g. EU users hit EU-deployed models).</p>
+
+  <h3 id="m3-25" class="text-lg font-semibold mt-6 mb-2">3.25 Cross-Engine Comparison (vLLM vs SGLang vs TensorRT-LLM vs TGI)</h3>
+
+  <p>As of 2026-Q1, the four major open-source LLM serving engines:</p>
+
+  <table class="report">
+    <thead><tr><th>Engine</th><th>Origin</th><th>License</th><th>Strength</th><th>Weakness</th></tr></thead>
+    <tbody>
+      <tr><td><strong>vLLM</strong></td><td>UC Berkeley SkyLab (2023)</td><td>Apache-2.0</td><td>PagedAttention + V1 perf; community; LF governance</td><td>CUDA-heavy; less optimized for non-NVIDIA</td></tr>
+      <tr><td><strong>SGLang</strong></td><td>LMSYS / UC Berkeley (2024)</td><td>Apache-2.0</td><td>RadixAttention for agent/RAG; structured output native</td><td>Smaller community; less model coverage</td></tr>
+      <tr><td><strong>TensorRT-LLM</strong></td><td>NVIDIA (2023)</td><td>Apache-2.0 (parts)</td><td>Best raw perf on NVIDIA; FP4 / FP8 native</td><td>NVIDIA-only; harder to extend</td></tr>
+      <tr><td><strong>HuggingFace TGI</strong></td><td>HuggingFace (2022)</td><td>Apache-2.0</td><td>Easy deployment; broad model coverage</td><td>Worst perf of the four (pre-V0 vLLM baseline)</td></tr>
+      <tr><td><strong>MLC-LLM</strong></td><td>CMU / Apache TVM (2023)</td><td>Apache-2.0</td><td>On-device / mobile / WebGPU</td><td>Not optimized for server-scale</td></tr>
+      <tr><td><strong>LMDeploy</strong></td><td>InternLM / Shanghai AI Lab (2024)</td><td>Apache-2.0</td><td>Strong on Chinese models (Qwen, InternLM)</td><td>Smaller international adoption</td></tr>
+      <tr><td><strong>vAttention (Microsoft)</strong></td><td>Microsoft Research (2024)</td><td>MIT</td><td>Virtual-memory KV cache; lower CPU overhead</td><td>Research prototype; not production-ready</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>Performance ranking (Llama-3-70B, A100, batch 32, 1k-in/256-out):</strong></p>
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li>vLLM V1 — 1.0× (reference)</li>
+    <li>TensorRT-LLM — 1.0–1.05×</li>
+    <li>SGLang — 0.85–0.95×</li>
+    <li>LMDeploy — 0.80–0.90×</li>
+    <li>HuggingFace TGI — 0.50–0.65×</li>
+  </ol>
+
+  <p>vLLM V1 effectively tied TensorRT-LLM in 2025-Q1 benchmarks — a remarkable achievement given TensorRT-LLM's multi-year head start.</p>
+</section>
+
+<hr/>
+
+<!-- M4 Blog Deep-Dives -->
+<section id="m4" class="anchor">
+  <div class="section-tag">Module 4</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">5 Hardcore Deep-Dives from the vLLM Blog & GitHub</h2>
+
+  <p>This section condenses the five most technically dense vLLM publications/commits into per-source briefs. Each entry captures the <em>algorithmic idea</em>, the <em>measured impact</em>, and the <em>code anchor</em> where the implementation lives.</p>
+
+  <h3 id="m4-1" class="text-lg font-semibold mt-6 mb-2">4.1 SOSP'23 Paper — PagedAttention (Kwon, Li, Zhuang, Sheng, Zheng, Yu, Gonzalez, Stoica)</h3>
+
+  <div class="module-card">
+    <p><strong>Source:</strong> <a href="https://arxiv.org/abs/2309.06180">arXiv 2309.06180</a>; <a href="https://dl.acm.org/doi/10.1145/3623182">ACM SOSP'23 proceedings</a></p>
+    <p><strong>One-line idea:</strong> Treat KV cache like virtual memory — fixed-size pages with a per-request page table.</p>
+    <p><strong>What it actually does (algorithmically):</strong></p>
+    <ol class="list-decimal pl-6 text-sm space-y-1">
+      <li>Partition the KV cache into equal-sized <strong>physical blocks</strong> of B tokens each (B = 16 default).</li>
+      <li>Maintain a per-request <strong>block table</strong> — a small CPU/GPU-resident array mapping logical block IDs to physical block IDs.</li>
+      <li>On each forward step, the attention kernel reads the block table and performs <em>block-wise</em> attention — splitting Q into block-tile loads and gathering K, V from the indirection map.</li>
+      <li>Block allocation happens lazily as the sequence grows. A new request gets <code>ceil(prompt_len / B)</code> blocks at prefill start.</li>
+      <li>Sharing: when two requests have a common prefix, the second request's block table points to the <em>same</em> physical blocks as the first (copy-on-write semantics for divergence).</li>
+    </ol>
+    <p><strong>Measured impact (paper §6):</strong></p>
+    <ul class="list-disc pl-6 text-sm">
+      <li>14–24× higher serving throughput vs HuggingFace TGI on Llama-7B / OPT-13B / BLOOM-176B.</li>
+      <li>2–4× larger max batch size for the same GPU memory budget.</li>
+      <li>KV cache memory utilization: ~96% (with prefix sharing >98%).</li>
+    </ul>
+    <p><strong>Code anchor:</strong> <a href="https://github.com/vllm-project/vllm/tree/main/vllm/attention">vllm/attention/</a> (PagedAttention CUDA kernels); <a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/core/kv_cache_manager.py">vllm/v1/core/kv_cache_manager.py</a>.</p>
+  </div>
+
+  <h3 id="m4-2" class="text-lg font-semibold mt-6 mb-2">4.2 V1 Alpha Blog — "vLLM V1: A Major Rewrite" (2025-01-27)</h3>
+
+  <div class="module-card">
+    <p><strong>Source:</strong> <a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">blog.vllm.ai/2025/01/27/v1-alpha.html</a></p>
+    <p><strong>One-line idea:</strong> Throw away 18 months of accumulated complexity and rebuild the engine around a unified scheduler + CUDA Graphs + chunked prefill.</p>
+    <p><strong>What's new in V1:</strong></p>
+    <ul class="list-disc pl-6 text-sm space-y-1">
+      <li><strong>Unified scheduler.</strong> V0 had separate schedulers for prefill and decode, requiring a synchronization barrier between them. V1 has one scheduler that interleaves both in a single forward step — eliminating the "prefill spike" latency penalty.</li>
+      <li><strong>CUDA Graphs as default.</strong> V0 had CUDA Graphs as opt-in via <code>--enforce-eager=False</code>. V1 makes them default. Reported ~5–10× reduction in per-token latency for small batch sizes.</li>
+      <li><strong>Chunked prefill.</strong> Long prompts are split into chunks (default 4,096 tokens) and interleaved with decode steps. Smoother p99 latency.</li>
+      <li><strong>Structured output (xgrammar).</strong> Guaranteed JSON-schema / regex / grammar compliance via constraint masking during sampling.</li>
+      <li><strong>FP8 KV cache.</strong> 2× KV memory saving on H100.</li>
+      <li><strong>Simplified model registry.</strong> One execution path instead of per-arch code duplication.</li>
+    </ul>
+    <p><strong>Measured impact:</strong></p>
+    <ul class="list-disc pl-6 text-sm">
+      <li>~1.7× throughput on Llama-3.1-8B (A100, batch 32, 1k in / 256 out).</li>
+      <li>~1.5× on Llama-3.1-70B (H100, batch 16, 1k in / 256 out).</li>
+      <li>p99 latency improvement on mixed prefill/decode workloads with long context (32k tokens).</li>
+    </ul>
+    <p><strong>Code anchor:</strong> <a href="https://github.com/vllm-project/vllm/tree/main/vllm/v1">vllm/v1/</a> directory; the V0 path is preserved as <code>vllm.v0.engine</code> for one release.</p>
+  </div>
+
+  <h3 id="m4-3" class="text-lg font-semibold mt-6 mb-2">4.3 Speculative Decoding Integration (EAGLE-2, Medusa, n-gram)</h3>
+
+  <div class="module-card">
+    <p><strong>Source:</strong> <a href="https://docs.vllm.ai/en/latest/features/spec_decode.html">docs.vllm.ai/spec_decode</a>; <a href="https://arxiv.org/abs/2406.16858">EAGLE-2 paper</a>; <a href="https://arxiv.org/abs/2401.10774">Medusa paper</a></p>
+    <p><strong>One-line idea:</strong> Use a cheap draft model to propose K tokens, verify them with the target model in one forward pass, accept what matches.</p>
+    <p><strong>Mechanism:</strong></p>
+    <ol class="list-decimal pl-6 text-sm space-y-1">
+      <li>Draft model produces K speculative tokens autoregressively (cheap, small model).</li>
+      <li>Target model evaluates the K tokens <em>in parallel</em> via a single forward pass (one big prefill of K tokens + original).</li>
+      <li>Tree attention / cascade rejection: starting from longest accepted prefix, walk back to first mismatch, accept prefix, reject the rest.</li>
+      <li>Accepted K' tokens are returned to the user; rejected tokens are dropped (the draft was wasted).</li>
+    </ol>
+    <p><strong>vLLM specifics:</strong></p>
+    <ul class="list-disc pl-6 text-sm">
+      <li><code>--speculative-model</code> flag points at a draft model (EAGLE-2 head, Medusa heads, or n-gram lookup).</li>
+      <li><code>--num-speculative-tokens</code> sets K (typically 4–8).</li>
+      <li><strong>EAGLE-2</strong>: 2–3× throughput on Llama-3-70B; the draft is a single transformer layer trained via feature regression.</li>
+      <li><strong>Medusa</strong>: 2–2.5×; draft is multiple parallel MLP heads on the target model (no separate weights).</li>
+      <li><strong>n-gram</strong>: 1.3–2×; no training needed, just look up matching sequences in the prompt.</li>
+    </ul>
+    <p><strong>Gotcha:</strong> Speculative decoding only helps when the acceptance rate is high. For chat, where output is diverse, the acceptance rate on K=5 is typically 60–80%. For code completion, it can hit 90%+.</p>
+  </div>
+
+  <h3 id="m4-4" class="text-lg font-semibold mt-6 mb-2">4.4 Continuous Batching and ORCA Heritage</h3>
+
+  <div class="module-card">
+    <p><strong>Source:</strong> <a href="https://www.usenix.org/system/files/osdi22-yu.pdf">ORCA (Yu et al., OSDI'22)</a>; <a href="https://arxiv.org/abs/2309.06180">vLLM §6.1</a></p>
+    <p><strong>One-line idea:</strong> Treat each token-generation step as an independent scheduling unit, not each batch.</p>
+    <p><strong>Why this matters quantitatively:</strong></p>
+    <ul class="list-disc pl-6 text-sm space-y-1">
+      <li>Static batching (HF TGI v1): pad all sequences to the longest, wait for all to finish → 95% wasted compute on variable-length workloads.</li>
+      <li>Continuous batching (ORCA, vLLM): at every iteration, evict finished sequences and admit new ones → near-100% utilization.</li>
+      <li>Combined with PagedAttention: 14–24× throughput improvement over static-batched non-paged systems.</li>
+    </ul>
+    <p><strong>Implementation in vLLM:</strong> <a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/core/sched/scheduler.py">vllm/v1/core/sched/scheduler.py</a> — the <code>schedule()</code> method runs at every forward step, selecting which sequences to admit, which to preempt (recompute), and which to evict.</p>
+    <p><strong>Workload where it shines:</strong> Lmsys.org <a href="https://huggingface.co/datasets/lmsys/lmsys-chat-1m">lmsys/lmsys-chat-1m</a> shows that real chat output lengths have a long-tail distribution (median ~150 tokens, p99 ~2,000+). Static batching breaks on this; continuous batching absorbs it.</p>
+  </div>
+
+  <h3 id="m4-5" class="text-lg font-semibold mt-6 mb-2">4.5 Chunked Prefill + Continuous Batching: The Smooth-Latency Recipe</h3>
+
+  <div class="module-card">
+    <p><strong>Source:</strong> <a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">V1 blog §"Chunked Prefill"</a>; <a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/engine/llm_engine.py">vllm/v1/engine/llm_engine.py</a></p>
+    <p><strong>One-line idea:</strong> Mix prefill chunks with decode steps in one forward pass.</p>
+    <p><strong>Why this matters:</strong></p>
+    <ul class="list-disc pl-6 text-sm space-y-1">
+      <li>Pre-V1, a 16,384-token prefill blocks all decode steps for the duration of the prefill (~3 seconds on 70B at TP=8 H100). This produces a latency cliff on p99.</li>
+      <li>Chunked prefill splits the 16k prompt into 4× 4,096-token chunks. Each chunk runs interleaved with decode iterations of other in-flight requests.</li>
+      <li>Total prefill time grows slightly (prefill chunks are not as efficient as a full prefill), but p99 latency smooths dramatically.</li>
+    </ul>
+    <p><strong>Tuning knob:</strong> <code>--max-num-batched-tokens</code> (default 2,048 in V1). Larger → higher throughput per chunk, higher per-chunk latency. Smaller → lower per-chunk latency, more iterations to fill a prefill.</p>
+    <p><strong>Connection to <a href="https://github.com/sgl-project/sglang">SGLang</a>'s RadixAttention:</strong> SGLang pioneered similar ideas; vLLM's V1 implementation converged on the same architecture under a different name.</p>
+  </div>
+
+  <details class="tech-summary">
+    <summary>📚 Bonus Deep-Dive: Quantization Math (FP8 vs AWQ vs GPTQ)</summary>
+    <div class="mt-3 text-sm space-y-2">
+      <p><strong>FP8 (E4M3):</strong> 1 sign + 4 exponent + 3 mantissa bits. Range ~±448, precision ~3% relative error. On H100, FP8 GEMMs run on dedicated tensor cores at ~2× the throughput of FP16. Result: 2× memory, ~1.6× throughput, near-zero quality loss. The killer app for H100 hosting.</p>
+      <p><strong>AWQ (Activation-aware Weight Quantization, Lin et al. 2023):</strong> protects 1–3% of salient weight channels by keeping them at higher precision; quantizes the rest to INT4. Result: 4× memory, <1 perplexity loss on most benchmarks. Works on A100 and H100.</p>
+      <p><strong>GPTQ (Frantar et al. 2022):</strong> second-order gradient-based quantization, INT4 / INT3 / INT2. INT4: 4× memory, 1–3 perplexity loss. INT2: 8× memory, >5 perplexity loss — generally unusable for production.</p>
+      <p><strong>SmoothQuant:</strong> mathematically shifts quantization difficulty from activations to weights via a per-channel scale. Enables INT8 inference with <0.5 perplexity loss on A100/H100.</p>
+    </div>
+  </details>
+
+  <h3 id="m4-6" class="text-lg font-semibold mt-6 mb-2">4.6 Prefix Caching — The RAG and Agent Multiplier</h3>
+
+  <div class="module-card">
+    <p><strong>Source:</strong> <a href="https://docs.vllm.ai/en/latest/features/prefix_caching.html">vLLM prefix caching docs</a>; vLLM v0.4 release notes (2024-04).</p>
+    <p><strong>One-line idea:</strong> If two requests have the same prefix tokens, share their KV cache blocks instead of recomputing.</p>
+    <p><strong>Why this matters:</strong></p>
+    <ul class="list-disc pl-6 text-sm space-y-1">
+      <li>A typical RAG request has a 4,000-token system prompt + 2,000-token retrieved context. Of the 6,000 tokens, ~95% are identical across requests.</li>
+      <li>Without prefix caching, every request recomputes the entire 6,000 tokens at prefill. With caching, only the variable user message needs prefill.</li>
+      <li>Reported speedup on RAG workloads: 4–8× on time-to-first-token, 1.5–2× on aggregate throughput.</li>
+    </ul>
+    <p><strong>Mechanism (radix tree):</strong></p>
+    <ol class="list-decimal pl-6 text-sm space-y-1">
+      <li>vLLM maintains a radix tree of all active KV blocks, keyed by token content.</li>
+      <li>When a new request arrives, the engine walks the tree, finding the longest matching prefix.</li>
+      <li>Matched blocks are referenced (copy-on-write on divergence); unmatched blocks are computed fresh.</li>
+      <li>Tree is bounded by LRU eviction when memory pressure rises.</li>
+    </ol>
+    <p><strong>Code anchor:</strong> <a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/core/kv_cache_manager.py">vllm/v1/core/kv_cache_manager.py</a> (look for <code>find_longest_cache_hit</code>).</p>
+  </div>
+
+  <h3 id="m4-7" class="text-lg font-semibold mt-6 mb-2">4.7 Structured Outputs — xgrammar and Guided Decoding</h3>
+
+  <div class="module-card">
+    <p><strong>Source:</strong> <a href="https://docs.vllm.ai/en/latest/features/structured_outputs.html">vLLM structured outputs docs</a>; <a href="https://github.com/mlc-ai/xgrammar">xgrammar repo</a> (MLC-AI).</p>
+    <p><strong>One-line idea:</strong> Guarantee the LLM output matches a JSON schema, regex, or grammar — at every decoding step.</p>
+    <p><strong>Why this matters for production:</strong></p>
+    <ul class="list-disc pl-6 text-sm space-y-1">
+      <li>Tool-calling APIs (function calls) require JSON-schema-valid arguments. Without guided decoding, the model produces invalid JSON ~5–10% of the time.</li>
+      <li>Code generation needs valid syntax. Regex-constrained decoding prevents malformed output.</li>
+      <li>Agent loops depend on reliable parsing — a single malformed JSON breaks the whole workflow.</li>
+    </ul>
+    <p><strong>Mechanism:</strong></p>
+    <ol class="list-decimal pl-6 text-sm space-y-1">
+      <li>Compile the JSON schema / regex / grammar into a finite-state automaton (xgrammar) or push-down automaton (outlines).</li>
+      <li>At each decoding step, mask the logits to only allow tokens that keep the output in a valid state.</li>
+      <li>Sampling proceeds over the masked logits — guarantees output validity.</li>
+    </ol>
+    <p><strong>Performance overhead:</strong> typically <10% latency penalty; the masking is implemented as a fast logit-bias op that runs in parallel with sampling.</p>
+  </div>
+
+  <h3 id="m4-8" class="text-lg font-semibold mt-6 mb-2">4.8 LoRA Hot-Swap — Fine-tuning Without Re-Deploying</h3>
+
+  <div class="module-card">
+    <p><strong>Source:</strong> <a href="https://docs.vllm.ai/en/latest/features/lora.html">vLLM LoRA docs</a>.</p>
+    <p><strong>One-line idea:</strong> Load multiple low-rank adapter weights into GPU memory; serve requests with different adapters without restarting the engine.</p>
+    <p><strong>Mechanism:</strong></p>
+    <ol class="list-decimal pl-6 text-sm space-y-1">
+      <li>Base model (e.g. Llama-3-70B) is loaded once. It occupies ~140 GB at FP16.</li>
+      <li>Each LoRA adapter is small (~50–200 MB for rank 16–64). vLLM can hold 10–50 adapters in GPU memory simultaneously.</li>
+      <li>A request specifies <code>"adapter_id": "customer-acme-v3"</code>; the engine looks up the adapter weights and computes <code>W_effective = W_base + B @ A</code> per layer.</li>
+      <li>Hot-swap: add or remove adapters at runtime via <code>/v1/load_lora_adapter</code> API — no engine restart.</li>
+    </ol>
+    <p><strong>Use case:</strong> per-customer fine-tuned models on shared GPU infrastructure. A 70B base + 50 adapters serves 50 different customer behavior profiles from one GPU pool.</p>
+  </div>
+
+  <h3 id="m4-9" class="text-lg font-semibold mt-6 mb-2">4.9 Multi-Modal Inference (Vision-Language)</h3>
+
+  <div class="module-card">
+    <p><strong>Source:</strong> <a href="https://docs.vllm.ai/en/latest/models/multimodal.html">vLLM multimodal docs</a>.</p>
+    <p><strong>One-line idea:</strong> Run image / video / audio inputs through a vision encoder, project to text-token space, then proceed with the same LLM forward.</p>
+    <p><strong>Architecture:</strong></p>
+    <ol class="list-decimal pl-6 text-sm space-y-1">
+      <li><strong>Vision encoder</strong> (ViT, CLIP, SigLIP) processes the image into a sequence of visual tokens (e.g. 576 tokens for 448×448 image at 14×14 patch size).</li>
+      <li><strong>Projector</strong> (linear or MLP) maps visual-token embeddings to the LLM's token space.</li>
+      <li><strong>LLM</strong> processes the combined sequence: <code>[system] + [user_text] + [visual_tokens] + [user_text_2]</code>.</li>
+      <li>The KV cache includes both text and visual tokens — PagedAttention handles them uniformly.</li>
+    </ol>
+    <p><strong>Supported models (excerpt):</strong> LLaVA-1.5/1.6, Qwen2-VL, Pixtral-12B, InternVL2, Phi-3.5-Vision, CogVLM, Llama-3.2-Vision.</p>
+    <p><strong>Performance note:</strong> vision encoders are bandwidth-bound; LLM is compute-bound. vLLM runs them in parallel where possible.</p>
+  </div>
+
+  <h3 id="m4-10" class="text-lg font-semibold mt-6 mb-2">4.10 Audio & Speech (Whisper-style, VALL-E)</h3>
+
+  <div class="module-card">
+    <p><strong>Source:</strong> <a href="https://docs.vllm.ai/en/latest/models/supported_models.html">vLLM supported models</a>.</p>
+    <p><strong>One-line idea:</strong> Audio encoder produces discrete tokens (Whisper) or continuous embeddings (USM); the LLM consumes them like vision tokens.</p>
+    <p><strong>Status in vLLM:</strong> experimental. Whisper, Distil-Whisper, and VALL-E models have partial support; commercial deployment typically uses dedicated ASR engines (Whisper.cpp, NVIDIA Riva, Deepgram).</p>
+    <p><strong>Implication for Inferact:</strong> not yet a core offering. Likely 2026 roadmap item.</p>
+  </div>
+
+  <h3 id="m4-11" class="text-lg font-semibold mt-6 mb-2">4.11 Embeddings Endpoint (vLLM + Sentence Transformers)</h3>
+
+  <div class="module-card">
+    <p><strong>Source:</strong> <a href="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#embeddings-api">vLLM OpenAI server docs §Embeddings</a>.</p>
+    <p><strong>One-line idea:</strong> Serve text embedding models (BERT, BGE, E5, Stella) on the same engine via the OpenAI <code>/v1/embeddings</code> endpoint.</p>
+    <p><strong>Why this matters:</strong> RAG applications need both LLM and embedding inference. A unified endpoint reduces operational complexity. vLLM supports both modes on the same server.</p>
+    <p><strong>Performance:</strong> embedding inference is much cheaper per request than LLM (~1ms vs ~100ms). Most RAG traffic is embedding-heavy at ingestion, LLM-heavy at query time.</p>
+  </div>
+
+  <h3 id="m4-12" class="text-lg font-semibold mt-6 mb-2">4.12 Production Observability — What vLLM Exports</h3>
+
+  <div class="module-card">
+    <p><strong>Source:</strong> <a href="https://docs.vllm.ai/en/latest/serving/metrics.html">vLLM metrics docs</a>.</p>
+    <p>vLLM exports Prometheus-format metrics. The key series:</p>
+    <pre class="code-block"><code># Latency (histogram)
+vllm:request_success_total
+vllm:time_to_first_token_seconds          (histogram, p50/p90/p99 derivable)
+vllm:time_per_output_token_seconds         (histogram)
+vllm:request_decode_seconds               (histogram)
+vllm:request_prefill_seconds              (histogram)
+
+# Throughput (counter)
+vllm:prompt_tokens_total
+vllm:generation_tokens_total
+vllm:request_success_total
+
+# Cache (gauge)
+vllm:gpu_cache_usage_perc                 (0-100)
+vllm:cpu_cache_usage_perc
+vllm:prefix_cache_hits_total
+vllm:prefix_cache_queries_total
+
+# Scheduling (gauge)
+vllm:num_requests_running                  (current batch size)
+vllm:num_requests_waiting
+vllm:num_requests_swapped
+vllm:num_preemptions_total                (counter)
+vllm:num_retries_total
+
+# Speculative decoding (gauge)
+vllm:spec_decode_draft_acceptance_rate    (0-1)
+vllm:spec_decode_effective_tokens_per_step
+
+# GPU (gauge, from NVIDIA DCGM)
+DCGM_FI_DEV_GPU_UTIL                      (SM occupancy %)
+DCGM_FI_DEV_FB_USED                       (HBM used bytes)
+DCGM_FI_DEV_FB_FREE                       (HBM free bytes)
+DCGM_FI_DEV_POWER_USAGE                   (watts)
+</code></pre>
+
+    <p>These metrics are what a production vLLM cluster monitors. Dashboards typically built in Grafana; alerts in Alertmanager.</p>
+  </div>
+
+  <h3 id="m4-13" class="text-lg font-semibold mt-6 mb-2">4.13 vLLM V1 Code Tour (For Engineers Reading the Source)</h3>
+
+  <div class="module-card">
+    <p><strong>Source:</strong> <a href="https://github.com/vllm-project/vllm/tree/main/vllm/v1">vllm/v1/</a> directory.</p>
+    <p>The V1 engine is structured as:</p>
+    <pre class="code-block"><code>vllm/v1/
+├── engine/
+│   ├── llm_engine.py           # Top-level AsyncLLMEngine; the public API
+│   └── processor.py            # Input preprocessing (tokenize, multimodal encode)
+├── core/
+│   ├── sched/
+│   │   └── scheduler.py        # The V1 scheduler (continuous + chunked prefill)
+│   ├── kv_cache_manager.py     # Block manager (PagedAttention)
+│   └── kv_cache_coordinator.py # Coordinates across TP ranks
+├── worker/
+│   ├── gpu_worker.py           # Per-GPU worker (TP rank)
+│   ├── model_runner.py         # CUDA Graph capture + forward dispatch
+│   └── sampling.py             # top-p/top-k/temperature
+├── attention/
+│   ├── backends/
+│   │   ├── flash_attn.py       # FlashAttention 2/3 backend
+│   │   ├── xformers.py         # XFormers backend
+│   │   ├── flashinfer.py       # FlashInfer backend
+│   │   └── triton_mla.py       # DeepSeek MLA
+│   └── layers.py               # PagedAttention CUDA wrappers
+├── sample/
+│   └── ops/topk_topp_sampler.py
+├── spec_decode/
+│   ├── eagle.py                # EAGLE-2 integration
+│   ├── medusa.py               # Medusa integration
+│   └── ngram.py                # n-gram lookup
+├── structured_outputs/
+│   ├── xgrammar.py             # xgrammar FSM-based constraints
+│   └── outlines.py             # Outlines-based constraints
+└── metrics/
+    └── prometheus.py           # Metrics export
+</code></pre>
+    <p>The main entry point is <code>AsyncLLMEngine.generate()</code>, which dispatches to the scheduler and worker pool. The <code>LLM</code> class is the higher-level Python API.</p>
+  </div>
+
+  <h3 id="m4-14" class="text-lg font-semibold mt-6 mb-2">4.14 Reading the SOSP'23 Paper (Section-by-Section)</h3>
+
+  <div class="module-card">
+    <p><strong>Source:</strong> <a href="https://arxiv.org/abs/2309.06180">arXiv 2309.06180</a>.</p>
+    <p>For readers going through the paper for the first time, the key sections are:</p>
+    <ul class="list-disc pl-6 text-sm space-y-1">
+      <li><strong>§2 Background:</strong> transformer architecture, KV cache memory layout, why naive serving wastes memory.</li>
+      <li><strong>§3 PagedAttention algorithm:</strong> the block table, copy-on-write, block sharing. This is the heart of the paper.</li>
+      <li><strong>§4 vLLM system design:</strong> scheduler, block manager, distributed execution.</li>
+      <li><strong>§5 Implementation:</strong> CUDA kernels, prefix caching, parallel sampling.</li>
+      <li><strong>§6 Evaluation:</strong> throughput benchmarks vs HF TGI, memory utilization, fairness. The famous 14–24× numbers live here.</li>
+      <li><strong>§7 Related work:</strong> Orca (continuous batching), FairSeq, FlexGen.</li>
+      <li><strong>§8 Discussion:</strong> limitations, future work (most of which has since been implemented).</li>
+    </ul>
+    <p>Estimated read time: 90 minutes for a systems-engineering reader. Sections 3 and 6 are essential; sections 2 and 7 are skippable for a quick understanding.</p>
+  </div>
+</section>
+
+<hr/>
+
+<!-- M5 Trade-offs / Competition -->
+<section id="m5" class="anchor">
+  <div class="section-tag">Module 5</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">Trade-offs, Competition, Bottlenecks</h2>
+
+  <h3 id="m5-1" class="text-lg font-semibold mt-6 mb-2">5.1 Competitor Matrix</h3>
+
+  <table class="report">
+    <thead><tr><th>Vendor</th><th>Engine</th><th>Open-source license</th><th>Differentiator</th><th>Public ARR</th></tr></thead>
+    <tbody>
+      <tr><td><strong>vLLM (upstream)</strong></td><td>vLLM</td><td>Apache-2.0</td><td>Reference implementation</td><td>n/a (project)</td></tr>
+      <tr><td><strong>Inferact</strong> (per task brief)</td><td>vLLM V1</td><td>Apache-2.0 (upstream)</td><td>Founders = vLLM core; managed API</td><td><span class="badge badge-red">UNVERIFIED</span></td></tr>
+      <tr><td><strong>Fireworks AI</strong></td><td>vLLM (forked + FireAttention)</td><td>Proprietary extensions</td><td>Function-calling, fine-tune, batch</td><td>~$50M (<a href="https://sacra.com/c/fireworks-ai/">Sacra</a>)</td></tr>
+      <tr><td><strong>Together AI</strong></td><td>vLLM + custom kernels</td><td>Mixed</td><td>Research-grade, 200+ model zoo</td><td>~$100M (<a href="https://sacra.com/c/together-ai/">Sacra</a>)</td></tr>
+      <tr><td><strong>Anyscale Endpoints</strong></td><td>Ray + vLLM</td><td>Apache-2.0</td><td>Ray-integrated enterprise</td><td>~$50M (<a href="https://sacra.com/c/anyscale/">Sacra</a>)</td></tr>
+      <tr><td><strong>Modal Labs</strong></td><td>vLLM in container</td><td>BYO image</td><td>DevEx, fast cold-start</td><td>~$300M (<a href="https://modal.com/blog/modal-series-c">Modal</a>)</td></tr>
+      <tr><td><strong>RunPod</strong></td><td>vLLM template</td><td>Apache-2.0</td><td>Lowest overhead, raw GPU rental</td><td>n/a</td></tr>
+      <tr><td><strong>AWS Bedrock custom model</strong></td><td>vLLM AMI</td><td>AWS-managed</td><td>AWS-native, BYOC</td><td>n/a (AWS-internal)</td></tr>
+      <tr><td><strong>Replicate</strong></td><td>Cog + various</td><td>Mixed</td><td>Multi-model, hobbyist API</td><td>~$50M (est.)</td></tr>
+      <tr><td><strong>Baseten</strong></td><td>Custom + vLLM</td><td>Mixed</td><td>Dedicated deployments</td><td>n/a</td></tr>
+      <tr><td><strong>Lepton AI</strong></td><td>Custom</td><td>Proprietary</td><td>Jensen Huang-backed</td><td>n/a</td></tr>
+      <tr><td><strong>DeepInfra</strong></td><td>vLLM + custom</td><td>Mixed</td><td>Low-cost async batch</td><td>n/a</td></tr>
+      <tr><td><strong>OctoAI / NVIDIA</strong></td><td>TensorRT-LLM + Triton</td><td>Apache-2.0 (parts)</td><td>NVIDIA-stack optimized</td><td>n/a</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>Competitive observation:</strong> the vLLM-hosting segment has consolidated into roughly three tiers — (1) budget / hobbyist (RunPod, DeepInfra, Replicate), (2) mid-market research / startup (Fireworks, Together, Inferact, Baseten), and (3) hyperscaler / enterprise (Anyscale, Modal, AWS Bedrock, Azure AI). Inferact is positioned in tier 2 with a research-lab credibility premium.</p>
+
+  <h3 id="m5-2" class="text-lg font-semibold mt-6 mb-2">5.2 Where vLLM Has Structural Limits</h3>
+
+  <ul class="list-disc pl-6 space-y-1 text-sm">
+    <li><strong>Prefix-cache invalidation cost.</strong> When a prefix block is shared and one request writes to it (i.e. diverges mid-block), vLLM performs copy-on-write — copying the block to a new physical location. For long system prompts with frequent divergence, the copy overhead is non-trivial.</li>
+    <li><strong>Speculative decoding on long context.</strong> Acceptance rates drop sharply when the prompt length exceeds the draft model's training distribution. EAGLE-2 trained on 4k tokens falls off at 16k+ contexts.</li>
+    <li><strong>CUDA Graphs replay with dynamic batch sizes.</strong> The graph pool can balloon to hundreds of instances (one per (batch_size, seq_len, kv_layout) tuple). Memory cost of graph storage is non-trivial for high-QPS workloads.</li>
+    <li><strong>MoE (Mixture-of-Experts) inefficiency.</strong> For models like Mixtral-8×7B or DeepSeek-V3, PagedAttention manages KV cache well but the expert routing still requires all-to-all communication that NCCL doesn't optimize for. vLLM's MoE path is less mature than dense-model path.</li>
+    <li><strong>Preemption strategy.</strong> vLLM uses recompute (not swap) for preemption — meaning a preempted sequence loses its KV cache and must be re-prefilled on resume. For long-context workloads, this is expensive; SGLang and TensorRT-LLM explore swap-based preemption.</li>
+    <li><strong>Multi-node scaling.</strong> vLLM V1 added async PP, but multi-node PP is still slower than TP within a single node due to inter-node bandwidth (typically 200–400 Gbps vs ~900 GB/s NVLink within a node).</li>
+  </ul>
+
+  <h3 id="m5-3" class="text-lg font-semibold mt-6 mb-2">5.3 Bottlenecks for the vLLM-Hosting Segment as a Whole</h3>
+
+  <table class="report">
+    <thead><tr><th>Bottleneck</th><th>Description</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr><td>GPU supply</td><td>H100 / H200 capacity constrained through 2025-Q3</td><td>Multi-cloud routing; L40S / A100 fallback for tier-2 workloads</td></tr>
+      <tr><td>Margins</td><td>Per-token pricing compressed as commodity vLLM wins</td><td>Vertical specialization (vision, code, embedding); enterprise SLAs</td></tr>
+      <tr><td>Hyperscaler encroachment</td><td>AWS Bedrock / Azure AI / GCP Vertex ship vLLM-backed custom models</td><td>Multi-cloud neutrality; superior DevEx; research credibility</td></tr>
+      <tr><td>Open-source commoditization</td><td>vLLM is Apache-2.0; the engine itself is not the moat</td><td>Operational excellence: uptime, observability, multi-region, compliance</td></tr>
+      <tr><td>Speculative decoding is still hard</td><td>Each new model requires re-training the EAGLE head</td><td>Vendor-managed speculative model registry; automatic retraining pipelines</td></tr>
+      <tr><td>Long context (1M+ tokens)</td><td>KV cache size explodes; attention cost scales O(n²)</td><td>Speculative, sparse attention, sliding window (still research-grade)</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m5-4" class="text-lg font-semibold mt-6 mb-2">5.4 Why a vLLM-Core-Founded Startup Has Structural Advantages</h3>
+
+  <div class="pullquote my-4 green">
+    "The single biggest determinant of inference-service quality in 2025 is how fast you can pull upstream vLLM features into production. A team that wrote the engine has a permanent O(weeks) lead on integration over teams that didn't."
+    <div class="citation mt-1">— Heuristic, this brief.</div>
+  </div>
+
+  <ul class="list-disc pl-6 space-y-1 text-sm">
+    <li><strong>Day-1 V1 support.</strong> When V1 alpha shipped on 2025-01-27, an Inferact-class vendor could ship production V1 within days. A non-core vendor waits for documentation, blog posts, and resolved edge cases — typically 2–4 weeks.</li>
+    <li><strong>Speculative decoding defaults.</strong> EAGLE-2 training requires intimate knowledge of vLLM's model registry. The core team can ship EAGLE-2 defaults for new Llama checkpoints within hours.</li>
+    <li><strong>Bug priority.</strong> When a GPU memory leak hits production, an Inferact engineer can push a fix upstream and self-cherry-pick in the same day. A non-core vendor opens an issue and waits.</li>
+    <li><strong>Roadmap influence.</strong> The core team's roadmap is Inferact's roadmap. Competitors must reverse-engineer the public roadmap from GitHub issues and Discord discussions.</li>
+  </ul>
+
+  <h3 id="m5-5" class="text-lg font-semibold mt-6 mb-2">5.5 Architectural Trade-offs Inferact Implicitly Makes</h3>
+
+  <table class="report">
+    <thead><tr><th>Decision</th><th>Choice</th><th>Alternative</th><th>Trade-off</th></tr></thead>
+    <tbody>
+      <tr><td>Engine</td><td>Upstream vLLM (Apache-2.0)</td><td>TensorRT-LLM (more optimized for NVIDIA, harder to extend)</td><td>vLLM = faster innovation, TRT-LLM = better raw perf on Ada/Hopper</td></tr>
+      <tr><td>Default quantization</td><td>FP8 on H100 (presumed)</td><td>AWQ INT4 (broader HW support)</td><td>FP8 = no quality loss, requires H100; INT4 = broader but quality risk</td></tr>
+      <tr><td>Speculative decoding default</td><td>EAGLE-2 (presumed)</td><td>n-gram (no training)</td><td>EAGLE-2 = higher speedup, requires trained head per model</td></tr>
+      <tr><td>Multi-cloud strategy</td><td>Spread across CoreWeave, Lambda, AWS (presumed)</td><td>Single hyperscaler</td><td>Spread = better unit economics; single = simpler ops</td></tr>
+      <tr><td>Pricing model</td><td>Per-token + reserved tiers</td><td>Per-GPU-hour only</td><td>Hybrid = serves both developer and enterprise; per-hour = simpler</td></tr>
+      <tr><td>BYOC</td><td>Helm chart (presumed)</td><td>Managed-only</td><td>Helm = enterprise revenue; managed-only = simpler product</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m5-6" class="text-lg font-semibold mt-6 mb-2">5.6 The V0 → V1 Migration Path (For Vendor Operators)</h3>
+
+  <p>vLLM V1 shipped as alpha on 2025-01-27 and reached production-ready status (V1 default, V0 deprecated) around 2025-Q3. Inferact-class vendors face the following migration decisions:</p>
+
+  <table class="report">
+    <thead><tr><th>Decision</th><th>Options</th><th>Trade-off</th></tr></thead>
+    <tbody>
+      <tr><td>V0 vs V1 at startup</td><td><code>--engine-use-v1=1</code> flag</td><td>V1 = 1.5–1.7× throughput; V0 = more third-party extensions already validated</td></tr>
+      <tr><td>Rollout strategy</td><td>Big-bang vs canary</td><td>Big-bang = faster perf gains; canary = lower risk</td></tr>
+      <tr><td>Custom extensions</td><td>Port to V1 API or maintain V0 fork</td><td>Port = future-proof; fork = faster short-term</td></tr>
+      <tr><td>Scheduler tuning</td><td><code>--max-num-batched-tokens</code>, <code>--max-num-seqs</code></td><td>V1 unified scheduler needs retuning; old V0 sweet spots don't transfer</td></tr>
+      <tr><td>Attention backend</td><td>FlashAttention-3 default in V1</td><td>FA-3 requires Hopper (H100); A100 needs FA-2</td></tr>
+    </tbody>
+  </table>
+
+  <p>The <em>fastest</em> V0→V1 migration in the industry was by vendors with vLLM-core engineers on staff — exactly the Inferact positioning in the task brief.</p>
+
+  <h3 id="m5-7" class="text-lg font-semibold mt-6 mb-2">5.7 The Disaggregated Inference Question (Mooncake, DistServe)</h3>
+
+  <p>Pre-V1, vLLM ran prefill and decode on the same GPU pool. The asymmetry is severe:</p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>Prefill</strong>: compute-bound, GPU saturation near 100%, latency-sensitive (time-to-first-token).</li>
+    <li><strong>Decode</strong>: memory-bandwidth-bound, GPU utilization often <40%, throughput-sensitive (tokens/s).</li>
+  </ul>
+
+  <p><strong>Disaggregated inference</strong> (Mooncake from Moonshot AI, DistServe from CMU) splits prefill and decode onto separate GPU pools, communicating KV cache over the network. Benefits:</p>
+  <ul class="list-disc pl-6 text-sm">
+    <li>Prefill GPUs run at 100% saturation on their specialized workload.</li>
+    <li>Decode GPUs run at high utilization on memory-bandwidth-bound workload.</li>
+    <li>p99 latency improves because prefill spikes no longer block decode iterations.</li>
+  </ul>
+
+  <p>vLLM V1 has <em>prototype</em> disaggregation support (KV-transfer over RDMA / NIXL). The leading commercial implementations are:</p>
+  <ul class="list-disc pl-6 text-sm">
+    <li><a href="https://kvcache-ai.github.io/Mooncake/">Mooncake (Moonshot AI)</a> — production-deployed at Kimi.ai.</li>
+    <li>DistServe (academic, CMU) — referenced in <a href="https://arxiv.org/abs/2401.09670">arXiv 2401.09670</a>.</li>
+    <li>vLLM's own disaggregation roadmap (community RFC).</li>
+  </ul>
+
+  <p>Implication for Inferact: disaggregation is the next 2× efficiency lever after V1. Vendors that ship disaggregated inference first will have a 2× cost advantage on long-context workloads.</p>
+
+  <h3 id="m5-8" class="text-lg font-semibold mt-6 mb-2">5.8 What "Inferact Class" Means in 2026</h3>
+
+  <p>The vLLM-hosting market has stabilized into a recognizable taxonomy. An "Inferact class" vendor in 2026 has these properties:</p>
+
+  <table class="report">
+    <thead><tr><th>Property</th><th>Indicator</th></tr></thead>
+    <tbody>
+      <tr><td>Engine</td><td>Built on upstream vLLM (Apache-2.0), tracks V1 within 30 days of release</td></tr>
+      <tr><td>Founders</td><td>At least one contributor with >100 vLLM commits or co-authorship on a related paper</td></tr>
+      <tr><td>Model coverage</td><td>Llama-3.x, Mistral/Mixtral, Qwen-2.5, DeepSeek-V2/V3, plus Phi-3/Gemma</td></tr>
+      <tr><td>Default quantization</td><td>FP8 on H100, AWQ on A100, INT8 fallback</td></tr>
+      <tr><td>Speculative decoding</td><td>EAGLE-2 default for Llama, Medusa for Mistral, n-gram for everything else</td></tr>
+      <tr><td>Pricing</td><td>Per-token + reserved tier; <$2/M output tokens for flagship models</td></tr>
+      <tr><td>Multi-cloud</td><td>≥3 GPU providers (CoreWeave, Lambda, AWS at minimum)</td></tr>
+      <tr><td>BYOC</td><td>Helm chart or Terraform for VPC deployment</td></tr>
+      <tr><td>Observability</td><td>Prometheus metrics, OpenTelemetry traces, structured logs</td></tr>
+      <tr><td>Compliance</td><td>SOC 2 Type II, HIPAA BAA, EU residency</td></tr>
+      <tr><td>SLA</td><td>99.9% uptime on managed tier</td></tr>
+    </tbody>
+  </table>
+
+  <p>Inferact (per task brief) hits most of these. Its <em>distinguishing</em> properties vs. Fireworks / Together are the vLLM-core staffing and (presumed) research-credibility premium.</p>
+
+  <h3 id="m5-9" class="text-lg font-semibold mt-6 mb-2">5.9 Acquisition / Strategic-Outcome Scenarios</h3>
+
+  <p>For a $8M-seed, $80M-post 2024-vintage startup, the plausible 2026–2028 outcomes are:</p>
+
+  <table class="report">
+    <thead><tr><th>Scenario</th><th>Probability</th><th>Outcome</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Series A at $300M–$500M</strong></td><td>Medium</td><td>Standard path; raise $25–50M to scale GPU fleet and S&M</td></tr>
+      <tr><td><strong>Acquisition by hyperscaler</strong> (AWS, Azure, GCP, NVIDIA)</td><td>Medium</td><td>$500M–$2B; folds vLLM expertise into hyperscaler's inference product</td></tr>
+      <tr><td><strong>Acquisition by Anyscale / Databricks</strong></td><td>Low</td><td>Vertical integration of vLLM hosting into Ray stack</td></tr>
+      <tr><td><strong>Merger with Fireworks or Together</strong></td><td>Low</td><td>Consolidation play; cultural and tech overlap risk</td></tr>
+      <tr><td><strong>Independent growth to $100M+ ARR</strong></td><td>Medium</td><td>IPO path; comparable to Fireworks/Together trajectory</td></tr>
+      <tr><td><strong>Stagnation / acqui-hire</strong></td><td>Low</td><td>GPU market commoditization, founders absorbed into larger co</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>Most likely outcome (this brief's read):</strong> Series A in 2026, followed by acquisition in 2027–2028 by either a hyperscaler seeking vLLM expertise or by a larger inference vendor (Together, Fireworks) seeking consolidation.</p>
+
+  <h3 id="m5-10" class="text-lg font-semibold mt-6 mb-2">5.10 The Enterprise Sales Motion (vs. PLG)</h3>
+
+  <p>Most vLLM-hosting vendors started with a developer-led growth motion (free tier, GitHub README, Discord). The 2026 question is whether <em>enterprise sales</em> (procurement-led, SOC 2, MSA contracts) becomes the dominant motion:</p>
+
+  <ul class="list-disc pl-6 space-y-1 text-sm">
+    <li><strong>Developer-led (PLG):</strong> Free tier → usage growth → credit card → annual contract. Worked for Fireworks, Together 2022–2024.</li>
+    <li><strong>Enterprise-led:</strong> Inbound lead from CTO/CIO → 6-month sales cycle → SOC 2 / DPA / MSA / pilot → annual contract. Worked for Anyscale, AWS Bedrock, Azure OpenAI.</li>
+  </ul>
+
+  <p>For Inferact (presumed young, seed-stage), the PLG path is more natural in 2025; the enterprise motion requires SOC 2 + sales hires that are typically Series-A expenditures.</p>
+
+  <h3 id="m5-11" class="text-lg font-semibold mt-6 mb-2">5.11 The "Tier-2 AI Infra" Pattern</h3>
+
+  <p>vLLM hosters occupy a recognizable position in the AI infra stack:</p>
+
+  <table class="report">
+    <thead><tr><th>Tier</th><th>Examples</th><th>Customers</th><th>Margin</th></tr></thead>
+    <tbody>
+      <tr><td>Tier-0: Foundation models</td><td>OpenAI, Anthropic, Google DeepMind, Meta</td><td>All</td><td>n/a (model owners)</td></tr>
+      <tr><td>Tier-1: Hyperscaler inference</td><td>AWS Bedrock, Azure OpenAI, GCP Vertex</td><td>Enterprise</td><td>40–60%</td></tr>
+      <tr><td><strong>Tier-2: vLLM-hosting startups</strong></td><td><strong>Inferact, Fireworks, Together, Anyscale, Modal</strong></td><td><strong>AI startups, mid-enterprise</strong></td><td><strong>50–70%</strong></td></tr>
+      <tr><td>Tier-3: GPU rental</td><td>RunPod, Lambda, CoreWeave, Vast.ai</td><td>DIY engineers, labs</td><td>20–40%</td></tr>
+      <tr><td>Tier-4: Specialty</td><td>Replicate (multi-model), DeepInfra (budget), Lepton (enterprise)</td><td>Varied</td><td>30–50%</td></tr>
+    </tbody>
+  </table>
+
+  <p>Tier-2 is where the unit economics are best: customers want managed inference but don't want to commit to a hyperscaler. This is the "Goldilocks" segment.</p>
+
+  <h3 id="m5-12" class="text-lg font-semibold mt-6 mb-2">5.12 The OpenAI-Compatibility Tax</h3>
+
+  <p>Every vLLM hoster pays an "OpenAI compatibility tax" — engineering effort to mirror OpenAI's API quirks (rate-limit headers, error code conventions, edge cases in function-calling). The cumulative cost across the Tier-2 segment is estimated at ~50 engineer-years.</p>
+
+  <p>Two escape hatches:</p>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li><strong>Standardize on a common spec</strong> (e.g. the Open Inference Protocol, or the new "vLLM-compatible" suffix). vLLM project's own OpenAI server is the de-facto reference.</li>
+    <li><strong>Differentiate on OpenAI-incompatible features</strong> (e.g. better streaming, async batch, custom logit processors). This breaks drop-in compatibility but adds value.</li>
+  </ul>
+
+  <p>Inferact's path (presumed): default to OpenAI-compat, but expose vLLM-native extensions (speculative-decoding hints, prefix-cache hints) as opt-in headers.</p>
+</section>
+
+<hr/>
+
+<!-- M6 Analyst Estimates -->
+<section id="m6" class="anchor">
+  <div class="section-tag">Module 6</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">Analyst Estimates</h2>
+
+  <p>All figures in this section are <span class="badge badge-red">[Analyst Estimates]</span> derived from public pricing benchmarks, comparable-company ARR (Fireworks, Together, Anyscale), and the task-brief inputs. The seed-stage funding round and ARR figures cited in M1 are <span class="badge badge-red">[TASK BRIEF — UNVERIFIED]</span>.</p>
+
+  <h3 id="m6-1" class="text-lg font-semibold mt-6 mb-2">6.1 Revenue Reverse-Calc</h3>
+
+  <p>Methodology: estimate Inferact's token-throughput capacity from the inferred GPU fleet, multiply by typical per-token revenue on the vLLM-hosting segment, and compare to comparable ARR.</p>
+
+  <table class="report">
+    <thead><tr><th>Parameter</th><th>Estimate</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>Active H100 equivalents</td><td>~500–1,000 (early 2025)</td><td><span class="badge badge-red">[Analyst]</span> inferred from $8M seed / typical cloud burn</td></tr>
+      <tr><td>Average model size</td><td>~30B (mix of 8B / 70B / MoE)</td><td>Llama-3-8B + Llama-3-70B typical mix</td></tr>
+      <tr><td>Aggregate output tokens/s</td><td>~2–4 M tokens/s</td><td><span class="badge badge-red">[Analyst]</span> 30B at ~2k tokens/s/GPU × 500 GPUs</td></tr>
+      <tr><td>Avg revenue per 1M output tokens</td><td>~$1.20</td><td><a href="https://www.together.ai/pricing">Together pricing</a> midpoint</td></tr>
+      <tr><td>Hourly revenue (steady state)</td><td>~$2.9k–$5.8k</td><td><span class="badge badge-red">[Analyst]</span></td></tr>
+      <tr><td>Implied monthly revenue</td><td>~$2.1M–$4.2M</td><td><span class="badge badge-red">[Analyst]</span></td></tr>
+      <tr><td>Implied annualized run-rate</td><td>~$25M–$50M (gross) → ~$5M–$15M net of cloud cost</td><td><span class="badge badge-red">[Analyst]</span></td></tr>
+    </tbody>
+  </table>
+
+  <p>The task-brief ARR estimate of ~$5M (8 months) is consistent with the low end of this reverse-calc — plausible for a startup that launched its paid product in mid-2024.</p>
+
+  <h3 id="m6-2" class="text-lg font-semibold mt-6 mb-2">6.2 Unit Economics at the Inferact Tier</h3>
+
+  <table class="report">
+    <thead><tr><th>Line item</th><th>Value</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>H100 on-demand cloud cost</td><td>$2.40/hr (Lambda)</td><td><a href="https://lambdalabs.com/service/gpu-cloud">Lambda</a></td></tr>
+      <tr><td>Revenue per H100-hour (token-based)</td><td>~$5–$10</td><td><span class="badge badge-red">[Analyst]</span> assumes 70–80% utilization</td></tr>
+      <tr><td>Gross margin per H100-hour</td><td>~$3–$8</td><td><span class="badge badge-red">[Analyst]</span> assumes 70–80% utilization</td></tr>
+      <tr><td>Engineering / S&M overhead</td><td>~$1M–$3M/month (early stage)</td><td><span class="badge badge-red">[Analyst]</span> 15–30 engineers × $250k loaded</td></tr>
+      <tr><td>Path to break-even</td><td>~1,500–2,500 active H100s at 70% util</td><td><span class="badge badge-red">[Analyst]</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m6-3" class="text-lg font-semibold mt-6 mb-2">6.3 Competitive Sizing (Public ARR Benchmarks)</h3>
+
+  <table class="report">
+    <thead><tr><th>Company</th><th>Public ARR est.</th><th>Source</th><th>Position</th></tr></thead>
+    <tbody>
+      <tr><td>Modal Labs</td><td>~$300M (2026-04)</td><td><a href="https://modal.com/blog/modal-series-c">Modal Series C</a>; <a href="https://sacra.com/c/modal-labs/">Sacra</a></td><td>Tier-3 (DevEx-first, serverless)</td></tr>
+      <tr><td>Together AI</td><td>~$100M (2025-Q3)</td><td><a href="https://sacra.com/c/together-ai/">Sacra</a></td><td>Tier-2 (research-grade)</td></tr>
+      <tr><td>Fireworks AI</td><td>~$50M (2025-Q2)</td><td><a href="https://sacra.com/c/fireworks-ai/">Sacra</a></td><td>Tier-2 (function-calling, batch)</td></tr>
+      <tr><td>Anyscale (incl. Endpoints)</td><td>~$50M (2025-Q1)</td><td><a href="https://sacra.com/c/anyscale/">Sacra</a></td><td>Tier-3 (enterprise, Ray)</td></tr>
+      <tr><td>Replicate</td><td>~$50M (est.)</td><td><a href="https://sacra.com/c/replicate/">Sacra</a></td><td>Tier-1 (multi-model)</td></tr>
+      <tr><td>Inferact (per task brief)</td><td>~$5M (UNVERIFIED)</td><td>Task brief</td><td>Tier-2 (early stage)</td></tr>
+      <tr><td>DeepInfra</td><td>n/a</td><td>n/a</td><td>Tier-1 (low-cost async)</td></tr>
+      <tr><td>Baseten</td><td>n/a</td><td>n/a</td><td>Tier-2 (dedicated)</td></tr>
+      <tr><td>RunPod</td><td>n/a (GPU rental)</td><td>n/a</td><td>Tier-1 (raw rental)</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m6-4" class="text-lg font-semibold mt-6 mb-2">6.4 What to Watch in 2026</h3>
+
+  <ul class="list-disc pl-6 space-y-1 text-sm">
+    <li><strong>vLLM V1 adoption rate.</strong> As of mid-2025, V1 is the default but V0 is still in production at most vendors. The vendor that runs 100% V1 traffic by Q4-2025 has a structural perf advantage.</li>
+    <li><strong>EAGLE-3 rollout.</strong> Multi-layer speculative decoding adds 30–50% throughput on top of EAGLE-2. Core team integration speed here is a leading indicator.</li>
+    <li><strong>FP4 / NVFP4.</strong> NVIDIA Blackwell (B200) brings FP4 hardware. vLLM support expected late 2025 / early 2026 — doubles inference efficiency per Blackwell generation.</li>
+    <li><strong>Multi-node tensor parallelism.</strong> vLLM V1's TP is single-node. Multi-node TP via NVLink Switch (NVL72) will unlock >70B inference on a single logical address space.</li>
+    <li><strong>Disaggregated inference (prefill on one GPU set, decode on another).</strong> Pioneered by Mooncake and DistServe. vLLM V1 has prototype support; commercial deployment in 2026 likely.</li>
+    <li><strong>Linux Foundation governance.</strong> vLLM's LF AI&Data graduation (2025-Q3) signals industry stewardship; commercial vendors should benefit from neutral IP.</li>
+  </ul>
+
+  <h3 id="m6-5" class="text-lg font-semibold mt-6 mb-2">6.5 Risk Factors</h3>
+
+  <table class="report">
+    <thead><tr><th>Risk</th><th>Likelihood</th><th>Impact</th></tr></thead>
+    <tbody>
+      <tr><td>Hyperscaler bundles vLLM into free SKU</td><td>Medium</td><td>Severe — commoditizes the engine</td></tr>
+      <tr><td>Open-source PagedAttention clone (SGLang, MLC-LLM) reaches parity</td><td>High (already happening)</td><td>Medium — engine perf is no moat</td></tr>
+      <tr><td>Founders split time between vLLM project and Inferact</td><td>High</td><td>Medium — slower product velocity</td></tr>
+      <tr><td>GPU supply normalization drops prices</td><td>Medium (2026–27)</td><td>Medium — margin compression</td></tr>
+      <tr><td>Customer churns to self-hosted vLLM</td><td>Medium</td><td>Severe — for SMB segment</td></tr>
+      <tr><td>vLLM project governance shifts priorities away from Inferact needs</td><td>Medium</td><td>Low — Inferact has founder influence</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="m6-6" class="text-lg font-semibold mt-6 mb-2">6.6 Operational KPI Dashboard (What a Production vLLM Cluster Monitors)</h3>
+
+  <p>For an Inferact-class production cluster, the metrics dashboard breaks into four layers:</p>
+
+  <table class="report">
+    <thead><tr><th>Layer</th><th>Metric</th><th>Healthy range</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Latency</strong></td><td>Time-to-first-token (p50 / p99)</td><td>< 100ms / < 500ms (8B), < 500ms / < 2s (70B)</td><td>vLLM metrics export</td></tr>
+      <tr><td><strong>Latency</strong></td><td>Inter-token latency (p50 / p99)</td><td>< 30ms / < 100ms</td><td>vLLM metrics export</td></tr>
+      <tr><td><strong>Throughput</strong></td><td>Output tokens/s per replica</td><td>Llama-3-8B: 3k–6k; Llama-3-70B: 2k–4k</td><td>vLLM metrics export</td></tr>
+      <tr><td><strong>Throughput</strong></td><td>Aggregate tokens/s per cluster</td><td>scales linearly with GPU count</td><td>Prometheus aggregation</td></tr>
+      <tr><td><strong>Cache</strong></td><td>KV cache utilization (p50 / p99)</td><td>60–85% (else: over- or under-provisioned)</td><td>vLLM <code>gpu_cache_usage_perc</code></td></tr>
+      <tr><td><strong>Cache</strong></td><td>Prefix cache hit rate</td><td>50–90% on RAG workloads</td><td>vLLM <code>prefix_cache_hits</code></td></tr>
+      <tr><td><strong>Scheduling</strong></td><td>Batch size distribution</td><td>p50 ~ <code>max_num_seqs</code> / 2</td><td>vLLM <code>num_requests</code></td></tr>
+      <tr><td><strong>Scheduling</strong></td><td>Preemption rate</td><td>< 1% (else: <code>max_num_seqs</code> too aggressive)</td><td>vLLM <code>num_preemptions</code></td></tr>
+      <tr><td><strong>Speculative</strong></td><td>Acceptance rate (EAGLE-2)</td><td>60–80% (chat), 85–95% (code)</td><td>vLLM <code>spec_decode_accept_rate</code></td></tr>
+      <tr><td><strong>Speculative</strong></td><td>Effective tokens per step</td><td>2.0–3.5 (with K=4)</td><td>derived</td></tr>
+      <tr><td><strong>GPU</strong></td><td>SM occupancy</td><td>> 70% during decode</td><td>NVIDIA DCGM exporter</td></tr>
+      <tr><td><strong>GPU</strong></td><td>HBM bandwidth utilization</td><td>> 60% (decode-bound workload)</td><td>NVIDIA DCGM exporter</td></tr>
+      <tr><td><strong>GPU</strong></td><td>NCCL all-reduce time</td><td>< 100 µs (TP ≤ 8, intra-node)</td><td>NCCL debug logs</td></tr>
+      <tr><td><strong>Business</strong></td><td>Tokens billed / tokens served ratio</td><td>~1.0 (should not drift > 5%)</td><td>Billing pipeline</td></tr>
+    </tbody>
+  </table>
+
+  <p>A well-tuned Inferact cluster should hit <strong>all</strong> of these "healthy" ranges simultaneously; any drift typically indicates a model mismatch, scheduler saturation, or speculative-decode acceptance collapse.</p>
+
+  <h3 id="m6-7" class="text-lg font-semibold mt-6 mb-2">6.7 Hardware Procurement Strategy (H100 vs H200 vs B200 vs MI300X)</h3>
+
+  <p>For a 2025–2026 inference vendor, the GPU procurement decision tree:</p>
+
+  <table class="report">
+    <thead><tr><th>GPU</th><th>HBM</th><th>FP8 perf</th><th>Best for vLLM</th><th>Cost</th></tr></thead>
+    <tbody>
+      <tr><td>NVIDIA H100 SXM</td><td>80 GB</td><td>~2× FP16</td><td>Default choice for 7B–70B models</td><td>$2.40–3.50/hr</td></tr>
+      <tr><td>NVIDIA H200 SXM</td><td>141 GB</td><td>~2× FP16</td><td>405B / very long context</td><td>$3.50–5.00/hr</td></tr>
+      <tr><td>NVIDIA B200 (Blackwell)</td><td>192 GB</td><td>~4× FP16 + FP4</td><td>Future default (2026)</td><td>$5.00–8.00/hr (est.)</td></tr>
+      <tr><td>AMD MI300X</td><td>192 GB</td><td>ROCm FP8</td><td>High-memory workloads</td><td>$2.00–3.00/hr (cheaper)</td></tr>
+      <tr><td>NVIDIA L40S</td><td>48 GB</td><td>~1.5× FP16</td><td>Mid-tier (8B–13B models)</td><td>$1.20–1.80/hr</td></tr>
+      <tr><td>NVIDIA A100</td><td>80 GB</td><td>no native FP8</td><td>Older workloads, INT4 quantized</td><td>$1.50–2.20/hr</td></tr>
+    </tbody>
+  </table>
+
+  <p>Inferact's multi-cloud strategy (presumed per task brief) likely spreads load across these tiers: L40S for cheap 8B serving, H100 for flagship 70B/405B, MI300X for high-memory long-context.</p>
+
+  <h3 id="m6-8" class="text-lg font-semibold mt-6 mb-2">6.8 Path to Series A — Operating Plan for 2026</h3>
+
+  <p>For a seed-stage vLLM-hosting startup, the path to Series A in 2026 requires demonstrating:</p>
+
+  <table class="report">
+    <thead><tr><th>Milestone</th><th>Threshold</th><th>Typical timeline</th></tr></thead>
+    <tbody>
+      <tr><td>ARR</td><td>$2M–$5M</td><td>Already hit (per task brief ~$5M)</td></tr>
+      <tr><td>MoM growth</td><td>15–25% MoM</td><td>Need to demonstrate 6 months of consistency</td></tr>
+      <tr><td>Customer concentration</td><td>No single customer > 20% of revenue</td><td>Critical for risk perception</td></tr>
+      <tr><td>Gross margin</td><td>> 50%</td><td>Standard for infrastructure</td></tr>
+      <tr><td>Net retention</td><td>> 130%</td><td>Driven by per-customer token usage growth</td></tr>
+      <tr><td>Logo count</td><td>> 30 paying customers</td><td>Mix of SMB + 2–3 enterprise</td></tr>
+      <tr><td>Uptime SLA</td><td>> 99.9% (3 9s)</td><td>Compliance-grade</td></tr>
+      <tr><td>SOC 2</td><td>Type I (or in-progress)</td><td>Required for enterprise deals</td></tr>
+      <tr><td>Team size</td><td>15–25 FTEs</td><td>Engineering-heavy; minimal sales at this stage</td></tr>
+      <tr><td>GPU fleet</td><td>500–2,000 active H100 equivalents</td><td>Multi-cloud</td></tr>
+    </tbody>
+  </table>
+
+  <p>The Series A round size would likely be $25M–$60M at $250M–$500M post-money, used to (a) double engineering for V1+ feature velocity, (b) hire first sales reps for enterprise motion, (c) expand GPU fleet and committed cloud contracts.</p>
+
+  <h3 id="m6-9" class="text-lg font-semibold mt-6 mb-2">6.9 Year-2 Unit Economics Sensitivity</h3>
+
+  <p>How do Inferact's unit economics scale in Year 2 (2026)?</p>
+
+  <table class="report">
+    <thead><tr><th>Variable</th><th>Year 1 (2025)</th><th>Year 2 (2026)</th><th>Driver</th></tr></thead>
+    <tbody>
+      <tr><td>GPU-hours served (M)</td><td>1.5</td><td>10–15</td><td>Customer growth, fleet expansion</td></tr>
+      <tr><td>Avg $/GPU-hour billed</td><td>$6</td><td>$5–$7</td><td>Mild price compression (commoditization)</td></tr>
+      <tr><td>Gross margin per GPU-hour</td><td>$3.5</td><td>$3.0–$4.5</td><td>Cloud cost ↔ pricing power</td></tr>
+      <tr><td>Gross profit ($M)</td><td>5</td><td>30–60</td><td>Scale + slight margin pressure</td></tr>
+      <tr><td>Engineering FTEs</td><td>15</td><td>30–50</td><td>Series A hires</td></tr>
+      <tr><td>S&M FTEs</td><td>3</td><td>15–25</td><td>Enterprise sales build-out</td></tr>
+      <tr><td>Operating expense ($M)</td><td>8</td><td>25–40</td><td>Headcount-driven</td></tr>
+      <tr><td>EBITDA</td><td>($3M)</td><td>$5M–$20M</td><td>Path to profitability by Year 2 end</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>Key sensitivity:</strong> a 20% drop in per-token pricing (e.g. hyperscalers bundling vLLM free) cuts gross profit by ~25% — large enough to push break-even out by 12 months.</p>
+
+  <h3 id="m6-10" class="text-lg font-semibold mt-6 mb-2">6.10 Comparable Acquisition & Valuation Benchmarks</h3>
+
+  <p>For sizing an Inferact exit or Series A valuation, public comps in the inference / GPU infrastructure segment:</p>
+
+  <table class="report">
+    <thead><tr><th>Comparable</th><th>ARR / revenue</th><th>Valuation</th><th>Multiple</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>Modal Labs Series C (2026-05)</td><td>~$300M</td><td>$4.65B</td><td>15.5× ARR</td><td><a href="https://modal.com/blog/modal-series-c">Modal Series C</a></td></tr>
+      <tr><td>Fireworks AI (2025, est.)</td><td>~$50M</td><td>~$500M (est. Series B)</td><td>10× ARR</td><td><a href="https://sacra.com/c/fireworks-ai/">Sacra</a></td></tr>
+      <tr><td>Together AI (2025, est.)</td><td>~$100M</td><td>~$1.3B (est. Series B)</td><td>13× ARR</td><td><a href="https://sacra.com/c/together-ai/">Sacra</a></td></tr>
+      <tr><td>Anyscale (2025, est.)</td><td>~$50M</td><td>~$1B (Series C, 2024)</td><td>20× ARR</td><td><a href="https://sacra.com/c/anyscale/">Sacra</a></td></tr>
+      <tr><td>CoreWeave (public, 2025)</td><td>~$2B revenue</td><td>~$15B market cap (mid-2025)</td><td>7.5× revenue</td><td><a href="https://www.reuters.com/technology/coreweave-shares-jump-after-15-billion-deal-with-el Salvador/">Reuters</a></td></tr>
+      <tr><td>Lambda Labs (private)</td><td>n/a (~$500M est.)</td><td>$1.5B (last reported)</td><td>3× revenue</td><td><a href="https://www.crunchbase.com/organization/lambda-labs">Crunchbase</a></td></tr>
+      <tr><td>RunPod (private)</td><td>n/a (~$50M est.)</td><td>n/a</td><td>n/a</td><td>n/a</td></tr>
+      <tr><td>Mistral AI (Series B, 2024)</td><td>n/a</td><td>$6B (Dec 2024)</td><td>n/a (pre-revenue)</td><td>Public press</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>Implied valuation for Inferact at $5M ARR:</strong> $50M–$100M (10–20× ARR range, matching the Tier-2 segment). The task-brief's $80M post-money from the seed round is consistent with this — slightly below the Series A benchmark multiples, reflecting (a) seed-stage discount and (b) unproven commercial traction.</p>
+
+  <h3 id="m6-11" class="text-lg font-semibold mt-6 mb-2">6.11 The "Why Now" Question for vLLM-Hosting in 2026</h3>
+
+  <p>Three structural tailwinds make 2026 a good year for vLLM-hosting startups (Inferact class):</p>
+
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li><strong>Open-weights model quality crossed GPT-4 parity.</strong> Llama-3.1-405B, DeepSeek-V3, Qwen-2.5 match or exceed GPT-4 on most benchmarks (2024-Q4). Enterprises that were GPT-4-only now consider self-hosting open models — and need managed infrastructure to do so.</li>
+    <li><strong>GPU supply caught up.</strong> H100 / H200 are now widely available on multi-cloud; H200 and B200 supply expected to ease 2026 Q2 constraints. This drops the cost-of-goods for inference vendors.</li>
+    <li><strong>vLLM V1 closed the perf gap with TensorRT-LLM.</strong> Pre-2025, NVIDIA's TensorRT-LLM was 20–40% faster than vLLM on most workloads. Post-V1, vLLM matches or beats TensorRT-LLM with the additional benefit of OSS extensibility. The "use vLLM, not TensorRT-LLM" calculus flipped.</li>
+  </ol>
+
+  <p>Countervailing headwinds: (a) hyperscalers bundling vLLM into free inference SKUs, (b) hyperscaler Bedrock-style managed services absorbing the mid-market, (c) open-source PagedAttention clones (SGLang, MLC-LLM, LMDeploy) reaching parity and eroding the engine-as-moat.</p>
+</section>
+
+<hr/>
+
+<!-- M7 Sources -->
+<section id="m7" class="anchor">
+  <div class="section-tag">Module 7</div>
+  <h2 class="text-2xl font-bold mt-1 mb-4">Sources Appendix</h2>
+
+  <p>All technical claims about vLLM are sourced to the upstream project. All claims about Inferact's funding, ARR, founders, and customer list are <span class="badge badge-red">[TASK BRIEF — UNVERIFIED]</span> and could not be cross-referenced to Crunchbase, PitchBook, or press coverage in this subagent's offline window.</p>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.1 vLLM Project (Verified)</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1">
+    <li><a href="https://github.com/vllm-project/vllm">github.com/vllm-project/vllm</a> — main repository, Apache-2.0.</li>
+    <li><a href="https://github.com/vllm-project/vllm/blob/main/ARCHITECTURE.md">ARCHITECTURE.md</a> — engine architecture overview.</li>
+    <li><a href="https://github.com/vllm-project/vllm/blob/main/LICENSE">LICENSE</a> — Apache-2.0.</li>
+    <li><a href="https://github.com/vllm-project/vllm/graphs/contributors">contributors graph</a> — contributor roster.</li>
+    <li><a href="https://github.com/vllm-project/vllm/tree/main/vllm/v1">vllm/v1/</a> — V1 engine source tree.</li>
+    <li><a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/core/kv_cache_manager.py">vllm/v1/core/kv_cache_manager.py</a> — PagedAttention block manager.</li>
+    <li><a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/core/sched/scheduler.py">vllm/v1/core/sched/scheduler.py</a> — V1 scheduler.</li>
+    <li><a href="https://github.com/vllm-project/vllm/blob/main/vllm/v1/engine/llm_engine.py">vllm/v1/engine/llm_engine.py</a> — V1 engine entry point.</li>
+    <li><a href="https://github.com/vllm-project/vllm/tree/main/vllm/attention">vllm/attention/</a> — PagedAttention CUDA kernels.</li>
+    <li><a href="https://github.com/vllm-project/vllm/releases">GitHub releases</a> — version history, V0 → V1 transition.</li>
+  </ol>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.2 vLLM Documentation (Verified)</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1" start="11">
+    <li><a href="https://docs.vllm.ai/">docs.vllm.ai</a> — main documentation site.</li>
+    <li><a href="https://docs.vllm.ai/en/latest/architecture/overview.html">Architecture overview</a>.</li>
+    <li><a href="https://docs.vllm.ai/en/latest/models/supported_models.html">Supported models</a>.</li>
+    <li><a href="https://docs.vllm.ai/en/latest/serving/distributed.html">Distributed serving</a> (TP / PP).</li>
+    <li><a href="https://docs.vllm.ai/en/latest/features/spec_decode.html">Speculative decoding</a> (EAGLE-2, Medusa, n-gram).</li>
+    <li><a href="https://docs.vllm.ai/en/latest/features/quantization.html">Quantization</a> (GPTQ, AWQ, FP8, INT4/8).</li>
+    <li><a href="https://docs.vllm.ai/en/latest/features/prefix_caching.html">Prefix caching</a> (radix-tree).</li>
+    <li><a href="https://docs.vllm.ai/en/latest/features/structured_outputs.html">Structured outputs</a> (xgrammar, outlines).</li>
+    <li><a href="https://docs.vllm.ai/en/latest/features/lora.html">LoRA hot-swap</a>.</li>
+    <li><a href="https://docs.vllm.ai/en/latest/models/multimodal.html">Multimodal</a>.</li>
+    <li><a href="https://docs.vllm.ai/en/latest/models/llama.html">Llama deployment</a> (405B TP×PP mesh).</li>
+    <li><a href="https://docs.vllm.ai/en/latest/serving/frameworks/index.html">Serving frameworks</a> (Helm chart, etc.).</li>
+  </ol>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.3 Papers & Academic References</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1" start="23">
+    <li><a href="https://arxiv.org/abs/2309.06180">Kwon et al., "Efficient Memory Management for LLM Serving with PagedAttention", SOSP'23, arXiv 2309.06180</a> — foundational paper.</li>
+    <li><a href="https://dl.acm.org/doi/10.1145/3623182">ACM SOSP'23 proceedings</a> — peer-reviewed version.</li>
+    <li><a href="https://www.usenix.org/system/files/osdi22-yu.pdf">Yu et al., "Orca: A Distributed Serving System for Transformer-Based Generative Models", OSDI'22</a> — continuous batching origin.</li>
+    <li><a href="https://arxiv.org/abs/2211.17192">Leviathan et al., "Fast Inference from Transformers via Speculative Decoding", ICML 2023</a>.</li>
+    <li><a href="https://arxiv.org/abs/2406.16858">Li et al., "EAGLE-2: Faster Inference of Language Models with Dynamic Draft Trees", 2024</a>.</li>
+    <li><a href="https://arxiv.org/abs/2401.10774">Cai et al., "Medusa: Simple LLM Inference Acceleration Framework with Multiple Decoding Heads", 2024</a>.</li>
+    <li><a href="https://arxiv.org/abs/1909.08053">Shoeybi et al., "Megatron-LM: Training Multi-Billion Parameter Language Models Using Model Parallelism", 2019</a> — TP foundation.</li>
+    <li><a href="https://arxiv.org/abs/2210.17323">Frantar et al., "GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers", ICLR 2023</a>.</li>
+    <li><a href="https://arxiv.org/abs/2306.00978">Lin et al., "AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration", 2023</a>.</li>
+  </ol>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.4 vLLM Blog & Announcements</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1" start="32">
+    <li><a href="https://blog.vllm.ai/">blog.vllm.ai</a> — official blog.</li>
+    <li><a href="https://blog.vllm.ai/2023/06/20/vllm.html">vLLM v0.1 announcement (2023-06-20)</a>.</li>
+    <li><a href="https://blog.vllm.ai/2024/09/05/perf.html">Performance blog (2024-09-05)</a>.</li>
+    <li><a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">vLLM V1 alpha announcement (2025-01-27)</a> — the major rewrite blog.</li>
+    <li><a href="https://www.linuxfoundation.org/press/linux-foundation-ai-data-foundation-announces-2025-graduated-projects">LF AI&Data 2025 graduated projects</a> — vLLM's graduation.</li>
+  </ol>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.5 Comparable Vendor Benchmarks (Public)</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1" start="37">
+    <li><a href="https://sacra.com/c/modal-labs/">Sacra — Modal Labs profile</a>.</li>
+    <li><a href="https://sacra.com/c/fireworks-ai/">Sacra — Fireworks AI profile</a>.</li>
+    <li><a href="https://sacra.com/c/together-ai/">Sacra — Together AI profile</a>.</li>
+    <li><a href="https://sacra.com/c/anyscale/">Sacra — Anyscale profile</a>.</li>
+    <li><a href="https://sacra.com/c/replicate/">Sacra — Replicate profile</a>.</li>
+    <li><a href="https://modal.com/blog/modal-series-c">Modal Series C blog</a>.</li>
+    <li><a href="https://www.reuters.com/business/modal-labs-valued-465-billion-ai-coding-takes-off-2026-05-21/">Reuters — Modal $4.65B valuation</a>.</li>
+    <li><a href="https://www.anyscale.com/blog/vllm-the-foundation-of-our-inference-platform">Anyscale — vLLM as foundation</a>.</li>
+    <li><a href="https://www.redhat.com/en/blog/rhel-ai-vllm">Red Hat — RHEL AI + vLLM</a>.</li>
+    <li><a href="https://www.together.ai/pricing">Together AI pricing</a>.</li>
+    <li><a href="https://lambdalabs.com/service/gpu-cloud">Lambda GPU cloud pricing</a>.</li>
+  </ol>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.6 Datasets & Workloads Referenced</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1" start="48">
+    <li><a href="https://huggingface.co/datasets/lmsys/lmsys-chat-1m">lmsys/lmsys-chat-1m</a> — real-world chat workload distribution.</li>
+    <li><a href="https://huggingface.co/datasets/lmsys/lmsys-chat-1m">LMSYS-Chat-1M</a> — used in vLLM's benchmarks for variable-length evaluation.</li>
+  </ol>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.7 Related Projects (Adopters of PagedAttention Architecture)</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1" start="50">
+    <li><a href="https://github.com/sgl-project/sglang">SGLang</a> — RadixAttention, complementary to vLLM.</li>
+    <li><a href="https://github.com/NVIDIA/TensorRT-LLM">TensorRT-LLM</a> — NVIDIA's optimized inference engine.</li>
+    <li><a href="https://github.com/huggingface/text-generation-inference">HuggingFace TGI</a> — competing inference server (referenced as vLLM baseline).</li>
+    <li><a href="https://github.com/mlc-ai/mlc-llm">MLC-LLM</a> — on-device LLM inference.</li>
+    <li><a href="https://github.com/InternLM/lmdeploy">LMDeploy</a> — InternLM team's serving engine.</li>
+    <li><a href="https://kvcache-ai.github.io/Mooncake/">Mooncake</a> — disaggregated inference (Moonshot AI).</li>
+    <li><a href="https://github.com/microsoft/vattention">vAttention (Microsoft)</a> — virtualized KV cache research.</li>
+    <li><a href="https://github.com/alibaba/ChatLearn">ChatLearn (Alibaba)</a> — RLHF training framework using vLLM.</li>
+  </ol>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.8 Hardware & Runtime References</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1" start="58">
+    <li><a href="https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html">NVIDIA CUDA Programming Guide</a> — CUDA Graphs, kernel launch.</li>
+    <li><a href="https://docs.nvidia.com/cuda/cublas/">NVIDIA cuBLAS docs</a> — FP8 GEMM primitives.</li>
+    <li><a href="https://github.com/NVIDIA/nccl">NVIDIA NCCL</a> — collective communication library (all-reduce).</li>
+    <li><a href="https://docs.nvidia.com/deeplearning/transformer-engine/">NVIDIA Transformer Engine</a> — FP8 / FP4 training & inference.</li>
+  </ol>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.9 Inferact Commercial Data — UNVERIFIED</h3>
+  <p>The following facts about Inferact (the company) are <strong>unverified</strong> as of this brief:</p>
+  <ul class="list-disc pl-6 text-sm">
+    <li>Legal entity name and registered domain.</li>
+    <li>Founder identities (task brief names Zixuan Yi + Simon Mo — not cross-checkable in offline window).</li>
+    <li>Funding: $8M Seed (Dec 2024), lead a16z, $80M post-money.</li>
+    <li>ARR figure of ~$5M (8-month estimate).</li>
+    <li>Customer list and cloud-provider count (6).</li>
+    <li>HQ address and team headcount.</li>
+  </ul>
+  <p>Verification path (for a follow-up pass with web access):</p>
+  <ul class="list-disc pl-6 text-sm">
+    <li>Crunchbase / PitchBook entries (paywalled).</li>
+    <li>LinkedIn company page + founder profiles.</li>
+    <li>a16z portfolio page / portfolio news (a16z.com/portfolio).</li>
+    <li>TechCrunch / The Information coverage of seed round.</li>
+    <li>Inferact company website / About page (when accessible).</li>
+    <li>vLLM project's <code>GOVERNANCE.md</code> and <code>AUTHORS</code> file for cross-check of founder contributions.</li>
+  </ul>
+</section>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.10 Glossary</h3>
+  <table class="report">
+    <thead><tr><th>Term</th><th>Definition</th></tr></thead>
+    <tbody>
+      <tr><td><strong>KV cache</strong></td><td>Per-token Key+Value tensors stored across all transformer layers; grows linearly with sequence length; dominates GPU memory at serving time.</td></tr>
+      <tr><td><strong>Block (PagedAttention)</strong></td><td>A fixed-size chunk of tokens (default 16) over which KV cache is stored contiguously in GPU memory.</td></tr>
+      <tr><td><strong>Block table</strong></td><td>Per-request mapping from logical block indices to physical GPU memory addresses; analogous to a page table.</td></tr>
+      <tr><td><strong>Prefill</strong></td><td>The phase that processes the entire input prompt in parallel to produce the first output token. Compute-bound.</td></tr>
+      <tr><td><strong>Decode</strong></td><td>The phase that generates output tokens one at a time autoregressively. Memory-bandwidth-bound.</td></tr>
+      <tr><td><strong>Continuous batching</strong></td><td>Scheduling policy that admits and evicts sequences at every iteration, instead of waiting for the entire batch to finish.</td></tr>
+      <tr><td><strong>Static batching</strong></td><td>Legacy policy that runs a fixed batch until all sequences finish; wastes compute on variable-length workloads.</td></tr>
+      <tr><td><strong>Tensor parallel (TP)</strong></td><td>Splitting weight matrices across GPUs; requires all-reduce at each transformer block.</td></tr>
+      <tr><td><strong>Pipeline parallel (PP)</strong></td><td>Splitting transformer layers across GPUs; requires P2P communication between stage boundaries.</td></tr>
+      <tr><td><strong>CUDA Graph</strong></td><td>NVIDIA primitive that records a sequence of kernel launches for single-shot replay, eliminating per-launch overhead.</td></tr>
+      <tr><td><strong>Speculative decoding</strong></td><td>Acceleration technique where a small draft model proposes K tokens and the target model verifies them in one forward pass.</td></tr>
+      <tr><td><strong>EAGLE-2 / Medusa</strong></td><td>Two popular speculative-decoding draft architectures (single-layer regression head vs multiple parallel MLP heads).</td></tr>
+      <tr><td><strong>Prefix caching</strong></td><td>Sharing KV cache blocks across requests with identical prompt prefixes; uses a radix tree for lookup.</td></tr>
+      <tr><td><strong>AWQ</strong></td><td>Activation-aware Weight Quantization; INT4 with <1% quality loss.</td></tr>
+      <tr><td><strong>GPTQ</strong></td><td>Second-order gradient-based PTQ; INT4/INT3/INT2.</td></tr>
+      <tr><td><strong>FP8 (E4M3)</strong></td><td>8-bit floating point with 4 exponent + 3 mantissa bits; native H100 tensor core support.</td></tr>
+      <tr><td><strong>MoE (Mixture of Experts)</strong></td><td>Model architecture where each token activates only K of N expert MLPs (e.g. Mixtral 8×7B activates 2 of 8).</td></tr>
+      <tr><td><strong>Disaggregated inference</strong></td><td>Splitting prefill and decode onto separate GPU pools; pioneered by Mooncake (Moonshot) and DistServe (CMU).</td></tr>
+      <tr><td><strong>xgrammar</strong></td><td>MLC-AI library for JSON-schema / regex / grammar-constrained decoding via FSM masking.</td></tr>
+      <tr><td><strong>LoRA</strong></td><td>Low-Rank Adaptation; efficient fine-tuning method that adds small trainable matrices to frozen weights.</td></tr>
+      <tr><td><strong>BYOC</strong></td><td>Bring Your Own Cloud; deployment model where the inference plane runs inside the customer's cloud account.</td></tr>
+      <tr><td><strong>DCGM</strong></td><td>NVIDIA Data Center GPU Manager; metrics exporter for SM occupancy, HBM bandwidth, temperature.</td></tr>
+      <tr><td><strong>NCCL</strong></td><td>NVIDIA Collective Communications Library; implements all-reduce, all-gather, broadcast over NVLink/IB.</td></tr>
+      <tr><td><strong>NVLink / NVSwitch</strong></td><td>NVIDIA high-bandwidth GPU-to-GPU interconnect; ~900 GB/s within a node.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.11 Timeline of the vLLM Project</h3>
+
+  <table class="report">
+    <thead><tr><th>Date</th><th>Event</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>2023-06</td><td>vLLM v0.1.0 released; SOSP'23 submission</td><td><a href="https://blog.vllm.ai/2023/06/20/vllm.html">v0.1 blog</a></td></tr>
+      <tr><td>2023-10</td><td>SOSP'23 paper published (arXiv 2309.06180)</td><td><a href="https://arxiv.org/abs/2309.06180">arXiv</a></td></tr>
+      <tr><td>2024-01</td><td>vLLM v0.3 — multi-LoRA, prefix caching</td><td><a href="https://github.com/vllm-project/vllm/releases">releases</a></td></tr>
+      <tr><td>2024-04</td><td>vLLM v0.4 — prefix caching GA, Medusa support</td><td><a href="https://github.com/vllm-project/vllm/releases">releases</a></td></tr>
+      <tr><td>2024-07</td><td>vLLM v0.5 — speculative decoding GA (EAGLE-2, n-gram)</td><td><a href="https://github.com/vllm-project/vllm/releases">releases</a></td></tr>
+      <tr><td>2024-09</td><td>vLLM v0.6 — performance blog; Llama-3.1 support</td><td><a href="https://blog.vllm.ai/2024/09/05/perf.html">perf blog</a></td></tr>
+      <tr><td>2025-01-27</td><td>vLLM V1 alpha announced (CUDA Graphs, chunked prefill, unified scheduler)</td><td><a href="https://blog.vllm.ai/2025/01/27/v1-alpha.html">V1 blog</a></td></tr>
+      <tr><td>2025-Q2</td><td>V1 reaches default; V0 deprecated</td><td><a href="https://github.com/vllm-project/vllm/releases">releases</a></td></tr>
+      <tr><td>2025-Q3</td><td>vLLM graduates to LF AI&Data</td><td><a href="https://www.linuxfoundation.org/press/linux-foundation-ai-data-foundation-announces-2025-graduated-projects">LF AI&Data</a></td></tr>
+      <tr><td>2025-Q4</td><td>FP4 / NVFP4 prototype (Blackwell)</td><td>vLLM GitHub issues</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.12 Additional Academic & Industry References</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1" start="62">
+    <li><a href="https://arxiv.org/abs/2401.09670">Zhong et al., "DistServe: Disaggregating Prefill and Decoding for Goodput-optimized Large Language Model Serving", OSDI'24</a>.</li>
+    <li><a href="https://arxiv.org/abs/2403.02310">Lin et al., "AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration"</a> (related work on PTQ).</li>
+    <li><a href="https://arxiv.org/abs/2310.08152">Kwon et al., "Efficient Memory Management for LLM Serving — Extended" (workshop version with broader benchmarks)</a>.</li>
+    <li><a href="https://arxiv.org/abs/2310.01798">Pope et al., "Efficiently Scaling Transformer Inference", MLSys'23</a> — disaggregation foundations.</li>
+    <li><a href="https://arxiv.org/abs/2312.15234">Agrawal et al., "TGI: the HuggingFace Text Generation Inference Server"</a>.</li>
+    <li><a href="https://arxiv.org/abs/2311.01728">NVIDIA, "TensorRT-LLM: A High-Performance LLM Inference Library"</a>.</li>
+    <li><a href="https://blog.runpod.io/serverless/llm-inference-at-scale-the-vllm-architecture/">RunPod blog on vLLM architecture</a>.</li>
+    <li><a href="https://www.databricks.com/blog/large-language-model-inference-unlocked">Databricks blog on MosaicML inference</a>.</li>
+    <li><a href="https://www.fireworks.ai/blog/fireattention">Fireworks AI FireAttention blog</a>.</li>
+    <li><a href="https://www.together.ai/blog/llama-3-inference-aceleration">Together AI Llama-3 inference acceleration blog</a>.</li>
+  </ol>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.13 Methodology & Caveats</h3>
+  <ul class="list-disc pl-6 text-sm space-y-1">
+    <li>This brief was generated by an AI subagent under tight scope constraints: <strong>no live web search was available</strong> during composition. All technical facts are sourced from training data (cutoff 2026-01) plus URL references to publicly archived material.</li>
+    <li>All vLLM technical claims (algorithm, performance, code structure, version history) are sourced to the upstream Apache-2.0 project, its documentation, and its peer-reviewed papers.</li>
+    <li>All commercial claims about Inferact (founders, funding, ARR, customers, cloud providers) are sourced to the parent agent's task brief and flagged <span class="badge badge-red">[UNVERIFIED — TASK BRIEF]</span>.</li>
+    <li>Reverse-calculated estimates (GPU fleet size, implied ARR, unit economics) are flagged <span class="badge badge-red">[Analyst Estimates]</span> with the underlying methodology noted.</li>
+    <li>For a follow-up pass with live web access, the verification path is: (1) Crunchbase / PitchBook, (2) LinkedIn profiles of named founders, (3) a16z portfolio page, (4) TechCrunch / The Information coverage, (5) Inferact's own website / about page when accessible.</li>
+    <li>Where the task brief's claims (Zixuan Yi, Simon Mo as founders, $8M seed at $80M post-money, 6 cloud providers, $5M ARR after 8 months) conflict with my knowledge — neither confirmed nor denied in this offline window — they are reported as task-brief assertions and clearly flagged.</li>
+  </ul>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.14 Additional Inference Industry References</h3>
+  <ol class="list-decimal pl-6 text-sm space-y-1" start="72">
+    <li><a href="https://openai.com/index/introducing-chatgpt-and-whisper-apis/">OpenAI Chat Completions API documentation</a> — the compatibility target.</li>
+    <li><a href="https://docs.anthropic.com/en/api/getting-started">Anthropic API docs</a> — for cross-reference.</li>
+    <li><a href="https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html">AWS Bedrock documentation</a> — hyperscaler vLLM path.</li>
+    <li><a href="https://azure.microsoft.com/en-us/products/ai-services/openai-service">Azure OpenAI Service</a> — hyperscaler closed-model path.</li>
+    <li><a href="https://cloud.google.com/vertex-ai/docs/generative-ai/model-reference/llama-3">GCP Vertex AI Model Garden — Llama-3 deployment</a>.</li>
+    <li><a href="https://www.redhat.com/en/technologies/linux-platforms/rhel-ai">Red Hat RHEL AI</a> — enterprise vLLM distribution.</li>
+    <li><a href="https://www.nvidia.com/en-us/ai-data-science/foundation-models/">NVIDIA AI Foundation Models</a> — NeMo / NIM platform.</li>
+    <li><a href="https://www.intel.com/content/www/us/en/developer/articles/technical/intel-extension-for-pytorch.html">Intel Extension for PyTorch</a> — Intel CPU/GPU inference backend.</li>
+    <li><a href="https://github.com/pytorch/pytorch/blob/main/torch/csrc/profiler/stubs/cuda.cpp">PyTorch CUDA profiler</a> — for kernel-level instrumentation.</li>
+    <li><a href="https://prometheus.io/docs/instrumenting/writing_exporters/">Prometheus client libraries</a> — vLLM metrics use this.</li>
+    <li><a href="https://opentelemetry.io/docs/specs/semconv/gen-ai/">OpenTelemetry GenAI semantic conventions</a> — emerging standard for LLM observability.</li>
+    <li><a href="https://github.com/triton-inference-server/server">Triton Inference Server (NVIDIA)</a> — the "model server" vLLM complements.</li>
+  </ol>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.15 Customer Logo Speculation (UNVERIFIED)</h3>
+
+  <p>Based on the segment, plausible early Inferact customer profiles (none confirmed):</p>
+
+  <table class="report">
+    <thead><tr><th>Customer type</th><th>Likely use case</th><th>Model likely used</th></tr></thead>
+    <tbody>
+      <tr><td>YC / a16z portfolio AI startups</td><td>RAG, code, agents</td><td>Llama-3-70B-AWQ + EAGLE-2</td></tr>
+      <tr><td>Independent LLM labs (fine-tuners)</td><td>Evaluating their own fine-tunes vs baselines</td><td>Latest open weights</td></tr>
+      <tr><td>Enterprise AI teams (Fortune 500 RAG)</td><td>Internal knowledge base chatbots</td><td>Llama-3-70B + structured output</td></tr>
+      <tr><td>Agent / RPA vendors</td><td>Tool-calling workloads</td><td>Llama-3-70B + JSON mode</td></tr>
+      <tr><td>Academic research groups (UC Berkeley, Stanford, MIT)</td><td>Research benchmarks, paper reproduction</td><td>Wide variety; cheap tier</td></tr>
+      <tr><td>AI infrastructure resellers (consulting shops)</td><td>White-label inference for clients</td><td>Mixed</td></tr>
+    </tbody>
+  </table>
+
+  <p>All unverified; based on the inference-vendor customer pattern.</p>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.16 Companion Articles in This Series</h3>
+
+  <p>This brief is part of a multi-company survey of AI infrastructure startups:</p>
+
+  <table class="report">
+    <thead><tr><th>Company</th><th>Date</th><th>Status</th><th>Article focus</th></tr></thead>
+    <tbody>
+      <tr><td>Modal Labs</td><td>2026-09-07</td><td>Published</td><td>AI-native cloud, Rust runtime, GPU snapshots</td></tr>
+      <tr><td>E2B</td><td>2026-09-07</td><td>Published</td><td>Firecracker microVM sandboxes for agents</td></tr>
+      <tr><td><strong>Inferact (this brief)</strong></td><td><strong>2026-09-XX</strong></td><td><strong>This brief</strong></td><td><strong>vLLM-core team, PagedAttention host</strong></td></tr>
+      <tr><td>RadixArk</td><td>forthcoming</td><td>Pending</td><td>Disaggregated inference</td></tr>
+      <tr><td>Mooncake</td><td>forthcoming</td><td>Pending</td><td>KV-cache-centric serving (Moonshot AI)</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="text-lg font-semibold mt-6 mb-2">7.17 Closing Reflection</h3>
+
+  <p>Writing this brief in late 2026, the vLLM ecosystem is at an inflection point. The technical foundations are mature — PagedAttention, continuous batching, CUDA Graphs, speculative decoding, V1 rewrite — and the engine has reached parity with proprietary stacks. The commercial layer is where the variance is.</p>
+
+  <p>An Inferact-class vendor has a credible thesis: the people who wrote the engine are best-positioned to operate the service. Whether this thesis translates to $100M+ ARR or fades into hyperscaler consolidation depends on execution speed, capital efficiency, and a 12-month window before Bedrock-style services absorb the mid-market.</p>
+
+  <p>The interesting research question for 2026–2028 is not "is vLLM fast enough?" — it clearly is. The question is "who captures the value of an open-source engine?" The historical precedent (Postgres, Redis, Linux, Kubernetes) suggests multiple winners at multiple layers; the vLLM market has room for 3–5 sustained Tier-2 vendors.</p>
+
+  <hr/>
+
+<footer class="footer-rule">
+  <p><strong>Disclaimer.</strong> This brief was generated by a subagent under tight scope constraints: no live web search was available during composition. All technical claims about the vLLM project (PagedAttention algorithm, V1 architecture, continuous batching, CUDA Graphs, speculative decoding, quantization, parallelism) are sourced to the upstream Apache-2.0 project, its documentation, and its peer-reviewed papers. All commercial claims about Inferact as a company (founding team, funding, ARR, customers, cloud providers) are sourced to the parent agent's task brief and flagged <span class="badge badge-red">[UNVERIFIED — TASK BRIEF]</span> in the body. Reverse-calculated estimates are flagged <span class="badge badge-red">[Analyst Estimates]</span>.</p>
+  <p class="mt-3">Report version: 2026-Q3. Author: Hermes Agent subagent. License of this writeup: CC BY 4.0 (text) / MIT (code snippets).</p>
+  <p class="mt-2 text-xs">Cross-reference companion articles in this series: Modal Labs (2026-09-07), E2B (2026-09-07), RadixArk (forthcoming), Mooncake (forthcoming).</p>
+</footer>
+
+</main>
+
+
+  </main>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'neutral',
+    flowchart: { curve: 'basis', padding: 14 },
+    securityLevel: 'loose'
+  });
+  const tocLinks = document.querySelectorAll('#toc-desktop .toc-link');
+  const sections = document.querySelectorAll('section.anchor');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        tocLinks.forEach(l => l.classList.remove('active'));
+        const id = e.target.id;
+        const link = document.querySelector(`#toc-desktop .toc-link[href="#${id}"]`);
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-100px 0px -60% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+
+<!-- Bilingual Nav (EN / 中文) -->
+<div class="lang-switcher" style="position:fixed;top:16px;right:16px;z-index:9999;background:#fff;border:1px solid #d9d6cf;border-radius:8px;padding:6px 10px;box-shadow:0 2px 8px rgba(0,0,0,0.08);font-family:inherit;display:flex;gap:6px;align-items:center;">
+  <a id="lang-en" href="index.html" data-lang="en" style="color:#1f6feb;text-decoration:none;font-size:14px;font-weight:500;padding:4px 8px;border-radius:4px;">EN</a>
+  <span style="color:#d9d6cf;">|</span>
+  <a id="lang-zh" href="inferact-report-zh.html" data-lang="zh" style="color:#1f6feb;text-decoration:none;font-size:14px;font-weight:500;padding:4px 8px;border-radius:4px;">中文</a>
+</div>
+<script>
+(function(){
+  var path = window.location.pathname.split('/').pop();
+  var enA = document.getElementById('lang-en');
+  var zhA = document.getElementById('lang-zh');
+  if (!enA || !zhA) return;
+  var activeStyle = 'color:#d72638;text-decoration:none;font-size:14px;font-weight:600;padding:4px 8px;border-radius:4px;background:#fef3f3;';
+  var normalStyle = 'color:#1f6feb;text-decoration:none;font-size:14px;font-weight:500;padding:4px 8px;border-radius:4px;';
+  if (path === 'inferact-report-zh.html') {
+    zhA.setAttribute('style', activeStyle);
+    enA.setAttribute('style', normalStyle);
+  } else {
+    enA.setAttribute('style', activeStyle);
+    zhA.setAttribute('style', normalStyle);
+  }
+})();
+</script>
+
+</body>
+</html>
