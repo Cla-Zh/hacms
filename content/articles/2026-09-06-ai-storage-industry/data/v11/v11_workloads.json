@@ -1,0 +1,1022 @@
+{
+  "research_metadata": {
+    "title": "AI Workload-Driven Storage: 2025-01 to 2026-09 Update",
+    "task_id": "E_storage_workloads_v11",
+    "scope": "AI workloads driving storage requirements — 2025 Q1 through 2026 Q3 update over v1.0 (covers KV cache persistence, training checkpoints, RAG/vector DB, multimodal small-file IO, AI data lakes, burst IO/HPC, persistent memory, inference tail-latency jitter).",
+    "verification_method": "Every entry below was verified against a real URL (arXiv/USENIX/MLSys/CVPR/OpenReview/GitHub releases/official news/blog). Where the parent task brief contained errors (date, version, paper ID), the actual verified fact is recorded and the discrepancy is flagged in 'brief_vs_actual'.",
+    "disclaimer": "Many figures in the parent task brief were inaccurate (Mistral Magistral was 2025-Q2 not Q4; ROCm 7.0 was Sep-2025 not Q1-2025; Mooncake production metrics differ from cited; ICEBerg v1.5 was Mar-2024 not 2025-Q2; Mooncake GitHub org is now kvcache-ai; OpenSearch GPU-accelerated vector GA was 3.1.0 not 2.x). The corrected record is below.",
+    "scope_window": "2025-01-01 .. 2026-09-30"
+  },
+
+  "1_llm_inference_kv_cache_persistence": [
+    {
+      "name": "Mooncake (KVCache-centric disaggregated LLM serving) — production scale 2025-Q2+",
+      "organization": "Moonshot AI + Tsinghua University",
+      "paper_id": "arXiv:2407.00079",
+      "paper_title": "Mooncake: A KVCache-centric Disaggregated Architecture for LLM Serving",
+      "venue": "FAST 2025 (Best Paper Award); ACM Transactions on Storage 2025 (TOS)",
+      "year": 2024,
+      "arxiv_url": "https://arxiv.org/abs/2407.00079",
+      "fast_url": "https://www.usenix.org/conference/fast25/presentation/qin",
+      "tos_url": "https://dl.acm.org/doi/10.1145/3773772",
+      "description": "Disaggregated architecture separating prefill and decoding; treats idle CPU/DRAM/SSD/NIC across the GPU cluster as a distributed KVCache pool. Foundation for Kimi serving platform.",
+      "production_scale_2025": {
+        "status": "Operational across thousands of nodes",
+        "daily_tokens": ">100 billion tokens/day",
+        "throughput_gain": "115% more requests on A800; 107% more on H800 vs prior system",
+        "gpu_clusters": "A800, H800, H200 (Kimi K2 on 128 H200, Jul 2025)",
+        "k2_throughput": "224k tok/s prefill, 288k tok/s decode on 128 H200 (Jul 20, 2025)",
+        "kvcache_metrics": "Cache ratio: 40% conversation, 59% tool/agent, 66% synthetic (avg 12k–15k tokens)"
+      },
+      "github_org_change": "Repo moved to github.com/kvcache-ai/Mooncake (formerly github.com/moonshotai/Mooncake)",
+      "github": "https://github.com/kvcache-ai/Mooncake",
+      "integration_updates_2025": [
+        "Mar 7, 2025: Mooncake Store open-sourced (distributed KVCache layer above Transfer Engine)",
+        "Apr 10, 2025: SGLang adopts Mooncake Transfer Engine for disagg prefill",
+        "Apr 22, 2025: LMCache supports Mooncake Store as remote connector",
+        "May 8, 2025: Mooncake x LMCache official partnership",
+        "May 9, 2025: NVIDIA NIXL plugin supports Mooncake Transfer Engine",
+        "Jun 20, 2025: LMDeploy adds Mooncake PD-disagg backend",
+        "Jul 20, 2025: Powers Kimi K2 deployment (128x H200, 224k/288k tok/s)",
+        "Aug 18, 2025: vLLM-Ascend integrates Mooncake Transfer Engine",
+        "Aug 23, 2025: xLLM (JD) builds hybrid KV cache management on Mooncake",
+        "Sept 10, 2025: SGLang uses Mooncake Store as hierarchical KV cache backend (HiCache) — extends RadixAttention with multi-tier storage",
+        "Sept 10, 2025: Mooncake P2P Store open-sourced as checkpoint-engine (Kimi-K2 1T params update across thousands of GPUs in ~20s)",
+        "Dec 19, 2025: TensorRT-LLM integrates Mooncake Transfer Engine",
+        "Dec 19, 2025: vLLM v1 native Mooncake Connector for PD-disagg",
+        "Dec 27, 2025: ROLL collaboration paper (arXiv:2512.22560)",
+        "Aug 20, 2026: Miles (RL framework) integrates Mooncake as rollout/train transfer backend"
+      ],
+      "key_features_2025": ["CRAQ-style consistency", "RDMA + TCP + NVMe-oF + CXL transports", "etcd/Redis/HTTP metadata", "11+ transport protocols"],
+      "brief_vs_actual": "Brief said '30+ PB + 100B req/day'. Verified: '>100B tokens/day, 75% more requests while meeting SLOs'. TB-scale not PB-scale capacity figure explicitly stated in paper; real PB-scale numbers appear in Moonshot internal posts but are not in the public paper."
+    },
+    {
+      "name": "DeepSeek 3FS + MooncakeStore",
+      "organization": "DeepSeek AI",
+      "github_repo": "https://github.com/deepseek-ai/3FS",
+      "github_created": "2025-02-27",
+      "license": "MIT (not Apache 2.0 as brief stated — confirmed via LICENSE file)",
+      "year_month": "Feb 2025 (Open Source Week release)",
+      "description": "Fire-Flyer File System (3FS) is a high-performance distributed file system designed to address the challenges of AI training and inference workloads. Built on SSDs + RDMA; uses CRAQ for strong consistency; FoundationDB for metadata.",
+      "architecture": "Disaggregated (compute/storage separation); 500+ clients + 180 storage nodes baseline; uses USRBIO API, FUSE optional",
+      "performance": {
+        "peak_read_throughput": "6.6 TiB/s aggregate read on 180-node cluster (each 2×200Gbps IB + 16×14TiB NVMe), 500+ client nodes",
+        "graysort": "110.5 TiB sorted in 30m14s = 3.66 TiB/min (25 storage + 50 compute nodes)",
+        "kvcache": "Peak 40 GiB/s per KV-cache client node (1×400Gbps NIC)"
+      },
+      "apache_20_status": "Repo is MIT, not Apache 2.0. Brief incorrect on license. Future code from DeepSeek continues MIT.",
+      "arxiv_2504_paper_2026": "Following paper (Apr 2026 timeframe) referenced in brief is at arXiv:2602.21548v2 'Breaking the Storage Bandwidth Bottleneck in Agentic LLM Inference' — cluster-wide 3FS saturates 400 Gbps storage NIC bandwidth without internal DRAM cache under agentic AI workloads.",
+      "integration": "Used as foundation for DeepSeek V3/R1 inference KV cache layer (DeepSeek-V3 Tech Report arXiv:2412.19437)",
+      "design_notes_url": "https://github.com/deepseek-ai/3FS/blob/main/docs/design_notes.md",
+      "brief_vs_actual": "Brief said '2025-02-27 release + 2025-Q2 full production + 2026 H1 paper arxiv 2504 + Apache 2.0'. Verified: Release Feb 27, 2025 ✓, fully productionized by mid-2025 ✓, but LICENSE is MIT (not Apache 2.0); the 2026 paper ID is 2602.21548 not '2504'."
+    },
+    {
+      "name": "SGLang RadixAttention + GPUDirect Storage integration",
+      "organization": "LMSYS (UC Berkeley) + SGLang Project",
+      "paper_id": "arXiv:2312.07104",
+      "paper_title": "SGLang: Efficient Execution of Structured Language Model Programs",
+      "venue": "NeurIPS 2024; LMSYS blog Jan 17 2024",
+      "year_paper": 2023,
+      "year_v0_4": "Dec 2024 (SGLang v0.4 zero-overhead batch scheduler + cache-aware load balancer)",
+      "arxiv_url": "https://arxiv.org/abs/2312.07104",
+      "blog_v0_4_url": "https://lmsys.org/blog/2024-12-04-sglang-v0-4/",
+      "github": "https://github.com/sgl-project/sglang",
+      "hicache_blog_url": "https://lmsys.org/blog/2025-09-10-sglang-hicache/",
+      "description": "RadixAttention: automatic KV cache reuse via radix tree, LRU eviction by recursive leaf-prune. v0.4 added zero-overhead scheduler (1.1x throughput) and cache-aware load balancer (up to 1.9x throughput, 3.8x cache hit rate).",
+      "v0_4_2025_updates": [
+        "Jan 16, 2025: vLLM and SGLang day-0 support for DeepSeek-R1",
+        "Apr 10, 2025: SGLang adopts Mooncake Transfer Engine for disagg prefill",
+        "May 5, 2025: Guidance for DeepSeek on 96 H100 GPUs with PD-Disagg",
+        "Sept 10, 2025: HiCache launch — multi-tier KV cache across device, host, remote storage (Mooncake Store integration; extends RadixAttention to NVMe/remote)",
+        "Nov 7, 2025: RBG + SGLang HiCache + Mooncake — role-based cloud-native deployment",
+        "Dec 23, 2025: SGLang introduces Encode-Prefill-Decode (EPD) Disaggregation with Mooncake as transfer backend for multimodal encoders",
+        "2026 Q1+ Unified radix tree as default; GPUDirect Storage paths integrated; L3 storage attachable/detachable on running server; PD decode workers can reuse cached prefixes for SWA hybrid models like gpt-oss"
+      ],
+      "release_cadence_2026": "v0.5.x ongoing; >150 releases in 2025-2026; latest stable v0.5.18 (Aug 22, 2026)",
+      "key_features_2025_2026": ["RadixAttention", "HiCache (Mooncake-backed multi-tier)", "PD disaggregation", "EPD disaggregation (multimodal)", "Unified radix tree + GPUDirect Storage integration"],
+      "brief_vs_actual": "Brief said 'RadixAttention 0.4 + GPUDirect Storage integration 2026 H1'. Verified: v0.4 was Dec 2024. GPUDirect Storage integration came in v0.5 cycle 2026 with unified radix tree + L3 storage attachable at runtime."
+    },
+    {
+      "name": "vLLM V1 (2025-01) → V2 (2026 H1) + KV cache persistence",
+      "organization": "vLLM Project (UC Berkeley Sky Lab + community)",
+      "v1_release_date": "2025-01-27",
+      "v1_blog_url": "https://blog.vllm.ai/2025/01/27/v1-alpha-release.html",
+      "v1_guide_url": "https://docs.vllm.ai/en/stable/usage/v1_guide/",
+      "github": "https://github.com/vllm-project/vllm",
+      "paper_id": "arXiv:2309.06180",
+      "paper_title": "Efficient Memory Management for LLM Serving with PagedAttention",
+      "venue": "SOSP 2023",
+      "description_v1": "Major re-architecture of scheduler, KV cache manager, worker, sampler, API server. Up to 1.7x throughput vs V0. Zero-overhead prefix caching enabled by default. FlashAttention 3 + torch.compile + piecewise CUDA graphs.",
+      "v1_key_features": ["Zero-overhead prefix caching", "EngineCore isolated execution loop", "Persistent Batch (from LMDeploy)", "torch.compile + piecewise CUDA graphs", "FlashAttention 3", "multimodal LLM support"],
+      "v1_kv_cache_legacy_dropped": "GPU<->CPU KV cache swapping dropped in V1 (simpler core architecture)",
+      "v2_status": "vLLM 0.26.0 (Jul 25, 2026) makes KV tiering an infrastructure contract; 411-commit change. Asynchronous KV offloading connector (Jan 8, 2026 blog); persistent KV layer + reasoning disclosure + plugin architecture.",
+      "v2_features": [
+        "Persistent KV cache layer (KV tiering: GPU → CPU DRAM → local NVMe → remote disk/object store) via KVConnectorBase_V1 abstraction",
+        "start_load_kv / save_kv_layer / wait_for_layer_load / wait_for_save APIs",
+        "KVCacheManager with hash-based prefix caching + LRU eviction + reference counting",
+        "Hybrid KV cache manager for SWA hybrid models (gpt-oss)",
+        "Pluggable KV connector architecture (LMCache, Mooncake, NIXL, etc.)",
+        "vLLM V0 vs V1 + KV Connector design (see docs/design/v1/prefix_caching.html)"
+      ],
+      "async_kv_offload_blog": "https://blog.vllm.ai/2026-01-08-kv-offloading-connector",
+      "mooncake_connector_in_v1": "https://docs.vllm.ai/en/latest/features/mooncake_connector_usage/",
+      "asplos_2026_link": "Preble cited in vLLM-related research; vLLM is the SOTA baseline in Preble evaluation",
+      "brief_vs_actual": "Brief said 'v1.0 (2025-01) + v2.0 (2026 H1) + KV cache persistence v2.x'. Verified: v1 alpha blog Jan 27, 2025; v1 became default by mid-2025; v0.26.0 (Jul 2026) makes KV tiering infrastructure-level; there is no discrete 'v2.0' but KV persistence is a continuous evolution through v0.20–v0.28 in 2025–2026."
+    },
+    {
+      "name": "LMCache 2025 GA → v0.4 distributed cache (2026)",
+      "organization": "UC Berkeley + industry (Tensormesh-backed)",
+      "paper_id": "arXiv:2510.09665",
+      "paper_title": "LMCache: An Efficient KV Cache Layer for Enterprise-Scale LLM Inference",
+      "year_paper": "Oct 8, 2025",
+      "arxiv_url": "https://arxiv.org/abs/2510.09665",
+      "tech_report_url_2026": "https://lmcache.ai/wp-content/uploads/2026/07/tech_report.pdf",
+      "github": "https://github.com/LMCache/LMCache",
+      "pypi": "https://pypi.org/project/lmcache/",
+      "description": "Open-source library providing extract/load/store/transfer primitives for KV cache. Hierarchical backends: GPU HBM → CPU memory → local NVMe → remote object store → Mooncake Store → Redis. Pluggable architecture. Up to 15x throughput, ≥2x lower latency vs built-in caches. AI-native memory paradigm.",
+      "release_cadence": "v0.3.x (2025) → v0.4.x → v0.5.x (Sep 2026); v0.5.5rc4 is current RC as of Sep 2, 2026",
+      "2026_h1_features": [
+        "Distributed KV Cache: Disaggregated Prefill, P2P KV Cache Sharing, Multi-Server Coordination",
+        "Hierarchical L1 (CPU DRAM) + L2 (NVMe, remote) storage",
+        "Pluggable Serde: compression / quantization / encryption (e.g. TurboQuant)",
+        "Multi-backend adapters: NIXL, File & Block, Remote & Distributed, DAX, Mock, Fault Inject",
+        "LMCache operator v0.5.4 (Kubernetes-native, Aug 2026)",
+        "NVFP4 KV cache compression (NVIDIA integration)"
+      ],
+      "lmcache_mooncake": "Apr 22, 2025 — LMCache supports Mooncake Store as remote connector; May 8, 2025 — official partnership",
+      "tech_metrics": "TTFT reduction ≥2× and ITL reduction ≥2× vs no KV cache; matches or exceeds commercial inference endpoints with v0.3.6 vs vLLM 0.10.2 baseline",
+      "brief_vs_actual": "Brief said '2025 GA + 2026 v0.4 distributed cache'. Verified: GA-ed through 2025 with multiple minor releases; v0.5 series current (Sep 2026); distributed KV cache formally shipped in 2026."
+    },
+    {
+      "name": "NVIDIA TensorRT-LLM 1.0 (Sep 2025) + KV cache compression",
+      "organization": "NVIDIA",
+      "release_url": "https://github.com/NVIDIA/TensorRT-LLM/releases/tag/v1.0.0",
+      "forum_announce_url": "https://forums.developer.nvidia.com/t/easier-faster-open-tensorrt-llm-1-0/346085",
+      "release_date": "Sep 25, 2025",
+      "description": "TensorRT-LLM 1.0 brings PyTorch model authorship, Modular Python runtime, stable LLM API. Up to 8× inference speedups on internal benchmarks.",
+      "kv_cache_reuse_jan_2025_blog": "https://developer.nvidia.com/blog/introducing-new-kv-cache-reuse-optimizations-in-nvidia-tensorrt-llm/",
+      "kv_cache_features_2025_2026": [
+        "Jan 16, 2025: Priority-based KV cache eviction (Executor API); KV cache event API for KV-aware routing; ~20% cache hit rate improvement in internal benchmarks",
+        "Sep 25, 2025 v1.0.0: PyTorch backend stable and default; KV-cache Connector API for disagg state transfer",
+        "2026 H1 v1.x: KVCacheManagerV2 — paged Vanilla attention + FlashInfer block reuse (C++); TriAttentionKvCacheCompressionConfig; KV cache reuse for MLA (Multi-Head Latent Attention); KV cache salting for secure reuse; host offloading examples; batched physical compaction for KV-cache compression; per-conversation KV cache block reuse",
+        "Dec 19, 2025: Mooncake Transfer Engine integrated into TensorRT-LLM for PD-disagg",
+        "NVFP4 KV Cache (long-context, large batch)"
+      ],
+      "kv_cache_system_doc": "https://nvidia.github.io/TensorRT-LLM/latest/features/kvcache.html",
+      "brief_vs_actual": "Brief said 'TensorRT-LLM 1.0 + KV cache compression 2025'. Verified: v1.0 GA Sep 25 2025; KV cache compression evolved through 2025-2026 with KVCacheManagerV2 + TriAttentionKvCacheCompressionConfig."
+    },
+    {
+      "name": "Hugging Face TGI v3.0 + Rust rewrite (2025)",
+      "organization": "Hugging Face",
+      "github": "https://github.com/huggingface/text-generation-inference",
+      "license": "Apache-2.0",
+      "maintenance_status": "In maintenance mode as of 12/11/2025; Hugging Face recommends vLLM, SGLang, llama.cpp, MLX going forward. Repo was archived by owner on Mar 21, 2026 (read-only).",
+      "description": "Rust + Python + gRPC server for LLM inference. Used by HuggingChat, Inference API, Inference Endpoints. Continuous batching in Rust (zero-overhead scheduler), tensor parallelism, SSE token streaming, OpenAI Messages API compatibility.",
+      "v3_releases_2025_2026": [
+        "Apr 8, 2025: v3.2.2",
+        "Apr 8, 2025: v3.2.3 (Llama 4 patches)",
+        "May 22, 2025: v3.3.1 (Torch 2.7 + CUDA 12.8)",
+        "May 30, 2025: v3.3.2 (Gaudi improvements)",
+        "Jun 18, 2025: v3.3.3 (Neuron backend update)",
+        "Jun 19, 2025: v3.3.4",
+        "Sep 2, 2025: v3.3.5",
+        "Dec 19, 2025: v3.3.7 (latest)"
+      ],
+      "kv_cache_handling": "Inherits from underlying backends (vLLM, llama.cpp, TRT-LLM); TGI does not have a unique KV cache persistence layer. Focus on routing and request multiplexing.",
+      "brief_vs_actual": "Brief said 'Hugging Face TGI v3.0 + Rust 2025'. Verified: TGI was always Rust (started 2022); v3.x series active through 2025; project entered maintenance mode Dec 11 2025; archived Mar 21 2026."
+    },
+    {
+      "name": "Anthropic Claude Sonnet 4.5 prompt cache (2025-09) + 5x cost reduction",
+      "organization": "Anthropic",
+      "release_date": "2025-09-29",
+      "official_pricing_url": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "prompt_caching_doc_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+      "claude_sonnet_page_url": "https://www.anthropic.com/claude/sonnet",
+      "description": "Claude Sonnet 4.5 launched Sept 29, 2025 with prompt caching already GA since Aug 2024. Sonnet 4.5 pricing: $3/$15 per million input/output tokens; cache reads cost $0.30 per million (90% discount); cache writes cost $3.75 per million (25% premium over standard input). Cache TTL 5 min (default) or 1 hour; minimum 2048 tokens (Sonnet/Opus), 1024 tokens (Haiku).",
+      "cache_5x_cost_real_world": "Per-pricing page, cache reads are 90% off base input price (= 10x cost reduction per token, not literally 5x). The '5x' in brief likely refers to overall TCO reduction observed by Anthropic customers combining caching + batching, or net cost-per-1M-tokens in typical multi-turn RAG workflows where cache hit rates exceed 80%.",
+      "cache_size_constraints": "Up to 4 cache breakpoints per request; each breakpoint creates a new cache prefix. Sonnet 4.5 standard 200K context.",
+      "extended_thinking": "Visible thinking mode + tool use; Computer use (Sep 2025).",
+      "brief_vs_actual": "Brief said 'Sonnet 4.5 prompt cache 2025-09 + 5x cost reduction'. Verified: Sonnet 4.5 released Sep 29 2025; prompt caching GA; the discount is 90% (= 10x per-token, not 5x). The '5x' figure may refer to overall TCO including batching."
+    },
+    {
+      "name": "OpenAI o1/o3 prompt caching (Dec 2025)",
+      "organization": "OpenAI",
+      "docs_url": "https://platform.openai.com/docs/guides/prompt-caching",
+      "api_announce_url": "https://openai.com/index/api-prompt-caching/",
+      "launch_status": "Prompt caching API for o1 (Dec 5, 2024 o1 GA), o3-mini (Jan 31, 2025), o3 (Apr 16, 2025), o3-pro (Jun 10, 2025), GPT-4o, GPT-4o-mini, GPT-5 family (Aug 7, 2025+).",
+      "cache_mechanics": "Longest matching prefix cache lookup, working backward through eligible breakpoints; minimum cacheable tokens 1024 (and increasing in 128-token increments); cached_tokens reported in API response usage field.",
+      "cache_pricing_o1_o3": {
+        "o1": "$7.50 / 1M cached read tokens",
+        "o1-pro": "$600 / 1M (highest in family)",
+        "o3-mini": "$0.55 / 1M cached read",
+        "o3": "$1.00 / 1M cached read",
+        "o4-mini": "$0.275 / 1M cached read",
+        "discount": "~50% off input price (vs 90% Anthropic)"
+      },
+      "brief_specificity": "Brief mentions 'o1/o3 cache hit 2025-12'. o1 was the original reasoning model with prompt cache (Dec 2024); o3 family GA'd April-June 2025 with cache. OpenAI caching discount is 50% (not 5x).",
+      "brief_vs_actual": "Brief said 'OpenAI o1/o3 cache hit 2025-12'. Verified: o1 GA Dec 5 2024 with caching; o3 GA Apr 16 2025 with caching. Dec 2025 likely refers to continued availability or extended batch caching."
+    },
+    {
+      "name": "Mistral Magistral reasoning model (2025-06)",
+      "organization": "Mistral AI",
+      "release_date": "2025-06-10",
+      "arxiv_id": "arXiv:2506.10910",
+      "arxiv_url": "https://arxiv.org/abs/2506.10910",
+      "model_card_url": "https://docs.mistral.ai/models/model-cards/magistral-medium-1-0-25-06",
+      "blog_url": "https://mistral.ai/news/magistral/",
+      "description": "Magistral = Mistral's first reasoning model family. Two variants: Magistral Small (24B, Apache 2.0 open-weights) and Magistral Medium (enterprise). Achieves 73.6% on AIME 2024, 90% with majority voting @64 (Medium); 70.7%/83.3% (Small). 10x faster via Le Chat Flash Answers.",
+      "training_method": "Trained with RL alone (no distillation); native multilingual reasoning (EN/FR/ES/DE/IT/AR/RU/ZH); chain-of-thought in user's language.",
+      "later_releases": [
+        "2025-09-18: Magistral Medium 1.2 (128k context, deprecated 2026-05-22)",
+        "Retired 2025-11-30 in favor of Mistral Medium 3.5"
+      ],
+      "license": "Magistral Small — Apache 2.0; Magistral Medium — proprietary",
+      "brief_vs_actual": "Brief said 'Mistral Magistral 2025-Q4'. Verified: released June 10, 2025 (Q2 2025), not Q4."
+    },
+    {
+      "name": "Microsoft RetNet / Mamba / Jamba commercialization (2025 H2)",
+      "organization": "Microsoft + AI21 (Mamba/Jamba) + ByteDance + Tsinghua",
+      "status_2025": "Jamba (AI21 hybrid SSM-Transformer) on Azure AI Model-as-a-Service since Mar 2024 (Jamba 1.5 Large); June 2025: AI21-Microsoft collaboration extended. Microsoft Phi-4 family uses hybrid attention; BitNet ternary quantization integrated into Megatron-Core (Mar 2026).",
+      "retnet_status": "Microsoft Research RetNet (arXiv:2307.08621) remains research-grade; not yet shipped as a first-party production model. Falcon-H1 hybrid transformer-Mamba architecture integrated into Megatron-Core by TII in Mar 2026.",
+      "thesis": "Hybrid SSM-Transformer architectures (Jamba, Falcon-H1, RWKV, Mamba-2) moving to production as KV cache cost grows linearly vs attention's quadratic; linear-time alternatives relevant for agentic inference with million-token contexts.",
+      "microsoft_evidence": [
+        "Mar 2026: Megatron-Core integrates Falcon-H1 hybrid transformer-Mamba architecture + BitNet ternary quantization support",
+        "Mar 2026: arXiv 2603.07685 — 'Scalable Training of Mixture-of-Experts Models with Megatron Core'",
+        "Megatron-Core v0.11.0 (May 2025): new capabilities for multi-data center LLM training"
+      ],
+      "storage_relevance": "Linear-time models have O(1)-per-token state vs O(seq_len²) for attention; storage implication: dramatically smaller KV cache footprint, enabling larger effective batch sizes for the same HBM budget.",
+      "brief_vs_actual": "Brief said 'Microsoft RetNet / Mamba 2025 H2 commercialization'. Verified: as of late 2025-2026, no major Microsoft-first-party RetNet production model; instead hybrid SSM-Transformer (Jamba, Falcon-H1, BitNet) is the commercialization vector. Microsoft 2025 Annual Report does not specifically call out RetNet."
+    }
+  ],
+
+  "2_training_checkpoint_storage": [
+    {
+      "name": "PyTorch Distributed Checkpoint (DCP) v2.4+ → v2.5 → v2.6",
+      "organization": "PyTorch + Meta + community",
+      "v2_4_release_date": "2024-07-24 (PyTorch 2.4.0 GA)",
+      "v2_5_release_date": "2025-01 (PyTorch 2.5.0) → minor updates through 2025",
+      "v2_6_release_date": "2025-01-29 (PyTorch 2.6.0)",
+      "v2_6_blog_url": "https://pytorch.org/blog/pytorch2-6/",
+      "docs_url": "https://docs.pytorch.org/docs/stable/distributed.checkpoint.html",
+      "github": "https://github.com/pytorch/pytorch/tree/main/torch/distributed/checkpoint",
+      "description": "torch.distributed.checkpoint (DCP): rank-aware sharded save/load, load-time resharding between different cluster topologies, in-place operation. Per-rank files, async save with AsyncStager.",
+      "key_features_2025_2026": [
+        "v2.4+ (Jul 2024): GA of DCP, async_save, FSDP2-compatible",
+        "v2.5 (Jan 2025): process-based async checkpointing (PR #147039), use_sharded_tensor for tensor-only checkpoints",
+        "v2.6 (Jan 29 2025): torch.compile with Python 3.13; CUDA 12.6.3; AOTInductor enhancements; FP16 on x86 CPUs",
+        "May 2025–Sep 2025: PyTorch blog 'Distributed Checkpoint: Efficient checkpointing in large-scale jobs' — DCP optimizations minimize checkpointing overhead to near-zero (load time 80-94s with local checkpointing vs original)",
+        "Aug 2025: PyTorch distributed checkpointing performance blog on plan caching + staging step + local checkpointing",
+        "Plan caching, staged async checkpointing, local checkpointing to reduce collective costs",
+        "2026: integration with torchtitan as reference implementation; PyTorch 2.14.0 (Sep 2 2026) — final updates"
+      ],
+      "torchtitan_dcp_doc": "https://github.com/pytorch/torchtitan/blob/main/docs/checkpoint.md",
+      "pytorch_blog_optimization": "https://pytorch.org/blog/distributed-checkpoint-efficient-checkpointing-in-large-scale-jobs",
+      "format_utils": "dcp_to_torch_save / torch_save_to_dcp converters; BroadcastingTorchSaveReader for backward compatibility",
+      "brief_vs_actual": "Brief said 'DCP v2.4+ (2024-08 GA) + v2.5 (2025-04) + v2.6 (2026 H1)'. Verified: DCP has been part of torch.distributed since 2022; v2.4.0 was Jul 2024 with major DCP enhancements; v2.5 was Jan 2025; v2.6 was Jan 29 2025 (not April as brief stated). No discrete v2.6 in 2026 H1 — DCP continues to evolve across minor releases."
+    },
+    {
+      "name": "NVIDIA Megatron-Core 0.10 → 0.11 → 0.12+ (2025-Q3+)",
+      "organization": "NVIDIA",
+      "github": "https://github.com/NVIDIA/Megatron-LM",
+      "pypi": "https://pypi.org/project/megatron-core/",
+      "latest_release": "v0.18.0 (Jun 23, 2026)",
+      "core_r0_10_0_release": "Per newreleases.io: Megatron Core 0.10.0 released (2025 Q3 timeframe per news archives)",
+      "v0_11_0_release": "May 2025 — multi-data center LLM training (NVIDIA NeMo blog)",
+      "v0_12_0_to_0_18_0_roadmap": "Aug 2025 MoE Q3-Q4 roadmap; Oct 2025 Megatron Dev branch; Oct 2025 Megatron Bridge (Hugging Face <-> Megatron conversion); Dec 2025 development moved to GitHub; Jan 2026 Dynamic Context Parallelism (1.48x speedup); Mar 2026 Scalable Training of MoE (arXiv 2603.07685); Mar 2026 Falcon-H1 hybrid architecture + BitNet; Mar 2026 roadmap (issue #4003); deprecation of Python 3.10 in 0.17.0.",
+      "storage_relevance": "Megatron-Core provides DCP-compatible distributed checkpointing; TP/PP/EP/CP parallelism strategies; tensor + pipeline + expert + data + context parallel all need sharded checkpoint storage. v0.10+ integrates DCP for resumable training on large clusters.",
+      "moe_model_zoo_2025_06": "Megatron MoE Model Zoo — DeepSeek-V3, Mixtral, Qwen3 MoE reference configurations with checkpoint conversion tools (Jun 2025).",
+      "megatron_bridge": "https://github.com/NVIDIA-NeMo/Megatron-Bridge — bidirectional HF <-> Megatron checkpoint converter (Oct 2025).",
+      "megatron_dev_branch": "https://github.com/NVIDIA/Megatron-LM/tree/dev — early access branch (Oct 2025).",
+      "brief_vs_actual": "Brief said 'Megatron-Core 0.10 (2025-Q3)'. Verified: 0.10.0 release confirmed; followed by 0.11.0 (May 2025 — multi-DC), 0.12+ continuing through 0.18.0 (Jun 2026). Megatron Core is the canonical NVIDIA LLM training checkpoint library."
+    },
+    {
+      "name": "DeepSpeed ZeRO-3 + ZeRO-Offload (2025 H2 evolutions)",
+      "organization": "Microsoft DeepSpeed team",
+      "github": "https://github.com/deepspeedai/DeepSpeed",
+      "docs": "https://www.deepspeed.ai/",
+      "description": "ZeRO-3 partitions optimizer states + gradients + parameters across data-parallel ranks. ZeRO-Offload extends to CPU/NVMe memory. Continued 2025 H2 work focuses on AMD SDMA + SuperOffload + ZenFlow + DeepCompile.",
+      "2025_2026_releases": [
+        "Mar 2025: DeepCompile (unlocking compiler optimization for distributed training)",
+        "Jun 2025: Arctic Long Sequence Training (ALST) with DeepSpeed — multi-million token sequences (arXiv:2506.13996)",
+        "Aug 2025: ZenFlow — Stall-Free Offloading Engine for LLM Training (arXiv:2505.12242)",
+        "Oct 2025: SuperOffload — large-scale LLM training on Superchips (pytorch.org blog, arXiv:2509.21271)",
+        "Oct 2025: Ray x DeepSpeed Meetup at Anyscale",
+        "Nov 2025: DeepSpeed ZeRO++ powers LinkedIn distillation training (EMNLP 2025 Industry)",
+        "Dec 2025: DeepSpeed Core API updates — PyTorch-style backward and low-precision master states",
+        "Mar 2026: ASPLOS 2026 Best Paper Honorable Mention for SuperOffload",
+        "May 2026: System DMA (SDMA) for ZeRO-3 on AMD GPUs",
+        "May 2026: Muon Optimizer support with DeepSpeed"
+      ],
+      "checkpoint_relevance": "ZeRO-3 + Universal Checkpointing (arXiv:2406.18820) supports flexible sharded checkpoint layouts; SuperOffload demonstrates offload-aware checkpointing for Grace Hopper superchips.",
+      "training_intelligence_layer": "DeepSpeed Core API updates (Dec 2025) and ZeRO++ reduce memory pressure during checkpoint save/load windows.",
+      "brief_vs_actual": "Brief said 'DeepSpeed ZeRO-3 + ZeRO-Offload 2025 H2'. Verified: ZeRO-3 and ZeRO-Offload are mature (originally 2020-2021) but 2025-2026 saw major enhancements: ZenFlow (Aug 2025), SuperOffload (Oct 2025), ASPLOS 2026 paper."
+    },
+    {
+      "name": "FSDP2 + torchft (Meta fault-tolerant distributed training)",
+      "organization": "Meta PyTorch + PyTorch distributed team",
+      "torchft_github": "https://github.com/meta-pytorch/torchft",
+      "torchft_pypi": "https://pypi.org/project/torchft/",
+      "torchft_blog": "https://pytorch.org/blog/fault-tolerant-llama-training-with-2000-synthetic-failures-every-15-seconds-and-no-checkpoints-on-crusoe-l40s/",
+      "fsdp2_tutorial": "https://docs.pytorch.org/tutorials/intermediate/FSDP_tutorial.html",
+      "pytorch_2_13_blog": "https://pytorch.org/blog/pytorch-2-13-release-blog/",
+      "description": "torchft = fault tolerance for PyTorch (HSDP, LocalSGD, DiLoCo). Per-step recovery without checkpointing — workers heal from healthy peers via P2P weight transfer. Integrates with torchtitan (Fault Tolerant HSDP).",
+      "fsdp2_features_2025_2026": [
+        "FSDP2 is current API (FSDP1 deprecated); communication overlap between all-gather and reduce-scatter",
+        "PyTorch 2.13 release: torchcomms backend improves fault tolerance and debuggability at cluster scale",
+        "FSDP2 + torchft = Fault Tolerant HSDP for per-step all_reduce + per-step fault tolerance",
+        "LocalSGD and DiLoCo (semi-synchronous, sync every N steps)",
+        "demonstrated training Llama with 2000 synthetic failures every ~15s on Crusoe L40S with zero downtime (Jun 2025 blog)"
+      ],
+      "checkpoint_elimination": "torchft demonstrates that with P2P recovery, persistent checkpoint save/load can be eliminated during training — reducing storage I/O pressure significantly (load time eliminated since no checkpoint needed).",
+      "design_doc": "https://docs.google.com/document/d/1OZsOsz34gRDSxYXiKkj4WqcD9x0lP9TcsfBeu_SsOY4/edit",
+      "brief_vs_actual": "Brief said 'FSDP2 + torchft (fault tolerance)'. Verified: torchft GitHub moved to github.com/meta-pytorch/torchft (formerly github.com/pytorch/torchft); PyTorch 2.13 release blog explicitly mentions FSDP2 + torchcomms for fault tolerance."
+    },
+    {
+      "name": "AWS S3 Express One Zone (2024-11) + 2025 price cuts + 2026",
+      "organization": "Amazon Web Services",
+      "launch_blog": "https://aws.amazon.com/blogs/aws/new-amazon-s3-express-one-zone-high-performance-storage-class/",
+      "product_page": "https://aws.amazon.com/s3/storage-classes/express-one-zone/",
+      "launch_date": "2023-11-29 (GA at re:Invent 2023) — first S3 single-AZ class",
+      "april_2025_price_cuts": "https://aws.amazon.com/about-aws/whats-new/2025/04/amazon-s3-express-one-zone-reduces-storage-request-prices/",
+      "april_2025_announce_date": "2025-04-10",
+      "description": "S3 Express One Zone: high-performance single-AZ S3 storage class; single-digit millisecond latency; up to 10x faster than S3 Standard; up to 2M GET/s + 200K PUT/s per directory bucket; directory bucket type.",
+      "2025_april_price_cuts": "Storage -31%, PUT requests -55%, GET requests -85%, data upload/retrieval -60%. Most dramatic GET reduction aimed at ML training data read workloads.",
+      "2026_updates": "Mar 2026 CloudWatch update; continued AI/ML workload optimization (per Oflight 2026 guide); Google Cloud also launched Managed Lustre powered by DDN EXAScaler Apr 2026 with Salesforce reference customer (1.5x faster training, 75% lower I/O latency, 42% lower cost).",
+      "checkpoint_storage_use_case": "AWS Storage Blog 'Architecting scalable checkpoint storage for large-scale ML training on AWS' (Jun 16, 2025) — guidance for ML checkpoint workloads.",
+      "real_world_results": "ClickHouse: 283% query improvement; Pinterest: 10x data processing speedup post-migration.",
+      "brief_vs_actual": "Brief said 'AWS S3 Express One Zone 2024-11 + 2025 H1 + 2026 H1'. Verified: launched Nov 29 2023, not 2024-11; April 10 2025 price cut is the 2025 H1 milestone; March 2026 CloudWatch update is the 2026 H1 milestone."
+    }
+  ],
+
+  "3_rag_vector_db": [
+    {
+      "name": "Pinecone Serverless 2024-2026 (GA + customers)",
+      "organization": "Pinecone Systems",
+      "ga_date": "2024-05-21 (GA at New York)",
+      "ga_press_url": "https://www.pinecone.io/newsroom/pinecone-makes-accurate-fast-scalable-generative-ai-accessible-to-organizations-large-and-small-with-launch-of-its-serverless-vector-database/",
+      "brief_ga_claim": "Brief said '2025-Q1 GA'. Verified: GA was May 21, 2024 (Q2 2024). Public preview started late 2023.",
+      "scale_at_ga": "20,000+ orgs in public preview; 12B+ embeddings indexed; customers: Notion, Gong, Help Scout, New Relic, TaskUs, You.com, DISCO, CS Disco, Canva, Blackstone, Domo",
+      "customer_evolution_2025_2026": [
+        "Notion — billion-document RAG (cited as launch customer May 2024); Customer story at notion.com/customers/pinecone",
+        "Cursor — confirmed as Pinecone customer via integration docs; Pinecone Cursor quickstart added Oct 16, 2025 (release-notes/2025)",
+        "Anthropic — Pinecone is referenced in Anthropic partner materials; not formally cited as 'Anthropic customer' but works with Anthropic Claude via Messages API integration",
+        "Gong, Vanguard, CustomGPT.ai, Obviant, Terminal X, Aquant, Delphi, 1up — added as customer stories throughout 2025 (pinecone.io/customers)",
+        "Launch Week March 17-21, 2025 — optimized database architecture for agentic workloads + admin API + audit logs + backup/restore",
+        "Aug 21, 2025: Delphi case study — million conversational agents",
+        "Oct 16, 2025: Agentic quickstart for Claude Code and Cursor; AI Engine integration",
+        "2025 research publications: 'Accurate and Efficient Metadata Filtering' (Jun 12, 2025), 'DIME: Reproducibility, Scalability' (May 9, 2025), 'Nearly Optimal Attention Coresets' (May 8, 2026)"
+      ],
+      "key_features_2025": [
+        "Separation of reads/writes/storage",
+        "Object storage-based architecture with intelligent tiering",
+        "Multi-tenant with efficient resource packing",
+        "Private Endpoints via AWS PrivateLink",
+        "Sparse indexes (launched Mar 5, 2025 with pinecone-sparse-english-v0)",
+        "Dedicated Read Nodes GA (97% lower costs for large-scale workloads)"
+      ],
+      "brief_vs_actual": "Brief said 'Pinecone Serverless 2025-Q1 + 2026 H1 customer list (Anthropic, Notion, Cursor)'. Verified: Serverless GA was May 21 2024 (not 2025-Q1); Notion is a confirmed customer since GA; Cursor added Oct 16, 2025; Anthropic is a partner but not publicly listed as a 'customer' in the same way."
+    },
+    {
+      "name": "Weaviate Embedded 2025 + Verba 2026 H1 (status)",
+      "organization": "Weaviate",
+      "weaviate_blog": "https://weaviate.io/blog/verba-open-source-rag-app",
+      "verba_github": "https://github.com/weaviate/Verba",
+      "verba_release_history": "https://github.com/weaviate/Verba/releases",
+      "verba_status_2026": "Verba (the Weaviate-built open-source RAG chatbot) was DISCONTINUED and the repo was archived on Jun 8, 2026 (read-only). v2.1.3 (Jul 14, 2025) is the last release. Weaviate points users to playground.weaviate.io and Elysia (next-gen agentic RAG assistant).",
+      "weaviate_embedded_2025": "Weaviate Embedded (in-process Go-based vector DB for prototyping) remains supported as part of the core Weaviate product line; embedded mode enables local development before cloud/server deployment.",
+      "brief_vs_actual": "Brief said 'Weaviate Embedded 2025 + Verba 2026 H1'. Verified: Weaviate Embedded exists; Verba was discontinued and archived Jun 2026 (not 2026 H1 active development)."
+    },
+    {
+      "name": "Qdrant Hybrid Search 2025 H2 (v1.15)",
+      "organization": "Qdrant",
+      "github": "https://github.com/qdrant/qdrant",
+      "hybrid_doc_url": "https://qdrant.tech/articles/hybrid-search/",
+      "hybrid_queries_doc": "https://qdrant.tech/documentation/search/hybrid-queries/",
+      "release_cadence_2025_2026": "v1.13.x (Jan-Feb 2025), v1.14.0 (Apr 22 2025), v1.14.1 (May 23 2025), v1.15.0 (Jul 18 2025), v1.15.1 (Jul 24 2025), v1.15.2 (Aug 11 2025), v1.15.3 (Aug 14 2025), v1.15.4 (Aug 27 2025), v1.15.5 (Sep 30 2025), v1.16.0 (Nov 17 2025), v1.17.0 (Feb 19 2026), v1.18.0 (May 11 2026), v1.19.0 (Aug 4 2026)",
+      "hybrid_features": [
+        "Unified Query API (combines search + recommend + discover)",
+        "Multivector support (v1.10) — late interaction models like ColBERT",
+        "Sparse vectors + dense vectors combined via reciprocal rank fusion",
+        "GPU-accelerated HNSW indexing (Qdrant Cloud)",
+        "Named vectors (multiple vector fields per point)",
+        "Multistage query pipelines"
+      ],
+      "aug_2025_customer": "RAG/ecommerce research blog Sep 4, 2025 (RoBERTa query router for hybrid search)",
+      "token_storage_research_2026": "Sep 4, 2026: Qdrant's Kumar Shivendu published arXiv:2608.02376 'Token Storage' — 1.5-2x compression for AI-agent primary user workloads",
+      "brief_vs_actual": "Brief said 'Qdrant Hybrid Search 2025 H2'. Verified: hybrid search is the core product; 1.15.x series (Jul-Sep 2025) corresponds to 2025 H2."
+    },
+    {
+      "name": "Zilliz / Milvus 2.5 + 2.6 + 3.0",
+      "organization": "Zilliz / Milvus open-source community",
+      "milvus_2_5_release": "Dec 17, 2024 (hybrid vector + BM25 keyword search; 30x faster than traditional)",
+      "milvus_2_5_press_url": "https://zilliz.com/news/milvus-2-5-creates-best-of-both-worlds-with-hybrid-vector-keyword-search",
+      "milvus_2_5_blog": "https://milvus.io/blog/introduce-milvus-2-5-full-text-search-powerful-metadata-filtering-and-more.md",
+      "milvus_2_6_release": "Jun 12, 2025 (DBTA coverage); silicanangle article; reduces AI infrastructure costs",
+      "milvus_3_0_beta_release": "May 9, 2026",
+      "milvus_release_notes_url": "https://milvus.io/docs/release_notes.md",
+      "v2_5_features": [
+        "Hybrid vector + keyword (BM25) search in single query",
+        "Sparse vectors via Sparse + Inverted Index",
+        "Full-text search native support",
+        "Unified table structure for dense + sparse + metadata",
+        "Zilliz Cloud Public Preview Jan 27, 2025",
+        "BYOC Private Link (Jan 27, 2025)"
+      ],
+      "v2_6_features": [
+        "Further cost reduction for AI infrastructure",
+        "Multi-source replication (May 2025)"
+      ],
+      "v3_0_beta_features": [
+        "External Collection — query external lake tables zero-copy",
+        "Spark reads Milvus collections via Snapshot",
+        "Zilliz Lakebase = unified serving, discovery, batch",
+        "Richer retrieval, more expressive schema",
+        "Finer data and model lifecycle controls"
+      ],
+      "zilliz_cloud_2025_2026": [
+        "Feb 2025: BYOC enhanced with Private Link",
+        "Mar 27, 2025: 2.19.2 milestone",
+        "Dec 11, 2025: Knowledge base GA",
+        "GPU-accelerated vector build GA (3.1.0, Jun 24, 2025)",
+        "Memory-optimized search for Faiss indexes using Lucene HNSW",
+        "Star-tree indexes GA (3.1.0)"
+      ],
+      "brief_vs_actual": "Brief said 'Milvus 2.5 (2025-Q3) + 3.0 (2026 H2)'. Verified: 2.5 was Dec 2024 (Q4 2024); 2.6 was Jun 2025 (Q2 2025); 3.0-beta was May 2026."
+    },
+    {
+      "name": "Chroma 0.6 + Cloud (Chroma Cloud 2025-08 GA)",
+      "organization": "Chroma",
+      "github": "https://github.com/chroma-core/chroma",
+      "homepage": "https://www.trychroma.com/",
+      "changelog_url": "https://www.trychroma.com/changelog",
+      "ga_changelog_url": "https://www.trychroma.com/changelog/introducing-chroma-cloud",
+      "cloud_ga_date": "2025-08-18",
+      "description": "Open-source search infrastructure for AI; Rust query engine + Python client; Cloud GA Aug 18, 2025 with distributed vector index (SPANN + SPFresh); wal3 object-storage write-ahead log; collection forking (copy-on-write).",
+      "changelog_highlights_2025_2026": [
+        "Jan 2026: Read Level Control (index-only / full read modes); Private Networking (AWS PrivateLink); GroupBy; Customer-Managed Encryption Keys",
+        "Feb 2026: Metadata Arrays (strings/numbers/booleans in metadata)",
+        "Mar 2026: Chroma Cloud Sync Serverless",
+        "Aug 2025: Chroma Cloud GA (Aug 18, 2025); wal3 object-storage WAL; collection forking; sparse vector search (BM25 + SPLADE)",
+        "Oct 2025: Chroma Sync; wal3 (object-storage WAL); Package Search MCP",
+        "Nov 2025: Chroma Web Sync (crawl/scrape/chunk/embed web pages)",
+        "Dec 2025: Sparse Vector Search (BM25 + SPLADE first-class)",
+        "70% data throughput increase (base64 vector encoding) Jul 2025",
+        "Regex Search Support Jul 2025",
+        "JavaScript Client V3 Jun 2025"
+      ],
+      "chroma_cloud_architecture": "Distributed vector index using SPANN (Microsoft) + SPFresh (arXiv:2410.14452); strong consistency via wal3 (object-storage backed WAL); runs on AWS + GCP.",
+      "brief_vs_actual": "Brief said 'Chroma 0.6 + Cloud 2025-Q4'. Verified: Chroma Cloud GA was Aug 18, 2025 (Q3 2025), not Q4. v0.6.0 was the open-source release that aligned with Cloud GA."
+    },
+    {
+      "name": "LanceDB 2025 H2 — Lance v2 columnar format",
+      "organization": "LanceDB",
+      "github": "https://github.com/lancedb/lancedb",
+      "lance_format_doc": "https://docs.lancedb.com/lance",
+      "lance_paper_id": "arXiv:2504.15247",
+      "lance_paper_title": "Lance: Efficient Random Access in Columnar Storage through Adaptive Structural Encodings",
+      "lance_v2_blog": "https://www.lancedb.com/blog/lance-v2",
+      "design_blog_feb_2025": "https://blog.lancedb.com/designing-a-table-format-for-ml-workloads/ (Feb 2025)",
+      "description": "Lance — modern columnar data format for ML; 100x faster random access than Parquet; zero-copy schema evolution; rich secondary indices; versioning; multimodal (image/video/audio); Apache Arrow native. Lance v2 introduced as a 'columnar container format' with pluggable structural encodings.",
+      "ecosystem_integrations_2025": "Apache Arrow, Pandas, Polars, DuckDB, Ray, Spark, PyTorch.",
+      "use_cases": "Multimodal Gen AI training over petabyte-scale data; self-driving car large-scale storage; e-commerce billion-scale vector search.",
+      "lance_features": [
+        "Arrow-native columnar storage",
+        "Zero-copy data evolution (no full table rewrites for new columns)",
+        "Versioned datasets with manifest tracking",
+        "Vector search + full-text search + indexing in one file format",
+        "RabitQ quantization (David Myriel blog)",
+        "Full-text search (Lance)"
+      ],
+      "brief_vs_actual": "Brief said 'LanceDB 2025 H2 columnar format'. Verified: Lance format ongoing; Lance v2 blog Apr 2024; Feb 2025 'Designing a Table Format for ML Workloads' blog by Weston Pace; arXiv paper Apr 2025; consistent with 2025 H2 active development."
+    },
+    {
+      "name": "Vespa AI Search 2025 H1 (continuous releases)",
+      "organization": "Vespa.ai (Yahoo-spun-out)",
+      "releases_url": "https://docs.vespa.ai/en/learn/releases.html",
+      "release_cadence": "Daily releases Mon-Thu CET; semantic versioning; backward compatible; live migration within 2 minor versions of running system.",
+      "key_2025_2026_events": [
+        "Perplexity partners with Vespa.ai (in-house search engine) — announced in 2025 press releases",
+        "Voyage AI by MongoDB partnership (reduce AI search costs, improve retrieval quality)",
+        "GigaOm Radar for Vector Databases v3 — Leader and Outperformer",
+        "Vespa.ai joins AWS ISV Accelerate Program",
+        "RAG Blueprint launch — Perplexity-level RAG quality, 10x productivity",
+        "ColPali support for visual document RAG (multi-vector late interaction)",
+        "RavenPack Bigdata.com — billion-scale vector search for financial RAG",
+        "Nexla partnership — real-time AI search across hundreds of enterprise data sources",
+        "Outmatic partnership — .NET support for Vespa OSS"
+      ],
+      "key_features": "Unified vector + tensor + text + structured data in single distributed engine; always-fresh indexing; GPU support for ML inference at serving time; billions of items with sub-100ms latency.",
+      "storage_relevance": "Vespa is the AI serving tier; treats embedding vectors, ML models, and text as first-class data with persistent + ephemeral storage tiers.",
+      "brief_vs_actual": "Brief said 'Vespa AI Search 2025 H1'. Verified: Vespa released continuously throughout 2025-2026 with major partner announcements (Perplexity, Voyage AI, AWS ISV Accelerate)."
+    },
+    {
+      "name": "Elastic 9.0 (Apr 2025) + Elastic 9.x AI retrieval",
+      "organization": "Elastic",
+      "v9_0_release_date": "2025-04-15",
+      "release_notes_url": "https://www.elastic.co/guide/en/elastic-stack/9.0/release-notes-elasticsearch-9.0.0.html",
+      "v9_0_8_release_date": "2025-10-06 (last 9.0 release before EOL 2025-10-02)",
+      "ai_features_url": "https://www.elastic.co/docs/explore-analyze/ai-features",
+      "description": "Elastic 9.0 introduced semantic_text field type (GA) for built-in semantic search; rank_vectors field type (experimental, ColBERT-style late interaction); Better Binary Quantization (BBQ) for vectors; ES|QL LOOKUP JOIN (tech preview), COMPLETION, cross-cluster improvements.",
+      "ai_features_2025_2026": [
+        "Elastic Inference (Managed LLMs)",
+        "NLP and embedding models",
+        "Vector search with binary quantization (BBQ)",
+        "Semantic re-ranking (Elasticsearch retrievable reranker)",
+        "Learning to Rank (LTR)",
+        "Automatic Import (LLM-assisted custom integration generation)",
+        "Agent Builder — AI agent framework on Elasticsearch",
+        "AI assistant for Elasticsearch / Observability / Security",
+        "MCP servers (Model Context Protocol)",
+        "AI agent skills (open-source Agent Skills packages)"
+      ],
+      "version_history": "9.0.0 (Apr 15 2025) → 9.0.8 (Oct 6 2025); EOL 2025-10-02. Successor: 9.x line.",
+      "ai_powered_search_event": "Jun 4, 2025 — Elastic webinar 'AI-Powered Search at Scale' for Elastic 9.0",
+      "brief_vs_actual": "Brief said 'Elastic 9.0 (2025-08) + 2026 H1'. Verified: Elastic 9.0.0 GA was Apr 15 2025 (not Aug). The Aug date may have been a release update or webinar."
+    },
+    {
+      "name": "OpenSearch 3.x vector search (2025 H2 GA)",
+      "organization": "OpenSearch Project (Linux Foundation)",
+      "docs_url": "https://docs.opensearch.org/latest/",
+      "version_history_url": "https://opensearch.org/releases/",
+      "release_schedule_2025_2026": [
+        "2.19.0 (Feb 11 2025), 2.19.1 (Feb 27 2025), 2.19.2 (Apr 29 2025), 2.19.3 (Jul 22 2025), 2.19.4 (Nov 6 2025), 2.19.5 (Mar 10 2026), 2.19.6 (Jul 2 2026)",
+        "3.0.0-alpha1 (Mar 18 2025), 3.0.0-beta1 (Apr 22 2025), 3.0.0 GA (May 6 2025) — Lucene 10, GPU acceleration (experimental), gRPC support, pull-based ingestion from Kafka/Kinesis, native MCP protocol for agentic workflows",
+        "3.1.0 (Jun 24 2025) — GPU acceleration for vector index builds GA; memory-optimized search for Faiss via Lucene HNSW; semantic field type; star-tree indexes GA",
+        "3.2.0 (Aug 19 2025) — Search Relevance Workbench; gRPC APIs GA; derived source; experimental Agentic Memory APIs + Job Scheduler APIs",
+        "3.3.0 (Oct 14 2025) — redesigned Discover UI; Apache Calcite as default PPL; agentic search + agentic memory APIs GA; Seismic algorithm for neural sparse search; experimental Apache Arrow Flight streaming",
+        "3.4.0 (Dec 16 2025)",
+        "3.5.0 (Feb 10 2026)",
+        "3.6.0 (Apr 7 2026)",
+        "3.7.0 (Jun 9 2026)"
+      ],
+      "key_vector_features": [
+        "GPU-accelerated vector index builds (3.1.0 GA, Jun 24 2025)",
+        "Memory-optimized search for Faiss indexes using Lucene HNSW (3.1.0 GA)",
+        "Semantic field type — streamlined semantic search (3.1.0)",
+        "Star-tree indexes GA — comprehensive query types (3.1.0)",
+        "Seismic algorithm for neural sparse search (3.3.0)",
+        "Agentic Memory APIs (3.2.0 experimental → 3.3.0 GA)",
+        "Native MCP protocol support for agentic workflows (3.0.0)"
+      ],
+      "brief_vs_actual": "Brief said 'OpenSearch vector 2025 H2'. Verified: vector enhancements in 2025 H2 are 3.2.0 (Aug 19 2025) and 3.3.0 (Oct 14 2025) with Seismic + agentic memory GA."
+    }
+  ],
+
+  "4_multimodal_small_file_io": [
+    {
+      "name": "NVIDIA Magnum IO GPUDirect Storage v1.x + v2.0 (Rubin)",
+      "organization": "NVIDIA",
+      "docs_url": "https://docs.nvidia.com/gpudirect-storage/release-notes/index.html",
+      "pdf_url": "https://docs.nvidia.com/gpudirect-storage/pdf/release-notes.pdf",
+      "release_notes_release": "r1.18 (Jul 2, 2026) — release notes document",
+      "version_history_real": {
+        "v1_0": "2021 (Oct 2021 in partner matrix); read support for IBM Spectrum Scale",
+        "v1_1": "Mar 2022; XFS support added (beta); 4K/8K IO improvements; cuFile stream priority",
+        "v1_2": "2022 — BeeGFS + XFS support; Batch APIs (alpha)",
+        "v1_3": "Initial Linux dma-buf support",
+        "v1_4": "Hopper PCIe support; RHEL 9.0 + Ubuntu 22.04",
+        "v1_5": "cuMem* memory allocations with cuFile",
+        "v1_6_1": "Improved batch API performance; threadpool",
+        "v1_7": "Complete cuFileStreamRegister, cuFileStreamDeregister, cuFileReadAsync, cuFileWriteAsync; system memory; non-O_DIRECT fds; threadpool default",
+        "v1_8": "Grace Hopper 64K page size EXT4; vGPU in VMware; cuFile in CSP compat mode",
+        "v1_9": "RHEL 9.3 + UB 22.04.3",
+        "v1_10": "Bug fixes",
+        "v1_11": "RHEL 8.10, RHEL 9.4, UB 24.04",
+        "v1_13": "NVME P2PDMA mode; Amazon FSx for Lustre interop",
+        "v1_14": "nvidia-fs.ko supports Linux 6.12 kernel; Get/Put parameter APIs",
+        "v1_15": "Removed Pascal/Volta support",
+        "v1_16": "Amazon FSx for Lustre + GPUDirect Storage GA",
+        "v1_17": "Reduced buffer management via DMA-Buf",
+        "v1_18": "Linux kernel 7.0 support; multithreading on Grace",
+        "v1_18_1": "Multithreaded I/O for >8 MiB access sizes on distributed filesystems"
+      },
+      "partner_matrix_2024_2026": "DDN EXAScaler 5.2+/6.0+ (1.1+); Hammerspace 5.0 (1.8+, Jan 2024); HPE Data Fabric 7.2+ (1.3+, Jul 2025); Pure Storage FlashBlade (1.7+, Dec 2023); VAST Universal Storage 4.1 (1.1+); WekaIO WekaFS 3.13 (1.0+); HPE Cray ClusterStor Neo 4.2+ (1.0+); NetApp ONTAP 9.10.1 (1.0+).",
+      "v2_0_rubin_planned": "Brief said 'v2.0 (2026 H1) Rubin optimized'. Verified: not yet released as of Sep 2026; current latest is v1.18.1 (2026). v2.0 / Rubin-optimized version expected to be announced with Rubin GPU launch.",
+      "brief_vs_actual": "Brief said 'GDS v1.0 (2023) + v1.1 (2025-09) + v2.0 (2026 H1 Rubin)'. Verified: v1.0 was Oct 2021; v1.1 was Mar 2022 (not 2025-09); v1.18.1 is current (Jul 2026); no v2.0 yet."
+    },
+    {
+      "name": "AMD ROCm 7.0 + MORI (Multi-Object Read Interface)",
+      "organization": "AMD",
+      "rocm_7_0_release_date": "2025-09-16 (Q3 2025, NOT Q1 2025 as brief stated)",
+      "release_notes_url": "https://rocm.docs.amd.com/en/docs-7.0.0/about/release-notes.html",
+      "versions_url": "https://rocm.docs.amd.com/en/latest/release/versions.html",
+      "tech_article_url": "https://www.amd.com/en/developer/resources/technical-articles/2025/amd-rocm-7-built-for-developers-ready-for-enterprises.html",
+      "release_blog_url": "https://rocm.blogs.amd.com/ecosystems-and-partners/rocm-7.0-blog/README.html",
+      "release_7_0_highlights": [
+        "Full enablement of AMD Instinct MI350 series GPUs (CDNA 4 architecture)",
+        "FP4, FP6, FP8 (OCP float8 E4M3) data types",
+        "HIP 7.0 (easier code portability)",
+        "AMD Resource Manager + AMD AI Workbench (enterprise)",
+        "Prebuilt ROCm 7.0 vLLM and SGLang Docker images for MI355/MI350/MI325/MI300",
+        "Production-ready MXFP4, FP8 models quantized with AMD Quark (DeepSeek R1, Llama 3.3 70B, Llama 3.1 405B)"
+      ],
+      "later_releases": [
+        "7.0.1 (Sep 17 2025), 7.0.2 (Oct 10 2025)",
+        "7.1.0 (Oct 30 2025), 7.1.1 (Nov 26 2025)",
+        "7.2.0 (Jan 21 2026), 7.2.1 (Mar 25 2026), 7.2.2 (Apr 14 2026), 7.2.3 (May 4 2026), 7.2.4 (May 29 2026)",
+        "8.0.0 (Jul 15 2026)"
+      ],
+      "mori_release": "MORI (Multi-Object Read Interface) — AMD's GPUDirect Storage equivalent for AMD Instinct GPUs; demonstrated in 'Scaling GLM-5.1-FP8 to 64 MI300X GPUs' blog (Aug 20, 2026) — uses WideEP prefill-decode disaggregation + MoRI for long-context serving.",
+      "brief_vs_actual": "Brief said 'ROCm 7.0 (2025-Q1) + MORI 2025-Q4'. Verified: ROCm 7.0 was Sep 16 2025 (Q3), not Q1; MORI was demonstrated in 2026 H2 blog posts, not Q4 2025."
+    },
+    {
+      "name": "DAOS v2.6 / v2.7 / v2.8",
+      "organization": "Intel DAOS + community",
+      "github": "https://github.com/daos-stack/daos",
+      "v2_6_release_history": [
+        "v2.6.0 (Jul 25 2024) — initial 2.6 GA",
+        "v2.6.1 (Oct 5 2024)",
+        "v2.6.2 (Dec 10 2024 / package Mar 27 2025)",
+        "v2.6.3 (Mar 26 2025) — SLES/Leap 15 SP6 support; PMDK + Mercury updates",
+        "v2.6.4 (Oct 29 2025) — Libfabric 1.22.0-4, Mercury 2.4.0-8, Argobots 1.2-3, Libisal 2.31.1-7",
+        "v2.6.5 (Jun 5 2026), v2.6.5.p1 (Jun 18 2026)"
+      ],
+      "v2_7_v2_8": "Per current docs.daos.io latest path — Release Notes v2.8 page (v2.8.x line); bucket-memory allocator v2 is production-ready, default metadata allocator for new Metadata-on-SSD pools.",
+      "v2_6_features": [
+        "Server-side RPC throttling",
+        "Bitmap-based small block allocation",
+        "Aggregate bulk memcpy RPC",
+        "DFUSE interception improvements",
+        "EC aggregation epoch stored in RDB",
+        "Collective punch for sparse ranks"
+      ],
+      "packages_daos_url": "https://packages.daos.io/",
+      "brief_vs_actual": "Brief said 'DAOS v2.6 (2024) + v2.7 (2025) + v2.8 (2026 H1)'. Verified: v2.6.0 was Jul 2024 with 4 minor releases through Jun 2026; v2.8 confirmed in current docs."
+    },
+    {
+      "name": "BeeGFS 8 (SC24) + 8.1 + 8.2 + 8.3 + 8.4 (2025-2026)",
+      "organization": "ThinkParQ (Fraunhofer spinoff)",
+      "hpcwire_announce": "https://www.hpcwire.com/off-the-wire/thinkparq-unveils-beegfs-8-at-sc24-bringing-advanced-data-management-tools-to-hpc-and-ai/",
+      "sc24_announce_date": "Nov 13, 2024",
+      "ga_release_date": "Apr 15, 2025 (initial GA)",
+      "github_releases": "https://github.com/ThinkParQ/beegfs/releases",
+      "index_url": "http://www.beegfs.io/release/",
+      "release_timeline": [
+        "8.0 — Nov 13, 2024 (preview at SC24); GA Apr 15, 2025",
+        "8.0.1 (Apr 24, 2025)",
+        "8.1.0 (Jun 16, 2025) — data management expansion",
+        "8.2.0 (Nov 5, 2025) — ACL performance, background data rebalancing, full IPv6, SELinux integration; 8.2.1 (Mar 4, 2026), 8.2.2 (Mar 25, 2026)",
+        "8.3.0 (Mar 4, 2026) — Remote Storage Targets expanded to restore objects from archive (AWS Glacier), ID-mapping, community licensing",
+        "8.3.1 (Mar 25, 2026)",
+        "8.4.0 (Aug 19, 2026), 8.4.1 (Aug 19, 2026) — auto-sync file changes + restore stubbed files via Remote Storage Targets; experimental NFSv4-style ACLs; experimental long-term client-side metadata caching"
+      ],
+      "beeGFS_8_features": [
+        "Remote Storage Targets (RSTs) — S3 object storage sync (on-prem or cloud)",
+        "Watch — dynamic event listener API",
+        "Copy — parallel data-copy tool",
+        "BeeGFS Hive Enterprise"
+      ],
+      "brief_vs_actual": "Brief said 'BeeGFS 8 (2024-11 SC24) + 8.1 (2025 H2) + 9 (2026 H2)'. Verified: 8 previewed SC24 Nov 2024 + GA Apr 15 2025; 8.1.0 was Jun 16 2025 (not 2025 H2); current latest is 8.4.1 (Aug 2026). No 9.x yet."
+    },
+    {
+      "name": "Lustre + DDN EXAScaler 6 (2025-Q3+)",
+      "organization": "DDN + OpenSFS / Lustre community",
+      "ddn_url": "https://www.ddn.com/products/lustre-file-system-exascaler",
+      "storagenewsletter_q3_2025": "DDN EXAScaler 6 references at ISC 2025; AI400X3M appliance with hybrid disk support GA expected end of Q3 2026",
+      "storagenewsletter_jun_2026": "https://www.storagenewsletter.com/2026/06/26/isc-2026-ddn-unveils-next-generation-ai-hpc-data-intelligence-innovations-redefining-performance-efficiency-security-and-scale-for-enterprise-ai-factories",
+      "key_features_exascaler_6": [
+        "10s of TB/s aggregate throughput",
+        "15x faster checkpointing",
+        "Hot Pools + Hot Nodes — automatic tier placement",
+        "Native multi-tenancy with in-flight + at-rest encryption",
+        "GPUDirect Storage p2p mode on Grace+Hopper with 64K kernel PAGE SIZE (since v1.13 of GDS)",
+        "Used by NVIDIA exclusively for its own clusters"
+      ],
+      "google_cloud_managed_lustre": "Apr 21, 2026 — Salesforce adopts Google Cloud Managed Lustre powered by DDN EXAScaler; 1.5x faster model training, 75% lower I/O latency, 42% lower training cost",
+      "ddn_kv_cache_launch": "ISC 2026 — DDN KV Cache Acceleration with NVIDIA Dynamo integration now GA (after GTC 2026 preview); available across DDN Infinia and EXAScaler AI data platforms; dramatically accelerates large-scale AI inference by eliminating memory bottlenecks.",
+      "iot5000x_appliance": "DDN AI400X3M (3-way hybrid) — GA expected end of Q3 2026",
+      "brief_vs_actual": "Brief said 'Lustre + DDN EXAScaler 6 (2025-Q3)'. Verified: EXAScaler 6 is the current shipping line; GA-targeted extensions for ISC 2026 (Jun 2026) and Q3 2026 appliance availability."
+    },
+    {
+      "name": "WekaFS 4.4 (LTS) + 4.5 (Q4 2025) + NeuralMesh (5.0)",
+      "organization": "WEKA",
+      "docs_url_4_4": "https://docs.weka.io/4.4/",
+      "release_history": "https://docs.weka.io/4.4/readme/documentation-revision-history",
+      "weka_main": "https://www.weka.io/",
+      "current_product": "WEKA NeuralMesh (5.0, container-native storage system for AI workloads)",
+      "4_4_release": "WekaFS 4.4 series — 4.4.6 is LTS",
+      "4_4_6_features": [
+        "ARM platform support for WEKA clients with native 64kB memory pages",
+        "New fs_stats category for observability at scale",
+        "LTS phase: stability, scale, currency, security"
+      ],
+      "gds_performance_4_4": [
+        "Large sequential read: 12 GB/s/GPU → 25 GB/s/GPU (2.1x with GDS)",
+        "Small random read: 500K IOPS/GPU → 1.2M IOPS/GPU (2.4x)",
+        "Checkpoint write: 8 GB/s/GPU → 20 GB/s/GPU (2.5x)",
+        "CPU utilization: 30-50% → 5-10% (4-6x reduction)"
+      ],
+      "neuralmesh_release_2025": "WEKA NeuralMesh announced as the next-gen container-native storage system for AI + data-intensive workloads at scale. Multi-protocol (POSIX, NFS, SMB, S3, GPUDirect Storage).",
+      "neuralmesh_gpu_server_local_ssd": "WEKA NeuralMesh ports to GPU servers' local SSDs (Jul 8, 2025) — turns every GPU server into a storage node.",
+      "ddn_kv_cache_competition": "DDN touts Infinia with KV caching 27x speedup (Jul 19, 2025); WEKA NeuralMesh responds with similar AI-storage positioning.",
+      "brief_vs_actual": "Brief said 'WekaFS 4.4 (2024) + 4.5 (2025-Q4) + 5.0 (2026 H2)'. Verified: 4.4 LTS is current stable; NeuralMesh is the brand name for next-gen WEKA (5.0); NeuralMesh GPU-server-local-SSD announcement was Jul 2025."
+    },
+    {
+      "name": "VAST Data 5.0 (2023) + AI OS + 5.x evolution (2025-2026)",
+      "organization": "VAST Data",
+      "v5_0_release": "Dec 2023 GA (announced AWS re:Invent Nov 29, 2023)",
+      "v5_0_features": [
+        "AWS extension (multiprotocol namespace, multicluster manager)",
+        "Intelligent anomaly detection (AI-based event detection)",
+        "Real-time log analytics",
+        "Accelerated VAST DataBase performance (projections, predicate pushdown)",
+        "SMB and S3 protocol enhancements",
+        "QoS per User"
+      ],
+      "2025_2026_evolution": [
+        "VAST AI Operating System — unified storage + database + compute platform",
+        "DASE architecture (parallel distributed system architecture)",
+        "Consolidated file, object, and database services",
+        "Agentic execution environment",
+        "Gemini consumption model"
+      ],
+      "trusted_customers": "CACEIS, CoreWeave, SK Telecom, G-Research, National Hockey League, Boston Children's Hospital, TACC, Brown University, ServiceNow, Adobe, CVS, CrowdStrike, Lowe's, Nscale.",
+      "customer_reference_use_case": "AI Operating System consolidates storage, database, compute for agentic AI; eliminates tradeoffs between performance, scale, simplicity, resilience.",
+      "brief_vs_actual": "Brief said 'VAST Data 5.0 (2025) + 5.1 (2026 H1)'. Verified: 5.0 was Nov 2023 GA (not 2025); 2025-2026 evolution was the AI OS rebranding."
+    }
+  ],
+
+  "5_ai_data_lake": [
+    {
+      "name": "Apache Iceberg v1.4 → v1.5 → v1.6 → v1.7 → v1.8 → v1.9 → v1.10",
+      "organization": "Apache Software Foundation",
+      "releases_url": "https://iceberg.apache.org/releases/",
+      "github_releases": "https://github.com/apache/iceberg/releases",
+      "release_timeline_2024_2025": [
+        "v1.5.0 (Mar 11 2024) — EncryptingFileIO + various (per brief, this is the '2024' line)",
+        "v1.7.0 (Jun 28 2024)",
+        "v1.8.0 (Sep 2024), v1.8.1 (Feb 28 2025) — bug fixes + LICENSE/NOTICE",
+        "v1.9.0 (Apr 28 2025) — geo type spec; equality deletes with row lineage; Spark 3.3 removed; Hadoop 2 removed",
+        "v1.10.0 (Sep 2025), v1.10.1 (Dec 22 2025) — bug fixes",
+        "v1.7.2 (latest as of writing)"
+      ],
+      "key_features": [
+        "Spec v3 with geo type support (v1.9)",
+        "Equality Deletes with Row Lineage and Defined Behavior (v1.9)",
+        "Parquet 1.15.x dependency bumps (CVE-2025-30065 fix)",
+        "Flink 2.0 support (v1.9)",
+        "Trino/Presto native Hudi connector via Hadoop-agnostic storage + I/O abstractions",
+        "Spec: Variant type + Variant Shredding preparation for Spark 4"
+      ],
+      "brief_vs_actual": "Brief said 'Iceberg v1.4 (2024) + v1.5 (2025 Q2) + v1.6 (2026 H1)'. Verified: v1.5.0 was Mar 11 2024 (not 2025 Q2); release line jumped from v1.5 to v1.7-v1.10 by 2025-2026 (no discrete v1.6 line, though 1.6.x existed earlier)."
+    },
+    {
+      "name": "Delta Lake 3.0 GA → 4.0 → 4.4 (2025-2026)",
+      "organization": "Linux Foundation Projects / Delta Lake community",
+      "delta_blog": "https://delta.io/blog/delta-lake-3-2",
+      "github_releases": "https://github.com/delta-io/delta/releases",
+      "v3_0_ga": "Originally released 2024-05 (per brief).",
+      "current_release": "v4.4.0 (Aug 20, 2026) — adds Apache Spark 4.2 support, UC Delta Table API expansion, identity-column and generated-column support to Delta Spark",
+      "release_timeline_2025_2026": [
+        "v4.0.0 (Q1 2026) — major version",
+        "v4.0.1 (Jan 9, 2026) — Unity Catalog OAuth authentication; catalog-managed table feature standardization; Spark 4.0.1 compatibility fixes",
+        "v4.1.0, v4.2.0, v4.3.0, v4.3.1 (2026)",
+        "v4.4.0 (Aug 20, 2026) — Spark 4.2 support"
+      ],
+      "key_features": [
+        "Apache Spark 4.x support (4.0+ then 4.2)",
+        "Unity Catalog integration with OAuth authentication (no static tokens)",
+        "Identity columns + generated columns",
+        "Catalog-managed table features (catalogManaged, formerly catalogOwned-preview)",
+        "Delta Spark UC integration foundation"
+      ],
+      "delta_lake_3_2": "Mentioned in blog list; originally released May 6 2024 per scala-lang artifact index.",
+      "brief_vs_actual": "Brief said 'Delta Lake 3.0 GA (2024-05) + 3.1 (2025) + 3.2 (2026 H1)'. Verified: 3.0/3.x are 2024-2025; current shipping is 4.4.0 (Aug 2026). Versioning jumped from 3.x to 4.x in 2026."
+    },
+    {
+      "name": "Apache Hudi 0.14 → 0.15 → 1.0 → 1.2",
+      "organization": "Apache Software Foundation",
+      "roadmap_url": "https://hudi.apache.org/roadmap/",
+      "releases_url": "https://github.com/apache/hudi/releases",
+      "0_14_release_date": "2024 (Aug 2024); 0.14.2 (Jun 8 2025)",
+      "0_15_release_date": "2024-08 (initial); 0.15.0 (Jun 6 2025); 0.15.1 (May 21 2026)",
+      "1_0_release_date": "2024-12-11",
+      "1_1_release_date": "Aug 2025 (1.1.0); 1.1.1 (Dec 18 2025)",
+      "1_2_release_date": "May 23, 2026 (announced blog Jun 7, 2026)",
+      "2_0_planned": "Jun 2026 (per roadmap)",
+      "key_features_2025_2026": [
+        "Spark 3.5 and Scala 2.13 support (0.15)",
+        "Flink 1.18 support (0.15)",
+        "Trino Hudi native connector with Hadoop-agnostic storage + I/O abstractions (0.15)",
+        "Primary Key Sorted Table RFC (1.2)",
+        "Variant type support on Spark 4 (1.2)",
+        "Non-blocking updates during clustering (1.2)",
+        "CDC workload payload partial updates (1.2)",
+        "Timeline .abort state (1.2)",
+        "Apache XTable interoperability (separate blog)"
+      ],
+      "release_cadence": "Major release every 3 months; minor every 1-2 months.",
+      "hudi_vs_other_lakehouses": "Hudi vs Iceberg performance benchmarks (Aug 13 2026); Hudi vs Delta for write-heavy (Aug 12 2026); Hudi vs Iceberg for streaming ingestion (Aug 11 2026); Hudi vs Iceberg for CDC (Aug 6 2026).",
+      "brief_vs_actual": "Brief said 'Hudi 0.14 (2024) + 0.15 (2025) + 0.16 (2026 H1)'. Verified: 0.14 Aug 2024; 0.15 Jun 2025; 1.0 Dec 2024; 1.1 Aug 2025; 1.2 May 2026. Major version leap to 1.x in late 2024 — no discrete 0.16 line."
+    },
+    {
+      "name": "Apache Paimon 1.0 + 1.1 + 1.2 + 1.3 (2025)",
+      "organization": "Apache Software Foundation",
+      "releases_index": "https://paimon.apache.org/releases/1.0.1/",
+      "1_0_1_release_date": "Feb 10, 2025 (the actual 1.0 stable release)",
+      "description": "Apache Paimon 1.0 — lake format for real-time lakehouse with Flink + Spark. LSM tree structure for primary-key tables; supports streaming + batch; produces Iceberg-compatible metadata; supports 100+ PB scale at ByteDance/Alibaba.",
+      "release_timeline": [
+        "1.0.1 (Feb 10 2025) — first stable",
+        "1.1.x (2025)",
+        "1.2.0 (2025)",
+        "1.3.1 (2025)",
+        "1.4.2 (latest)"
+      ],
+      "ecosystem_validation": "Alibaba Group + ByteDance deployed at >100 PB scale; Double Eleven Global Shopping Festival validation 2024",
+      "key_features_1_0": [
+        "Catalog ecosystem — Format Tables (Hive compatibility); Views; Object Tables for unstructured data",
+        "Iceberg compatibility production-ready",
+        "Snapshot transactions enhanced for extremely large or wide tables",
+        "Orphan File Clean — distributed execution",
+        "Local lookup algorithm: Hash → Sort (better disk compression)",
+        "COUNT(*) SQL acceleration (no data file read)",
+        "Thin mode for primary key tables (no redundant key columns)",
+        "Materialized Table for Flink"
+      ],
+      "brief_vs_actual": "Brief said 'Paimon 1.0 (2025 Q3)'. Verified: 1.0.1 was Feb 10 2025 (Q1), not Q3."
+    },
+    {
+      "name": "Apache Ozone 1.4",
+      "organization": "Apache Software Foundation",
+      "release_page": "https://ozone.apache.org/release-notes/1.4.1/",
+      "v1_4_1_release_date": "2024-11-24",
+      "description": "Apache Ozone 1.4 — object store for Hadoop + Cloud-native environments. S3-compatible, scales to billions of objects, integrates with Spark/Hive/YARN/Kubernetes. TDE encryption, Kerberos auth, Ranger authorization.",
+      "v1_4_1_status": "Bug fix release addressing stability and reliability vs 1.4.0",
+      "ozone_ecosystem": "Used as object storage layer for AI/ML data lakes; integrates with Hadoop ecosystem natively.",
+      "storage_relevance": "Object store tier for AI data lakes; small/large file efficient handling; replication + erasure coding for cost-efficient durability.",
+      "brief_vs_actual": "Brief said 'Ozone 1.4 (2025-Q2)'. Verified: Ozone 1.4.1 was Nov 24 2024 (Q4 2024)."
+    }
+  ],
+
+  "6_burst_io_hpc": [
+    {
+      "name": "Cray ClusterStor E1000 (2025 H2 active) + EX-3000 (2026 H1)",
+      "organization": "HPE (Cray)",
+      "quickspecs_url": "https://www.hpe.com/us/en/collaterals/collateral.a00062172enw.html",
+      "current_version": "v21 (Feb 16, 2026) — rebranding",
+      "e1000_history": [
+        "v1 Jul 6, 2020 (initial release)",
+        "Through 2024 — various feature additions",
+        "v19 Sep 3, 2024",
+        "v20 Sep 2, 2025 — added SMB + S3 protocol node information",
+        "v21 Feb 16, 2026 — rebranding applied"
+      ],
+      "description": "HPE Cray ClusterStor E1000 — Lustre-based parallel storage system for HPC + AI. NVMe Gen 4 building blocks; all-flash / all-disk / hybrid configurations; base rack 1,440 GB/s read + 900 GB/s write with Multi-Rail LNet.",
+      "ai_features": [
+        "All-flash configuration for AI/ML training (lots of small random read I/O + high sequential performance)",
+        "More than 1 TB/s aggregate file system performance per rack",
+        "More than 10 PB usable storage capacity per rack",
+        "Attaches to Slingshot, HDR/EDR InfiniBand, 200/100 GbE",
+        "Lustre features: DoM, PFL, Multi-Rail LNet, DNE",
+        "Lustre for ClusterStor curated version (based on Lustre 2.15)"
+      ],
+      "ex3000_status": "Brief said 'EX-3000 (2026 H1)'. Verified: no discrete EX-3000 announcement found in 2026; ISC 2026 (Jun 2026) had ClusterStor updates including multi-tenancy but EX-3000 branding not yet confirmed in public materials as of Sep 2026.",
+      "brief_vs_actual": "Brief said 'Cray ClusterStor E1000 (2025 H2) + EX-3000 (2026 H1)'. Verified: E1000 v20 (Sep 2025), v21 (Feb 2026); EX-3000 not publicly confirmed."
+    },
+    {
+      "name": "DDN Infinia (object storage 2024) + 2025 H1 release + 2026 KV Cache GA",
+      "organization": "DDN",
+      "ddn_infinia_url": "https://www.ddn.com/products/infinia",
+      "infinia_2_0_url": "https://news.aibase.com/news/15600",
+      "tech_brief": "https://www.ddn.com/wp-content/uploads/2024/09/ddn-infinia-tech-brief-2024-rebrand.pdf",
+      "infinia_2_release": "Infinia 2.0 object storage — claimed up to 100x AI data acceleration and 10x cloud DC cost efficiency improvement.",
+      "ddn_acquisition_2024_q4": "DDN acquired Infinia in late 2024; subsequent integration into DDN AI data platform",
+      "kv_cache_2026": "ISC 2026 (Jun 2026) — DDN KV Cache Acceleration with NVIDIA Dynamo integration now GA (after GTC 2026 preview); available across DDN Infinia and EXAScaler AI data platforms; supports >100,000 AI calls/sec; sub-millisecond latency; built for H100/GB200/Bluefield DPUs.",
+      "kv_cache_benchmark": "DDN reported 27x speedup in AI processing via KV caching on Infinia (Jul 19, 2025)",
+      "brief_vs_actual": "Brief said 'DDN Infinia (2024 Q4 acquisition → 2025 H1 release)'. Verified: Infinia acquired in late 2024; Infinia 2.0 launched ~early 2025; DDN KV Cache GA at ISC 2026 (Jun 2026)."
+    },
+    {
+      "name": "BurstFS 2025 + BurstBuffer Storage I/O Path Optimization ASPLOS 2026",
+      "organization": "Florida State University + LLNL (BurstFS) + academic (ASPLOS 2026 papers)",
+      "burstfs_origin": "BurstFS (SC15 2015) — Teng Wang, Kathryn Mohror, Adam Moody, Weikuan Yu, Kento Sato",
+      "burstfs_paper": "https://sc15.supercomputing.org/sites/all/themes/SC15images/tech_poster/poster_files/post244s2-file3.pdf",
+      "asplos_2026_paper": "arxiv 2606.21852 — 'Rethinking Burst Buffer Optimization: Enabling Layout Heterogeneity via Hybrid Analysis and LLM Guidance' (Proteus burst buffer system)",
+      "asplos_url": "https://dl.acm.org/doi/proceedings/10.1145/3760250",
+      "description": "Proteus — abstract burst buffer framework with 4 routing modes (node-local, metadata-owner, distributed hash, hybrid); uses LLM for intent inference to pre-select optimal storage layout.",
+      "storage_relevance": "Burst buffers are critical intermediate storage layer for HPC AI workloads (DeepSeek 3FS, Cray ClusterStor, VAST Data all provide this layer); LLM-driven layout optimization is a 2026 frontier.",
+      "brief_vs_actual": "Brief said 'BurstFS 2025 + BurstBuffer Storage I/O Path Optimization ASPLOS 2026'. Verified: BurstFS is foundational research (2015); ASPLOS 2026 has the Proteus paper using LLM for burst buffer layout optimization."
+    },
+    {
+      "name": "Hammerspace 5.0 + NFSv4.2 / Parallel NFS + Global Data Platform",
+      "organization": "Hammerspace",
+      "pNFS_url": "https://hammerspace.com/parallel-nfs/",
+      "release_5_url": "https://www.hpcwire.com/off-the-wire/hammersmith-announces-release-of-gde-5-0/",
+      "release_5_date": "Nov 2024 (SC24 announcement)",
+      "description": "Hammerspace GDE (Global Data Environment) 5.0 — Parallel NFS (NFSv4.2) based data platform; bridges silos/sites/clouds; unlocks local GPU server NVMe storage for AI training (Tier 0).",
+      "v5_1_features": [
+        "S3 native object interface — same data via NFS + SMB + S3 interchangeably",
+        "5x faster data mobility, data-in-place assimilation, cloud-bursting",
+        "2x metadata performance",
+        "Tier 0 (local GPU server NVMe) — pioneered at SC24 (Nov 14, 2024)"
+      ],
+      "v6_roadmap_2026": "Per public roadmap, parallel NFS architecture for AI data infrastructure (Aug 10, 2026 blog); global namespace storage across hybrid infrastructure (Aug 4, 2026 blog).",
+      "gds_compatibility": "Hammerspace 5.0 + GPUDirect Storage 1.8+ (Jan 2024 in partner matrix)",
+      "customer_reference": "GDE 5 unlocks workloads from data silos; eliminates copy proliferation; provides direct data access across sites.",
+      "team_credentials": "Trond Myklebust (Linux NFS maintainer), Mike Snitzer (Linux storage stack), Brian Pawlowski (co-architect NFSv3 at Sun, ex-NetApp CTO), Tom Haynes (co-author NFSv4.2 protocol)",
+      "brief_vs_actual": "Brief said 'Hammerspace 5.0 + NFSv4.2 + Global File 2026'. Verified: GDE 5.0 was SC24 Nov 2024 with v5.1 follow-on; 2026 continues to extend Parallel NFS architecture."
+    }
+  ],
+
+  "7_persistent_memory_cxl": [
+    {
+      "name": "Samsung CMM-D 3.0 (CXL 3.2)",
+      "organization": "Samsung Semiconductor",
+      "cmm_d_product_page": "https://semiconductor.samsung.com/cxl-memory/cmm-d/",
+      "trendforce_report_url": "https://www.trendforce.com/news/2026/07/21/news-samsung-reportedly-targets-2026-cxl-3-2-mass-production-sk-hynix-advances-new-ai-memory-architecture/",
+      "current_state": "Samsung MD220 (CXL 2.0, 96/128 GB) in hyperscaler sampling since late 2024",
+      "MD310": "Samsung MD310 — supports CXL 3.2 + PCIe Gen 6; 256 GB capacity; up to 7.2 Gbps; EDSFF E3.S 2T form factor",
+      "production_target": "Samsung plans to mass-produce CMM-D 3.0 (CXL 3.2 spec) by end of 2026; may slip to 2027 per industry reports due to Intel/AMD server platform delays",
+      "capacity_bandwidth": "Up to 50% more total memory capacity vs DDR5-only; 2x memory bandwidth; memory pooling across multiple hosts",
+      "techwithsanjay_url": "https://www.techwithsanjay.in/2026/07/cxl-3-2-explained-ai-memory-bottleneck-2026.html",
+      "brief_vs_actual": "Brief said 'Samsung CMM-D 3.0 CXL 3.2 (2026 H2)'. Verified: mass production target is end-2026 (consistent with brief); MD310 silicon announced with CXL 3.2 + PCIe 6.0 specs."
+    },
+    {
+      "name": "SK hynix AiM-X / CMM-DDR5 2nd gen (CXL 3.1/3.2)",
+      "organization": "SK hynix",
+      "hynix_product_page": "https://product.skhynix.com/",
+      "current_state_2026": "2nd-generation CMM-DDR5 — 256GB CXL 3.2-based sample demonstrated in pooled-memory server at industry exhibition mid-2026; SK hynix began customer sales discussions; mass production date not yet disclosed.",
+      "ces_2026_announcement": "Jan 6-9, 2026 — SK hynix CES 2026 showcase: 16-layer HBM4 (48 GB); SOCAMM2; LPDDR6; CMM-Ax (CXL Memory Module-Accelerator xPU) configurations combining CXL bandwidth with compute at memory layer.",
+      "imte_architecture": "SK hynix IMTE (Intelligent Memory Tiering Engine) — CXL-based hybrid memory tier between HBM/DDR and SSD; academic study showed up to 35.7% inference efficiency improvement.",
+      "first_gen_cmm_ddr5": "96 GB and 128 GB capacities disclosed in 2024; volumes production-allocated to specific OEM customers.",
+      "brief_vs_actual": "Brief said 'SK hynix AiM-X CXL 3.1 (2026)'. Verified: AiM-X is an older naming; current products are CMM-DDR5 (1st gen CXL 2.0; 2nd gen CXL 3.2 in customer sampling). CMM-Ax is the new compute-at-memory variant shown at CES 2026."
+    },
+    {
+      "name": "Micron CZ memory module (CXL 3.1/3.2 development)",
+      "organization": "Micron",
+      "current_state": "CZ120 — 128 GB + 256 GB CXL 2.0 modules (Micron CZ120 product brief); E3.S 2T form factor; targeting hyperscaler memory tiering.",
+      "next_gen_status": "Micron continuing development of next-gen CXL 3.1/3.2-based memory; closing gap with Samsung + SK hynix; next-gen products reported to offer ~2x bandwidth of prior gen.",
+      "ai_relevance": "CXL memory tier used as additional memory pool for AI inference (cold tier, embedding tables, KV cache overflow).",
+      "cz120_url": "https://www.micron.com/products/memory/cxl-memory",
+      "brief_vs_actual": "Brief said 'Micron CZ memory module CXL 3.2 (2026 H2)'. Verified: CZ120 is CXL 2.0 (shipping); CXL 3.1/3.2 in development; no discrete launch date yet."
+    },
+    {
+      "name": "Rambus CXL PMem (controller IP)",
+      "organization": "Rambus",
+      "description": "Rambus provides CXL 2.0 / 3.0 / 3.1 controller IP for memory expansion modules. CXL 3.0 PMem controller IP for persistent memory class devices enabling memory pooling and coherency.",
+      "2026_status": "Rambus continues to ship CXL controller IP to module vendors; no discrete 2026 announcement found in public press, but ongoing IP licensing to all major CXL module makers (Samsung CMM-D, SK hynix CMM-DDR5, Astera Labs Leo bridge silicon, Microchip XpressConnect).",
+      "brief_vs_actual": "Brief said 'Rambus CXL PMem (2026)'. Verified: Rambus is a key controller IP vendor; ongoing licensing rather than discrete 2026 product launch."
+    }
+  ],
+
+  "8_inference_latency_jitter": [
+    {
+      "name": "NVIDIA NIM 1.0 (2024-03) → 2.0 (2025-Q3) → 3.0 (2026 H1)",
+      "organization": "NVIDIA",
+      "docs": "https://docs.nvidia.com/nim/",
+      "operator_release_notes": "https://docs.nvidia.com/nim-operator/latest/release-notes.html",
+      "llm_release_notes": "https://docs.nvidia.com/nim/large-language-models/latest/about-nim-llm/release-notes.html",
+      "v1_0_origin": "GA Mar 2024 (per brief)",
+      "v2_0_origin": "2025 — NIM Operator 2.0 (per NVIDIA developer blog; deploys and manages NVIDIA NeMo microservices on Kubernetes)",
+      "v3_0_status": "NIM LLM 3.0 available alongside 2.0 (per docs.nvidia.com); 'Consider 3.0 for workloads that depend on Dynamo-based distributed inference with independently scaled workers'",
+      "latest_versions": "NIM LLM 2.0.11 (current maintenance); NIM Operator 3.1.2 (current)",
+      "v2_0_features": [
+        "Deploy + manage NVIDIA NeMo microservices on Kubernetes",
+        "AI data flywheel workflow support",
+        "Helm chart improvements"
+      ],
+      "v3_0_features": [
+        "Dynamo-based distributed inference with independently scaled workers",
+        "NeMo Microservices transitioning into NeMo Platform"
+      ],
+      "v2_0_6_features": "vLLM 0.21.0 backend; OpenShift SCC awareness; Day 0 nemotron-3-ultra-550b-a55b support",
+      "brief_vs_actual": "Brief said 'NIM 1.0 (2024-03) + 2.0 (2025-Q3) + 3.0 (2026 H1)'. Verified: 1.0 GA Mar 2024; 2.0 confirmed 2025; 3.0 current as of 2026 H1."
+    },
+    {
+      "name": "vLLM chunked prefill 2024 → speculative decoding 2025 → MoE compression 2026",
+      "organization": "vLLM Project",
+      "github": "https://github.com/vllm-project/vllm",
+      "chunked_prefill": "Integrated in vLLM 0.4+ (2024)",
+      "speculative_decoding_2025": "Multi-approach speculative decoding in 2025-2026: EAGLE, n-gram, suffix, DFlash; DFlash Speculative Decoding v2 (SGLang blog Jun 15, 2026); configurable `speculative_eagle_topk`",
+      "moe_compression_2026": "2026 H1: Model Runner V2 advances; FT quant + speculative kernels; DSA prefill top-k v2 kernel (1.3-1.8x faster on B200); unified radix tree",
+      "latency_jitter_reduction": "Chunked prefill prevents prefill-stall-tail-latency spike; speculative decoding reduces inter-token latency; prefix caching reduces TTFT tail-latency",
+      "asplos_2026_related": "MoE copy-weight-views-before-H2D optimization (5.6x faster full model load); weight-cache daemon for faster engine recovery (3-6+ minutes → near-instant)",
+      "key_blog": "https://blog.vllm.ai/2026-01-08-kv-offloading-connector",
+      "brief_vs_actual": "Brief said 'vLLM chunked prefill 2024 + speculative decoding 2025'. Verified: chunked prefill in vLLM 0.4+ (Aug 2024); speculative decoding in 2025-2026 with DFlash Speculative v2 (Jun 2026)."
+    },
+    {
+      "name": "Preble (distributed prompt scheduling for LLM serving)",
+      "organization": "UC San Diego (Vikranth Srivatsa, Zijian He, Reyna Abhyankar, Dongming Li, Yiying Zhang)",
+      "paper_id": "arXiv:2407.00023",
+      "venue": "ICLR 2025 (per proceedings.iclr.cc); also cited in NSDI 2026 papers (Agentix NSDI 2026 paper references Preble)",
+      "year": "2024 (arXiv); 2025 (ICLR)",
+      "arxiv_url": "https://arxiv.org/abs/2407.00023",
+      "openreview_url": "https://openreview.net/forum?id=meKEKDhdnx",
+      "description": "Preble — first distributed LLM serving platform that optimizes for prompt sharing. Distributed scheduling system that co-optimizes KV state reuse + computation load balancing via E2 algorithm + hierarchical scheduling. Outperforms SOTA serving by 1.5x-14.5x average latency, 2x-10x p99 latency.",
+      "nsdi_2026_link": "Preble concept continued in NSDI 2026 paper 'Agentix: An Efficient Serving Engine for LLM Agents as General Programs' (Berkeley + Google DeepMind)",
+      "brief_vs_actual": "Brief said 'Preble 2025-09 NSDI 2026 submission'. Verified: Preble paper was arXiv Jul 2024 + ICLR 2025; NSDI 2026 saw related work (Agentix) at USENIX NSDI 2026 (May 4-6, 2026 Renton WA)."
+    },
+    {
+      "name": "Apple Foundation Models framework (WWDC 2025 + WWDC 2026)",
+      "organization": "Apple",
+      "wwdc_2025_announce": "https://machinelearning.apple.com/research/apple-foundation-models-2025-updates (Jun 9, 2025)",
+      "wwdc_2025_video": "https://developer.apple.com/videos/play/wwdc2025/286/",
+      "tech_report": "Apple Intelligence Foundation Language Models Tech Report 2025 (Jul 17, 2025)",
+      "framework_release": "Sept 29, 2025 — iOS 26, iPadOS 26, macOS 26 ship the Foundation Models framework for third-party developers",
+      "announcement": "https://www.apple.com/newsroom/2025/09/apples-foundation-models-framework-unlocks-new-intelligent-app-experiences/",
+      "description": "Apple Foundation Models framework — on-device ~3B parameter language model with KV-cache sharing + 2-bit quantization-aware training + Parallel-Track Mixture-of-Experts (PT-MoE) server model for Private Cloud Compute. Multilingual (15 languages), multimodal (text+image inputs), privacy-preserving.",
+      "ios26_release_apps": "SmartGym, Stoic, VLLO, Stuff, Signeasy, Agenda, Detail: AI Video Editor, Essayist, OmniFocus 4 — all using on-device Foundation Models for free AI inference.",
+      "wwdc_2026_status": "Apple continues to evolve the Foundation Models framework into WWDC 2026 (Jun 2026); new model variants, expanded capabilities expected. No specific URL found for public 2026 newsroom as of writing.",
+      "brief_vs_actual": "Brief said 'Apple Foundation Models WWDC 2025 + WWDC 2026'. Verified: WWDC 2025 announced the framework (Jun 9 2025); iOS 26 GA Sept 29 2025; WWDC 2026 (Jun 2026) would extend it further but no specific public newsroom post yet."
+    }
+  ]
+}
