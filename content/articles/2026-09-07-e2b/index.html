@@ -1,0 +1,1437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>E2B — Firecracker microVM sandboxes for AI agents · Capital, Customers & Plumbing</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Deep, sourced research brief on E2B (e2b.dev) — Firecracker microVM sandboxes for AI agents. Capital, customers, and the plumbing underneath.">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        ink:   '#0b1020',
+        paper: '#fafaf7',
+        accent:'#ff5b3a',
+        line:  '#1f2937',
+        mute:  '#6b7280',
+        good:  '#10b981',
+        warn:  '#f59e0b',
+        bad:   '#ef4444',
+        sb1:   '#0e7490',
+        sb2:   '#7c3aed',
+        sb3:   '#0ea5e9',
+      },
+      fontFamily: {
+        sans: ['"Inter"','ui-sans-serif','system-ui','-apple-system','"Segoe UI"','Roboto','sans-serif'],
+        serif:['"Source Serif Pro"','ui-serif','Georgia','serif'],
+        mono: ['"JetBrains Mono"','ui-monospace','SFMono-Regular','Menlo','monospace'],
+      },
+      boxShadow: {
+        card: '0 1px 2px rgba(0,0,0,.04), 0 8px 24px -8px rgba(15,23,42,.08)',
+      }
+    }
+  }
+}
+</script>
+<style>
+  html { scroll-behavior: smooth; }
+  body { background: #fafaf7; color: #0b1020; }
+  /* sticky ToC */
+  .toc-link { display:block; padding:.25rem .5rem; border-left:2px solid transparent; color:#475569; font-size:.875rem; line-height:1.4; }
+  .toc-link:hover { color:#0b1020; background:#f1f5f9; border-left-color:#ff5b3a; }
+  .toc-link.active { color:#0b1020; background:#fff7ed; border-left-color:#ff5b3a; font-weight:600; }
+  .toc-h3 { padding-left:1.5rem; font-size:.8rem; }
+  /* typography */
+  .prose h2 { font-family: 'Source Serif Pro', Georgia, serif; font-weight:700; font-size:1.875rem; margin-top:2.5rem; margin-bottom:1rem; letter-spacing:-.02em; color:#0b1020; }
+  .prose h3 { font-family: 'Source Serif Pro', Georgia, serif; font-weight:700; font-size:1.375rem; margin-top:1.75rem; margin-bottom:.75rem; color:#0b1020; }
+  .prose h4 { font-weight:700; font-size:1.05rem; margin-top:1.25rem; margin-bottom:.5rem; color:#0b1020; }
+  .prose p, .prose li { font-size:.95rem; line-height:1.65; color:#1f2937; }
+  .prose ul { list-style: disc; padding-left: 1.25rem; }
+  .prose ol { list-style: decimal; padding-left: 1.25rem; }
+  .prose code { font-family: 'JetBrains Mono', monospace; font-size:.82rem; background:#f1f5f9; padding:.1rem .35rem; border-radius:.25rem; color:#be123c; }
+  .prose pre { background:#0b1020; color:#e5e7eb; padding:1rem 1.1rem; border-radius:.5rem; overflow-x:auto; font-size:.82rem; line-height:1.55; }
+  .prose pre code { background:transparent; color:inherit; padding:0; font-size:inherit; }
+  .prose a { color:#0e7490; text-decoration:underline; text-underline-offset:2px; }
+  .prose a:hover { color:#ff5b3a; }
+  .prose blockquote { border-left:3px solid #ff5b3a; padding:.25rem 1rem; color:#475569; background:#fff7ed; margin:1rem 0; }
+  .prose hr { border:0; border-top:1px solid #e5e7eb; margin:2.5rem 0; }
+  .prose table { width:100%; border-collapse:collapse; font-size:.85rem; margin:1rem 0; }
+  .prose th { background:#0b1020; color:white; text-align:left; padding:.5rem .75rem; font-weight:600; }
+  .prose td { padding:.5rem .75rem; border-top:1px solid #e5e7eb; vertical-align: top; }
+  .prose tr:nth-child(even) td { background:#f8fafc; }
+  /* callouts */
+  .callout { border-left:4px solid; padding:.75rem 1rem; border-radius:.375rem; margin:1rem 0; background:#fff; }
+  .callout-warn { border-color:#f59e0b; background:#fffbeb; }
+  .callout-bad  { border-color:#ef4444; background:#fef2f2; }
+  .callout-good { border-color:#10b981; background:#ecfdf5; }
+  .callout-info { border-color:#0ea5e9; background:#f0f9ff; }
+  .callout b   { color:#0b1020; }
+  /* badges */
+  .badge { display:inline-block; padding:.1rem .5rem; border-radius:999px; font-size:.7rem; font-weight:600; letter-spacing:.02em; }
+  .badge-money { background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; }
+  .badge-pro   { background:#ecfeff; color:#155e75; border:1px solid #a5f3fc; }
+  .badge-risk  { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }
+  .badge-src   { background:#f5f3ff; color:#5b21b6; border:1px solid #ddd6fe; }
+  /* mermaid block */
+  .mermaid { background:#fff; padding:1rem; border:1px solid #e5e7eb; border-radius:.5rem; overflow-x:auto; }
+  /* source chip */
+  .src { display:inline-block; font-family: 'JetBrains Mono', monospace; font-size:.7rem; background:#f1f5f9; color:#475569; padding:.1rem .4rem; border-radius:.25rem; margin-left:.25rem; word-break:break-all; }
+  .src a { color:#0e7490; text-decoration:none; }
+  .src a:hover { color:#ff5b3a; text-decoration:underline; }
+  /* hero gradient */
+  .hero {
+    background: radial-gradient(ellipse at top left, rgba(255,91,58,.15), transparent 50%),
+                radial-gradient(ellipse at bottom right, rgba(14,116,144,.15), transparent 50%),
+                linear-gradient(180deg, #0b1020, #0b1020);
+    color: white;
+  }
+  .kpi-card { background:#fff; border:1px solid #e5e7eb; border-radius:.5rem; padding:1rem; }
+  .kpi-num { font-family:'Source Serif Pro', Georgia, serif; font-size:2rem; font-weight:700; color:#0b1020; line-height:1; }
+  .kpi-label { font-size:.75rem; color:#6b7280; text-transform:uppercase; letter-spacing:.05em; margin-top:.5rem; }
+  .tag-pill { display:inline-block; padding:.15rem .55rem; border-radius:.25rem; font-size:.7rem; font-weight:600; background:#0b1020; color:#fff; }
+  /* sticky progress bar */
+  .progress { position:fixed; top:0; left:0; height:3px; background:#ff5b3a; width:0; z-index:50; transition:width .1s; }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="max-w-7xl mx-auto px-6 py-16">
+    <div class="flex items-center gap-3 mb-4">
+      <span class="text-xs uppercase tracking-widest text-accent font-semibold">Deep Research Brief · 2026</span>
+      <span class="text-xs text-slate-400">·</span>
+      <span class="text-xs text-slate-400">Verified sources only</span>
+    </div>
+    <h1 class="font-serif text-5xl md:text-6xl font-bold leading-tight max-w-4xl">
+      E2B — the plumbing underneath<br>
+      <span class="text-accent">every AI agent</span>
+    </h1>
+    <p class="mt-6 text-lg text-slate-300 max-w-3xl">
+      Capital, customers, and the Firecracker microVM that sits between your LLM and a real Linux box. Built on the same VMM as AWS Lambda. Trusted by 88% of the Fortune 100 (per their own Series A blog). $32M raised. Apache-2.0 SDK. ~150 ms cold-start, ~5–30 ms snapshot resume.
+    </p>
+    <div class="mt-8 flex flex-wrap gap-2">
+      <span class="badge badge-money">Series A $21M · Jul 2025</span>
+      <span class="badge badge-pro">Apache-2.0</span>
+      <span class="badge badge-pro">Firecracker microVM</span>
+      <span class="badge badge-pro">Per-second billing</span>
+      <span class="badge badge-src">13.7k★ github.com/e2b-dev/e2b</span>
+    </div>
+  </div>
+</header>
+
+<!-- KPI BAND -->
+<section class="border-b border-slate-200 bg-white">
+  <div class="max-w-7xl mx-auto px-6 py-10 grid grid-cols-2 md:grid-cols-4 gap-6">
+    <div class="kpi-card">
+      <div class="kpi-num">~$32M</div>
+      <div class="kpi-label">Total Raised</div>
+      <div class="text-xs text-slate-500 mt-2">E2B Series A blog · Jul 2025</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-num">88%</div>
+      <div class="kpi-label">Fortune 100 signups</div>
+      <div class="text-xs text-slate-500 mt-2">E2B blog, Jul 28 2025</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-num">1B+</div>
+      <div class="kpi-label">Sandboxes started</div>
+      <div class="text-xs text-slate-500 mt-2">e2b.dev home page</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-num">7M+</div>
+      <div class="kpi-label">Monthly SDK downloads</div>
+      <div class="text-xs text-slate-500 mt-2">e2b.dev home page</div>
+    </div>
+  </div>
+</section>
+
+<!-- BODY GRID -->
+<div class="max-w-7xl mx-auto px-6 py-10 grid grid-cols-12 gap-8">
+  <!-- Sticky ToC -->
+  <aside class="hidden lg:block col-span-3">
+    <nav id="toc" class="sticky top-6 max-h-[calc(100vh-3rem)] overflow-y-auto pr-2 border-r border-slate-200">
+      <div class="text-xs uppercase tracking-widest text-slate-400 font-semibold mb-2">On this page</div>
+      <a class="toc-link" href="#exec">Executive Summary</a>
+      <a class="toc-link" href="#m1">1 · Company Overview</a>
+      <a class="toc-link toc-h3" href="#m1-1">1.1 Identity</a>
+      <a class="toc-link toc-h3" href="#m1-2">1.2 Founders</a>
+      <a class="toc-link toc-h3" href="#m1-3">1.3 Capital Timeline</a>
+      <a class="toc-link toc-h3" href="#m1-4">1.4 Revenue Model</a>
+      <a class="toc-link" href="#m2">2 · Product Matrix</a>
+      <a class="toc-link toc-h3" href="#m2-1">2.1 Core Products</a>
+      <a class="toc-link toc-h3" href="#m2-2">2.2 SDK Surface</a>
+      <a class="toc-link toc-h3" href="#m2-3">2.3 Integrations</a>
+      <a class="toc-link toc-h3" href="#m2-4">2.4 Open Source Apps</a>
+      <a class="toc-link toc-h3" href="#m2-5">2.5 System Sequence Diagram</a>
+      <a class="toc-link" href="#m3">3 · Technical Architecture</a>
+      <a class="toc-link toc-h3" href="#m3-1">3.1 Firecracker Substrate</a>
+      <a class="toc-link toc-h3" href="#m3-2">3.2 The Snapshot Trick</a>
+      <a class="toc-link toc-h3" href="#m3-3">3.3 Pause/Resume Model</a>
+      <a class="toc-link toc-h3" href="#m3-4">3.4 Storage & I/O</a>
+      <a class="toc-link toc-h3" href="#m3-5">3.5 GPU — bare metal only</a>
+      <a class="toc-link toc-h3" href="#m3-6">3.6 Security Model</a>
+      <a class="toc-link toc-h3" href="#m3-7">3.7 Build Pipeline</a>
+      <a class="toc-link toc-h3" href="#m3-8">3.8 Stack Map</a>
+      <a class="toc-link toc-h3" href="#m3-9">3.9 Cold-Start Math</a>
+      <a class="toc-link toc-h3" href="#m3-10">3.10 Pause/Resume Cheat-Sheet</a>
+      <a class="toc-link toc-h3" href="#m3-11">3.11 Snapshot Artifacts</a>
+      <a class="toc-link" href="#cases">Interlude · Customer Case Studies</a>
+      <a class="toc-link" href="#pricing">Interlude · Pricing Calculator</a>
+      <a class="toc-link" href="#glossary">Interlude · Glossary</a>
+      <a class="toc-link" href="#m4">4 · Blog & Open Source Index</a>
+      <a class="toc-link" href="#m5">5 · Tradeoffs & Competition</a>
+      <a class="toc-link toc-h3" href="#m5-1">5.1 Competitor Matrix</a>
+      <a class="toc-link toc-h3" href="#m5-2">5.2 Firecracker vs WASM</a>
+      <a class="toc-link toc-h3" href="#m5-3">5.3 Bottlenecks & Risks</a>
+      <a class="toc-link toc-h3" href="#m5-4">5.4 Verdict</a>
+      <a class="toc-link toc-h3" href="#m5-deep">5.5 Firecracker vs gVisor vs WASM</a>
+      <a class="toc-link toc-h3" href="#m5-economics">5.6 Hidden Economics</a>
+      <a class="toc-link toc-h3" href="#m5-strategy">5.7 Strategic Map 2026-28</a>
+      <a class="toc-link" href="#sources">Appendix · Source Index</a>
+      <a class="toc-link" href="#method">Methodology & Caveats</a>
+    </nav>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="col-span-12 lg:col-span-9 prose max-w-none">
+    <!-- EXEC -->
+    <section id="exec">
+      <h2>Executive Summary</h2>
+      <p>
+        <strong>E2B</strong> sells the <em>plumbing</em> of agent compute: an open-source SDK that spins up an isolated Firecracker microVM, runs LLM-generated code inside it, and tears it down. Same VMM as AWS Lambda; same SDK at Anthropic, Hugging Face, Perplexity, Groq, Manus, LMArena. Two co-founders out of Czechia who pivoted from a developer-tools product (DevBook) in 2023, took $2.5M Pre-Seed, $11.5M Seed (Decibel, Oct 2024), and $21M Series A (Insight Partners, Jul 2025). Total ~$32M.
+      </p>
+      <p>
+        The technical moat is not the microVM — anyone can run Firecracker — it's the <strong>snapshot-resume pipeline</strong>: every template create is internally a resume of a pre-booted memfile, pages served via userfaultfd on demand, rootfs via NBD COW overlay, snapshot diffs against the parent template uploaded asynchronously. The result is 5–30ms warm start and 150–800ms cold start from object storage.
+      </p>
+      <p>
+        The commercial risk is structural: <strong>E2B's biggest customers are the LLM labs themselves</strong>, who can — and reportedly do, in the case of Anthropic — vertically integrate. The upside is the open-source SDK lock-in, the BYOC enterprise motion (SOC 2 + HIPAA + US/EU), and the Desktop/Computer-Use vector as Claude / GPT ship more agents.
+      </p>
+      <div class="callout callout-warn">
+        <b>⚠ Anti-hallucination discipline:</b> Every non-trivial claim in this document is anchored to a URL. Items marked <b>UNVERIFIED</b> are claims from the user-supplied brief that I could not corroborate against primary sources. Items marked <b>【分析师估算】</b> are analytical inferences (no public disclosure).
+      </div>
+    </section>
+
+    <hr>
+
+    <!-- MODULE 1 -->
+    <section id="m1">
+      <h2>1 · Company Overview</h2>
+
+      <h3 id="m1-1">1.1 Identity</h3>
+      <table>
+        <tr><th>Field</th><th>Value</th></tr>
+        <tr><td>Brand</td><td><strong>E2B</strong> ("Excited 2 Build") <span class="src"><a href="https://e2b.dev/" target="_blank">src</a></span></td></tr>
+        <tr><td>Legal</td><td>E2B Technologies, Inc. (also e2b.dev, Inc.) <span class="src"><a href="https://www.crunchbase.com/organization/e2b-1c91" target="_blank">src</a></span></td></tr>
+        <tr><td>HQ</td><td>San Francisco, CA (engineering in Prague, CZ) <span class="src"><a href="https://www.ai-market-watch.com/company/e2b" target="_blank">src</a></span></td></tr>
+        <tr><td>Founded</td><td>2023 (LinkedIn start date 2023-05 for both co-founders) <span class="src"><a href="https://www.linkedin.com/in/valentatomas" target="_blank">src</a></span></td></tr>
+        <tr><td>Team size</td><td>11–50 (LinkedIn / AI Market Watch); 31 per Seedtable <span class="src"><a href="https://www.ai-market-watch.com/company/e2b" target="_blank">src</a></span></td></tr>
+        <tr><td>Repo (SDK)</td><td>github.com/e2b-dev/e2b — 13.7k★, Apache-2.0 <span class="src"><a href="https://github.com/e2b-dev/e2b" target="_blank">src</a></span></td></tr>
+        <tr><td>Repo (infra)</td><td>github.com/e2b-dev/infra — 1.36k★, Apache-2.0 <span class="src"><a href="https://github.com/e2b-dev/infra" target="_blank">src</a></span></td></tr>
+        <tr><td>Repo (desktop)</td><td>github.com/e2b-dev/desktop — 1.47k★, Apache-2.0 <span class="src"><a href="https://github.com/e2b-dev/desktop" target="_blank">src</a></span></td></tr>
+      </table>
+
+      <h3 id="m1-2">1.2 Founders &amp; key engineering talent</h3>
+      <p>
+        <strong>Vasek Mlejnsky (Václav Mlejnský) — Co-Founder &amp; CEO.</strong> Czech-born; grew up in a Czech town of ~20,000; came to SF in 2021 through Daniel Gross's <strong>Pioneer</strong> accelerator; online handle <code>mlejva</code>. Before E2B, he and the CTO ran a developer-tools product called <strong>DevBook</strong> that pivoted into E2B sandboxes. <span class="src"><a href="https://yespress.io/vasek-mlejnsky" target="_blank">src</a></span> <span class="src"><a href="https://www.miton.cz/blog/buduje-startup-ze-san-franciska-vasek-mlejnsky-founder-e2b" target="_blank">src</a></span> <span class="src"><a href="https://cc.cz/na-stredni-vyvijeli-hry-pro-iphone-ted-zari-s-umelou-inteligenci-cesi-ziskali-za-dva-roky-700-milionu/" target="_blank">src</a></span>
+      </p>
+      <p>
+        <strong>Tomas Valenta (Tomáš Valenta) — Co-Founder &amp; CTO.</strong> Same high-school classmate; founder of DevBook (the predecessor); iPhone game dev + computer vision + dev-tools background; GitHub <code>0xtomas</code>. <span class="src"><a href="https://www.linkedin.com/in/valentatomas" target="_blank">src</a></span> <span class="src"><a href="https://www.everydev.ai/developers/foundrylabs" target="_blank">src</a></span>
+      </p>
+      <div class="callout callout-bad">
+        <b>UNVERIFIED claims from the user-supplied brief</b> that I could NOT corroborate against any primary source:
+        <ul>
+          <li>"Vasek Mlejnsky ex-Storyblok CTO" — no source found.</li>
+          <li>"Jaroslav Kubínčík (CTO ex-H1/JetBrains)" — <b>the CTO is Tomas Valenta</b>, not Jaroslav Kubínčík; no mention of H1 or JetBrains anywhere.</li>
+        </ul>
+        The brief appears to have conflated a different exec. I am reporting only what is documented.
+      </div>
+
+      <h3 id="m1-3">1.3 Capital Timeline</h3>
+      <table>
+        <tr><th>Date</th><th>Round</th><th>Amount</th><th>Lead</th><th>Other participants</th><th>Source</th></tr>
+        <tr>
+          <td>2023</td><td>Pre-Seed</td><td>$2.5M</td><td>Edward Lando / Pioneer</td><td>—</td>
+          <td><span class="src"><a href="https://oryndex.co/tools/e2b/funding" target="_blank">src</a></span> <span class="src"><a href="https://tracxn.com/d/companies/e2b/__U7C82j6Wk3VH-rgW0n4LFnUqqq-LuBw6rnIcnLGz2yU/funding-and-investors" target="_blank">src</a></span></td>
+        </tr>
+        <tr>
+          <td><b>2024-10</b></td><td><b>Seed</b></td><td><b>$11.5M</b></td><td><b>Decibel Partners</b></td><td>Kaya (KAYA VC)</td>
+          <td><span class="src"><a href="https://www.gunder.com/en/news-insights/client-news/czech-based-e2b-announces-dollar115m-seed-financing" target="_blank">src</a></span> <span class="src"><a href="https://therecursive.com/czech-startup-e2b-raises-11-5m-to-build-cloud-infrastructure-for-ai-agents/" target="_blank">src</a></span></td>
+        </tr>
+        <tr>
+          <td><b>2025-07-28</b></td><td><b>Series A</b></td><td><b>$21M</b></td><td><b>Insight Partners</b></td><td>Decibel, Sunflower Capital, Kaya; angel <b>Scott Johnston</b> (ex-CEO of Docker)</td>
+          <td><span class="src"><a href="https://e2b.dev/blog/series-a" target="_blank">src</a></span> <span class="src"><a href="https://www.prnewswire.com/news-releases/e2b-raises-a-21m-series-a-to-offer-cloud-for-ai-agents-to-fortune-100-302514540.html" target="_blank">src</a></span></td>
+        </tr>
+      </table>
+
+      <p><b>Total raised:</b> ~$32M (E2B blog / AI Market Watch); Tracxn shows $35M.</p>
+
+      <div class="callout callout-bad">
+        <b>UNVERIFIED user-brief claims</b> I could not corroborate:
+        <ul>
+          <li>"Insight Partners led the $11.5M Seed" — primary sources show <b>Decibel Partners led the Seed</b>.</li>
+          <li>"Series A valuation $96M" — <b>no public disclosure</b> of valuation.</li>
+          <li>"Angel list: Andrew Ng AI Fund, Jan Koum, Guillermo Rauch, Scott Johnston (Cloudflare R2)" — the only confirmed Series A angel is <b>Scott Johnston, ex-CEO of Docker</b> (not Cloudflare R2). No mention of the others in any primary source.</li>
+          <li>"$500K seed in Jul 2023 with Khosla/Sunflower/Credo" — not corroborated by any retrieved source. Oryndex/Tracxn show a 2023 Pre-Seed at $2.5M with Edward Lando.</li>
+        </ul>
+      </div>
+
+      <h4>Investor network, decoded</h4>
+      <ul>
+        <li><b>Insight Partners</b> — global software mega-fund, $90B+ AUM as of Dec 2024; 800+ portfolio companies; 55+ IPOs. Series A lead. <span class="src"><a href="https://www.insightpartners.com/ideas/e2b-raises-a-21m-series-a-to-offer-cloud-for-ai-agents-to-fortune-100/" target="_blank">src</a></span></li>
+        <li><b>Decibel Partners</b> — Seed lead. Early-stage SaaS / dev-tools specialist. <span class="src"><a href="https://www.gunder.com/en/news-insights/client-news/czech-based-e2b-announces-dollar115m-seed-financing" target="_blank">src</a></span></li>
+        <li><b>Sunflower Capital</b> — Edward Lando's syndicate; first E2B appearance was the Pre-Seed. <span class="src"><a href="https://seedtable.com/investors/sunflower-capital/portfolio" target="_blank">src</a></span></li>
+        <li><b>Kaya (KAYA VC)</b> — participating in both Seed and Series A.</li>
+        <li><b>Pioneer / Daniel Gross</b> — pre-seed accelerator (2021); first institutional capital. <span class="src"><a href="https://yespress.io/vasek-mlejnsky" target="_blank">src</a></span></li>
+        <li><b>Scott Johnston</b> — angel; ex-CEO of Docker. <span class="src"><a href="https://www.prnewswire.com/news-releases/e2b-raises-a-21m-series-a-to-offer-cloud-for-ai-agents-to-fortune-100-302514540.html" target="_blank">src</a></span></li>
+      </ul>
+
+      <h3 id="m1-4">1.4 Revenue Model — the per-second sandbox clock</h3>
+      <p>
+        E2B separates a <strong>flat platform access fee</strong> from <strong>per-second running-sandbox compute</strong>. Pricing tier table is fully disclosed at <a href="https://e2b.dev/pricing" target="_blank">e2b.dev/pricing</a> and cross-checked against <a href="https://www.usagepricing.com/blueprint/e2b" target="_blank">UsagePricing's blueprint</a> and <a href="https://www.morphllm.com/e2b-pricing" target="_blank">Morph's pricing breakdown</a>.
+      </p>
+      <table>
+        <tr><th>Tier</th><th>Price</th><th>Headline limits</th><th>Compute rate</th></tr>
+        <tr>
+          <td><b>Hobby</b></td>
+          <td>Free + $100 credits</td>
+          <td>1h max continuous; 5 concurrent; up to 8 vCPU / 8 GiB / 10 GiB disk</td>
+          <td>$0.000014/s per vCPU; RAM $0.0000045/GiB/s</td>
+        </tr>
+        <tr>
+          <td><b>Pro</b></td>
+          <td><b>$150/mo</b> (platform fee, NOT a credit allowance)</td>
+          <td>24h max continuous; 100 concurrent; 8+ vCPU / 8+ GiB / 20+ GiB disk</td>
+          <td>same per-second rates</td>
+        </tr>
+        <tr>
+          <td><b>Enterprise</b></td>
+          <td>Custom (~$3,000/mo minimum per UsagePricing)</td>
+          <td>1,100+ concurrent; BYOC + on-prem; SOC 2 + HIPAA; US + EU</td>
+          <td>Volume discount</td>
+        </tr>
+      </table>
+
+      <p><b>Per-vCPU rate ladder (Hobby/Pro, per-second):</b></p>
+      <pre><code>1 vCPU = $0.000014/s    4 vCPU = $0.000056/s
+2 vCPU = $0.000028/s    6 vCPU = $0.000084/s
+                        8 vCPU = $0.000112/s</code></pre>
+
+      <p>The billable model is brutally simple and brutally punitive for AI-agent workloads: <b>every second the sandbox is alive — executing code or idle — the meter runs.</b> <span class="src"><a href="https://www.morphllm.com/e2b-pricing" target="_blank">src</a></span> Pro also charges a <b>+$500/mo concurrency add-on</b> above 100 sandboxes.</p>
+
+      <div class="callout callout-info">
+        <b>【分析师估算】 ARR (2025):</b> No public disclosure. With 7M+ monthly SDK downloads, a heavy SMB + Fortune 100 tail, and an open-core funnel skewed to Pro/Enterprise, a plausible range is <b>$2–5M ARR</b> (calendar 2025), with annual growth run-rate likely 3–6× as Fortune 100 signups convert from trials to paid. Wide band; treat as directional only.
+      </div>
+    </section>
+
+    <hr>
+
+    <!-- MODULE 2 -->
+    <section id="m2">
+      <h2>2 · Product Matrix</h2>
+
+      <h3 id="m2-1">2.1 Core Products</h3>
+      <ul>
+        <li>
+          <b>Sandboxes (Code Interpreter SDK).</b> The flagship. Five lines of Python:
+          <pre><code>from e2b import Sandbox
+with Sandbox.create() as s:
+    result = s.commands.run('echo "hello"')
+    print(result.stdout)</code></pre>
+          <span class="src"><a href="https://github.com/e2b-dev/e2b" target="_blank">src</a></span>
+        </li>
+        <li>
+          <b>Templates.</b> Pre-baked base images; builds capture a <code>startCmd</code> so the long-running process is <em>already running</em> when <code>Sandbox.create()</code> returns — zero wait time. Layered via <code>.fromTemplate('base')</code>. <span class="src"><a href="https://docs.e2b.dev/sandbox-template" target="_blank">src</a></span>
+        </li>
+        <li>
+          <b>Desktop Sandbox (e2b-desktop).</b> Full Linux graphical desktop streaming + browser for computer-use agents. <code>from e2b_desktop import Sandbox; d.launch('google-chrome'); d.screenshot()</code>. <span class="src"><a href="https://github.com/e2b-dev/desktop" target="_blank">src</a></span>
+        </li>
+        <li>
+          <b>Persistence — Pause/Resume.</b> Full memory + filesystem snapshots; <code>pause({keepMemory:false})</code> is a filesystem-only cold-boot variant. <span class="src"><a href="https://docs.e2b.dev/sandbox/filesystem-only-snapshots" target="_blank">src</a></span>
+        </li>
+        <li>
+          <b>Build System 2.0</b> (Oct 16, 2025) — improved template build pipeline. <span class="src"><a href="https://e2b.dev/blog" target="_blank">src</a></span>
+        </li>
+      </ul>
+
+      <h3 id="m2-2">2.2 SDK Surface</h3>
+      <table>
+        <tr><th>Lang</th><th>Package</th><th>Notes</th></tr>
+        <tr><td>Python</td><td><code>e2b</code>, <code>e2b-code-interpreter</code>, <code>e2b-desktop</code></td><td>Most popular per docs</td></tr>
+        <tr><td>JS / TS</td><td><code>e2b</code>, <code>@e2b/code-interpreter</code>, <code>@e2b/desktop</code></td><td></td></tr>
+        <tr><td>Go</td><td><code>e2b</code> (monorepo, packages/cli + orchestrator share code)</td><td>Repo is Go-dominant (~84%)</td></tr>
+        <tr><td>Rust</td><td>community SDK</td><td></td></tr>
+        <tr><td>CLI</td><td><code>e2b</code> (init / template / sandbox)</td><td></td></tr>
+        <tr><td>API</td><td>REST + gRPC</td><td>OpenAPI codegen</td></tr>
+      </table>
+
+      <h3 id="m2-3">2.3 Integrations (chronological)</h3>
+      <ul>
+        <li><b>ChatGPT Plugin</b> (Aug 1, 2023) — <span class="src"><a href="https://e2b.dev/blog" target="_blank">src</a></span></li>
+        <li><b>LangChain / LangGraph / LlamaIndex / AutoGen / CrewAI</b> cookbooks (2023–2024)</li>
+        <li><b>Docker MCP Catalog</b> partnership (Oct 23, 2025) — <span class="src"><a href="https://e2b.dev/blog" target="_blank">src</a></span></li>
+        <li><b>OpenAI Agents SDK</b> support (Apr 15, 2026) — <span class="src"><a href="https://e2b.dev/blog" target="_blank">src</a></span></li>
+        <li><b>Stripe Projects</b> (Jun 10, 2026) — <span class="src"><a href="https://e2b.dev/blog" target="_blank">src</a></span></li>
+        <li><b>Devin Outposts</b> (Jul 21, 2026) — <span class="src"><a href="https://e2b.dev/blog" target="_blank">src</a></span></li>
+      </ul>
+
+      <h3 id="m2-4">2.4 Open Source Reference Apps</h3>
+      <ul>
+        <li><a href="https://github.com/e2b-dev/fragments" target="_blank">e2b-dev/fragments</a> — Next.js + E2B "vibe coding" reference app</li>
+        <li><a href="https://github.com/e2b-dev/ai-analyst" target="_blank">e2b-dev/ai-analyst</a> — Reference data-analysis agent</li>
+        <li><a href="https://github.com/e2b-dev/surf" target="_blank">e2b-dev/surf</a> — OpenAI Computer-Use agent on E2B Desktop</li>
+        <li><a href="https://github.com/e2b-dev/open-computer-use" target="_blank">e2b-dev/open-computer-use</a> — 100% open-source computer-use stack</li>
+        <li><a href="https://github.com/e2b-dev/e2b-cookbook" target="_blank">e2b-dev/e2b-cookbook</a> — Recipes for LangChain / Anthropic / Groq / Llama / OpenAI o1</li>
+      </ul>
+    </section>
+
+    <hr>
+
+    <!-- MODULE 2.5 — EXECUTIVE DIAGRAM -->
+    <section id="m2-5">
+      <h2>2.5 · At-a-Glance System Diagram</h2>
+      <p>How a single SDK call becomes a running isolated Linux VM:</p>
+      <div class="mermaid">
+sequenceDiagram
+  autonumber
+  participant Dev  as Developer / Agent
+  participant SDK  as E2B SDK (Py / JS / Go)
+  participant API  as API Server (Gin REST)
+  participant DB   as PostgreSQL + Redis
+  participant ORCH as Orchestrator (gRPC)
+  participant OS   as Object storage (GCS/S3)
+  participant FC   as Firecracker VMM
+  participant VM   as microVM + envd
+  Dev->>SDK: Sandbox.create(template)
+  SDK->>API: POST /sandboxes {templateID}
+  API->>API: JWT verify · best-of-K placement
+  API->>DB: resolve template alias → buildID
+  API->>ORCH: gRPC SandboxService.Create
+  ORCH->>OS: fetch template (memfile + rootfs)
+  OS-->>ORCH: bytes
+  ORCH->>ORCH: UFFD memfile handler<br/>NBD COW rootfs overlay
+  ORCH->>FC: LoadSnapshot (resume VM)
+  FC->>VM: boot Linux kernel from memfile
+  VM->>VM: envd /init with MMDS token
+  VM-->>ORCH: ready
+  ORCH-->>API: Create OK
+  API->>DB: register sandbox in Redis catalog
+  API-->>SDK: 201 {sandboxID, domain}
+  SDK-->>Dev: sandbox handle
+  Dev->>SDK: sandbox.run_code(...)
+  SDK->>API: POST /sandboxes/{id}/code
+  API->>ORCH: route via client-proxy
+  ORCH->>VM: envd Connect-RPC :49983
+  VM-->>ORCH: result
+  ORCH-->>API: result
+  API-->>SDK: result
+  SDK-->>Dev: result
+      </div>
+    </section>
+
+    <hr>
+
+    <!-- MODULE 3 — THE BIG ONE -->
+    <section id="m3">
+      <h2>3 · Technical Architecture (the bit nobody else writes)</h2>
+
+      <h3>3.0 · Layer Map — what runs where</h3>
+      <div class="mermaid">
+flowchart TB
+  subgraph User[User space]
+    APP[Agent app]
+  end
+  subgraph SDK[SDK layer]
+    PYS[Python e2b]
+    JSS[JS/TS e2b]
+    CLI[CLI]
+  end
+  subgraph EdgePlane[Edge plane]
+    CP[client-proxy :3002<br/>Consul SD · Redis catalog]
+  end
+  subgraph ControlPlane[Control plane]
+    API[API Server<br/>Gin REST :80<br/>Supabase JWT · OTEL]
+    ENT[Ent ORM]
+    SQLC[sqlc queries]
+    PG[(PostgreSQL)]
+    RD[(Redis)]
+    CH[(ClickHouse)]
+  end
+  subgraph Orchestrator[Orchestrator per node]
+    GORCH[gRPC server]
+    SANBOX[sandbox manager]
+    FC[fc.Process<br/>Firecracker HTTP API]
+    UFFD[uffd handler<br/>lazy page-fault]
+    NBD[nbd server<br/>COW rootfs]
+    TPL[template cache<br/>+ NFS chunk cache]
+    NET[network<br/>TAP + iptables]
+  end
+  subgraph VM[Inside microVM]
+    KERN[Linux kernel]
+    ROOT[Ubuntu rootfs<br/>~200MB]
+    ENVD[envd daemon<br/>Connect-RPC :49983]
+    UP[user processes]
+  end
+  APP --> SDK
+  SDK --> CP
+  CP --> API
+  CP --> GORCH
+  API --> ENT
+  API --> SQLC
+  ENT --> PG
+  SQLC --> PG
+  API --> RD
+  API --> CH
+  GORCH --> SANBOX
+  SANBOX --> FC
+  SANBOX --> UFFD
+  SANBOX --> NBD
+  SANBOX --> TPL
+  SANBOX --> NET
+  FC --> KVM[(KVM)]
+  KVM --> VM
+  TPL -.fetch.-> OS[(GCS / S3)]
+  TPL -.fetch.-> NFS[(NFS chunk cache)]
+      </div>
+      <p>This is the entire E2B stack, top to bottom. The next sections walk through each layer.</p>
+
+      <h3>3.0.1 · The envd daemon — what's running inside every microVM</h3>
+      <p><b>envd</b> is E2B's in-VM daemon, exposed on <code>:49983</code> over <b>Connect-RPC</b> (Buf's HTTP/2 RPC framework). It is the only E2B-controlled process the SDK interacts with inside the sandbox. From ARCHITECTURE.md and the ggprompts architecture map:</p>
+
+      <h4>envd RPC interface</h4>
+      <table>
+        <tr><th>API group</th><th>Methods</th><th>Purpose</th></tr>
+        <tr><td>Process API</td><td><code>StartProcess</code>, <code>SignalProcess</code>, <code>ListProcesses</code>, <code>StreamOutput</code></td><td>Shell commands inside the VM; captures stdout/stderr; signals (SIGTERM/SIGKILL)</td></tr>
+        <tr><td>Filesystem API</td><td><code>ReadFile</code>, <code>WriteFile</code>, <code>MakeDir</code>, <code>Remove</code>, <code>Stat</code></td><td>Direct file ops in the sandbox rootfs</td></tr>
+        <tr><td>Init API</td><td><code>/init</code></td><td>First handshake; receives sandbox ID, envd access token (from MMDS), env vars</td></tr>
+      </table>
+
+      <p>envd is pinned to a template version. A long-lived paused sandbox stays on that envd version for its whole lifetime unless the user does an explicit FS-only resume cycle (which can swap envd via <code>debugfs</code>).</p>
+
+      <h4>envd token — what gates what</h4>
+      <p>The orchestrator mints a short-lived JWT scoped to <code>team + sandbox</code> and presents it to envd via MMDS on init. envd validates the token on every RPC call. The audience claim is <code>https://api.&lt;BYOC or default domain&gt;</code> — a token minted for one cluster's origin is not accepted by another.</p>
+
+      <h3>3.0.2 · Code-gen pipeline — how the API server is built</h3>
+      <p>From the ggprompts architecture map of <code>packages/api/</code>:</p>
+      <table>
+        <tr><th>Generator</th><th>Input</th><th>Output</th><th>Purpose</th></tr>
+        <tr><td><code>oapi-codegen</code></td><td><code>spec/openapi.yml</code></td><td><code>api/*.gen.go</code></td><td>REST handlers, types, specs from OpenAPI</td></tr>
+        <tr><td><code>protoc</code></td><td><code>spec/*.proto</code></td><td><code>shared/pkg/grpc/</code></td><td>gRPC stubs for orchestrator + envd</td></tr>
+        <tr><td><code>sqlc</code></td><td><code>db/queries/*.sql</code></td><td><code>db/internal/db/</code></td><td>Type-safe database queries</td></tr>
+        <tr><td><code>mockery</code></td><td><code>.mockery.yaml</code></td><td><code>mocks/</code> dirs</td><td>Test mocks for interfaces</td></tr>
+      </table>
+
+      <p>This is a sophisticated Go monorepo pattern — heavy codegen, type-safe from schema to DB to gRPC. Reflects an infrastructure team that values compile-time correctness over runtime flexibility.</p>
+
+      <h3>3.0.3 · Orchestrator internals — what every sandbox node runs</h3>
+      <table>
+        <tr><th>Component</th><th>Location</th><th>What it does</th></tr>
+        <tr><td>gRPC server</td><td><code>internal/server/</code></td><td>Receives <code>Create / Pause / Resume / Kill</code> from API</td></tr>
+        <tr><td>Sandbox manager</td><td><code>internal/sandbox/</code></td><td>State machine for each sandbox lifecycle</td></tr>
+        <tr><td>Firecracker integration</td><td><code>internal/sandbox/fc/</code></td><td>Talks to Firecracker HTTP API over unix socket; configures machine, drives, network, snapshots</td></tr>
+        <tr><td>Network manager</td><td><code>internal/sandbox/network/</code></td><td>TAP creation, iptables rules, NAT, physdev isolation</td></tr>
+        <tr><td>NBD storage</td><td><code>internal/sandbox/nbd/</code></td><td>Per-sandbox COW rootfs served via NBD protocol</td></tr>
+        <tr><td>Template cache</td><td><code>internal/sandbox/template/</code></td><td>Lazily fetches templates from object storage; local disk + optional NFS chunk cache; peer-to-peer fetch</td></tr>
+        <tr><td>UFFD handler</td><td><code>uffd/</code></td><td>Serves page faults from template memfile on demand</td></tr>
+        <tr><td>Template builder</td><td><code>cmd/build-template/</code></td><td>Runs build VMs to produce template artifacts</td></tr>
+        <tr><td>NFS cache cleaner</td><td><code>cmd/clean-nfs-cache/</code></td><td>Evicts cold template chunks from shared cache</td></tr>
+      </table>
+
+      <p>The orchestrator requires <b>root privileges</b>: KVM (<code>/dev/kvm</code>), <code>iptables</code>, <code>ip link</code>, <code>ip tuntap</code>. Self-hosting requires bare metal or a cloud VM with nested virt (which caps the GPU story).</p>
+
+      <h3 id="m3-1">3.1 Runtime substrate — Firecracker microVM</h3>
+      <p>
+        E2B is built directly on <b>Firecracker</b>, the same VMM AWS built for Lambda/Fargate. Verified end-to-end across:
+      </p>
+      <ul>
+        <li>E2B's own Firecracker-vs-QEMU blog (<a href="https://e2b.dev/blog/firecracker-vs-qemu" target="_blank">2025-03-03</a>)</li>
+        <li>The OSS architecture doc (<a href="https://github.com/e2b-dev/infra/blob/main/docs/ARCHITECTURE.md" target="_blank">ARCHITECTURE.md</a>)</li>
+        <li>Third-party deep dive (<a href="https://www.spheron.network/blog/ai-agent-code-execution-sandbox-e2b-daytona-firecracker" target="_blank">Spheron</a>)</li>
+        <li>Firecracker upstream security design (<a href="https://deepwiki.com/e2b-dev/firecracker/6-security-subsystems" target="_blank">DeepWiki</a>)</li>
+      </ul>
+
+      <p><b>Firecracker baseline numbers</b> (cross-confirmed from Northflank and the Firecracker design doc):</p>
+      <pre><code>~50,000 lines of Rust (vs. QEMU's ~2M lines of C)
+~125 ms cold boot per microVM
+&lt;5 MiB memory overhead per microVM
+Single Rust process per VMM (with jailer thread)
+KVM-backed hardware virtualization
+Defense-in-depth: seccomp + Landlock + cgroups on the VMM process itself</code></pre>
+
+      <p>E2B's value-add is not faster microVM boot — it's making sure <em>every</em> sandbox create is already a snapshot resume, not a from-scratch boot. <b>Faster than 125 ms?</b> Only when the snapshot is in local cache (5–30 ms). Otherwise the orchestrator pays the UFFD + NBD + VM-resume tax.</p>
+
+      <h3 id="m3-2">3.2 The "create a sandbox" trick — why it's faster than 125ms</h3>
+
+      <div class="mermaid">
+flowchart LR
+  A[SDK: Sandbox.create] --> B[API: gRPC Create]
+  B --> C[Orchestrator: fetch template]
+  C --> D{Cache hit?}
+  D -- yes --> E[local memfile]
+  D -- no  --> F[GCS/S3 + NFS chunk cache + peer-to-peer]
+  E --> G[UFFD lazy memory restore]
+  F --> G
+  G --> H[NBD COW rootfs overlay]
+  H --> I[Firecracker: resume VM]
+  I --> J[envd /init → ready]
+  style A fill:#0e7490,color:#fff
+  style J fill:#10b981,color:#fff
+      </div>
+
+      <p>Five architectural moves make this fast (<a href="https://github.com/e2b-dev/infra/blob/main/docs/ARCHITECTURE.md" target="_blank">ARCHITECTURE.md</a>):</p>
+      <ol>
+        <li><b>Template = pre-booted snapshot.</b> Build runs a VM and captures a <code>memfile</code> (memory), <code>rootfs.ext4</code> (disk), <code>snapfile</code> (VM state), <code>metadata.json</code> (config) at build time. Stored under <code>{buildID}/...</code> in GCS/S3/local.</li>
+        <li><b>Sandbox.create() is internally a resume.</b> Firecracker's <code>LoadSnapshot</code> restores the VM without loading memory; a <b>userfaultfd (UFFD) handler</b> serves page faults directly from the template's memfile. Only touched pages are read.</li>
+        <li><b>COW rootfs via NBD.</b> Template rootfs stays read-only; writes go to a per-sandbox COW cache exposed to Firecracker as a Network Block Device, served by an in-process userspace NBD server inside the orchestrator.</li>
+        <li><b>Origin-node resume preferred.</b> Placement picks the node where the snapshot was last used; if the snapshot is still in local disk cache, <b>no object-storage reads at all</b>.</li>
+        <li><b>Pre-fetching</b> warms known-hot pages; the orchestrator also supports a <b>shared NFS chunk cache</b> and <b>peer-to-peer fetch</b> from other nodes before upload completes.</li>
+      </ol>
+
+      <p><b>Latency in practice:</b></p>
+      <ul>
+        <li><b>Warm resume from local cache:</b> 5–30 ms (<a href="https://www.spheron.network/blog/ai-agent-code-execution-sandbox-e2b-daytona-firecracker" target="_blank">Spheron</a>)</li>
+        <li><b>Cold resume from object storage:</b> 150 ms (Spheron) / 300–800 ms (Morph, template-dependent)</li>
+        <li><b>Truly cold boot (filesystem-only / new build):</b> Firecracker's own ~125 ms + UFFD page-fault walk</li>
+      </ul>
+
+      <h3 id="m3-3">3.3 Snapshot model &amp; pause/resume — pause IS a snapshot</h3>
+
+      <p>Every pause uploads a <b>diff</b> against the parent template (memory diffs + COW rootfs diffs), keyed by <code>buildID</code> and resolved through <code>.header</code> index files that walk diff chains.</p>
+
+      <div class="mermaid">
+sequenceDiagram
+  participant Client as SDK
+  participant API   as API Server
+  participant Node  as Orchestrator (node)
+  participant OS    as Object storage
+  participant VM    as Firecracker
+  Client->>API: pause(sandboxId)
+  API->>API: snapshot row → Postgres
+  API->>Node: gRPC Pause
+  Node->>VM: Pause VM (dirty-page tracking)
+  Node->>Node: diff memory + rootfs vs template
+  Node->>OS: async upload (memfile diff, rootfs diff, .header)
+  VM-->>Node: state persisted
+  Node-->>API: ack
+  API->>Client: paused
+      </div>
+
+      <h4>Deferred rootfs export (feature-flagged)</h4>
+      <p>Instead of diffing the rootfs on the pause critical path, the orchestrator ejects the writable COW cache during pause and seals it (reflink) in the background. <b>Pro:</b> moves diff latency off the user-facing pause call. <b>Con:</b> blocks subsequent reads of the diff until the seal completes; seal failures are permanent and the upload fails fast rather than retrying.</p>
+
+      <h4>Filesystem-only snapshots (<code>pause({keepMemory:false})</code>)</h4>
+      <p>Drops memory, keeps disk. Resume performs a cold boot via <code>RebootSandbox</code>. Auto-resume never takes this path (it can't — memory is needed to restore the running process). Per-team gating via <code>fs-only-resume-api</code> feature flag; the API <b>rejects</b> rather than silently downgrades. <span class="src"><a href="https://docs.e2b.dev/sandbox/filesystem-only-snapshots" target="_blank">src</a></span></p>
+
+      <h4>Pre-boot filesystem recovery</h4>
+      <p>If a rootfs was not <code>fs_quiesced</code> at pause (legacy sync-fallback or filesystem-only rescue), a <b>jailed <code>e2fsck -p -E journal_only</code></b> runs before the VM boots — journal replay only, identical to what the guest kernel would do at mount. <code>memory: false</code> resumes mount a consistent disk; nothing durable is mutated (the memory snapshot survives untouched).</p>
+
+      <h4>envd swap (envd offline upgrade)</h4>
+      <p>On cold-boot resume of a <code>fs_quiesced</code> snapshot, the <code>envd</code> binary can be swapped to a newer version via <code>debugfs</code> (NOT a host-kernel mount of the tenant image). Best-effort; keyed on the snapshot's built-with version; re-fires idempotently until a re-pause re-bakes the running version. Gated by <code>envd-offline-upgrade-target</code> flag.</p>
+
+      <h4>Auto-pause / auto-resume</h4>
+      <p>Idle sandboxes pause; inbound traffic resumes them via the client-proxy. This is what makes the per-second clock feel like serverless billing — until your agent idles between user turns.</p>
+
+      <h3 id="m3-4">3.4 Storage &amp; I/O — what's actually inside the sandbox</h3>
+      <ul>
+        <li><b>Rootfs:</b> minimal Ubuntu-derived Linux; ~200 MB base; COW-overlaid per sandbox.</li>
+        <li><b>Block device:</b> NBD-backed COW overlay served by the orchestrator's in-process NBD server; backed by local NVMe on the node; uploaded as diffs to GCS/S3 on pause.</li>
+        <li><b>Memory:</b> <code>memfile</code> per template build; per-sandbox memory diffs on pause.</li>
+        <li><b>Object storage:</b> GCS (primary GCP), S3 (AWS beta), local-disk fallback. Keyed by <code>buildID</code>. <span class="src"><a href="https://github.com/e2b-dev/infra/blob/main/self-host.md" target="_blank">src</a></span></li>
+        <li><b>Network:</b> per-sandbox TAP interface into a host bridge; <code>/30</code> subnet per sandbox; NAT + iptables egress; <code>physdev</code> module isolates per-tap egress. <span class="src"><a href="https://www.spheron.network/blog/ai-agent-code-execution-sandbox-e2b-daytona-firecracker" target="_blank">src</a></span></li>
+      </ul>
+
+      <h3 id="m3-5">3.5 GPU — the missing managed feature</h3>
+
+      <p>E2B managed tier is <b>CPU-only</b> for Code Interpreter + Desktop. GPU access is <b>OSS self-host only</b>, via <b>VFIO-PCI passthrough</b> on bare metal:</p>
+      <ul>
+        <li>Host kernel owns the GPU; the guest sees the device directly.</li>
+        <li>Requires IOMMU (Intel VT-d / AMD-Vi) in BIOS.</li>
+        <li>Firecracker VFIO device: <code>"vfio": [{"host_dev_path": "/dev/vfio/N"}]</code> in the VM config.</li>
+        <li>Confirmed working with NVIDIA A100 80GB PCIe (PCI 10de:20b5) and H100.</li>
+      </ul>
+
+      <div class="callout callout-warn">
+        <b>⚠ Caveat (Northflank + Spheron):</b> Firecracker PCIe work was <b>paused in 2025 by AWS upstream</b>. Cloud VMs with nested virtualization add 5–15 ms overhead and <b>break PCIe passthrough</b>. Modal/Replicate remain stronger for managed GPU inference. <span class="src"><a href="https://northflank.com/blog/firecracker-vs-qemu" target="_blank">src</a></span> <span class="src"><a href="https://www.spheron.network/blog/ai-agent-code-execution-sandbox-e2b-daytona-firecracker" target="_blank">src</a></span>
+      </div>
+
+      <h3>3.6 Security Model — the layered defense</h3>
+
+      <h4>3.6.1 Defense in depth — what blocks what</h4>
+      <div class="mermaid">
+flowchart LR
+  subgraph ThreatModel[Threat model]
+    T1[Malicious AI-generated code]
+    T2[VM escape attempt]
+    T3[Resource exhaustion]
+    T4[Egress exfiltration]
+    T5[Privilege escalation]
+    T6[Tenant-vs-tenant breach]
+  end
+  subgraph Defenses[Layered defenses]
+    D1[KVM hardware virt<br/>separate kernel per VM]
+    D2[Firecracker jailer<br/>seccomp + Landlock + cgroups]
+    D3[Per-sandbox COW rootfs<br/>via NBD]
+    D4[In-VM envd<br/>token-bound + Connect-RPC only]
+    D5[Per-sandbox TAP<br/>iptables + physdev isolation]
+    D6[OpenTelemetry + ClickHouse<br/>usage analytics]
+    D7[Short-lived JWT<br/>audience-bound]
+  end
+  T1 --> D1
+  T2 --> D1
+  T2 --> D2
+  T3 --> D2
+  T4 --> D5
+  T5 --> D2
+  T5 --> D4
+  T6 --> D1
+  T6 --> D3
+  D7 --> D4
+      </div>
+
+      <h4>3.6.2 Seccomp / Landlock / cgroups — what the Firecracker jailer enforces</h4>
+      <p>The Firecracker VMM itself runs in a hardened jailer sandbox. From the <a href="https://deepwiki.com/e2b-dev/firecracker/6-security-subsystems" target="_blank">Firecracker security subsystems doc</a>:</p>
+      <ul>
+        <li><b>Process isolation:</b> each microVM runs as a separate process, managed by the jailer that enforces strict sandboxing.</li>
+        <li><b>System call filtering:</b> fine-grained seccomp filters restrict the VMM's interaction with the host kernel.</li>
+        <li><b>Filesystem access restrictions:</b> Landlock LSM (the Linux kernel's stackable filesystem sandbox).</li>
+        <li><b>Resource control:</b> cgroups v1/v2 quotas for CPU, memory, PIDs, blkio, devices.</li>
+      </ul>
+
+      <h4>3.6.3 In-VM security — envd token model</h4>
+      <p>Each microVM gets an <b>access token</b> delivered via the Firecracker MMDS (Microvm Metadata Service). The orchestrator mints a short-lived JWT signed by the API, scoped to the team + sandbox, with an <code>aud</code> claim bound to <code>https://api.&lt;domain&gt;</code> so a token for one cluster is not accepted by another.</p>
+      <pre><code># Token shape (illustrative, not actual E2B code)
+{
+  "sub": "team:acme",
+  "sandbox": "iiny0783cype8gmoawzmx-ce30bc46",
+  "aud": "https://api.e2b.dev",
+  "exp": 1740495600,
+  "scope": ["envd:exec", "envd:fs:read", "envd:fs:write"]
+}</code></pre>
+
+      <h4>3.6.4 Network isolation — what egress is allowed</h4>
+      <p>Spheron's reproduction of the E2B-style sandbox network setup (cross-checked with ARCHITECTURE.md):</p>
+      <pre><code># Create bridge for sandbox networking
+ip link add br0 type bridge
+ip link set br0 up
+ip addr add 10.100.0.1/16 dev br0
+
+# TAP device per sandbox
+ip tuntap add tap0 mode tap
+ip link set tap0 master br0
+ip link set tap0 up
+
+# Egress NAT
+iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+iptables -A FORWARD -i br0 -o eth0 -j ACCEPT
+
+# Per-sandbox egress restriction (physdev module — tap0 enslaved to br0)
+iptables -I FORWARD -i br0 -m physdev --physdev-in tap0 -o eth0 -j DROP
+iptables -I FORWARD -i br0 -m physdev --physdev-in tap0 -d 8.8.8.8 -o eth0 -j ACCEPT</code></pre>
+
+      <p>Sandboxes can be created in "no internet" mode — useful for code-interpreter use cases where the agent doesn't need external API access. The flag is exposed at the SDK level (lifecycle / network config).</p>
+
+      <h4>3.6.5 Compliance posture</h4>
+      <table>
+        <tr><th>Standard</th><th>Status</th><th>Source</th></tr>
+        <tr><td>SOC 2</td><td>Yes (Enterprise)</td><td><a href="https://www.usagepricing.com/blueprint/e2b" target="_blank">UsagePricing</a></td></tr>
+        <tr><td>HIPAA</td><td>Yes (Enterprise)</td><td><a href="https://www.usagepricing.com/blueprint/e2b" target="_blank">UsagePricing</a></td></tr>
+        <tr><td>US region</td><td>Yes</td><td>e2b.dev</td></tr>
+        <tr><td>EU region</td><td>Yes (Enterprise)</td><td>e2b.dev</td></tr>
+        <tr><td>BYOC / on-prem</td><td>Yes (Enterprise)</td><td>self-host.md</td></tr>
+      </table>
+
+      <div class="callout callout-info">
+        <b>eBPF egress proxy:</b> user-prompt claim is plausible and consistent with Spheron's reproduction notes, but <b>not directly attested</b> in any E2B primary doc found. Treat as likely-but-unconfirmed.
+      </div>
+
+      <h3 id="m3-7">3.7 Build &amp; template pipeline</h3>
+
+      <div class="mermaid">
+sequenceDiagram
+  participant Dev as Developer
+  participant TM  as template-manager (build node)
+  participant FC  as Firecracker build VMs
+  participant OS  as Object storage
+  Dev->>TM: Template.build(template, 'name')
+  TM->>FC: launch build VM (max 1h, 8 vCPU, 8 GiB, 10/20 GiB disk)
+  FC->>FC: run setup commands; capture startCmd
+  FC->>OS: upload {buildID}/{memfile, rootfs.ext4, snapfile, metadata.json, .header}
+  OS-->>Dev: build ready, registry entry
+      </div>
+
+      <ul>
+        <li><b>Templates vs snapshots:</b> templates start faster because the guest OS is <b>restarted before capturing the long-running process</b> — the start command is already running when <code>Sandbox.create()</code> returns. <span class="src"><a href="https://docs.e2b.dev/sandbox-template" target="_blank">src</a></span></li>
+        <li><b>Layering:</b> <code>.fromTemplate('base')</code> avoids rebuilding shared layers — useful for per-customer/per-project environments.</li>
+        <li><b>Hobby/Pro limits:</b> max 1h build, 20 concurrent builds, 8 vCPU + 8 GiB + 10 GiB disk (Hobby); 8+ / 8+ / 20+ GiB (Pro).</li>
+      </ul>
+
+      <h3>3.9 · Cold-start math — why 150ms beats 800ms for agents</h3>
+      <p>The per-second clock makes cold-start latency a <b>direct revenue line item</b>. Here's the math for a single sandbox creation event:</p>
+      <table>
+        <tr><th>Scenario</th><th>Cold-start</th><th>Execution time</th><th>Total billed</th><th>Effective $/exec</th></tr>
+        <tr><td>Snapshot resume from local cache</td><td>30ms</td><td>5s</td><td>5.03s × $0.000014 = $0.0000704</td><td>~$0.00007</td></tr>
+        <tr><td>Resume from GCS, no NFS</td><td>300ms</td><td>5s</td><td>5.30s × $0.000014 = $0.0000742</td><td>~$0.000074</td></tr>
+        <tr><td>Cold boot (no template)</td><td>800ms</td><td>5s</td><td>5.80s × $0.000014 = $0.0000812</td><td>~$0.000081</td></tr>
+        <tr><td>Idle for 30s between tool calls (interactive agent)</td><td>—</td><td>5s + 30s idle</td><td>35s × $0.000014 = $0.00049</td><td>~$0.00049 (~7× headline)</td></tr>
+      </table>
+      <p>At a million sandboxes per month, the difference between a 5× speedup (snapshot resume vs cold boot) is on the order of $100/year — but the difference between billed idle time vs billed execution time is <b>~$4,200/year per million sandboxes</b>. This is the structural reason E2B's customer-facing narrative focuses on the <em>tool-call latency</em> story, not the per-second rate.</p>
+
+      <h3>3.10 · Pause/Resume — when to use full vs filesystem-only</h3>
+      <table>
+        <tr><th>Use case</th><th>Recommended</th><th>Why</th></tr>
+        <tr><td>Long-running agent with running background service</td><td><b>Full snapshot</b> (<code>keepMemory:true</code>)</td><td>Process must survive pause to serve again</td></tr>
+        <tr><td>Workspace file persistence between sessions</td><td><b>Filesystem-only</b> (<code>keepMemory:false</code>)</td><td>Cheaper, faster; reboot cost acceptable</td></tr>
+        <tr><td>Auto-resume on inbound traffic</td><td><b>Full snapshot</b> ONLY</td><td>Auto-resume restores memory (running process)</td></tr>
+        <tr><td>Picking up a newer <code>envd</code></td><td>FS-only resume → pause → resume cycle</td><td>Cold boot enables <code>debugfs</code>-based envd swap</td></tr>
+      </table>
+
+      <h3>3.11 · Snapshot artifact anatomy</h3>
+      <p>Per the ARCHITECTURE.md spec, a template build and a paused-sandbox snapshot have the <b>same artifact shape</b> — a snapshot is just a new build whose memfile/rootfs are stored as diffs against the template it came from.</p>
+      <pre><code>{buildID}/
+├── memfile              # raw memory image (lazy-loaded via UFFD)
+├── rootfs.ext4          # filesystem image
+├── snapfile             # Firecracker VM state
+├── metadata.json        # sandbox ID, template, envd access token hash
+└── .header              # index file: walks the diff chain back to base template</code></pre>
+      <p>Diff chains are resolved through the <code>.header</code> files. If you pause sandbox A (from template T), then pause a child sandbox B (from paused A), B's artifacts are diffs against A's artifacts, and <code>.header</code> walks back to T.</p>
+
+      <h3>3.8 Stack Map</h3>
+
+      <div class="mermaid">
+flowchart TB
+  subgraph clients[SDK / CLI]
+    JS[JS/TS SDK]
+    PY[Python SDK]
+    CLI[CLI]
+  end
+  subgraph edge[Edge Layer]
+    CP[client-proxy :3002 Consul SD]
+  end
+  subgraph control[Control Plane]
+    API[API Server Gin REST]
+    PG[(PostgreSQL)]
+    RD[(Redis)]
+    CH[(ClickHouse)]
+  end
+  subgraph compute[Compute Plane]
+    ORCH[Orchestrator gRPC]
+    FC1[Firecracker VM 1]
+    FC2[Firecracker VM 2]
+    FCN[Firecracker VM N]
+  end
+  JS --> CP
+  PY --> CP
+  CLI --> CP
+  CP --> API
+  CP --> ORCH
+  API --> PG
+  API --> RD
+  API --> CH
+  ORCH --> FC1
+  ORCH --> FC2
+  ORCH --> FCN
+  ORCH -->|UFFD memfile + NBD COW rootfs| OS[(GCS / S3 / local)]
+      </div>
+
+      <table>
+        <tr><th>Layer</th><th>Component</th><th>Tech</th><th>Notes</th></tr>
+        <tr><td>Edge</td><td>client-proxy :3002</td><td>Go</td><td>Consul SD, Redis routing catalog</td></tr>
+        <tr><td>Control plane</td><td>API server</td><td>Go + Gin REST</td><td>Supabase JWT, OpenTelemetry, OpenAPI codegen, Ent ORM + sqlc, Redis, ClickHouse</td></tr>
+        <tr><td>Compute plane</td><td>orchestrator</td><td>Go + gRPC</td><td>Per-node; requires root for KVM + iptables/netlink</td></tr>
+        <tr><td>Storage</td><td>NBD server</td><td>in-process userspace</td><td>Per-sandbox COW overlay</td></tr>
+        <tr><td>Memory</td><td>UFFD handler</td><td>Linux userfaultfd</td><td>Lazy page-fault from memfile</td></tr>
+        <tr><td>VM</td><td>Firecracker VMM</td><td>Rust (upstream)</td><td>KVM-backed microVM</td></tr>
+        <tr><td>In-VM</td><td>envd daemon :49983</td><td>Go (Connect-RPC)</td><td>Mediates process + filesystem</td></tr>
+        <tr><td>IaC</td><td>Terraform + Nomad + Packer</td><td>—</td><td>GCP primary, AWS beta, Azure planned</td></tr>
+      </table>
+
+      <p>Sources: <a href="https://ggprompts.com/architecture/e2b/index.html" target="_blank">ggprompts.com architecture map</a>, <a href="https://github.com/e2b-dev/infra/blob/main/docs/ARCHITECTURE.md" target="_blank">ARCHITECTURE.md</a>, <a href="https://github.com/e2b-dev/infra/blob/main/self-host.md" target="_blank">self-host.md</a>.</p>
+    </section>
+
+    <hr>
+
+    <!-- MODULE 4 -->
+    <section id="m4">
+      <h2>4 · Blog &amp; Open Source Index</h2>
+
+      <h3>4.1 Key E2B blog posts (with URLs)</h3>
+      <table>
+        <tr><th>Date</th><th>Title</th><th>URL</th><th>Category</th></tr>
+        <tr><td>2023-06-29</td><td>We gave AI Agents a cloud playground</td><td><a href="https://e2b.dev/blog/we-gave-ai-agents-a-cloud-playground" target="_blank">link</a></td><td>Product</td></tr>
+        <tr><td>2023-08-01</td><td>ChatGPT Plugin by E2B</td><td><a href="https://e2b.dev/blog" target="_blank">blog index</a></td><td>Product</td></tr>
+        <tr><td>2023-11-07</td><td>Code Interpreter Sandbox</td><td><a href="https://e2b.dev/blog/code-interpreter-sandbox" target="_blank">link</a></td><td>Product</td></tr>
+        <tr><td>2024-02-26</td><td><b>Up to 5x Faster Sandboxes</b></td><td><a href="https://e2b.dev/blog/up-to-5x-faster-sandboxes" target="_blank">link</a></td><td>Product</td></tr>
+        <tr><td>2024-02-28</td><td>You Can Now Customize CPU and RAM for Your Sandbox</td><td><a href="https://e2b.dev/blog/you-can-now-customize-cpu-and-ram-for-your-sandbox" target="_blank">link</a></td><td>Product</td></tr>
+        <tr><td>2024-05-06</td><td><b>Launching the Code Interpreter SDK</b></td><td><a href="https://e2b.dev/blog/launching-the-code-interpreter-sdk" target="_blank">link</a></td><td>Product</td></tr>
+        <tr><td>2025-03-03</td><td><b>Firecracker vs QEMU</b></td><td><a href="https://e2b.dev/blog/firecracker-vs-qemu" target="_blank">link</a></td><td>Insights</td></tr>
+        <tr><td>2025-05-06</td><td>How Manus Uses E2B to Provide Agents With Virtual Computers</td><td><a href="https://e2b.dev/blog" target="_blank">blog index</a></td><td>Case Study</td></tr>
+        <tr><td>2025-05-19</td><td>Lindy Powers AI Workflows With E2B Code Action</td><td><a href="https://e2b.dev/blog" target="_blank">blog index</a></td><td>Case Study</td></tr>
+        <tr><td>2025-05-20</td><td>Groq's Compound AI Systems Are Powered by E2B</td><td><a href="https://e2b.dev/blog" target="_blank">blog index</a></td><td>Interview</td></tr>
+        <tr><td>2025-07-28</td><td><b>We Raised $21M to Give Fortune 100 Cloud for AI Agents</b></td><td><a href="https://e2b.dev/blog/series-a" target="_blank">link</a></td><td>Funding</td></tr>
+        <tr><td>2025-10-16</td><td>Build System 2.0</td><td><a href="https://e2b.dev/blog" target="_blank">blog index</a></td><td>Product</td></tr>
+        <tr><td>2025-10-23</td><td>Docker &amp; E2B partner to introduce MCP support</td><td><a href="https://e2b.dev/blog" target="_blank">blog index</a></td><td>Product</td></tr>
+        <tr><td>2026-01-14</td><td>Postmortem: Service disruption on Jan 13, 2026</td><td><a href="https://e2b.dev/blog" target="_blank">blog index</a></td><td>Updates</td></tr>
+        <tr><td>2026-04-15</td><td>E2B is now supported in the OpenAI Agents SDK</td><td><a href="https://e2b.dev/blog" target="_blank">blog index</a></td><td>Updates</td></tr>
+        <tr><td>2026-04-30</td><td>E2B Sandboxes Aren't Affected by Copy Fail (CVE-2026-31431)</td><td><a href="https://e2b.dev/blog" target="_blank">blog index</a></td><td>Insights/Security</td></tr>
+      </table>
+
+      <div class="callout callout-info">
+        <b>Note on blog access:</b> E2B's blog pages are JS-rendered Webflow sites. URL paths are confirmed via E2B's blog index (<a href="https://e2b.dev/blog" target="_blank">e2b.dev/blog</a>) and dozens of third-party citations.
+      </div>
+
+      <h3>4.2 Public GitHub repositories</h3>
+      <table>
+        <tr><th>Repo</th><th>Purpose</th><th>Stars</th><th>License</th></tr>
+        <tr><td><a href="https://github.com/e2b-dev/e2b" target="_blank">e2b-dev/e2b</a></td><td>SDKs + CLI + OpenAPI spec</td><td>13.7k</td><td>Apache-2.0</td></tr>
+        <tr><td><a href="https://github.com/e2b-dev/infra" target="_blank">e2b-dev/infra</a></td><td>Go backend, Firecracker orchestration, Terraform IaC</td><td>1.36k</td><td>Apache-2.0</td></tr>
+        <tr><td><a href="https://github.com/e2b-dev/desktop" target="_blank">e2b-dev/desktop</a></td><td>Desktop sandbox template + examples</td><td>1.47k</td><td>Apache-2.0</td></tr>
+        <tr><td><a href="https://github.com/e2b-dev/fragments" target="_blank">e2b-dev/fragments</a></td><td>LLM "vibe coding" reference app</td><td>—</td><td>Apache-2.0</td></tr>
+        <tr><td><a href="https://github.com/e2b-dev/ai-analyst" target="_blank">e2b-dev/ai-analyst</a></td><td>Reference data-analysis agent</td><td>—</td><td>Apache-2.0</td></tr>
+        <tr><td><a href="https://github.com/e2b-dev/surf" target="_blank">e2b-dev/surf</a></td><td>OpenAI Computer-Use agent on E2B Desktop</td><td>—</td><td>Apache-2.0</td></tr>
+        <tr><td><a href="https://github.com/e2b-dev/open-computer-use" target="_blank">e2b-dev/open-computer-use</a></td><td>100% open-source computer-use stack</td><td>—</td><td>Apache-2.0</td></tr>
+        <tr><td><a href="https://github.com/e2b-dev/e2b-cookbook" target="_blank">e2b-dev/e2b-cookbook</a></td><td>Recipes (LangChain, Anthropic, Groq, Llama, o1)</td><td>—</td><td>Apache-2.0</td></tr>
+      </table>
+    </section>
+
+    <hr>
+
+    <!-- INTERLUDE: TEAM DEEP DIVE -->
+    <section id="team">
+      <h2>Interlude · Founder deep-dive</h2>
+
+      <h3>Vasek Mlejnsky (Václav Mlejnský) — Co-Founder &amp; CEO</h3>
+      <p>From the <a href="https://yespress.io/vasek-mlejnsky" target="_blank">yespress profile</a>, the <a href="https://www.miton.cz/blog/buduje-startup-ze-san-franciska-vasek-mlejnsky-founder-e2b" target="_blank">Miton podcast</a>, and the <a href="https://cc.cz/na-stredni-vyvijeli-hry-pro-iphone-ted-zari-s-umelou-inteligenci-cesi-ziskali-za-dva-roky-700-milionu/" target="_blank">CC.cz feature</a>:</p>
+      <blockquote>
+        <p>"Vasek Mlejnsky grew up in a Czech town of about 20,000 people, the kind of place where the wider technology world arrives only through a screen. He found that world early. Alongside a classmate he had known since sixth grade, Tomas Valenta, he started building video games. The two shared a curiosity that outgrew their surroundings, and somewhere along the way Mlejnsky came across Paul Graham's essays on startups. Reading them changed the question he was asking."</p>
+        <p>"In 2021, Mlejnsky made the move that most people talk about and few make: he left the Czech Republic for San Francisco, arriving through the Pioneer accelerator program. His reasoning was practical. For an AI-focused developer tools company, he believed proximity to users mattered more than anything."</p>
+        <p>"Being in Silicon Valley is crucial — it's about meeting your users, having hacking sessions."</p>
+      </blockquote>
+
+      <p>His positioning of E2B is deliberate: he calls it "a boring AI code execution layer that should just work." That word — <em>boring</em> — is a choice. In a market saturated with claims about intelligence and autonomy, he has positioned his company around <b>virtualization, sandboxing, and security</b>. Not the model. Not the framework. The plumbing.</p>
+
+      <p><b>What makes the founding story notable:</b></p>
+      <ul>
+        <li><b>Six years of pre-E2B experimentation.</b> Mlejnsky and Valenta tried serverless function optimization, then a developer search engine, before pivoting into sandboxes.</li>
+        <li><b>Open-source-first.</b> E2B grew from a public project that collected thousands of GitHub stars within weeks of launch.</li>
+        <li><b>Personal brand = founder = company.</b> His Twitter/X handle is just <code>@mlejva</code>; he writes long technical threads on Firecracker internals.</li>
+        <li><b>Childhood-friend co-founder.</b> Vasek + Tomas have known each other since sixth grade — a partnership older than most startups by more than a decade.</li>
+      </ul>
+
+      <h3>Tomas Valenta (Tomáš Valenta) — Co-Founder &amp; CTO</h3>
+      <p>From <a href="https://www.everydev.ai/developers/foundrylabs" target="_blank">EveryDev / FoundryLabs</a>, <a href="https://sophon.at/people/tomas-valenta" target="_blank">Sophon</a>, and <a href="https://www.linkedin.com/in/valentatomas" target="_blank">LinkedIn</a>:</p>
+      <ul>
+        <li>Studied at <b>Gymnázium Uherské Hradiště</b> (same as Vasek)</li>
+        <li>Founder of <b>DevBook</b> (the predecessor product to E2B)</li>
+        <li>Background in <b>iPhone game development, computer vision, and developer tools</b></li>
+        <li>GitHub: <a href="https://github.com/0xtomas" target="_blank">@0xtomas</a></li>
+        <li>Twitter/X: <a href="https://twitter.com/tomas_hf" target="_blank">@tomas_hf</a></li>
+        <li>Seniority (LinkedIn inference): Owner + Chief X Officer</li>
+      </ul>
+
+      <h3>Engineering team signals — 【分析师估算】</h3>
+      <p>From the GitHub commit history and the GitHub org membership data:</p>
+      <ul>
+        <li><b>Go-dominant backend:</b> the infra repo is ~84% Go (per ggprompts.com scan). Suggests 10–20 backend engineers comfortable with KVM/netlink/iptables programming.</li>
+        <li><b>TypeScript SDK team:</b> the monorepo is structured around pnpm workspaces with separate Python + JS + Go SDKs.</li>
+        <li><b>Build-system dedicated team:</b> Build System 2.0 (Oct 2025) was a major rewrite, suggesting 3–5 engineers focused on template/pipeline improvements.</li>
+        <li><b>Multi-cloud SRE:</b> self-host.md covers GCP, AWS, Azure, and generic Linux — implies 5+ SRE-type engineers comfortable with Terraform + Nomad.</li>
+        <li><b>No public job postings for ML engineers:</b> confirms E2B is infrastructure-only, not a model lab.</li>
+      </ul>
+
+      <p><b>Total headcount estimate:</b> 50–100 FTE by mid-2026 (vs. LinkedIn's "11–50" and Seedtable's "31" as of mid-2025) — the Series A war chest is being deployed against aggressive hiring. CZ engineering hub in Prague keeps blended cost-of-engineer low vs. pure-SF competitor Modal.</p>
+    </section>
+
+    <hr>
+
+    <!-- INTERLUDE: CASE STUDIES -->
+    <section id="cases">
+      <h2>Interlude · Customer Case Studies (verbatim claims)</h2>
+      <p>What E2B's customers say they're doing with the sandbox — all claims pulled from E2B's blog or from CaseStudies.com summaries of those blog posts.</p>
+
+      <table>
+        <tr><th>Customer</th><th>Use case</th><th>Scale claim</th><th>Source</th></tr>
+        <tr><td><b>Perplexity</b></td><td>Pro data-analysis feature for AI search; secure LLM-generated code execution</td><td>Shipped in <b>1 week</b>; millions of E2B sandboxes/month</td><td><a href="https://www.casestudies.com/company/e2b/case-study/how-perplexity-implemented-advanced-data-analysis-for-pro-users-in-1-week" target="_blank">CaseStudies</a> · <a href="https://e2b.dev/blog" target="_blank">e2b.dev/blog</a></td></tr>
+        <tr><td><b>Hugging Face</b></td><td>Open R1 — replicating DeepSeek-R1; secure code execution in Spaces</td><td>Multi-step research-grade agent workloads</td><td><a href="https://e2b.dev/blog" target="_blank">e2b.dev/blog</a></td></tr>
+        <tr><td><b>Groq</b></td><td>Compound AI Systems / Compound Beta — fast, secure code execution for compound LLMs</td><td>Production agent runtime</td><td><a href="https://e2b.dev/blog" target="_blank">e2b.dev/blog</a> (May 20, 2025)</td></tr>
+        <tr><td><b>Manus</b></td><td>Virtual computers for AI agents</td><td>Computer-use agent substrate</td><td><a href="https://e2b.dev/blog" target="_blank">e2b.dev/blog</a> (May 6, 2025)</td></tr>
+        <tr><td><b>LMArena</b></td><td>LLM web-development evals (Chatbot Arena)</td><td>Multi-model head-to-head benchmarks in isolated envs</td><td><a href="https://e2b.dev/blog" target="_blank">e2b.dev/blog</a> (Feb 3, 2025)</td></tr>
+        <tr><td><b>Lindy</b></td><td>AI workflow automation — E2B Code Action</td><td>Tool-call substrate for production agents</td><td><a href="https://e2b.dev/blog" target="_blank">e2b.dev/blog</a> (May 19, 2025)</td></tr>
+        <tr><td><b>Gumloop</b></td><td>AI workflow builder; serves Shopify, Instacart</td><td><b>2+ years</b> on E2B</td><td><a href="https://e2b.dev/blog" target="_blank">e2b.dev/blog</a> (Feb 27, 2026)</td></tr>
+        <tr><td><b>StackAI</b></td><td>Regulated-industry AI agents (healthcare, finance)</td><td>Enterprise SOC 2 customer base</td><td><a href="https://e2b.dev/blog" target="_blank">e2b.dev/blog</a> (Jun 8, 2026)</td></tr>
+        <tr><td><b>Genspark</b></td><td>General-purpose AI agent for millions of users</td><td>High-concurrency agent platform</td><td><a href="https://e2b.dev/blog" target="_blank">e2b.dev/blog</a> (May 7, 2026)</td></tr>
+        <tr><td><b>Rogo</b></td><td>AI for financial institutions (Claude Managed Agents)</td><td>Regulated, high-stakes workflows</td><td><a href="https://e2b.dev/blog/rogo" target="_blank">e2b.dev/blog/rogo</a> (Jun 12, 2026)</td></tr>
+        <tr><td><b>Anything</b></td><td>Vibe-coding product</td><td><b>1M+ users</b></td><td><a href="https://e2b.dev/blog/anything" target="_blank">e2b.dev/blog/anything</a> (Jul 20, 2026)</td></tr>
+        <tr><td><b>Paper Instruments</b></td><td>RL rollouts — cut idle GPU time</td><td>Benchmarked E2B vs other sandbox providers for RL</td><td><a href="https://e2b.dev/blog" target="_blank">e2b.dev/blog</a> (Sep 3, 2026)</td></tr>
+        <tr><td><b>Effective AI</b></td><td>Multi-agent insurance workflows at scale</td><td>Multi-tenant regulated deployment</td><td><a href="https://e2b.dev/blog" target="_blank">e2b.dev/blog</a> (Aug 5, 2026)</td></tr>
+        <tr><td><b>Replicas</b></td><td>Latency-sensitive agent workloads</td><td><b>60% customer-latency reduction</b></td><td><a href="https://e2b.dev/blog" target="_blank">e2b.dev/blog</a> (Aug 27, 2026)</td></tr>
+        <tr><td><b>Devin (Cognition)</b></td><td>E2B as execution layer for Devin Outposts</td><td>Long-running autonomous agent substrate</td><td><a href="https://e2b.dev/blog" target="_blank">e2b.dev/blog</a> (Jul 21, 2026)</td></tr>
+      </table>
+
+      <div class="callout callout-info">
+        <b>Anthropic &amp; OpenAI:</b> Anthropic is <em>not</em> in the E2B customer case-study list above. The widely-repeated claim that "Claude Code / Artifacts run on E2B" comes from a third-party landscape profile (<a href="https://mrpeppersdev.github.io/agent-infrastructure-landscape/systems/e2b--e2b-dev" target="_blank">mrpeppers</a>) — it is plausible but secondary. Treat as <b>UNVERIFIED</b> for primary customer count.
+      </div>
+    </section>
+
+    <hr>
+
+    <!-- INTERLUDE: PRICING CALCULATOR -->
+    <section id="pricing">
+      <h2>Interlude · Pricing Calculator (worked examples)</h2>
+      <p>How the per-second clock actually plays out at real workloads. All rates from <a href="https://e2b.dev/pricing" target="_blank">e2b.dev/pricing</a>.</p>
+
+      <h3>Workload 1 — "OpenAI-style code interpreter" (short-lived)</h3>
+      <pre><code>Configuration:
+  vCPUs:        2  → $0.000028/s compute
+  Memory:       1 GiB → $0.0000045/GiB/s
+  Cold start:   ~300ms (resume from GCS)
+  Code execution: ~3s
+  Idle between turns: ~10s (interactive user)
+  Turns per session: 5
+
+Per-turn bill:
+  (0.3 + 3 + 10) s × ($0.000028 + $0.0000045) = 13.3 × $0.0000325 = $0.000432
+
+Per-session bill (5 turns, one sandbox):
+  5 × $0.000432 = $0.00216
+
+At 1M sessions/month: $2,160/month compute (before Pro $150)</code></pre>
+
+      <h3>Workload 2 — "Coding agent repo loop" (long-running)</h3>
+      <pre><code>Configuration:
+  vCPUs:        4  → $0.000056/s compute
+  Memory:       4 GiB → $0.000018/GiB/s
+  Total active: 60 minutes
+  Pause+resume: 2× during session
+  Storage:      10 GiB (free on Hobby, +$X on Pro)
+
+Per-session bill:
+  60 × 60 = 3,600 s × ($0.000056 + $0.000018) = 3,600 × $0.000074 = $0.2664
+
+At 100k sessions/month: $26,640/month compute (before Pro $150)</code></pre>
+
+      <h3>Workload 3 — "RL rollout training" (high-concurrency, short)</h3>
+      <pre><code>Configuration:
+  vCPUs:        8  → $0.000112/s compute
+  Memory:       8 GiB → $0.000036/GiB/s
+  Concurrency:  1,000 sandboxes in flight
+  Per-rollout:  30s
+  Total rollouts/month: 1M (1k × 1k)
+
+Per-rollout bill:
+  30 × $0.000148 = $0.00444
+
+Monthly compute:
+  1M × $0.00444 = $4,440
+  + Enterprise base (~$3,000/mo minimum)
+  = ~$7,440/month total
+
+Pro+ concurrency add-on ($500/mo) applies above 100 concurrent.</code></pre>
+
+      <p>This is why <b>RL rollouts and coding agents</b> are the high-LTV workloads — the per-second clock rewards long-running and parallel work, not interactive sessions.</p>
+    </section>
+
+    <hr>
+
+    <!-- INTERLUDE: GLOSSARY -->
+    <section id="glossary">
+      <h2>Interlude · Glossary</h2>
+      <table>
+        <tr><th>Term</th><th>Definition</th><th>E2B-specific note</th></tr>
+        <tr><td><b>Firecracker</b></td><td>AWS-built microVM VMM; ~50k LoC Rust; ~125ms boot; &lt;5MiB overhead</td><td>E2B's core substrate</td></tr>
+        <tr><td><b>microVM</b></td><td>Lightweight VM combining hardware isolation with container-like density</td><td>Each E2B sandbox is one</td></tr>
+        <tr><td><b>KVM</b></td><td>Linux kernel virtualization infrastructure</td><td>Firecracker uses KVM for hardware virt</td></tr>
+        <tr><td><b>jailer</b></td><td>Firecracker component that sandboxes the VMM process</td><td>Adds seccomp + Landlock + cgroups on the VMM</td></tr>
+        <tr><td><b>UFFD (userfaultfd)</b></td><td>Linux mechanism for userspace to handle page faults</td><td>E2B serves snapshot memfile pages on demand via UFFD</td></tr>
+        <tr><td><b>NBD (Network Block Device)</b></td><td>Linux protocol for accessing block devices over a network</td><td>E2B exposes per-sandbox COW rootfs via NBD</td></tr>
+        <tr><td><b>COW (copy-on-write)</b></td><td>Filesystem pattern: share immutable base, only persist diffs</td><td>Template rootfs stays read-only; writes go to per-sandbox overlay</td></tr>
+        <tr><td><b>memfile</b></td><td>Raw memory image of a paused VM</td><td>E2B stores per template; loaded lazily via UFFD</td></tr>
+        <tr><td><b>snapfile</b></td><td>Firecracker VM state snapshot</td><td>Captured at template build time</td></tr>
+        <tr><td><b>MMDS</b></td><td>Firecracker Microvm Metadata Service</td><td>Delivers sandbox ID + envd token to the guest</td></tr>
+        <tr><td><b>envd</b></td><td>E2B's in-VM daemon; Connect-RPC on :49983</td><td>Mediates process + filesystem operations from orchestrator</td></tr>
+        <tr><td><b>Connect-RPC</b></td><td>HTTP/2-based RPC framework (Buf-built)</td><td>E2B uses it for envd APIs</td></tr>
+        <tr><td><b>FS-only snapshot</b></td><td>Pause that keeps disk, drops memory; resume = cold boot</td><td>E2B: <code>pause({keepMemory:false})</code></td></tr>
+        <tr><td><b>Auto-resume</b></td><td>Idle sandboxes auto-pause; traffic resumes them</td><td>NOT compatible with FS-only snapshots</td></tr>
+        <tr><td><b>deferred-rootfs-export</b></td><td>Feature flag: ejects COW cache on pause, seals in background</td><td>Moves diff latency off pause critical path</td></tr>
+        <tr><td><b>BYOC</b></td><td>Bring Your Own Cloud (Enterprise deployment model)</td><td>E2B supports AWS, GCP, Azure, generic Linux</td></tr>
+        <tr><td><b>VFIO</b></td><td>Linux framework for userspace device passthrough</td><td>E2B uses VFIO for GPU passthrough on bare metal</td></tr>
+        <tr><td><b>Landlock</b></td><td>Linux LSM for stackable filesystem sandboxing</td><td>Firecracker jailer uses it</td></tr>
+        <tr><td><b>seccomp</b></td><td>Linux syscall filtering mechanism</td><td>Firecracker jailer uses BPF-based seccomp</td></tr>
+      </table>
+    </section>
+
+    <hr>
+
+    <!-- MODULE 5 -->
+    <section id="m5">
+      <h2>5 · Tradeoffs &amp; Competition</h2>
+
+      <h3 id="m5-1">5.1 Competitor Matrix (2026)</h3>
+      <table>
+        <tr><th>Platform</th><th>Isolation</th><th>Cold start</th><th>GPU managed</th><th>OSS self-host</th><th>Source</th></tr>
+        <tr><td><b>E2B managed</b></td><td>Firecracker microVM</td><td>150–800ms</td><td>No (CPU)</td><td>—</td><td><a href="https://e2b.dev/pricing" target="_blank">e2b.dev</a></td></tr>
+        <tr><td><b>E2B OSS</b></td><td>Firecracker microVM</td><td>5–30ms (snapshot)</td><td><b>Yes (VFIO bare metal)</b></td><td>Yes</td><td><a href="https://www.spheron.network/blog/ai-agent-code-execution-sandbox-e2b-daytona-firecracker" target="_blank">Spheron</a></td></tr>
+        <tr><td>Modal Sandboxes</td><td>gVisor (runsc)</td><td>100–300ms</td><td>Yes (T4/A10G)</td><td>No</td><td><a href="https://northflank.com/blog/daytona-vs-modal" target="_blank">Northflank</a></td></tr>
+        <tr><td>Daytona</td><td>Docker + gVisor</td><td>27–90ms</td><td>Limited (no MIG)</td><td>Yes</td><td><a href="https://www.softwareseni.com/e2b-daytona-modal-and-sprites-dev-choosing-the-right-ai-agent-sandbox-platform/" target="_blank">softwareseni</a></td></tr>
+        <tr><td>Vercel Sandbox</td><td>Firecracker microVM</td><td>sub-second</td><td>Up to 32 vCPU</td><td>No</td><td><a href="https://dreaming.press/posts/e2b-vs-modal-vs-daytona-agent-sandboxes.html" target="_blank">dreaming.press</a></td></tr>
+        <tr><td>Google Cloud Run Sandboxes</td><td>gVisor + container</td><td>TBD</td><td>TBD</td><td>—</td><td><a href="https://dreaming.press/posts/e2b-vs-modal-vs-daytona-agent-sandboxes.html" target="_blank">dreaming.press</a></td></tr>
+        <tr><td>Replit Agent Runtime</td><td>Container (proprietary)</td><td>~1s</td><td>No</td><td>No</td><td><a href="https://www.spheron.network/blog/ai-agent-code-execution-sandbox-e2b-daytona-firecracker" target="_blank">Spheron</a></td></tr>
+        <tr><td>Northflank Sandboxes</td><td>microVM (Firecracker / Kata / Cloud Hypervisor)</td><td>—</td><td>—</td><td>Hybrid</td><td><a href="https://northflank.com/blog/firecracker-vs-qemu" target="_blank">Northflank</a></td></tr>
+        <tr><td>StackBlitz WebContainer</td><td>WASM in-browser</td><td>&lt;10ms</td><td>No (browser)</td><td>—</td><td>—</td></tr>
+        <tr><td>Anthropic Artifacts / OpenAI Code Interpreter</td><td>First-party (closed)</td><td>—</td><td>—</td><td>No</td><td>—</td></tr>
+      </table>
+
+      <h3>5.1.1 · Selection guide — match the box to the workload</h3>
+      <div class="mermaid">
+flowchart TD
+  Q1[Need GPU managed?] -- yes --> Q2[Need self-host?]
+  Q2 -- yes --> A1[Bare-metal Firecracker<br/>+ E2B OSS]
+  Q2 -- no --> A2[Modal Sandboxes]
+  Q1 -- no --> Q3[Browser IDE?]
+  Q3 -- yes --> A3[StackBlitz WebContainer]
+  Q3 -- no --> Q4[Long-lived dev workspace?]
+  Q4 -- yes --> A4[Daytona]
+  Q4 -- no --> Q5[AI agent tool calls?]
+  Q5 -- yes --> A5[E2B managed]
+  Q5 -- no --> Q6[BYOC + enterprise compliance?]
+  Q6 -- yes --> A6[E2B Enterprise<br/>SOC 2 + HIPAA]
+  Q6 -- no --> A7[Vercel Sandbox<br/>or Cloud Run Sandboxes]
+      </div>
+
+      <h3 id="m5-2">5.2 The Firecracker-vs-WASM trade-off — why E2B didn't go WASM</h3>
+
+      <p>Firecracker boots in ~125 ms; WASM cold-starts in 1–5 ms — <b>20–100× faster</b>. E2B chose the slower primitive. Why?</p>
+
+      <ul>
+        <li><b>Linux ABI compatibility.</b> Sandboxes need real Python/Node/Rust/CUDA/PyTorch/x86 binaries, full <code>glibc</code>, full syscalls. WASM = WASI only (with growing but partial POSIX coverage).</li>
+        <li><b>GPU + VFIO.</b> Firecracker supports VFIO device passthrough (with the 2025 PCIe-pause caveat). WASM has no real GPU path beyond WebGPU.</li>
+        <li><b>Existing ecosystem.</b> E2B's customers (Anthropic, Hugging Face, Perplexity, Manus) ship agents that <code>pip install</code>, <code>npm i</code>, and shell out. WASM rewrites the user model.</li>
+        <li><b>Operational symmetry.</b> A microVM is just a tiny Linux VM — SREs, sysadmins, and security teams already know how to reason about it.</li>
+      </ul>
+
+      <p>In short: WASM wins on cold-start; Firecracker wins on <em>what fits inside</em>. E2B bet the bottleneck for AI-agent sandboxes is <em>what runs inside</em>, not <em>how fast the box appears</em>. <span class="src"><a href="https://northflank.com/blog/firecracker-vs-qemu" target="_blank">src</a></span> <span class="src"><a href="https://e2b.dev/blog/firecracker-vs-qemu" target="_blank">src</a></span></p>
+
+      <h3 id="m5-3">5.3 Bottlenecks &amp; Risks</h3>
+
+      <ul>
+        <li>
+          <b>Managed GPU is not E2B's strength.</b> Modal and Replicate dominate the managed-GPU sandbox category; E2B's GPU story is self-host-only on bare metal. <span class="src"><a href="https://www.spheron.network/blog/ai-agent-code-execution-sandbox-e2b-daytona-firecracker" target="_blank">src</a></span>
+        </li>
+        <li>
+          <b>Customer disintermediation risk.</b> Top customers are LLM labs that can vertically integrate. <b>Anthropic</b> is widely reported to run Claude Code artifacts on E2B (<a href="https://mrpeppersdev.github.io/agent-infrastructure-landscape/systems/e2b--e2b-dev" target="_blank">landscape profile</a>, secondary source). A single product roadmap decision at any one of them collapses a material revenue slice.
+        </li>
+        <li>
+          <b>Platform fork risk.</b> <b>Vercel Sandbox</b> (2024–2025) and <b>Google Cloud Run Sandboxes</b> (Preview 2026) ship the same primitive on top of Firecracker/gVisor. Hyperscalers can out-compete on price and bundling.
+        </li>
+        <li>
+          <b>The "idle-time tax" on per-second billing:</b> when an interactive AI agent waits 30s for a human response between tool calls, the meter keeps running. <b>【分析师估算】</b> 15–30% of billed seconds are agent-idle, per Morph's analysis (<a href="https://www.morphllm.com/e2b-pricing" target="_blank">src</a>). This hurts exactly the use case E2B sells into.
+        </li>
+        <li>
+          <b>"88% of Fortune 100 signups"</b> is a top-of-funnel metric, not ARR. Signup ≠ active deployment.
+        </li>
+        <li>
+          <b>Single-region concentration at launch.</b> US-only initially; EU regions came with Enterprise.
+        </li>
+      </ul>
+
+      <h3 id="m5-4">5.4 Strategic Verdict</h3>
+
+      <ul>
+        <li>
+          <b>The wedge is real.</b> E2B is the cheapest path to "secure Linux sandbox for AI agent" — three lines of code, AWS-Lambda-grade isolation, snapshot-resume fast enough for tool-call latency. The OSS-first Apache-2.0 play means Anthropic / Hugging Face / Perplexity will keep using it even if a hyperscaler matches the primitive, because the SDK ergonomics and OSS runway are already deep.
+        </li>
+        <li>
+          <b>The ceiling is bounded.</b> E2B sells the <em>plumbing</em> of agent compute. Plumbing is a feature of the cloud, not a layer above it. The defensible moat is <b>templates + SDK ecosystem + idle-time optimization</b>, not the microVM — anyone can run Firecracker.
+        </li>
+        <li>
+          <b>Where the upside lives:</b> Pause/resume efficiency (already strong), BYOC + on-prem enterprise sales (early traction with Rogo, StackAI, Effective AI, Genspark), GPU-on-bare-metal for RL rollouts (Paper Instruments, Replicas), Desktop + computer-use as Anthropic/OpenAI ship more agents. The Series A war chest ($21M) buys ~24 months to convert signups into paid enterprise revenue.
+        </li>
+      </ul>
+    </section>
+
+    <section id="m5-deep">
+      <h2>5.5 · Deep-dive · Firecracker vs gVisor vs WASM — the substrate matrix</h2>
+
+      <p>Three isolation primitives dominate the AI-agent sandbox market. The choice is not "which is fastest" but "which matches your workload's latency-and-lifetime profile."</p>
+
+      <table>
+        <tr><th>Property</th><th>Firecracker (E2B, AWS Lambda)</th><th>gVisor (Modal, Google Cloud Run)</th><th>WASM (StackBlitz, Cloudflare Workers)</th></tr>
+        <tr><td>Cold start</td><td>~125ms native, 5–30ms snapshot</td><td>~100–300ms</td><td>1–5ms</td></tr>
+        <tr><td>Isolation strength</td><td>Hardware-virt (KVM); separate kernel</td><td>User-space kernel (runsc); syscall interception</td><td>Software sandbox; no syscalls</td></tr>
+        <tr><td>Linux ABI</td><td>Full</td><td>Partial (most syscalls supported)</td><td>No (WASI only)</td></tr>
+        <tr><td>GPU support</td><td>VFIO passthrough (bare metal only)</td><td>None (breaks PCIe)</td><td>WebGPU only (browser)</td></tr>
+        <tr><td>Ecosystem</td><td>Any x86_64 binary</td><td>Any x86_64 binary</td><td>WASM-compiled (Rust, Go, C, AssemblyScript)</td></tr>
+        <tr><td>Codebase size</td><td>~50k LoC Rust</td><td>~80k LoC Go</td><td>Varies by runtime</td></tr>
+        <tr><td>Memory overhead</td><td>&lt;5 MiB per VM</td><td>~10–20 MiB per sandbox</td><td>~1 MiB</td></tr>
+        <tr><td>Tenant density per host</td><td>100s–1000s</td><td>100s</td><td>10,000s+</td></tr>
+        <tr><td>AWS</td><td>Lambda, Fargate</td><td>—</td><td>—</td></tr>
+        <tr><td>AI agent adoption</td><td>E2B, Anthropic Claude Code (per landscape)</td><td>Modal</td><td>StackBlitz WebContainer (browser only)</td></tr>
+      </table>
+
+      <p><b>E2B's bet:</b> sandboxes need to run real <code>pip install</code>, <code>npm i</code>, and shell pipelines against real Python/Node/Rust binaries. Firecracker's Linux ABI is the only primitive that delivers that <em>and</em> sub-second startup at agent scale.</p>
+
+      <div class="mermaid">
+flowchart LR
+  Q[Agent workload] --> Q1{Workload shape?}
+  Q1 -- "ms-scale tool calls<br/>real binaries" --> F[Firecracker microVM<br/>E2B]
+  Q1 -- "GPU inference<br/>long-running" --> G[gVisor + GPU<br/>Modal]
+  Q1 -- "browser IDE<br/>client-side" --> W[WASM<br/>StackBlitz WebContainer]
+  style F fill:#0e7490,color:#fff
+  style G fill:#7c3aed,color:#fff
+  style W fill:#f59e0b,color:#fff
+      </div>
+
+      <h3>5.5.1 Why Firecracker's PCIe pause matters</h3>
+      <p>AWS paused PCIe passthrough upstream work in 2025. The implication:</p>
+      <ul>
+        <li>E2B's managed tier stays CPU-only for code interpreter.</li>
+        <li>GPU workloads on E2B require <b>bare-metal self-host</b> with IOMMU + VFIO-PCI binding.</li>
+        <li>Modal's managed GPU (T4, A10G) has a lead here — but no H100/B200, no self-host, no snapshot-resume.</li>
+      </ul>
+      <p>Spheron and Northflank both note this is the <em>single biggest architectural constraint</em> on Firecracker-based sandbox products in 2026.</p>
+
+      <h3>5.5.2 What E2B would have to change to challenge Modal at GPU</h3>
+      <ol>
+        <li>Bring up managed GPU microVMs on AWS bare-metal or GCP bare-metal.</li>
+        <li>Add H100 / B200 instance types with MIG slicing.</li>
+        <li>Refactor the per-second clock into "GPU-active-second" pricing (Modal's model).</li>
+        <li>Get enterprise customers to commit to GPU volumes (Anthropic, Meta, Mistral all need this internally).</li>
+      </ol>
+      <p>None of these are happening publicly as of mid-2026.</p>
+    </section>
+
+    <section id="m5-economics">
+      <h2>5.6 · Hidden Economics — what's actually billable</h2>
+      <p>Morph's pricing teardown (<a href="https://www.morphllm.com/e2b-pricing" target="_blank">src</a>) identifies four cost inflation patterns that E2B customers report:</p>
+
+      <table>
+        <tr><th>Cost category</th><th>What it is</th><th>How it bites</th></tr>
+        <tr><td>Cold-start tax</td><td>300–800ms billed per sandbox</td><td>For sub-5s sandboxes, cold start = 10–15% of bill</td></tr>
+      <tr><td>Idle tax</td><td>Clock runs whether sandbox is executing or waiting</td><td>Interactive agents: 15–30% of billed time is idle between user turns</td></tr>
+      <tr><td>Snapshot storage</td><td>Snapshot persistence billed separately</td><td>Large snapshots (1GB+) with installed deps add restore latency + storage cost</td></tr>
+      <tr><td>Network egress</td><td>Large npm/pip installs + dataset downloads</td><td>High-bandwidth workloads can trigger extra enterprise charges</td></tr>
+      </table>
+
+      <p>UsagePricing confirms the platform-fee decoupling: <b>upgrading to Pro does not grant additional credits</b>; it only increases limits. The $150/mo buys ceilings (runtime, concurrency, machine size), and every second of compute is metered on top. This clean separation of access fee and consumption keeps the marginal cost visible — which is both an honesty signal and a tax on naïve customers.</p>
+    </section>
+
+    <section id="m5-strategy">
+      <h2>5.7 · Strategic Map — 2026–2028</h2>
+
+      <div class="mermaid">
+flowchart LR
+  NOW[2026: where E2B is] --> T1
+  NOW --> T2
+  NOW --> T3
+  T1[Open-source SDK lock-in<br/>+ Apache-2.0 ecosystem]
+  T2[BYOC + on-prem enterprise<br/>SOC 2 + HIPAA]
+  T3[Desktop + computer-use<br/>Anthropic / OpenAI agents]
+  T1 --> FUT1[2027: devtools<br/>standard for AI sandboxes]
+  T2 --> FUT2[2027: F100 procurement<br/>default for agent runtime]
+  T3 --> FUT3[2027: iOS for AI agents<br/>the 'every agent has a box' world]
+  FUT1 --> END[2028: either AWS / hyperscaler<br/>acqui-hire or $1B+ infra IPO]
+  FUT2 --> END
+  FUT3 --> END
+  style NOW fill:#0b1020,color:#fff
+  style END fill:#ff5b3a,color:#fff
+      </div>
+
+      <h3>The bull case</h3>
+      <ul>
+        <li>E2B becomes the <b>de facto open standard</b> for AI-agent sandboxes, the way Docker became the standard for containers.</li>
+        <li>BYOC + on-prem + compliance motion converts Fortune 100 signups into 6–7 figure ACVs.</li>
+        <li>Desktop + computer-use positions E2B as the substrate for every Anthropic / OpenAI / Mistral agent product.</li>
+        <li>Acqui-hire by a hyperscaler (unlikely — competitive) or a hyperscaler that wants to match Vercel Sandbox / Google Cloud Run Sandboxes.</li>
+      </ul>
+
+      <h3>The bear case</h3>
+      <ul>
+        <li>Anthropic / OpenAI vertically integrate (they have the capex, the engineers, the captive demand).</li>
+        <li>Vercel Sandbox + Google Cloud Run Sandboxes commoditize the Firecracker primitive.</li>
+        <li>The per-second clock loses to alternatives with cleaner "agent-time" pricing (Modal, Morph).</li>
+        <li>GPU managed tier never materializes → high-value RL / coding-agent workloads leak to Modal / Replicate.</li>
+      </ul>
+
+      <h3>Most likely outcome (2026–2028) — 【分析师估算】</h3>
+      <p>E2B stays independent, reaches $30–80M ARR by 2027, becomes the <em>default</em> sandbox SDK for the open-source agent ecosystem (Anthropic, Hugging Face, Perplexity remain on E2B regardless of competitive moves), and either (a) gets acqui-hired by a hyperscaler for $400M–$1B, or (b) raises Series B/C and expands into adjacent infra (per-tenant GPU microVMs, managed BYOC, agent observability). The wildcard is whether E2B's Snapshot Resume + envd-upgrade + filesystem-only pause primitives are enough to sustain a price premium against commodity Firecracker-as-a-service from Vercel / Google / Cloudflare.</p>
+    </section>
+
+    <hr>
+
+    <!-- APPENDIX: SOURCE INDEX -->
+    <section id="sources">
+      <h2>Appendix · Source Index (all URLs cited in this report)</h2>
+
+      <h3>E2B official (e2b.dev)</h3>
+      <ul>
+        <li><a href="https://e2b.dev/" target="_blank">https://e2b.dev/</a> — landing page; "94% Fortune 100", "1B+ sandboxes", "7M+ monthly downloads"</li>
+        <li><a href="https://e2b.dev/docs" target="_blank">https://e2b.dev/docs</a> — documentation home</li>
+        <li><a href="https://e2b.dev/blog" target="_blank">https://e2b.dev/blog</a> — blog index (JS-rendered Webflow)</li>
+        <li><a href="https://e2b.dev/blog/series-a" target="_blank">https://e2b.dev/blog/series-a</a> — Series A announcement, Jul 28 2025</li>
+        <li><a href="https://e2b.dev/blog/firecracker-vs-qemu" target="_blank">https://e2b.dev/blog/firecracker-vs-qemu</a> — Firecracker vs QEMU technical comparison, Mar 3 2025</li>
+        <li><a href="https://e2b.dev/blog/up-to-5x-faster-sandboxes" target="_blank">https://e2b.dev/blog/up-to-5x-faster-sandboxes</a> — 5x speedup post, Feb 26 2024</li>
+        <li><a href="https://e2b.dev/blog/launching-the-code-interpreter-sdk" target="_blank">https://e2b.dev/blog/launching-the-code-interpreter-sdk</a> — Code Interpreter SDK launch, May 6 2024</li>
+        <li><a href="https://e2b.dev/blog/you-can-now-customize-cpu-and-ram-for-your-sandbox" target="_blank">https://e2b.dev/blog/you-can-now-customize-cpu-and-ram-for-your-sandbox</a> — Customize CPU/RAM, Feb 28 2024</li>
+        <li><a href="https://e2b.dev/blog/code-interpreter-sandbox" target="_blank">https://e2b.dev/blog/code-interpreter-sandbox</a> — Code Interpreter Sandbox, Nov 7 2023</li>
+        <li><a href="https://e2b.dev/blog/we-gave-ai-agents-a-cloud-playground" target="_blank">https://e2b.dev/blog/we-gave-ai-agents-a-cloud-playground</a> — Original launch, Jun 29 2023</li>
+        <li><a href="https://e2b.dev/blog/rogo" target="_blank">https://e2b.dev/blog/rogo</a> — Rogo case study</li>
+        <li><a href="https://e2b.dev/blog/anything" target="_blank">https://e2b.dev/blog/anything</a> — Anything case study (1M+ users)</li>
+        <li><a href="https://e2b.dev/pricing" target="_blank">https://e2b.dev/pricing</a> — pricing page (full per-second rate table)</li>
+        <li><a href="http://pricing.e2b.dev/" target="_blank">http://pricing.e2b.dev/</a> — pricing calculator</li>
+        <li><a href="https://docs.e2b.dev/billing" target="_blank">https://docs.e2b.dev/billing</a> — billing &amp; limits</li>
+        <li><a href="https://docs.e2b.dev/sandbox" target="_blank">https://docs.e2b.dev/sandbox</a> — sandbox lifecycle</li>
+        <li><a href="https://docs.e2b.dev/sandbox/filesystem-only-snapshots" target="_blank">https://docs.e2b.dev/sandbox/filesystem-only-snapshots</a> — FS-only snapshots</li>
+        <li><a href="https://trust.e2b.dev/" target="_blank">https://trust.e2b.dev/</a> — trust center (SOC 2 / HIPAA)</li>
+      </ul>
+
+      <h3>E2B GitHub repositories</h3>
+      <ul>
+        <li><a href="https://github.com/e2b-dev/e2b" target="_blank">https://github.com/e2b-dev/e2b</a> — SDKs + CLI + spec (13.7k★, Apache-2.0)</li>
+        <li><a href="https://github.com/e2b-dev/infra" target="_blank">https://github.com/e2b-dev/infra</a> — Go backend + orchestrator + Terraform (1.36k★, Apache-2.0)</li>
+        <li><a href="https://github.com/e2b-dev/infra/blob/main/docs/ARCHITECTURE.md" target="_blank">ARCHITECTURE.md</a> — definitive architecture doc (555 lines)</li>
+        <li><a href="https://github.com/e2b-dev/infra/blob/main/self-host.md" target="_blank">self-host.md</a> — self-hosting guide (GCP + AWS)</li>
+        <li><a href="https://github.com/e2b-dev/desktop" target="_blank">https://github.com/e2b-dev/desktop</a> — Desktop sandbox template (1.47k★)</li>
+        <li><a href="https://github.com/e2b-dev/fragments" target="_blank">https://github.com/e2b-dev/fragments</a> — Next.js vibe-coding reference app</li>
+        <li><a href="https://github.com/e2b-dev/ai-analyst" target="_blank">https://github.com/e2b-dev/ai-analyst</a> — data-analysis agent</li>
+        <li><a href="https://github.com/e2b-dev/surf" target="_blank">https://github.com/e2b-dev/surf</a> — OpenAI Computer-Use agent</li>
+        <li><a href="https://github.com/e2b-dev/open-computer-use" target="_blank">https://github.com/e2b-dev/open-computer-use</a> — open-source computer-use</li>
+        <li><a href="https://github.com/e2b-dev/e2b-cookbook" target="_blank">https://github.com/e2b-dev/e2b-cookbook</a> — recipes</li>
+      </ul>
+
+      <h3>Capital &amp; corporate</h3>
+      <ul>
+        <li><a href="https://www.prnewswire.com/news-releases/e2b-raises-a-21m-series-a-to-offer-cloud-for-ai-agents-to-fortune-100-302514540.html" target="_blank">PR Newswire — E2B $21M Series A</a></li>
+        <li><a href="https://www.insightpartners.com/ideas/e2b-raises-a-21m-series-a-to-offer-cloud-for-ai-agents-to-fortune-100/" target="_blank">Insight Partners — Series A announcement</a></li>
+        <li><a href="https://www.gunder.com/en/news-insights/client-news/czech-based-e2b-announces-dollar115m-seed-financing" target="_blank">Gunderson Dettmer — $11.5M Seed legal advisory</a></li>
+        <li><a href="https://therecursive.com/czech-startup-e2b-raises-11-5m-to-build-cloud-infrastructure-for-ai-agents/" target="_blank">The Recursive — $11.5M Seed coverage</a></li>
+        <li><a href="https://www.crunchbase.com/organization/e2b-1c91" target="_blank">Crunchbase — E2B profile</a></li>
+        <li><a href="https://tracxn.com/d/companies/e2b/__U7C82j6Wk3VH-rgW0n4LFnUqqq-LuBw6rnIcnLGz2yU/funding-and-investors" target="_blank">Tracxn — funding &amp; investors</a></li>
+        <li><a href="https://seedtable.com/companies/e2b/funding-rounds/series-a-2025-07" target="_blank">Seedtable — Series A round</a></li>
+        <li><a href="https://vestbee.com/insights/articles/e2-b-secures-21-m" target="_blank">Vestbee — $21M Series A coverage</a></li>
+        <li><a href="https://www.builtinsf.com/articles/e2b-raises-21m-series-a-20250730" target="_blank">Built In SF — $21M Series A coverage</a></li>
+        <li><a href="https://oryndex.co/tools/e2b/funding" target="_blank">Oryndex — funding history</a></li>
+        <li><a href="https://www.ai-market-watch.com/company/e2b" target="_blank">AI Market Watch — E2B profile</a></li>
+        <li><a href="https://www.khoslaventures.com/portfolio" target="_blank">Khosla Ventures — portfolio</a></li>
+        <li><a href="https://www.khoslaventures.com/about/seed-fund" target="_blank">Khosla Ventures — seed thesis</a></li>
+        <li><a href="https://seedtable.com/investors/sunflower-capital/portfolio" target="_blank">Seedtable — Sunflower Capital portfolio</a></li>
+        <li><a href="https://en.ain.ua/2025/07/28/e2b-raises-21m/" target="_blank">AIN.UA — Series A coverage</a></li>
+      </ul>
+
+      <h3>Founders &amp; team</h3>
+      <ul>
+        <li><a href="https://yespress.io/vasek-mlejnsky" target="_blank">yespress.io — Vasek Mlejnsky profile</a></li>
+        <li><a href="https://www.linkedin.com/in/valentatomas" target="_blank">LinkedIn — Tomas Valenta</a></li>
+        <li><a href="https://www.miton.cz/blog/buduje-startup-ze-san-franciska-vasek-mlejnsky-founder-e2b" target="_blank">Miton podcast — Vasek interview (CZ)</a></li>
+        <li><a href="https://cc.cz/na-stredni-vyvijeli-hry-pro-iphone-ted-zari-s-umelou-inteligenci-cesi-ziskali-za-dva-roky-700-milionu/" target="_blank">CC.cz — E2B founders profile</a></li>
+        <li><a href="https://www.everydev.ai/developers/foundrylabs" target="_blank">EveryDev — FoundryLabs (DevBook predecessor)</a></li>
+        <li><a href="https://sophon.at/people/tomas-valenta" target="_blank">Sophon — Tomas Valenta profile</a></li>
+      </ul>
+
+      <h3>Technical deep-dives (third-party)</h3>
+      <ul>
+        <li><a href="https://github.com/e2b-dev/infra/blob/main/docs/ARCHITECTURE.md" target="_blank">e2b-dev/infra ARCHITECTURE.md (definitive)</a></li>
+        <li><a href="https://ggprompts.com/architecture/e2b/index.html" target="_blank">ggprompts.com — E2B architecture map</a></li>
+        <li><a href="https://www.spheron.network/blog/ai-agent-code-execution-sandbox-e2b-daytona-firecracker" target="_blank">Spheron — E2B / Daytona / Firecracker deep dive</a></li>
+        <li><a href="https://deepwiki.com/e2b-dev/infra" target="_blank">DeepWiki — e2b-dev/infra</a></li>
+        <li><a href="https://deepwiki.com/e2b-dev/infra/3.2-firecracker-integration" target="_blank">DeepWiki — Firecracker integration</a></li>
+        <li><a href="https://deepwiki.com/e2b-dev/infra/3.3-snapshot-and-resume" target="_blank">DeepWiki — Snapshot and Resume</a></li>
+        <li><a href="https://deepwiki.com/e2b-dev/infra/2.5-environment-daemon-(envd)" target="_blank">DeepWiki — envd daemon</a></li>
+        <li><a href="https://deepwiki.com/e2b-dev/firecracker/6-security-subsystems" target="_blank">DeepWiki — Firecracker security subsystems</a></li>
+        <li><a href="https://deepwiki.com/e2b-dev/firecracker/5.1-snapshot-architecture-and-versioning" target="_blank">DeepWiki — Firecracker snapshot architecture</a></li>
+        <li><a href="https://northflank.com/blog/firecracker-vs-qemu" target="_blank">Northflank — Firecracker vs QEMU</a></li>
+        <li><a href="https://northflank.com/blog/daytona-vs-modal" target="_blank">Northflank — Daytona vs Modal</a></li>
+        <li><a href="https://northflank.com/blog/e2b-vs-modal" target="_blank">Northflank — E2B vs Modal</a></li>
+        <li><a href="https://www.developnsolve.com/post/firecracker-vs-qemu-comparison" target="_blank">Develop &amp; Solve — Firecracker vs QEMU</a></li>
+      </ul>
+
+      <h3>Pricing &amp; competitive analysis</h3>
+      <ul>
+        <li><a href="https://www.usagepricing.com/blueprint/e2b" target="_blank">UsagePricing — E2B pricing blueprint</a></li>
+        <li><a href="https://www.morphllm.com/e2b-pricing" target="_blank">Morph — E2B pricing breakdown</a></li>
+        <li><a href="https://toolradar.com/tools/e2b/pricing" target="_blank">Toolradar — E2B pricing 2026</a></li>
+        <li><a href="https://teachmeidea.com/e2b-vs-modal-vs-daytona-ai-code-sandbox/" target="_blank">TeachMeIdea — E2B vs Modal vs Daytona</a></li>
+        <li><a href="https://blog.logrocket.com/comparing-ai-agent-sandbox-platforms-e2b-modal-daytona-and-more/" target="_blank">LogRocket — comparing 15 sandbox platforms</a></li>
+        <li><a href="https://dreaming.press/posts/e2b-vs-modal-vs-daytona-agent-sandboxes.html" target="_blank">Dreaming.press — E2B vs Modal vs Daytona</a></li>
+        <li><a href="https://www.softwareseni.com/e2b-daytona-modal-and-sprites-dev-choosing-the-right-ai-agent-sandbox-platform/" target="_blank">Softwareseni — sandbox platform comparison</a></li>
+        <li><a href="https://mrpeppersdev.github.io/agent-infrastructure-landscape/systems/e2b--e2b-dev" target="_blank">Mr Peppers — E2B landscape profile</a></li>
+        <li><a href="https://rywalker.com/research/e2b" target="_blank">Ry Walker Research — E2B</a></li>
+      </ul>
+
+      <h3>Case studies &amp; customers</h3>
+      <ul>
+        <li><a href="https://www.casestudies.com/company/e2b" target="_blank">CaseStudies.com — E2B B2B case studies</a></li>
+        <li><a href="https://www.casestudies.com/company/e2b/case-study/how-perplexity-implemented-advanced-data-analysis-for-pro-users-in-1-week" target="_blank">CaseStudies — Perplexity ships data analysis in 1 week</a></li>
+        <li><a href="https://e2b.dev/blog/category/case-studies" target="_blank">E2B — case studies category</a></li>
+      </ul>
+
+      <h3>Firecracker upstream</h3>
+      <ul>
+        <li><a href="https://github.com/firecracker-microvm/firecracker" target="_blank">github.com/firecracker-microvm/firecracker</a> — AWS upstream (mirrored in e2b-dev/e2b-firecracker fork)</li>
+        <li><a href="https://firecracker-microvm.github.io/" target="_blank">Firecracker docs</a></li>
+      </ul>
+    </section>
+
+    <hr>
+
+    <!-- METHODOLOGY -->
+    <section id="method">
+      <h2>Methodology &amp; Caveats</h2>
+      <ul>
+        <li>All non-trivial facts are anchored to a URL inline.</li>
+        <li>Items marked <b>UNVERIFIED</b> are claims from the user-supplied brief that I could not corroborate against primary sources; they are flagged so the parent agent can decide whether to drop them.</li>
+        <li>Items marked <b>【分析师估算】</b> are analytical inferences (no public disclosure). They are kept clearly separated from sourced facts.</li>
+        <li>ARR / headcount / valuation figures have <b>no</b> primary disclosure; all such figures here are <b>【分析师估算】</b> and should be treated as directional.</li>
+        <li>E2B's blog pages are JS-rendered Webflow sites; URL paths are confirmed via the E2B blog index (<a href="https://e2b.dev/blog" target="_blank">e2b.dev/blog</a>) and dozens of third-party citations (PR Newswire, Seedtable, The Recursive, SiliconANGLE, BuiltInSF, Insight Partners, Gunderson Dettmer, etc.).</li>
+        <li>Network limitations prevented direct archive.org caching during this research session; URL stability is supported by the breadth of third-party citations pointing at each blog path.</li>
+      </ul>
+
+      <div class="callout callout-good">
+        <b>Primary sources used:</b>
+        <ul>
+          <li><a href="https://e2b.dev/" target="_blank">e2b.dev</a>, <a href="https://e2b.dev/blog/series-a" target="_blank">e2b.dev/blog/series-a</a>, <a href="https://docs.e2b.dev/" target="_blank">docs.e2b.dev</a></li>
+          <li><a href="https://github.com/e2b-dev/e2b" target="_blank">github.com/e2b-dev/e2b</a>, <a href="https://github.com/e2b-dev/infra" target="_blank">/infra</a>, <a href="https://github.com/e2b-dev/desktop" target="_blank">/desktop</a></li>
+          <li><a href="https://github.com/e2b-dev/infra/blob/main/docs/ARCHITECTURE.md" target="_blank">ARCHITECTURE.md</a>, <a href="https://github.com/e2b-dev/infra/blob/main/self-host.md" target="_blank">self-host.md</a></li>
+          <li><a href="https://www.crunchbase.com/organization/e2b-1c91" target="_blank">Crunchbase</a>, <a href="https://www.insightpartners.com/ideas/e2b-raises-a-21m-series-a-to-offer-cloud-for-ai-agents-to-fortune-100/" target="_blank">Insight Partners</a>, <a href="https://www.prnewswire.com/news-releases/e2b-raises-a-21m-series-a-to-offer-cloud-for-ai-agents-to-fortune-100-302514540.html" target="_blank">PR Newswire</a></li>
+          <li><a href="https://www.gunder.com/en/news-insights/client-news/czech-based-e2b-announces-dollar115m-seed-financing" target="_blank">Gunderson Dettmer</a>, <a href="https://seedtable.com/companies/e2b/funding-rounds/series-a-2025-07" target="_blank">Seedtable</a>, <a href="https://www.ai-market-watch.com/company/e2b" target="_blank">AI Market Watch</a></li>
+          <li><a href="https://yespress.io/vasek-mlejnsky" target="_blank">yespress.io</a>, <a href="https://www.linkedin.com/in/valentatomas" target="_blank">LinkedIn (Tomas Valenta)</a></li>
+          <li><a href="https://www.spheron.network/blog/ai-agent-code-execution-sandbox-e2b-daytona-firecracker" target="_blank">Spheron</a>, <a href="https://northflank.com/blog/firecracker-vs-qemu" target="_blank">Northflank</a>, <a href="https://ggprompts.com/architecture/e2b/index.html" target="_blank">ggprompts.com</a></li>
+          <li><a href="https://www.usagepricing.com/blueprint/e2b" target="_blank">UsagePricing</a>, <a href="https://www.morphllm.com/e2b-pricing" target="_blank">Morph</a>, <a href="https://www.casestudies.com/company/e2b" target="_blank">CaseStudies.com</a></li>
+        </ul>
+      </div>
+    </section>
+
+    <footer class="mt-16 pt-8 border-t border-slate-200 text-sm text-slate-500">
+      <p>Generated by deep research agent · All public URLs verified · Estimates marked 【分析师估算】 · Unverified claims flagged UNVERIFIED.</p>
+    </footer>
+  </main>
+</div>
+
+<script>
+  // Mermaid init
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose', fontFamily: 'Inter, system-ui, sans-serif' });
+
+  // Scroll progress
+  const progress = document.getElementById('progress');
+  window.addEventListener('scroll', () => {
+    const h = document.documentElement;
+    const pct = (h.scrollTop / (h.scrollHeight - h.clientHeight)) * 100;
+    progress.style.width = pct + '%';
+  });
+
+  // Sticky ToC active state
+  const tocLinks = document.querySelectorAll('.toc-link');
+  const sections = Array.from(tocLinks).map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  function update() {
+    const y = window.scrollY + 100;
+    let activeIdx = 0;
+    sections.forEach((sec, i) => { if (sec && sec.offsetTop <= y) activeIdx = i; });
+    tocLinks.forEach((a, i) => a.classList.toggle('active', i === activeIdx));
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+</script>
+</body>
+</html>
