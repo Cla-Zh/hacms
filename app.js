@@ -640,10 +640,19 @@
     // 排序后的列表
     const sorted = sortArticles(STATE.filtered.slice(), STATE.sortMode);
 
-    // Hero: 取最新 2 篇 (严格按 date 降序)
+    // Hero: hero_priority ≥ 15 的文章全进(按 priority desc + date desc),最多 4 篇;
+    //       再用 date 降序补到 2 篇兜底(若 priority 高的不足 2 篇)。
+    const priorityArts = sorted.filter(a => (a.hero_priority || 0) >= 15)
+                               .sort((a, b) => {
+                                 const pd = (b.hero_priority || 0) - (a.hero_priority || 0);
+                                 return pd !== 0 ? pd : (b.date || '').localeCompare(a.date || '');
+                               })
+                               .slice(0, 4);
     const dateSorted = sorted.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    const heroArts = dateSorted.slice(0, 2);
-    const heroIds = new Set(heroArts.map(a => a.id));
+    const dateTop = dateSorted.slice(0, 2);
+    const heroIds = new Set([...priorityArts.map(a => a.id), ...dateTop.map(a => a.id)]);
+    const heroArts = [...priorityArts, ...dateTop.filter(a => !heroIds.has(a.id))];
+    const finalHeroIds = new Set(heroArts.map(a => a.id));
 
     // Hero: 过滤后总数 >= 2 时显示
     const showHero = heroArts.length >= 2;
@@ -654,9 +663,9 @@
       dom.heroSection.style.display = 'none';
     }
 
-    // Grid: 其余
+    // Grid: 其余(排除已在 Hero 的所有文章)
     sorted.forEach(a => {
-      if (heroIds.has(a.id)) return;
+      if (finalHeroIds.has(a.id)) return;
       dom.articleGrid.appendChild(renderGridCard(a));
     });
   }
