@@ -59,6 +59,38 @@
 /* ToC 当前章节加左侧条 */
 .toc-link.active { background: linear-gradient(90deg, #dbeafe 0%, transparent 100%); border-left: 3px solid #2563eb !important; padding-left: calc(0.75rem - 1px) !important; }
 
+
+/* ===== 移动端 ToC 适配 ===== */
+.toc-link-mobile { display:block; padding:0.5rem 0.75rem; border-left:3px solid transparent; color:#475569; font-size:0.95rem; line-height:1.4; border-bottom:1px solid #f1f5f9; }
+.toc-link-mobile:hover { background:#f1f5f9; color:#1e293b; }
+a.toc-link-mobile.active, .toc-link-mobile.active { background:linear-gradient(90deg, #dbeafe 0%, transparent 100%) !important; color:#1e3a8a !important; border-left-color:#2563eb !important; font-weight:600 !important; }
+.toc-link-mobile.pl-6 { padding-left:1.75rem !important; font-size:0.85rem !important; }
+.toc-link-mobile.pl-10 { padding-left:2.5rem !important; font-size:0.8rem !important; color:#64748b !important; }
+#mobile-toc-toggle { box-shadow:0 8px 24px rgba(67, 56, 202, 0.35); }
+/* drawer 打开 (强制覆盖 Tailwind transform) */
+#mobile-toc-drawer.open { 
+  transform: translate3d(0, 0, 0) !important; 
+  -webkit-transform: translate3d(0, 0, 0) !important; 
+}
+#mobile-toc-drawer.open { 
+  --tw-translate-y: 0px !important; 
+  --tw-translate-x: 0px !important; 
+}
+/* 移动端正文边距调整 */
+@media (max-width: 1023px) {
+  body { padding-bottom: 80px; }
+  main { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+  h1.text-3xl, h1.text-5xl { font-size: 1.5rem !important; line-height: 1.3 !important; }
+  h1 { font-size: 1.5rem !important; }
+  h2 { font-size: 1.25rem !important; }
+  h3 { font-size: 1.05rem !important; }
+  .prose { font-size: 0.95rem !important; line-height: 1.7 !important; }
+  .prose table { font-size: 0.78rem !important; display: block; overflow-x: auto; white-space: nowrap; }
+  .prose table th, .prose table td { padding: 0.4rem 0.5rem !important; }
+  .pill { font-size: 0.65rem !important; padding: 2px 6px !important; }
+  .hero { padding: 1.5rem 1rem !important; }
+  section { padding: 1rem !important; margin-top: 1.5rem !important; border-radius: 0.75rem !important; }
+}
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', function(){
@@ -71,7 +103,7 @@ document.addEventListener('DOMContentLoaded', function(){
   function findSectionFor(link){
     const href = link.getAttribute('href');
     if (!href) return null;
-    const targetId = decodeURIComponent(href.slice(1));
+    let targetId; try { targetId = decodeURIComponent(href.slice(1)); } catch(e) { targetId = href.slice(1); }
     // 直接 id 匹配
     let s = document.getElementById(targetId);
     if (s) return s;
@@ -102,6 +134,48 @@ document.addEventListener('DOMContentLoaded', function(){
   // 初始触发 + 延迟 200ms 兜底(防止 layout 未稳定)
   setTimeout(onScroll, 100);
   setTimeout(onScroll, 500);
+  // ===== 移动端 ToC =====
+  function toggleMobileToc() {
+    const drawer = document.getElementById('mobile-toc-drawer');
+    const overlay = document.getElementById('mobile-toc-overlay');
+    if (!drawer) return;
+    const isOpen = drawer.classList.contains('open');
+    if (isOpen) {
+      drawer.classList.remove('open');
+      if (overlay) overlay.classList.add('hidden');
+      document.body.style.overflow = '';
+    } else {
+      drawer.classList.add('open');
+      if (overlay) overlay.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+  }
+  window.toggleMobileToc = toggleMobileToc;
+  // 绑定 toggle / close / overlay 点击
+  document.getElementById('mobile-toc-toggle')?.addEventListener('click', toggleMobileToc);
+  document.getElementById('mobile-toc-close')?.addEventListener('click', toggleMobileToc);
+  document.getElementById('mobile-toc-overlay')?.addEventListener('click', toggleMobileToc);
+  // 移动端 ToC 链接点击后自动关闭
+  document.querySelectorAll('[data-mobile-link="true"]').forEach(link => {
+    link.addEventListener('click', () => setTimeout(toggleMobileToc, 250));
+  });
+  // 移动端 scrollspy
+  const mobileLinks = document.querySelectorAll('.toc-link-mobile');
+  function onScrollMobile(){
+    const y = window.scrollY + 140;
+    let activeIdx = -1;
+    for (let i = 0; i < linkSections.length; i++) {
+      const s = linkSections[i];
+      if (s && s.getBoundingClientRect().top + window.scrollY <= y) activeIdx = i;
+    }
+    mobileLinks.forEach((l, i) => l.classList.toggle('active', i === activeIdx));
+  }
+  let mobileScrollTimer = null;
+  window.addEventListener('scroll', () => {
+    if (mobileScrollTimer) cancelAnimationFrame(mobileScrollTimer);
+    mobileScrollTimer = requestAnimationFrame(onScrollMobile);
+  }, { passive: true });
+  setTimeout(onScrollMobile, 200);
 });
 </script>
 </head>
@@ -177,7 +251,10 @@ document.addEventListener('DOMContentLoaded', function(){
 
 <!-- LAYOUT -->
 <div class="flex max-w-7xl mx-auto">
-<aside class="hidden lg:block w-72 sticky top-0 self-start h-screen overflow-y-auto py-8 px-3 border-r border-slate-200 bg-white">
+<!-- Mobile ToC Toggle Button -->
+
+
+<aside id="desktop-toc" class="hidden lg:block w-72 sticky top-0 self-start h-screen overflow-y-auto py-8 px-3 border-r border-slate-200 bg-white">
   <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 px-2">目录导航</h3>
   <nav id="toc">
     <a href="#sec-0" class="toc-link font-semibold">0. 范式跃迁(全局视角)</a>
@@ -10999,5 +11076,404 @@ Cloud White Box ██████████ 15%
   </div>
 </footer>
 
+<button id="mobile-toc-toggle" aria-label="打开目录" class="lg:hidden fixed bottom-6 right-6 z-40 bg-indigo-600 text-white rounded-full shadow-lg w-14 h-14 flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition">
+  <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
+</button>
+
+<!-- Mobile ToC Drawer Overlay -->
+<div id="mobile-toc-overlay" class="lg:hidden hidden fixed inset-0 bg-black/50 z-40"></div>
+
+<!-- Mobile ToC Drawer (底部抽屉) -->
+<div id="mobile-toc-drawer" class="lg:hidden fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-2xl shadow-2xl transform translate-y-full transition-transform duration-300 max-h-[80vh] overflow-y-auto">
+  <div class="sticky top-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+    <h3 class="font-bold text-slate-900">📑 目录导航</h3>
+    <button id="mobile-toc-close" aria-label="关闭" class="text-slate-500 hover:text-slate-900 text-2xl leading-none">×</button>
+  </div>
+  <nav id="mobile-toc-content" class="p-4">
+    <a href="#sec-0" class="toc-link-mobile font-semibold">0. 范式跃迁(全局视角)</a>
+    <a href="#sec-1" class="toc-link-mobile font-semibold">1. NAND 颗粒层(底层物理介质)</a>
+    <a href="#sec-2" class="toc-link-mobile font-semibold">2. 主控 + 固件 + 缓存层</a>
+    <a href="#sec-3" class="toc-link-mobile font-semibold">3. 成品盘层 + 销售模式</a>
+    <a href="#sec-4" class="toc-link-mobile font-semibold">4. AI 盘 + 功能盘专题</a>
+    <a href="#sec-5" class="toc-link-mobile font-semibold">5. 全球厂商 + 融资 + 中国本土</a>
+    <a href="#sec-0" class="toc-link-mobile ">0. SSD / 闪存盘全产业链洞察 — 范式跃迁与全局视角</a>
+    <a href="#sec-0-01-为什么-2026-h2-是-ssd-产业的「分水岭」-3" class="toc-link-mobile pl-6 text-xs">0.1 为什么 2026 H2 是 SSD 产业的「分水岭」</a>
+    <a href="#sec-0-02-ssd-全产业链-5-层结构图-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">0.2 SSD 全产业链 5 层结构图</a>
+    <a href="#sec-0-03-销售模式-5-种图-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">0.3 销售模式 5 种(图)</a>
+    <a href="#sec-0-04-商业模式图价值链利润分配-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">0.4 商业模式图(价值链利润分配)</a>
+    <a href="#sec-0-05-2026-h2-产业五大非共识假设-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">0.5 2026 H2 产业五大非共识假设</a>
+    <a href="#sec-0-h1-ssd-与-hbm-之间的「hbf-新地带」-3" class="toc-link-mobile pl-10 text-xs">H1: SSD 与 HBM 之间的「HBF 新地带」</a>
+    <a href="#sec-0-h2-计算存储盘csd会成为-ai-推理标配-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">H2: 计算存储盘(CSD)会成为 AI 推理标配</a>
+    <a href="#sec-0-h3-中国-nand-国产化路径会走「xtacking-独立路线」-3" class="toc-link-mobile pl-10 text-xs">H3: 中国 NAND 国产化路径会走「Xtacking 独立路线」</a>
+    <a href="#sec-0-h4-液冷-ssd-会成为-gen5gen6-数据中心标配-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">H4: 液冷 SSD 会成为 Gen5/Gen6 数据中心标配</a>
+    <a href="#sec-0-h5-全球-nand-市场会从「5-大-+-1」变为「4-大-+-1」-3" class="toc-link-mobile pl-10 text-xs">H5: 全球 NAND 市场会从「5 大 + 1」变为「4 大 + 1」</a>
+    <a href="#sec-0-06-关键数字速览2026-09-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">0.6 关键数字速览(2026-09)</a>
+    <a href="#sec-0-07-报告导览-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">0.7 报告导览</a>
+    <a href="#sec-0-08-给中国本土的启示-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">0.8 给中国本土的启示</a>
+    <a href="#sec-0-长江存储-xtacking-自主路线-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">长江存储 Xtacking 自主路线</a>
+    <a href="#sec-0-大普微企业级-ssd-创业板-ipo-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">大普微企业级 SSD 创业板 IPO</a>
+    <a href="#sec-0-江波龙-lexar-海外品牌战略-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">江波龙 Lexar 海外品牌战略</a>
+    <a href="#sec-0-联芸科技科创板-ipo-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">联芸科技科创板 IPO</a>
+    <a href="#sec-0-美国出口管制动态-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">美国出口管制动态</a>
+    <a href="#sec-1-一、底层物理介质层--nand-颗粒深度剖析-3" class="toc-link-mobile ">一、底层物理介质层 — NAND 颗粒深度剖析</a>
+    <a href="#sec-1-11-nand-技术演进2d-→-3d-→-单元类型-→-接口协议-3" class="toc-link-mobile pl-6 text-xs">1.1 NAND 技术演进(2D → 3D → 单元类型 → 接口协议)</a>
+    <a href="#sec-1-111-2d-nand-到-3d-nand-的范式转换-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.1.1 2D NAND 到 3D NAND 的范式转换</a>
+    <a href="#sec-1-112-架构之争floating-gate-vs-charge-trap-flash-ctf-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.1.2 架构之争:Floating Gate vs Charge Trap Flash (CTF)</a>
+    <a href="#sec-1-113-单元类型演进slc-→-mlc-→-tlc-→-qlc-→-plc-3" class="toc-link-mobile pl-10 text-xs">1.1.3 单元类型演进:SLC → MLC → TLC → QLC → PLC</a>
+    <a href="#sec-1-114-3d-nand-层数竞赛2014-2026+-3" class="toc-link-mobile pl-10 text-xs">1.1.4 3D NAND 层数竞赛(2014-2026+)</a>
+    <a href="#sec-1-12-samsung-v-nand-全栈剖析-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">1.2 Samsung V-NAND 全栈剖析</a>
+    <a href="#sec-1-121-公司基本盘-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.2.1 公司基本盘</a>
+    <a href="#sec-1-122-v-nand-节点路线经-techinsights-验证-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.2.2 V-NAND 节点路线(经 TechInsights 验证)</a>
+    <a href="#sec-1-123-samsung-bm1743-ssd12288tb--6144tb-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.2.3 Samsung BM1743 SSD(122.88TB / 61.44TB)</a>
+    <a href="#sec-1-124-西安-nand-工厂-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.2.4 西安 NAND 工厂</a>
+    <a href="#sec-1-125-v9-与-toggle-51-接口的关键技术点-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.2.5 V9 与 Toggle 5.1 接口的关键技术点</a>
+    <a href="#sec-1-13-sk-hynix-+-solidigm-整合剖析-3" class="toc-link-mobile pl-6 text-xs">1.3 SK hynix + Solidigm 整合剖析</a>
+    <a href="#sec-1-131-整合时间表-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.3.1 整合时间表</a>
+    <a href="#sec-1-132-nand-路线图-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.3.2 NAND 路线图</a>
+    <a href="#sec-1-133-solidigm-产品与企业-ssd-地位-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.3.3 Solidigm 产品与企业 SSD 地位</a>
+    <a href="#sec-1-134-大连-nand-厂与中国-nand-产能-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.3.4 大连 NAND 厂与中国 NAND 产能</a>
+    <a href="#sec-1-135-估值市值-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.3.5 估值/市值</a>
+    <a href="#sec-1-14-micron-technology-g8g9g10-节点路线-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">1.4 Micron Technology G8/G9/G10 节点路线</a>
+    <a href="#sec-1-141-公司基本盘-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.4.1 公司基本盘</a>
+    <a href="#sec-1-142-节点与层数对照经-micron-官方公告-+-techinsights-验证-3" class="toc-link-mobile pl-10 text-xs">1.4.2 节点与层数对照(经 Micron 官方公告 + TechInsights 验证)</a>
+    <a href="#sec-1-143-g9-276l-关键技术点-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.4.3 G9 276L 关键技术点</a>
+    <a href="#sec-1-144-ctf-cua-架构-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.4.4 CTF CuA 架构</a>
+    <a href="#sec-1-145-micron-资本开支与产能策略-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.4.5 Micron 资本开支与产能策略</a>
+    <a href="#sec-1-146-plc5-bitscell技术与节点路线图-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.4.6 PLC(5 bits/cell)技术与节点路线图</a>
+    <a href="#sec-1-15-kioxia-bics-flash-+-sandisk-独立专题-3" class="toc-link-mobile pl-6 text-xs">1.5 Kioxia BiCS Flash + Sandisk 独立专题</a>
+    <a href="#sec-1-151-kioxia-公司沿革-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.5.1 Kioxia 公司沿革</a>
+    <a href="#sec-1-152-kioxia-东京证交所-ipo2024-12-18-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.5.2 Kioxia 东京证交所 IPO(2024-12-18)</a>
+    <a href="#sec-1-153-贝恩资本财团结构-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.5.3 贝恩资本财团结构</a>
+    <a href="#sec-1-154-kioxia-bics-flash-节点路线与-western-digitalsandisk-合资-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.5.4 Kioxia BiCS Flash 节点路线(与 Western Digital/Sandisk 合资)</a>
+    <a href="#sec-1-155-kioxia--wd-fab7-合资2020-开工-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.5.5 Kioxia / WD Fab7 合资(2020 开工)</a>
+    <a href="#sec-1-156-sandisk-从-western-digital-分拆-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.5.6 Sandisk 从 Western Digital 分拆</a>
+    <a href="#sec-1-157-sandisk-财务表现sndk-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.5.7 Sandisk 财务表现(SNDK)</a>
+    <a href="#sec-1-158-sandisk-与-kioxia-合资的延续性-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.5.8 Sandisk 与 Kioxia 合资的延续性</a>
+    <a href="#sec-1-159-bics10-+-cba-+-toggle-60-关键技术-3" class="toc-link-mobile pl-10 text-xs">1.5.9 BiCS10 + CBA + Toggle 6.0 关键技术</a>
+    <a href="#sec-1-16-长江存储-ymtc-+-xtacking-+-制裁专题-3" class="toc-link-mobile pl-6 text-xs">1.6 长江存储 YMTC + Xtacking + 制裁专题</a>
+    <a href="#sec-1-161-公司沿革-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.6.1 公司沿革</a>
+    <a href="#sec-1-162-xtacking-技术路径独立架构-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.6.2 Xtacking 技术路径(独立架构)</a>
+    <a href="#sec-1-163-美国商务部制裁专题-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.6.3 美国商务部制裁专题</a>
+    <a href="#sec-1-164-长江存储的应对全国产化产线-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.6.4 长江存储的应对:全国产化产线</a>
+    <a href="#sec-1-165-长存集团融资与估值关键里程碑-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.6.5 长存集团融资与估值(关键里程碑)</a>
+    <a href="#sec-1-166-致钛--致态zhitai消费品牌-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.6.6 致钛 / 致态(ZHITAI)消费品牌</a>
+    <a href="#sec-1-167-江波龙longsys与长江存储合作-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.6.7 江波龙(Longsys)与长江存储合作</a>
+    <a href="#sec-1-17-nand-接口协议onfi--toggle-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">1.7 NAND 接口协议(ONFi / Toggle)</a>
+    <a href="#sec-1-171-onfiopen-nand-flash-interface-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.7.1 ONFi(Open NAND Flash Interface)</a>
+    <a href="#sec-1-172-togglenand-flash-interface,samsungkioxia-3" class="toc-link-mobile pl-10 text-xs">1.7.2 Toggle(NAND Flash Interface,Samsung/Kioxia)</a>
+    <a href="#sec-1-173-toggle-vs-onfi-关键技术对比-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.7.3 Toggle vs ONFi 关键技术对比</a>
+    <a href="#sec-1-174-nvme-协议层对-nand-颗粒层的影响-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.7.4 NVMe 协议层(对 NAND 颗粒层的影响)</a>
+    <a href="#sec-1-18-nand-新兴路线-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">1.8 NAND 新兴路线</a>
+    <a href="#sec-1-181-hbfhigh-bandwidth-flash-ai-推理内存新层级-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.8.1 HBF(High Bandwidth Flash)— AI 推理内存新层级</a>
+    <a href="#sec-1-182-plc5-bitscell-尚未大规模量产-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.8.2 PLC(5 bits/cell)— 尚未大规模量产</a>
+    <a href="#sec-1-183-3d-nand-未来路线400l--1000l+-3" class="toc-link-mobile pl-10 text-xs">1.8.3 3D NAND 未来路线(400L / 1000L+)</a>
+    <a href="#sec-1-184-cxl-attached-nandcxl-type-3-设备-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.8.4 CXL-attached NAND(CXL Type-3 设备)</a>
+    <a href="#sec-1-19-全球-nand-市场份额与市场规模2024-2025-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">1.9 全球 NAND 市场份额与市场规模(2024-2025)</a>
+    <a href="#sec-1-191-2024-q1--q2-trendforce-数据-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.9.1 2024 Q1 / Q2 TrendForce 数据</a>
+    <a href="#sec-1-192-nand-flash-行业营收2024-2025-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.9.2 NAND Flash 行业营收(2024-2025)</a>
+    <a href="#sec-1-193-中国-nand-国产化关键数字2025-2026-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.9.3 中国 NAND 国产化关键数字(2025-2026)</a>
+    <a href="#sec-1-110-反幻觉校验清单-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">1.10 反幻觉校验清单</a>
+    <a href="#sec-1-111-调研结论与建议-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">1.11 调研结论与建议</a>
+    <a href="#sec-1-1111-关键结论-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.11.1 关键结论</a>
+    <a href="#sec-1-1112-hacms-后续调研建议-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.11.2 hacms 后续调研建议</a>
+    <a href="#sec-1-1113-待-hacms-进一步验证的不确定项-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">1.11.3 待 hacms 进一步验证的不确定项</a>
+    <a href="#sec-2-二、主控-+-固件-+-缓存层深度剖析-3" class="toc-link-mobile ">二、主控 + 固件 + 缓存层深度剖析</a>
+    <a href="#sec-2-21-ssd-主控架构arm--risc-v--asic-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">2.1 SSD 主控架构(ARM / RISC-V / ASIC)</a>
+    <a href="#sec-2-211-主控的核心定位-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">2.1.1 主控的核心定位</a>
+    <a href="#sec-2-212-计算架构：arm-cortex--risc-v--x86-3" class="toc-link-mobile pl-10 text-xs">2.1.2 计算架构：ARM Cortex / RISC-V / x86</a>
+    <a href="#sec-2-213-接口代际演进（pcie-gen3-→-gen6）-3" class="toc-link-mobile pl-10 text-xs">2.1.3 接口代际演进（PCIe Gen3 → Gen6）</a>
+    <a href="#sec-2-214-关键性能指标-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">2.1.4 关键性能指标</a>
+    <a href="#sec-2-22-全球-ssd-主控厂商全景-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">2.2 全球 SSD 主控厂商全景</a>
+    <a href="#sec-2-221-头部-a：samsung-自研主控（消费-+-企业）-3" class="toc-link-mobile pl-10 text-xs">2.2.1 头部 A：Samsung 自研主控（消费 + 企业）</a>
+    <a href="#sec-2-222-头部-b：phison-electronics（群联电子，8299tw，台湾）-3" class="toc-link-mobile pl-10 text-xs">2.2.2 头部 B：Phison Electronics（群联电子，8299.TW，台湾）</a>
+    <a href="#sec-2-产品矩阵-15" class="toc-link-mobile pl-14 text-xs">产品矩阵</a>
+    <a href="#sec-2-财务与市值-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">财务与市值</a>
+    <a href="#sec-2-旗舰企业级-ssd-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">旗舰企业级 SSD</a>
+    <a href="#sec-2-223-头部-c：silicon-motion（慧荣科技，nasdaq-simo，美国台湾香港）-3" class="toc-link-mobile pl-10 text-xs">2.2.3 头部 C：Silicon Motion（慧荣科技，NASDAQ: SIMO，美国/台湾/香港）</a>
+    <a href="#sec-2-产品矩阵-16" class="toc-link-mobile pl-14 text-xs">产品矩阵</a>
+    <a href="#sec-2-财务与战略-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">财务与战略</a>
+    <a href="#sec-2-224-头部-d：marvell（美满电子，nasdaq-mrvl）-3" class="toc-link-mobile pl-10 text-xs">2.2.4 头部 D：Marvell（美满电子，NASDAQ: MRVL）</a>
+    <a href="#sec-2-产品矩阵-17" class="toc-link-mobile pl-14 text-xs">产品矩阵</a>
+    <a href="#sec-2-财务-5" class="toc-link-mobile pl-14 text-xs">财务</a>
+    <a href="#sec-2-225-头部-e：microchip-flashtec（nasdaq-mchp，美国）-3" class="toc-link-mobile pl-10 text-xs">2.2.5 头部 E：Microchip Flashtec（NASDAQ: MCHP，美国）</a>
+    <a href="#sec-2-产品矩阵（pcie-gen5-双旗舰）-3" class="toc-link-mobile pl-14 text-xs">产品矩阵（PCIe Gen5 双旗舰）</a>
+    <a href="#sec-2-226-独角兽-f：fadu（韩国，首尔）-3" class="toc-link-mobile pl-10 text-xs">2.2.6 独角兽 F：FADU（韩国，首尔）</a>
+    <a href="#sec-2-关键里程碑（2025-2026）-3" class="toc-link-mobile pl-14 text-xs">关键里程碑（2025-2026）</a>
+    <a href="#sec-2-产品矩阵-18" class="toc-link-mobile pl-14 text-xs">产品矩阵</a>
+    <a href="#sec-2-227-独角兽-g：scaleflux（中美双总部）-3" class="toc-link-mobile pl-10 text-xs">2.2.7 独角兽 G：ScaleFlux（中美双总部）</a>
+    <a href="#sec-2-融资（pitchbook-数据）-3" class="toc-link-mobile pl-14 text-xs">融资（PitchBook 数据）</a>
+    <a href="#sec-2-产品矩阵-19" class="toc-link-mobile pl-14 text-xs">产品矩阵</a>
+    <a href="#sec-2-228-独角兽-h：pliops（以色列）-已被-astera-labs-收购-3" class="toc-link-mobile pl-10 text-xs">2.2.8 独角兽 H：Pliops（以色列）—— **已被 Astera Labs 收购**</a>
+    <a href="#sec-2-229-中国本土-a：国科微（300672sz，湖南）-3" class="toc-link-mobile pl-10 text-xs">2.2.9 中国本土 A：国科微（300672.SZ，湖南）</a>
+    <a href="#sec-2-主控产品矩阵-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">主控产品矩阵</a>
+    <a href="#sec-2-2210-中国本土-b：联芸科技（maxio，杭州，688226sh，科创板-ipo-2024-11-18）-3" class="toc-link-mobile pl-10 text-xs">2.2.10 中国本土 B：联芸科技（Maxio，杭州，688226.SH，**科创板 IPO 2024-11-18**）</a>
+    <a href="#sec-2-产品矩阵-20" class="toc-link-mobile pl-14 text-xs">产品矩阵</a>
+    <a href="#sec-2-财务-6" class="toc-link-mobile pl-14 text-xs">财务</a>
+    <a href="#sec-2-2211-中国本土-c：英韧科技（innogrit，上海）-3" class="toc-link-mobile pl-10 text-xs">2.2.11 中国本土 C：英韧科技（InnoGrit，上海）</a>
+    <a href="#sec-2-联合创始人-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">联合创始人</a>
+    <a href="#sec-2-产品矩阵（10+-颗主控）-3" class="toc-link-mobile pl-14 text-xs">产品矩阵（10+ 颗主控）</a>
+    <a href="#sec-2-客户与营收-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">客户与营收</a>
+    <a href="#sec-2-2212-中国本土-d：得一微（yeestor，深圳）-3" class="toc-link-mobile pl-10 text-xs">2.2.12 中国本土 D：得一微（YEESTOR，深圳）</a>
+    <a href="#sec-2-公司背景-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">公司背景</a>
+    <a href="#sec-2-产品矩阵-21" class="toc-link-mobile pl-14 text-xs">产品矩阵</a>
+    <a href="#sec-2-最新动态（2026）-3" class="toc-link-mobile pl-14 text-xs">最新动态（2026）</a>
+    <a href="#sec-2-2213-中国本土-e：忆芯科技（star，北京）-3" class="toc-link-mobile pl-10 text-xs">2.2.13 中国本土 E：忆芯科技（STAR，北京）</a>
+    <a href="#sec-2-2214-中国本土-f：华澜微（sage-microelectronics，杭州）-3" class="toc-link-mobile pl-10 text-xs">2.2.14 中国本土 F：华澜微（Sage Microelectronics，杭州）</a>
+    <a href="#sec-2-产品线-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">产品线</a>
+    <a href="#sec-2-资本-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">资本</a>
+    <a href="#sec-2-2215-中国本土-g：忆恒创源（memblaze，北京）-3" class="toc-link-mobile pl-10 text-xs">2.2.15 中国本土 G：忆恒创源（Memblaze，北京）</a>
+    <a href="#sec-2-历史融资-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">历史融资</a>
+    <a href="#sec-2-2216-中国本土-h：得瑞领新（dera，北京）-3" class="toc-link-mobile pl-10 text-xs">2.2.16 中国本土 H：得瑞领新（Dera，北京）</a>
+    <a href="#sec-2-2217-其他-ssd-主控--整机厂商-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">2.2.17 其他 SSD 主控 / 整机厂商</a>
+    <a href="#sec-2-23-固件（firmware）生态-3" class="toc-link-mobile pl-6 text-xs">2.3 固件（Firmware）生态</a>
+    <a href="#sec-2-231-三种固件模式-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">2.3.1 三种固件模式</a>
+    <a href="#sec-2-232-开源生态-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">2.3.2 开源生态</a>
+    <a href="#sec-2-233-zns（zoned-namespaces）-3" class="toc-link-mobile pl-10 text-xs">2.3.3 ZNS（Zoned Namespaces）</a>
+    <a href="#sec-2-234-open-channel-ssd--opennvm-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">2.3.4 Open-Channel SSD / OpenNVM</a>
+    <a href="#sec-2-235-计算存储（computational-storage）-3" class="toc-link-mobile pl-10 text-xs">2.3.5 计算存储（Computational Storage）</a>
+    <a href="#sec-2-24-dram-缓存与-hmb-机制-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">2.4 DRAM 缓存与 HMB 机制</a>
+    <a href="#sec-2-241-dram-类型对照-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">2.4.1 DRAM 类型对照</a>
+    <a href="#sec-2-242-hmb（host-memory-buffer）机制-3" class="toc-link-mobile pl-10 text-xs">2.4.2 HMB（Host Memory Buffer）机制</a>
+    <a href="#sec-2-243-dram-less-vs-dram-对比-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">2.4.3 DRAM-less vs DRAM 对比</a>
+    <a href="#sec-2-244-新兴：lpcamm2--cxl-memory-module-3" class="toc-link-mobile pl-10 text-xs">2.4.4 新兴：LPCAMM2 / CXL Memory Module</a>
+    <a href="#sec-2-25-端到端数据保护（end-to-end-data-protection）-3" class="toc-link-mobile pl-6 text-xs">2.5 端到端数据保护（End-to-End Data Protection）</a>
+    <a href="#sec-2-251-ldpc-纠错（核心）-3" class="toc-link-mobile pl-10 text-xs">2.5.1 LDPC 纠错（核心）</a>
+    <a href="#sec-2-252-端到端-tlp（t10-dif--dix）-3" class="toc-link-mobile pl-10 text-xs">2.5.2 端到端 TLP（T10 DIF / DIX）</a>
+    <a href="#sec-2-253-硬件加密-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">2.5.3 硬件加密</a>
+    <a href="#sec-2-254-tcg-标准与认证-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">2.5.4 TCG 标准与认证</a>
+    <a href="#sec-2-255-可信计算-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">2.5.5 可信计算</a>
+    <a href="#sec-2-26-未来趋势-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">2.6 未来趋势</a>
+    <a href="#sec-2-261-cxl-attached-ssd（cxl-type-3-ssd）-3" class="toc-link-mobile pl-10 text-xs">2.6.1 CXL-attached SSD（CXL Type-3 SSD）</a>
+    <a href="#sec-2-262-computational-storage-ssd-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">2.6.2 Computational Storage SSD</a>
+    <a href="#sec-2-263-risc-v-主控（2025-2026-起步商业化）-3" class="toc-link-mobile pl-10 text-xs">2.6.3 RISC-V 主控（2025-2026 起步商业化）</a>
+    <a href="#sec-2-264-pcie-gen6--gen7-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">2.6.4 PCIe Gen6 / Gen7</a>
+    <a href="#sec-2-265-plp（power-loss-protection）-3" class="toc-link-mobile pl-10 text-xs">2.6.5 PLP（Power Loss Protection）</a>
+    <a href="#sec-2-266-zns-与计算存储融合-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">2.6.6 ZNS 与计算存储融合</a>
+    <a href="#sec-2-267-ai-时代的主控重塑-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">2.6.7 AI 时代的主控重塑</a>
+    <a href="#sec-2-27-反幻觉校验清单（事实溯源）-3" class="toc-link-mobile pl-6 text-xs">2.7 反幻觉校验清单（事实溯源）</a>
+    <a href="#sec-2-反幻觉要点澄清-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">反幻觉要点澄清</a>
+    <a href="#sec-3-三、成品盘层--ssd-品牌矩阵与销售模式深度剖析-3" class="toc-link-mobile ">三、成品盘层 — SSD 品牌矩阵与销售模式深度剖析</a>
+    <a href="#sec-3-31-全球-ssd-品牌全景-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">3.1 全球 SSD 品牌全景</a>
+    <a href="#sec-3-311-头部品牌五巨头,合计占全球企业级出货->90%、消费级->70%-3" class="toc-link-mobile pl-10 text-xs">3.1.1 头部品牌(五巨头,合计占全球企业级出货 &gt;90%、消费级 &gt;70%)</a>
+    <a href="#sec-3-a-samsung韩国,ds-部门-3" class="toc-link-mobile pl-14 text-xs">A. Samsung(韩国,DS 部门)</a>
+    <a href="#sec-3-b-wd--sandisk2025-02-21-完成分拆-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">B. WD / SanDisk(2025-02-21 完成分拆)</a>
+    <a href="#sec-3-c-micron--crucial美国-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">C. Micron / Crucial(美国)</a>
+    <a href="#sec-3-d-sk-hynix--solidigm韩国-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">D. SK hynix / Solidigm(韩国)</a>
+    <a href="#sec-3-e-kioxia铠侠,日本-3" class="toc-link-mobile pl-14 text-xs">E. Kioxia(铠侠,日本)</a>
+    <a href="#sec-3-312-全球二线品牌模组厂--消费品牌-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">3.1.2 全球二线品牌(模组厂 / 消费品牌)</a>
+    <a href="#sec-3-a-kingston金士顿,美国台湾-3" class="toc-link-mobile pl-14 text-xs">A. Kingston(金士顿,美国/台湾)</a>
+    <a href="#sec-3-b-adata威刚,台湾-3" class="toc-link-mobile pl-14 text-xs">B. ADATA(威刚,台湾)</a>
+    <a href="#sec-3-c-lexar雷克沙,深圳江波龙旗下-3" class="toc-link-mobile pl-14 text-xs">C. Lexar(雷克沙,深圳江波龙旗下)</a>
+    <a href="#sec-3-d-其他头部模组厂top10-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">D. 其他头部模组厂(Top10)</a>
+    <a href="#sec-3-e-其他值得关注的二线-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">E. 其他值得关注的二线</a>
+    <a href="#sec-3-313-中国本土品牌深度-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">3.1.3 中国本土品牌(深度)</a>
+    <a href="#sec-3-a-致钛zhitai,长江存储旗下唯一零售品牌-3" class="toc-link-mobile pl-14 text-xs">A. 致钛(ZhiTai,长江存储旗下唯一零售品牌)</a>
+    <a href="#sec-3-b-江波龙longsys,301308sz,创业板-3" class="toc-link-mobile pl-14 text-xs">B. 江波龙(Longsys,301308.SZ,创业板)</a>
+    <a href="#sec-3-c-佰维存储biwin,688525sh,科创板-3" class="toc-link-mobile pl-14 text-xs">C. 佰维存储(Biwin,688525.SH,科创板)</a>
+    <a href="#sec-3-d-光威--阿斯加特--神可深圳嘉合劲威,powev,未上市-3" class="toc-link-mobile pl-14 text-xs">D. 光威 / 阿斯加特 / 神可(深圳嘉合劲威,POWEV,未上市)</a>
+    <a href="#sec-3-e-七彩虹colorful,未上市-3" class="toc-link-mobile pl-14 text-xs">E. 七彩虹(Colorful,未上市)</a>
+    <a href="#sec-3-f-影驰galax,香港深圳-3" class="toc-link-mobile pl-14 text-xs">F. 影驰(Galax,香港/深圳)</a>
+    <a href="#sec-3-g-金百达kingbank,未上市-3" class="toc-link-mobile pl-14 text-xs">G. 金百达(KingBank,未上市)</a>
+    <a href="#sec-3-h-大普微-dera深圳大普微电子,301666sz,创业板,2026-04-16-上市-3" class="toc-link-mobile pl-14 text-xs">H. 大普微 DERA(深圳大普微电子,301666.SZ,创业板,2026-04-16 上市)</a>
+    <a href="#sec-3-i-忆联信息union-memory,未上市-3" class="toc-link-mobile pl-14 text-xs">I. 忆联信息(Union Memory,未上市)</a>
+    <a href="#sec-3-j-忆恒创源-memblaze未上市-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">J. 忆恒创源 Memblaze(未上市)</a>
+    <a href="#sec-3-k-紫光得瑞zd-tech--dera,北京-3" class="toc-link-mobile pl-14 text-xs">K. 紫光得瑞(ZD-TECH / DERA,北京)</a>
+    <a href="#sec-3-l-朗科-netac300042sz,深交所-3" class="toc-link-mobile pl-14 text-xs">L. 朗科 Netac(300042.SZ,深交所)</a>
+    <a href="#sec-3-m-国科微gokmicro,300672sz,创业板-3" class="toc-link-mobile pl-14 text-xs">M. 国科微(GokMicro,300672.SZ,创业板)</a>
+    <a href="#sec-3-n-德明利001309sz,深交所-3" class="toc-link-mobile pl-14 text-xs">N. 德明利(001309.SZ,深交所)</a>
+    <a href="#sec-3-o-其他重要中国厂商简列-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">O. 其他重要中国厂商(简列)</a>
+    <a href="#sec-3-314-中国云厂商白盒-ssd-专题深度查证-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">3.1.4 中国云厂商白盒 SSD 专题(深度查证)</a>
+    <a href="#sec-3-a-阿里云"盘古"已证实-≠-单独的"盘古-ssd"品牌-3" class="toc-link-mobile pl-14 text-xs">A. 阿里云&quot;盘古&quot;(已证实 ≠ 单独的&quot;盘古 SSD&quot;品牌)</a>
+    <a href="#sec-3-b-字节跳动-bytestore已证实-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">B. 字节跳动 Bytestore(已证实)</a>
+    <a href="#sec-3-c-腾讯-tencentdb--tencentcbs--腾讯云存储已证实-≠-单独的"tencentssd"品牌-3" class="toc-link-mobile pl-14 text-xs">C. 腾讯 TencentDB / TencentCBS / 腾讯云存储(已证实 ≠ 单独的&quot;TencentSSD&quot;品牌)</a>
+    <a href="#sec-3-d-百度-baidussd--沧海已证实-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">D. 百度 BaiduSSD / 沧海(已证实)</a>
+    <a href="#sec-3-e-京东、美团、快手已证实是大普微等企业级-ssd-客户-3" class="toc-link-mobile pl-14 text-xs">E. 京东、美团、快手(已证实是大普微等企业级 SSD 客户)</a>
+    <a href="#sec-3-f-华为已证实-≠-单独的华为-ssd-品牌-3" class="toc-link-mobile pl-14 text-xs">F. 华为(已证实 ≠ 单独的华为 SSD 品牌)</a>
+    <a href="#sec-3-g-关键结论-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">G. 关键结论</a>
+    <a href="#sec-3-h-与海外白盒对比-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">H. 与海外白盒对比</a>
+    <a href="#sec-3-32-五种销售模式深度剖析-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">3.2 五种销售模式深度剖析</a>
+    <a href="#sec-3-321-品牌直销brand-to-customer-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">3.2.1 品牌直销(Brand-to-Customer)</a>
+    <a href="#sec-3-322-oem--odm-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">3.2.2 OEM / ODM</a>
+    <a href="#sec-3-323-渠道分销si--var--e-tailer-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">3.2.3 渠道分销(SI / VAR / e-tailer)</a>
+    <a href="#sec-3-324-电商直营d2c--brand-online-store-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">3.2.4 电商直营(D2C / Brand Online Store)</a>
+    <a href="#sec-3-325-cloud-white-box云厂白盒--csp-主导-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">3.2.5 Cloud White Box(云厂白盒 / CSP 主导)</a>
+    <a href="#sec-3-326-五种销售模式对比表-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">3.2.6 五种销售模式对比表</a>
+    <a href="#sec-3-33-价格曲线与出货数据2023-2026-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">3.3 价格曲线与出货数据(2023-2026)</a>
+    <a href="#sec-3-331-全球-ssd-出货量出货量与营收-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">3.3.1 全球 SSD 出货量(出货量与营收)</a>
+    <a href="#sec-3-332-全球企业级-ssd-营收排名2025-q3,trendforce-数据1-3" class="toc-link-mobile pl-10 text-xs">3.3.2 全球企业级 SSD 营收排名(2025 Q3,TrendForce 数据[1])</a>
+    <a href="#sec-3-333-全球渠道-ssd-厂商市占2024,trendforce33-3" class="toc-link-mobile pl-10 text-xs">3.3.3 全球渠道 SSD 厂商市占(2024,TrendForce[33])</a>
+    <a href="#sec-3-334-asp€tb趋势-2023-2026-3" class="toc-link-mobile pl-10 text-xs">3.3.4 ASP(€/TB)趋势 2023-2026</a>
+    <a href="#sec-3-335-tlc-vs-qlc-vs-plc-价格走势-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">3.3.5 TLC vs QLC vs PLC 价格走势</a>
+    <a href="#sec-3-336-中国企业级-ssd-市场规模2024-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">3.3.6 中国企业级 SSD 市场规模(2024)</a>
+    <a href="#sec-3-34-接口与形态深度-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">3.4 接口与形态(深度)</a>
+    <a href="#sec-3-341-接口协议演进-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">3.4.1 接口协议演进</a>
+    <a href="#sec-3-342-物理形态-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">3.4.2 物理形态</a>
+    <a href="#sec-3-a-消费级主流形态-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">A. 消费级主流形态</a>
+    <a href="#sec-3-b-企业级主流形态edsff-+-经典-25"-3" class="toc-link-mobile pl-14 text-xs">B. 企业级主流形态(EDSFF + 经典 2.5&quot;)</a>
+    <a href="#sec-3-c-形态标准化进程-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">C. 形态标准化进程</a>
+    <a href="#sec-3-343-协议版本对照-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">3.4.3 协议版本对照</a>
+    <a href="#sec-3-35-主要消费级-ssd-产品线2025-2026-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">3.5 主要消费级 SSD 产品线(2025-2026)</a>
+    <a href="#sec-3-351-全球旗舰消费级-ssd-对比表-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">3.5.1 全球旗舰消费级 SSD 对比表</a>
+    <a href="#sec-3-352-2025-2026-消费级-ssd-关键趋势-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">3.5.2 2025-2026 消费级 SSD 关键趋势</a>
+    <a href="#sec-3-36-主要企业级-ssd-产品线2025-2026-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">3.6 主要企业级 SSD 产品线(2025-2026)</a>
+    <a href="#sec-3-361-全球企业级-ssd-旗舰对比表-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">3.6.1 全球企业级 SSD 旗舰对比表</a>
+    <a href="#sec-3-362-中国企业级-ssd-产品线关键厂商-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">3.6.2 中国企业级 SSD 产品线(关键厂商)</a>
+    <a href="#sec-3-37-反幻觉校验清单-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">3.7 反幻觉校验清单</a>
+    <a href="#sec-3-371-未确认--待核实清单-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">3.7.1 未确认 / 待核实清单</a>
+    <a href="#sec-3-参考文献-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">参考文献</a>
+    <a href="#sec-4-四、ai-盘-+-功能盘专题深度剖析-3" class="toc-link-mobile ">四、AI 盘 + 功能盘专题深度剖析</a>
+    <a href="#sec-4-41-ai-ssd（大模型训练--推理专用）-3" class="toc-link-mobile pl-6 text-xs">4.1 AI SSD（大模型训练 / 推理专用）</a>
+    <a href="#sec-4-410-ai-ssd-的需求起源与产业逻辑-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.1.0 AI SSD 的需求起源与产业逻辑</a>
+    <a href="#sec-4-411-大容量企业级-ssd-旗舰型号（3072tb--24576tb）-3" class="toc-link-mobile pl-10 text-xs">4.1.1 大容量企业级 SSD 旗舰型号（30.72TB – 245.76TB）</a>
+    <a href="#sec-4-关键事实交叉校验（避免幻觉）-3" class="toc-link-mobile pl-14 text-xs">关键事实交叉校验（避免幻觉）</a>
+    <a href="#sec-4-412-ai-ssd-性能参数与场景分析-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.1.2 AI SSD 性能参数与场景分析</a>
+    <a href="#sec-4-a-性能矩阵对比-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">A. 性能矩阵对比</a>
+    <a href="#sec-4-b-ai-训练场景适配-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">B. AI 训练场景适配</a>
+    <a href="#sec-4-c-ai-推理场景适配-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">C. AI 推理场景适配</a>
+    <a href="#sec-4-d-大容量-qlc-的-tco-经济学-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">D. 大容量 QLC 的 TCO 经济学</a>
+    <a href="#sec-4-413-hbf--ai-推理时代的新兴介质-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.1.3 HBF —— AI 推理时代的新兴介质</a>
+    <a href="#sec-4-a-hbf-标准与生态背景-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">A. HBF 标准与生态背景</a>
+    <a href="#sec-4-b-hbf-与-hbm--ssd-的层次关系-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">B. HBF 与 HBM / SSD 的层次关系</a>
+    <a href="#sec-4-c-hbf-的供应链与产业链影响-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">C. HBF 的供应链与产业链影响</a>
+    <a href="#sec-4-42-安全盘-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">4.2 安全盘</a>
+    <a href="#sec-4-420-安全盘的需求与监管背景-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.2.0 安全盘的需求与监管背景</a>
+    <a href="#sec-4-421-国际-sed-标准与认证体系-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.2.1 国际 SED 标准与认证体系</a>
+    <a href="#sec-4-a-标准化机构与规范-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">A. 标准化机构与规范</a>
+    <a href="#sec-4-b-关键认证生态-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">B. 关键认证生态</a>
+    <a href="#sec-4-422-国际厂商安全盘-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.2.2 国际厂商安全盘</a>
+    <a href="#sec-4-a-samsung（消费-+-企业）-3" class="toc-link-mobile pl-14 text-xs">A. Samsung（消费 + 企业）</a>
+    <a href="#sec-4-b-micron（数据中心全栈-sed）-3" class="toc-link-mobile pl-14 text-xs">B. Micron（数据中心全栈 SED）</a>
+    <a href="#sec-4-c-kioxia（数据中心-sed-全栈）-3" class="toc-link-mobile pl-14 text-xs">C. Kioxia（数据中心 SED 全栈）</a>
+    <a href="#sec-4-d-solidigm（数据中心-sed-全栈）-3" class="toc-link-mobile pl-14 text-xs">D. Solidigm（数据中心 SED 全栈）</a>
+    <a href="#sec-4-e-sandisk--wdc-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">E. Sandisk / WDC</a>
+    <a href="#sec-4-423-中国国密盘-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.2.3 中国国密盘</a>
+    <a href="#sec-4-a-华为-oceanstor-安全-ssd-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">A. 华为 OceanStor 安全 SSD</a>
+    <a href="#sec-4-b-大普微-dera（dapustor，2026-04-16-创业板上市，股票代码-301666）-3" class="toc-link-mobile pl-14 text-xs">B. 大普微 DERA（Dapustor，2026-04-16 创业板上市，股票代码 301666）</a>
+    <a href="#sec-4-c-紫光得瑞（unis-pus）-3" class="toc-link-mobile pl-14 text-xs">C. 紫光得瑞（UNIS PUS）</a>
+    <a href="#sec-4-d-中科海光（中科曙光关联）-5" class="toc-link-mobile pl-14 text-xs">D. 中科海光（中科曙光关联）</a>
+    <a href="#sec-4-e-忆联信息（union-memory）-3" class="toc-link-mobile pl-14 text-xs">E. 忆联信息（Union Memory）</a>
+    <a href="#sec-4-f-国科微（goke-microelectronics）-3" class="toc-link-mobile pl-14 text-xs">F. 国科微（GOKE Microelectronics）</a>
+    <a href="#sec-4-g-忆恒创源（memblaze）-3" class="toc-link-mobile pl-14 text-xs">G. 忆恒创源（Memblaze）</a>
+    <a href="#sec-4-h-泽石科技（zettastone）-3" class="toc-link-mobile pl-14 text-xs">H. 泽石科技（ZettaStone）</a>
+    <a href="#sec-4-43-持久内存盘-scm-storage-class-memory-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">4.3 持久内存盘 SCM (Storage Class Memory)</a>
+    <a href="#sec-4-430-scm-的概念与历史定位-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.3.0 SCM 的概念与历史定位</a>
+    <a href="#sec-4-431-intel-optane-已停产专题-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.3.1 Intel Optane 已停产专题</a>
+    <a href="#sec-4-intel-optane-p5800x-关键规格（停产前参考）-3" class="toc-link-mobile pl-14 text-xs">Intel Optane P5800X 关键规格（停产前参考）</a>
+    <a href="#sec-4-optane-之死对产业的影响-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">Optane 之死对产业的影响</a>
+    <a href="#sec-4-432-samsung-z-nand--kioxia-xl-flash-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.3.2 Samsung Z-NAND / Kioxia XL-FLASH</a>
+    <a href="#sec-4-a-samsung-sz985-z-nand-ssd-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">A. Samsung SZ985 Z-NAND SSD</a>
+    <a href="#sec-4-b-kioxia-xl-flash-+-fl6-series-scm-ssd-3" class="toc-link-mobile pl-14 text-xs">B. Kioxia XL-FLASH + FL6 Series SCM SSD</a>
+    <a href="#sec-4-433-国产-scm-专题-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.3.3 国产 SCM 专题</a>
+    <a href="#sec-4-a-泽石科技（zettastone）"盘古"-pcie-50-主控-+-衍生-scm-3" class="toc-link-mobile pl-14 text-xs">A. 泽石科技（ZettaStone）&quot;盘古&quot; PCIe 5.0 主控 + 衍生 SCM</a>
+    <a href="#sec-4-b-大普微-x5900（scm-ssd）-3" class="toc-link-mobile pl-14 text-xs">B. 大普微 X5900（SCM SSD）</a>
+    <a href="#sec-4-c-紫光得瑞-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">C. 紫光得瑞</a>
+    <a href="#sec-4-d-中科海光（中科曙光关联）-6" class="toc-link-mobile pl-14 text-xs">D. 中科海光（中科曙光关联）</a>
+    <a href="#sec-4-44-计算存储盘（computational-storage）-3" class="toc-link-mobile pl-6 text-xs">4.4 计算存储盘（Computational Storage）</a>
+    <a href="#sec-4-440-计算存储的概念与价值主张-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.4.0 计算存储的概念与价值主张</a>
+    <a href="#sec-4-441-scaleflux（中美独角兽）-3" class="toc-link-mobile pl-10 text-xs">4.4.1 ScaleFlux（中美独角兽）</a>
+    <a href="#sec-4-442-pliops（已被-astera-labs-收购-2026-02）-3" class="toc-link-mobile pl-10 text-xs">4.4.2 Pliops（已被 Astera Labs 收购 2026-02）</a>
+    <a href="#sec-4-443-ngd-systems--eideticom-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.4.3 NGD Systems / Eideticom</a>
+    <a href="#sec-4-a-ngd-systems（已-deadpooled）-3" class="toc-link-mobile pl-14 text-xs">A. NGD Systems（已 Deadpooled）</a>
+    <a href="#sec-4-b-eideticom-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">B. Eideticom</a>
+    <a href="#sec-4-444-samsung-smartssd（已-eol）-3" class="toc-link-mobile pl-10 text-xs">4.4.4 Samsung SmartSSD（已 EOL）</a>
+    <a href="#sec-4-45-qlc--plc-大容量盘-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">4.5 QLC / PLC 大容量盘</a>
+    <a href="#sec-4-450-nand-路线图与容量经济学-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.5.0 NAND 路线图与容量经济学</a>
+    <a href="#sec-4-451-当前最大容量-ssd-矩阵-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.5.1 当前最大容量 SSD 矩阵</a>
+    <a href="#sec-4-452-qlc-vs-tlc-vs-plc-对比-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.5.2 QLC vs TLC vs PLC 对比</a>
+    <a href="#sec-4-453-国产-qlc-跟进-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.5.3 国产 QLC 跟进</a>
+    <a href="#sec-4-46-液冷-ssd-数据中心专题-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">4.6 液冷 SSD 数据中心专题</a>
+    <a href="#sec-4-460-数据中心散热的"临界点"-3" class="toc-link-mobile pl-10 text-xs">4.6.0 数据中心散热的&quot;临界点&quot;</a>
+    <a href="#sec-4-461-散热技术演化路径-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.6.1 散热技术演化路径</a>
+    <a href="#sec-4-462-业界首款冷板液冷-ssd：solidigm-d7-ps1010-e1s-3" class="toc-link-mobile pl-10 text-xs">4.6.2 业界首款冷板液冷 SSD：Solidigm D7-PS1010 E1.S</a>
+    <a href="#sec-4-463-液冷-ssd-的数据中心-pue-影响-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.6.3 液冷 SSD 的数据中心 PUE 影响</a>
+    <a href="#sec-4-464-其他液冷-ssd-厂商布局-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.6.4 其他液冷 SSD 厂商布局</a>
+    <a href="#sec-4-47-总结与产业洞察-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">4.7 总结与产业洞察</a>
+    <a href="#sec-4-471-ai-时代的存储分层新范式-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.7.1 AI 时代的存储分层新范式</a>
+    <a href="#sec-4-472-计算存储盘的市场化困局-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.7.2 计算存储盘的市场化困局</a>
+    <a href="#sec-4-473-安全盘的国产替代路径-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">4.7.3 安全盘的国产替代路径</a>
+    <a href="#sec-4-474-液冷的"必然"vs"成本"-3" class="toc-link-mobile pl-10 text-xs">4.7.4 液冷的&quot;必然&quot;vs&quot;成本&quot;</a>
+    <a href="#sec-4-48-反幻觉校验清单-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">4.8 反幻觉校验清单</a>
+    <a href="#sec-4-反幻觉重要警示-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">反幻觉重要警示</a>
+    <a href="#sec-4-参考链接汇总-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">参考链接汇总</a>
+    <a href="#sec-4-官方-datasheet--产品页-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">官方 datasheet / 产品页</a>
+    <a href="#sec-4-hbf--scm--收购新闻-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">HBF / SCM / 收购新闻</a>
+    <a href="#sec-4-国产厂商-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">国产厂商</a>
+    <a href="#sec-4-投资--公司情报-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">投资 / 公司情报</a>
+    <a href="#sec-4-安全认证-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">安全认证</a>
+    <a href="#sec-4-液冷-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">液冷</a>
+    <a href="#sec-4-cxl-补充-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">CXL 补充</a>
+    <a href="#sec-5-五、全球厂商-+-融资-+-中国本土专题深度剖析-3" class="toc-link-mobile ">五、全球厂商 + 融资 + 中国本土专题深度剖析</a>
+    <a href="#sec-5-51-全球-ssd-产业链厂商全景头部-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">5.1 全球 SSD 产业链厂商全景(头部)</a>
+    <a href="#sec-5-511-颗粒厂5+1-大头部-3" class="toc-link-mobile pl-10 text-xs">5.1.1 颗粒厂(5+1 大头部)</a>
+    <a href="#sec-5-a-samsung-electronics-005930ks--三星电子-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">A. Samsung Electronics (005930.KS) — 三星电子</a>
+    <a href="#sec-5-b-sk-hynix-000660ks--sk-海力士-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">B. SK hynix (000660.KS) — SK 海力士</a>
+    <a href="#sec-5-c-micron-technology-muo--美光科技-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">C. Micron Technology (MU.O) — 美光科技</a>
+    <a href="#sec-5-d-kioxia-holdings-285at--铠侠-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">D. Kioxia Holdings (285A.T) — 铠侠</a>
+    <a href="#sec-5-e-sandisk-corporation-sndko--闪迪从-wd-分拆-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">E. Sandisk Corporation (SNDK.O) — 闪迪(从 WD 分拆)</a>
+    <a href="#sec-5-f-ymtc--长存集团--长江存储中国,冲刺-a-股科创板-3" class="toc-link-mobile pl-14 text-xs">F. YMTC / 长存集团 — 长江存储(中国,冲刺 A 股科创板)</a>
+    <a href="#sec-5-512-主控厂全球头部-+-中国本土-3" class="toc-link-mobile pl-10 text-xs">5.1.2 主控厂(全球头部 + 中国本土)</a>
+    <a href="#sec-5-a-phison-electronics-8299tw--群联电子-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">A. Phison Electronics (8299.TW) — 群联电子</a>
+    <a href="#sec-5-b-silicon-motion-simoo-→-maxlinear-子公司-3" class="toc-link-mobile pl-14 text-xs">B. Silicon Motion (SIMO.O → MaxLinear 子公司)</a>
+    <a href="#sec-5-c-marvell-technology-mrvlo--迈威尔-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">C. Marvell Technology (MRVL.O) — 迈威尔</a>
+    <a href="#sec-5-d-fadu-inc--韩国独角兽-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">D. FADU Inc. — 韩国独角兽</a>
+    <a href="#sec-5-e-scaleflux-inc--中美独角兽computational-storage-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">E. ScaleFlux Inc. — 中美独角兽(Computational Storage)</a>
+    <a href="#sec-5-f-pliops-ltd--以色列独角兽已被-astera-labs-收购-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">F. Pliops Ltd. — 以色列独角兽(已被 Astera Labs 收购)</a>
+    <a href="#sec-5-g-中国本土主控厂7-家-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">G. 中国本土主控厂(7 家)</a>
+    <a href="#sec-5-513-成品盘厂--集成商-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.1.3 成品盘厂 / 集成商</a>
+    <a href="#sec-5-514-存储阵列--系统商ssd-使用方-+-销售-3" class="toc-link-mobile pl-10 text-xs">5.1.4 存储阵列 / 系统商(SSD 使用方 + 销售)</a>
+    <a href="#sec-5-a-pure-storage-pstgnyse--改名-everpure-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">A. Pure Storage (PSTG.NYSE) — 改名 Everpure</a>
+    <a href="#sec-5-b-netapp-ntapo-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">B. NetApp (NTAP.O)</a>
+    <a href="#sec-5-c-vast-data--ai-全存储独角兽-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">C. VAST Data — AI 全存储独角兽</a>
+    <a href="#sec-5-d-pavilion-data--已并购-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">D. Pavilion Data — 已并购</a>
+    <a href="#sec-5-e-infinidat--全闪存企业存储独角兽-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">E. Infinidat — 全闪存企业存储独角兽</a>
+    <a href="#sec-5-f-nimbus-data--全闪存企业存储独角兽-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">F. Nimbus Data — 全闪存企业存储独角兽</a>
+    <a href="#sec-5-52-中国本土-ssd-全产业链-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">5.2 中国本土 SSD 全产业链</a>
+    <a href="#sec-5-521-中国-ssd-品牌商-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.2.1 中国 SSD 品牌商</a>
+    <a href="#sec-5-522-中国-ssd-主控厂详见-512g-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.2.2 中国 SSD 主控厂(详见 5.1.2.G)</a>
+    <a href="#sec-5-523-中国-nand-颗粒厂-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.2.3 中国 NAND 颗粒厂</a>
+    <a href="#sec-5-a-长江存储ymtc-全球第三、中国第一详见-511f-3" class="toc-link-mobile pl-14 text-xs">A. 长江存储(YMTC)— 全球第三、中国第一(详见 5.1.1.F)</a>
+    <a href="#sec-5-b-福建晋华jhicc-2" data-mobile-link="true" class="toc-link-mobile pl-14 text-xs">B. 福建晋华(JHICC)</a>
+    <a href="#sec-5-c-长鑫存储cxmt,dram-为主-3" class="toc-link-mobile pl-14 text-xs">C. 长鑫存储(CXMT,DRAM 为主)</a>
+    <a href="#sec-5-524-中国云厂商白盒-ssd-专题澄清误区-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.2.4 中国云厂商白盒 SSD 专题(澄清误区)</a>
+    <a href="#sec-5-53-五种销售模式深度剖析图-+-数据-3" class="toc-link-mobile pl-6 text-xs">5.3 五种销售模式深度剖析(图 + 数据)</a>
+    <a href="#sec-5-531-销售模式对比表-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.3.1 销售模式对比表</a>
+    <a href="#sec-5-532-销售模式分布饼图2026-h1-全球企业级-ssd-出货-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.3.2 销售模式分布饼图(2026 H1 全球企业级 SSD 出货)</a>
+    <a href="#sec-5-533-各模式典型厂商对照-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.3.3 各模式典型厂商对照</a>
+    <a href="#sec-5-534-cloud-white-box-详细解析-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.3.4 Cloud White Box 详细解析</a>
+    <a href="#sec-5-54-价格传导链条-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">5.4 价格传导链条</a>
+    <a href="#sec-5-541-全链条图解-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.4.1 全链条图解</a>
+    <a href="#sec-5-542-各环节利润率详细表-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.4.2 各环节利润率详细表</a>
+    <a href="#sec-5-543-tlc-vs-qlc-vs-plc-价格走势-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.4.3 TLC vs QLC vs PLC 价格走势</a>
+    <a href="#sec-5-55-中国国产替代的-5-大故事-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">5.5 中国国产替代的 5 大故事</a>
+    <a href="#sec-5-551-长江存储-xtacking-技术独立路线2018-2026-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.5.1 长江存储 Xtacking 技术独立路线(2018-2026)</a>
+    <a href="#sec-5-552-江波龙收购-lexar-海外品牌2017-08-31-真实日期-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.5.2 江波龙收购 Lexar 海外品牌(2017-08-31 真实日期)</a>
+    <a href="#sec-5-553-致钛ymtc-子品牌消费级突围2020-2026-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.5.3 致钛(YMTC 子品牌)消费级突围(2020-2026)</a>
+    <a href="#sec-5-554-联芸科技maxio主控科创板-ipo2024-11-18-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.5.4 联芸科技(Maxio)主控科创板 IPO(2024-11-18)</a>
+    <a href="#sec-5-555-大普微企业级-ssd-创业板上市2026-04-16-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.5.5 大普微企业级 SSD 创业板上市(2026-04-16)</a>
+    <a href="#sec-5-56-美国出口管制对-ssd-产业的影响-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">5.6 美国出口管制对 SSD 产业的影响</a>
+    <a href="#sec-5-561-时间线2022-2026-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.6.1 时间线(2022-2026)</a>
+    <a href="#sec-5-562-实体清单细节2022-12-15-36-家-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.6.2 实体清单细节(2022-12-15 36 家)</a>
+    <a href="#sec-5-563-2024-12-02-bis-新一轮制裁要点-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.6.3 2024-12-02 BIS 新一轮制裁要点</a>
+    <a href="#sec-5-564-中国-ssd-厂商的应对策略-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.6.4 中国 SSD 厂商的应对策略</a>
+    <a href="#sec-5-565-影响范围-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.6.5 影响范围</a>
+    <a href="#sec-5-566-美国管制与反管制的"动态平衡"2024-2026-3" class="toc-link-mobile pl-10 text-xs">5.6.6 美国管制与反管制的&quot;动态平衡&quot;(2024-2026)</a>
+    <a href="#sec-5-57-反幻觉校验清单-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">5.7 反幻觉校验清单</a>
+    <a href="#sec-5-571-已验证关键事实url-支撑-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.7.1 已验证关键事实(URL 支撑)</a>
+    <a href="#sec-5-572-反幻觉校验要点-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.7.2 反幻觉校验要点</a>
+    <a href="#sec-5-573-未明确--需进一步核实项-2" data-mobile-link="true" class="toc-link-mobile pl-10 text-xs">5.7.3 未明确 / 需进一步核实项</a>
+    <a href="#sec-5-引用源reference-2" data-mobile-link="true" class="toc-link-mobile pl-6 text-xs">引用源(Reference)</a>
+    <a href="#sec-7" class="toc-link-mobile font-semibold">7. 反幻觉校验清单</a>
+    <a href="#sec-6" class="toc-link-mobile font-semibold">6. 专有 SSD / 非标盘 — 大客户定制生态</a>
+    <a href="#sec-7-1-什么是专有-ssd" class="toc-link-mobile ">6.1 什么是"专有 SSD"?</a>
+    <a href="#sec-7-2-超大规模云厂商自研-ssd" class="toc-link-mobile ">6.2 超大规模云厂商自研 SSD</a>
+    <a href="#sec-7-3-ai-厂商自研存储" class="toc-link-mobile ">6.3 AI 厂商自研存储</a>
+    <a href="#sec-7-4-车规与国防定制" class="toc-link-mobile ">6.4 车规 / 国防定制 SSD</a>
+    <a href="#sec-7-5-企业定制-ssd" class="toc-link-mobile ">6.5 企业定制 SSD</a>
+    <a href="#sec-7-6-5-种典型采购路径" class="toc-link-mobile ">6.6 5 种典型采购路径</a>
+    <a href="#sec-7-7-2026-09-市场总规模估算" class="toc-link-mobile ">6.7 2026-09 市场总规模估算</a>
+    <a href="#sec-7-8-关键洞察与启示" class="toc-link-mobile ">6.8 关键洞察与启示</a>
+    <a href="#sec-refs" class="toc-link-mobile font-semibold text-amber-700">📚 References</a>
+  </nav>
+</div>
 </body>
 </html>
