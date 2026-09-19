@@ -711,6 +711,7 @@
           <div class="dl-hero-top">
             <span class="dl-cat" style="background:${escapeHtml(getCategoryColor(article.category))}">${escapeHtml(article.category || '未分类')}</span>
             <span class="dl-size-badge">📦 体积大 · 下载查看 · ${totalSize} MB</span>
+            <span class="dl-pack-badge">${atts.length === 1 ? '✅ 1 个完整包 · 双击 index.html 即可' : `⚠️ ${atts.length} 个分片 zip · 必须解压到同一目录`}</span>
           </div>
           <h1 class="dl-title">${escapeHtml(article.title)}</h1>
           <div class="dl-meta">
@@ -740,7 +741,59 @@
         <section class="dl-downloads">
           <h2 class="dl-h2">📥 下载完整文章包</h2>
           <p class="dl-hint">为避免在网页加载时一次性下载全部图片（拖慢页面），本文章只展示摘要。请下载下方完整包后用浏览器打开 <code>index.html</code> 查看。</p>
+
+          ${(() => {
+            // 按下载顺序生成使用说明 — 区分单包 / 多包两种情形
+            const zipAtts = atts; // 已是 zip 过滤后数组, 顺序与 manifest 一致
+            const totalAtts = zipAtts.length;
+            const isSinglePack = totalAtts === 1;
+            const stepsTitle = isSinglePack
+              ? '📖 怎么用（3 步搞定）'
+              : `📖 怎么拼（${totalAtts} 个 zip 必须按顺序合并）`;
+            const intro = isSinglePack
+              ? `本文章只有 <b>1 个完整包</b>，里面已经包含 <b>HTML 主页 + 全部图片 + 元数据</b>。下载后双击 <code>index.html</code> 即可。`
+              : `本文章拆成 <b>${totalAtts} 个 zip</b>，必须<b>全部下载</b>并<b>解压到同一个目录</b>，图片才能正确显示。下面是详细步骤：`;
+            const stepItems = isSinglePack ? `
+              <li><b>第 1 步：</b>点击下方「下载 ↓」按钮，把 <code>${escapeHtml(zipAtts[0]?.name || 'xxx.zip')}</code> 保存到本地任意目录（比如 <code>~/Downloads/hacms/</code>）。</li>
+              <li><b>第 2 步：</b>解压 zip（Windows 用 7-Zip / WinRAR，macOS 双击即可，Linux 用 <code>unzip</code> 命令）。</li>
+              <li><b>第 3 步：</b>进入解压后的文件夹，双击 <code>index.html</code>，用浏览器（Chrome / Edge / Safari）打开即可。所有交互（侧边 ToC、跳转、引用、References）全部保留，离线也能看。</li>
+            ` : zipAtts.map((a, i) => {
+              const isImg = /images|图|images-p/i.test(a.name || '');
+              const isFirst = i === 0;
+              return `
+              <li><b>第 ${i + 1} 步：</b>下载 <code>${escapeHtml(a.name)}</code>（${isImg ? '图片包' : 'HTML 主页包'}，${(a.size_mb != null ? a.size_mb.toFixed(1) : '?')} MB）${isFirst ? ` — 先建一个目录，比如 <code>~/Downloads/${escapeHtml(article.id)}/</code>，下载到这` : ""}</li>
+              `;
+            }).join('') + `
+              <li><b>第 ${totalAtts + 1} 步：</b>把所有 <b>${totalAtts} 个 zip 都解压到同一个目录</b>（<code>~/Downloads/${escapeHtml(article.id)}/</code>），让目录结构看起来像：<br>
+                <pre class="dl-tree">${escapeHtml(article.id)}/
+├── index.html
+├── data/manifest.json
+├── images/  (或 assets/，根据图片包实际目录)
+│   ├── xxx.png
+│   ├── yyy.jpg
+│   └── ...</pre>
+              </li>
+              <li><b>第 ${totalAtts + 2} 步：</b>双击 <code>index.html</code> 用浏览器打开。所有图片会自动加载，无需联网。</li>
+            `;
+            const warnBox = isSinglePack ? '' : `
+              <div class="dl-warn-box">
+                ⚠️ <b>注意：</b>${totalAtts} 个 zip 必须放在<b>同一个目录</b>下解压。如果只解压了 HTML 包而没解压图片包，打开 <code>index.html</code> 会看到一堆破图标（404）。如果解压到不同目录，图片路径会错位。
+              </div>
+            `;
+            return `
+              <div class="dl-usage-box">
+                <div class="dl-usage-title">${stepsTitle}</div>
+                <p class="dl-usage-intro">${intro}</p>
+                <ol class="dl-usage-steps">
+                  ${stepItems}
+                </ol>
+                ${warnBox}
+              </div>
+            `;
+          })()}
+
           <div class="dl-attach-list">${attsHtml || '<p class="dl-empty">（未配置附件，请联系站长）</p>'}</div>
+          ${atts.length > 1 ? `<p class="dl-pack-warn">📦 <b>${atts.length} 个包，按上方步骤依次下载 + 解压到同一目录</b></p>` : ''}
         </section>
 
         <section class="dl-explainer">
