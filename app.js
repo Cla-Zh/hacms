@@ -100,6 +100,7 @@
     readerFrame:     $('#reader-frame'),
     readerBar:       $('#reader-bar'),
     btnBack:         $('#btn-back'),
+    downloadPane:    $('#download-pane'),  // 大体积文章专用下载页 (2026-09-19)
     readerTitle:     $('#reader-title'),
     readerMeta:      $('#reader-meta'),
     readerAttach:    $('#reader-attachments'),
@@ -407,6 +408,7 @@
     badgeRow.innerHTML = `
       <span class="hero-badge latest">最新</span>
       <span class="hero-badge cat" style="background:${catColor}">${escapeHtml(article.category || '未分类')}</span>
+      ${article.download_only ? '<span class="hero-download-badge" title="总体积超过 6MB, 文章页只展示摘要 + 下载链接">📦 体积大</span>' : ''}
       <span class="hero-date">${escapeHtml(formatDateTime(article))}</span>
     `;
     body.appendChild(badgeRow);
@@ -505,6 +507,13 @@
     catBadge.textContent = article.category || '未分类';
     catBadge.style.background = catColor;
     metaRow.appendChild(catBadge);
+    // 体积大徽章 (2026-09-19) — 大体积文章专用, 文章页只显示摘要+下载
+    if (article.download_only) {
+      const dlBadge = el('span', 'card-download-badge');
+      dlBadge.textContent = '📦 体积大';
+      dlBadge.title = '总体积超过 6MB, 文章页只展示摘要 + 下载链接';
+      metaRow.appendChild(dlBadge);
+    }
     const dateEl = el('span', 'grid-card-date');
     dateEl.textContent = formatDateTime(article);
     metaRow.appendChild(dateEl);
@@ -728,26 +737,40 @@
     `;
 
     dom.readerAttach.innerHTML = '';
-    (article.attachments || []).forEach(att => {
-      const btn = document.createElement('a');
-      btn.className = `attach-btn attach-${att.format}`;
-      btn.href = att.path.startsWith('/') ? att.path : '/' + att.path;
-      btn.download = att.name;
-      btn.target = '_blank';
-      btn.rel = 'noopener noreferrer';
-      btn.textContent = `📥 ${att.name}`;
-      dom.readerAttach.appendChild(btn);
-    });
+    // 体积大文章: 顶栏不重复显示下载按钮 (避免与下方下载面板重复)
+    if (article.download_only) {
+      dom.readerAttach.classList.add('hidden');
+    } else {
+      dom.readerAttach.classList.remove('hidden');
+      (article.attachments || []).forEach(att => {
+        const btn = document.createElement('a');
+        btn.className = `attach-btn attach-${att.format}`;
+        btn.href = att.path.startsWith('/') ? att.path : '/' + att.path;
+        btn.download = att.name;
+        btn.target = '_blank';
+        btn.rel = 'noopener noreferrer';
+        btn.textContent = `📥 ${att.name}`;
+        dom.readerAttach.appendChild(btn);
+      });
+    }
 
-    if (article.html_path) {
+    // 体积大 (>6MB) 文章 → 跳过 iframe, 直接渲染"摘要 + 下载"页 (2026-09-19 设计)
+    if (article.download_only) {
+      dom.contentIframe.classList.add('hidden');
+      dom.noHtmlNotice.classList.add('hidden');
+      renderDownloadOnlyPane(article);
+      dom.downloadPane.classList.remove('hidden');
+    } else if (article.html_path) {
       dom.contentIframe.src = article.html_path;
       dom.contentIframe.classList.remove('hidden');
       dom.noHtmlNotice.classList.add('hidden');
+      if (dom.downloadPane) dom.downloadPane.classList.add('hidden');
     } else {
       const wordAtt = (article.attachments || []).find(att => isWordDoc(att.format));
       if (wordAtt) {
         dom.contentIframe.classList.add('hidden');
         dom.noHtmlNotice.classList.remove('hidden');
+        if (dom.downloadPane) dom.downloadPane.classList.add('hidden');
         const noticeEl = dom.noHtmlNotice.querySelector('.notice-inner');
         if (noticeEl) {
           noticeEl.innerHTML = `
@@ -760,6 +783,7 @@
       } else {
         dom.contentIframe.classList.add('hidden');
         dom.noHtmlNotice.classList.remove('hidden');
+        if (dom.downloadPane) dom.downloadPane.classList.add('hidden');
       }
     }
 
@@ -772,6 +796,92 @@
     window.location.hash = `article/${article.id}`;
   }
 
+  // 渲染"仅下载"文章页 — 体积大 (>6MB) 文章专用, 跳过 iframe
+  // 显示: 完整摘要 + 关键发现 + 下载按钮组 + 为什么这么大说明
+  function renderDownloadOnlyPane(article) {
+    if (!dom.downloadPane) return;
+    const summary = article.summary || '（暂无摘要）';
+    const totalSize = (article.total_size_mb || '?');
+    const chapters = article.chapters || '?';
+    const wordCount = article.word_count ? formatNum(article.word_count) : '?';
+    const imgCount = article.image_count || '?';
+    const refCount = article.references_count || '?';
+    const readingMin = article.reading_time_min || article.reading_time_minutes || '—';
+    const tags = (article.tags || []).slice(0, 8);
+    const tagsHtml = tags.map(t => `<span class="dl-tag">${escapeHtml(t)}</span>`).join('');
+
+    // 收集所有附件 (zip)
+    const atts = (article.attachments || []).filter(a => a.format === 'zip' || /\.zip$/i.test(a.path || a.name || ''));
+    const attsHtml = atts.map((a, i) => {
+      const sizeMb = (a.size_mb != null) ? a.size_mb : ((a.size_bytes || 0) / 1024 / 1024).toFixed(1);
+      const sizeTxt = sizeMb >= 1 ? `${(+sizeMb).toFixed(1)} MB` : `${Math.round((sizeMb||0)*1024)} KB`;
+      const isImgPart = /images|图|images-p/i.test(a.name || '');
+      const icon = isImgPart ? '🖼️' : (i === 0 ? '📄' : '📦');
+      const desc = a.description || (isImgPart ? '图片资源包 (解压后与 HTML 放在同一目录)' : 'HTML 主页 + 元数据');
+      // 路径标准化: 以 / 开头的绝对路径原样用, 否则补 / 前缀
+      const href = a.path.startsWith('/') ? a.path : '/' + a.path;
+      return `
+        <a class="dl-attach-btn dl-attach-${a.format || 'zip'}" href="${escapeHtml(href)}" download="${escapeHtml(a.name || '')}" target="_blank" rel="noopener noreferrer">
+          <span class="dl-attach-icon">${icon}</span>
+          <span class="dl-attach-body">
+            <span class="dl-attach-name">${escapeHtml(a.name || ('附件 ' + (i+1)))}</span>
+            <span class="dl-attach-meta">${sizeTxt} · ${escapeHtml(desc)}</span>
+          </span>
+          <span class="dl-attach-go">下载 ↓</span>
+        </a>`;
+    }).join('');
+
+    dom.downloadPane.innerHTML = `
+      <article class="dl-article">
+        <header class="dl-hero">
+          <div class="dl-hero-top">
+            <span class="dl-cat" style="background:${escapeHtml(getCategoryColor(article.category))}">${escapeHtml(article.category || '未分类')}</span>
+            <span class="dl-size-badge">📦 体积大 · 下载查看 · ${totalSize} MB</span>
+          </div>
+          <h1 class="dl-title">${escapeHtml(article.title)}</h1>
+          <div class="dl-meta">
+            <span>📅 ${escapeHtml(formatDateTime(article))}</span>
+            <span>·</span>
+            <span>⏱ ${escapeHtml(String(readingMin))} 分钟</span>
+            <span>·</span>
+            <span>🏷 ${tags.length} 标签</span>
+          </div>
+        </header>
+
+        <section class="dl-stats">
+          <div class="dl-stat"><div class="dl-stat-num">${chapters}</div><div class="dl-stat-lbl">章节</div></div>
+          <div class="dl-stat"><div class="dl-stat-num">${wordCount}</div><div class="dl-stat-lbl">字数</div></div>
+          <div class="dl-stat"><div class="dl-stat-num">${imgCount}</div><div class="dl-stat-lbl">真图</div></div>
+          <div class="dl-stat"><div class="dl-stat-num">${refCount}</div><div class="dl-stat-lbl">引用</div></div>
+          <div class="dl-stat dl-stat-warn"><div class="dl-stat-num">${totalSize}<small>MB</small></div><div class="dl-stat-lbl">总体积</div></div>
+        </section>
+
+        <section class="dl-summary">
+          <h2 class="dl-h2">📋 内容摘要</h2>
+          <div class="dl-summary-body">${escapeHtml(summary)}</div>
+        </section>
+
+        ${tagsHtml ? `<section class="dl-tags-section"><h2 class="dl-h2">🏷 主题标签</h2><div class="dl-tags">${tagsHtml}</div></section>` : ''}
+
+        <section class="dl-downloads">
+          <h2 class="dl-h2">📥 下载完整文章包</h2>
+          <p class="dl-hint">为避免在网页加载时一次性下载全部图片（拖慢页面），本文章只展示摘要。请下载下方完整包后用浏览器打开 <code>index.html</code> 查看。</p>
+          <div class="dl-attach-list">${attsHtml || '<p class="dl-empty">（未配置附件，请联系站长）</p>'}</div>
+        </section>
+
+        <section class="dl-explainer">
+          <h2 class="dl-h2">💡 为什么不在网页里直接展示？</h2>
+          <ul class="dl-explainer-list">
+            <li>本文章总体积 <b>${totalSize} MB</b>，其中包含 <b>${imgCount} 张高清图片</b>。</li>
+            <li>直接在网页里渲染，浏览器需要并发下载几十张图片，<b>页面加载慢</b>、<b>流量浪费</b>、<b>移动端体验差</b>。</li>
+            <li>下载完整包（HTML + 图片）后，可离线浏览、随时翻阅、不受网络影响。</li>
+            <li>下载后用浏览器打开 <code>index.html</code> 即可，所有交互（侧边 ToC、跳转、引用、References）均完整保留。</li>
+          </ul>
+        </section>
+      </article>
+    `;
+  }
+
   function closeReader() {
     dom.readerFrame.classList.add('hidden');
     dom.readerTitle.textContent = '';
@@ -780,6 +890,11 @@
     // BUG 修复: src 改为 about:blank 立即停止加载并清空内容,
     // 避免用户快速点开/关闭时旧文章内容在 iframe 内残留闪现
     dom.contentIframe.src = 'about:blank';
+    // 清空"仅下载"页内容 (2026-09-19)
+    if (dom.downloadPane) {
+      dom.downloadPane.classList.add('hidden');
+      dom.downloadPane.innerHTML = '';
+    }
 
     const noticeEl = dom.noHtmlNotice.querySelector('.notice-inner');
     if (noticeEl) {
