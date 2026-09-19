@@ -1,9 +1,15 @@
 /**
- * app.js — 肥嘟嘟的炼金工厂 v5
+ * app.js — 肥嘟嘟的炼金工厂 v6
  *
- * 变更:
+ * 变更 (2026-09-19):
+ * - 主页重构: 去掉 Hero 推荐文章区, 所有文章按 date 倒序直接渲染到 grid
+ * - 删除 renderHeroCard() (老推荐大卡)
+ * - 删除 hero_priority / featured 字段引用
+ * - 删除 "全部文章" 分割线
+ * - 现在新文章第一篇就是最新文章, 不再被 Hero 算法过滤/排序隐藏
+ *
+ * 变更 (历史):
  * - 排序: 严格按文章 date (YYYY-MM-DD) 字段, 模式改为 date-desc / date-asc
- * - Hero: 不再显示"精选", 而是最新 2 篇 (badge 文字改为"最新")
  * - 卡片: 去掉左缩略图占位, 改用顶部细色条 + 分类徽章
  * - 搜索: 全文索引 + 高亮 + 摘要片段
  * - 标签: 词云样式, 字号按频次缩放
@@ -92,9 +98,7 @@
     statsClose:      $('#stats-close'),
     statsBody:       $('#stats-body'),
     mainArea:        $('#main-area'),
-    heroSection:     $('#hero-section'),
     articleGrid:     $('#article-grid'),
-    articleCount:    $('#article-count'),
     emptyState:      $('#empty-state'),
     emptyReset:      $('#empty-reset'),
     readerFrame:     $('#reader-frame'),
@@ -388,102 +392,6 @@
     }
   }
 
-  // ── 渲染: Hero 大卡片 ───────────────────────────────
-  function renderHeroCard(article) {
-    const card = el('article', 'hero-card');
-    card.dataset.id = article.id;
-    card.tabIndex = 0;
-    card.setAttribute('role', 'button');
-    card.setAttribute('aria-label', `打开文章: ${article.title}`);
-
-    // 顶部细色条 (按 category 配色)
-    const colorBar = el('div', 'card-color-bar');
-    colorBar.style.background = getCategoryColor(article.category);
-    card.appendChild(colorBar);
-
-    // 文本主体
-    const body = el('div', 'hero-body');
-    const badgeRow = el('div', 'hero-badge-row');
-    const catColor = getCategoryColor(article.category);
-    badgeRow.innerHTML = `
-      <span class="hero-badge latest">最新</span>
-      <span class="hero-badge cat" style="background:${catColor}">${escapeHtml(article.category || '未分类')}</span>
-      ${article.download_only ? '<span class="hero-download-badge" title="总体积超过 6MB, 文章页只展示摘要 + 下载链接">📦 体积大</span>' : ''}
-      <span class="hero-date">${escapeHtml(formatDateTime(article))}</span>
-    `;
-    body.appendChild(badgeRow);
-
-    const title = el('h3', 'hero-title');
-    if (STATE.searchQuery) {
-      title.innerHTML = highlightText(escapeHtml(article.title), STATE.searchQuery);
-    } else {
-      title.textContent = article.title;
-    }
-    body.appendChild(title);
-
-    const summary = el('p', 'hero-summary');
-    if (STATE.searchQuery) {
-      summary.innerHTML = highlightText(escapeHtml(article.summary || ''), STATE.searchQuery);
-    } else {
-      summary.textContent = article.summary || '';
-    }
-    body.appendChild(summary);
-
-    // 搜索匹配片段 (仅在有 query 且命中内容时显示)
-    if (STATE.searchQuery) {
-      const idx = STATE.searchIndex[article.id];
-      const snippet = idx ? extractSnippet(idx.content, STATE.searchQuery, 60) : '';
-      if (snippet) {
-        const snipEl = el('p', 'match-snippet');
-        snipEl.innerHTML = `<span class="snip-label">匹配</span> ${highlightText(escapeHtml(snippet), STATE.searchQuery)}`;
-        body.appendChild(snipEl);
-      }
-    }
-
-    // 标签
-    const tagsRow = el('div', 'hero-tags');
-    const tags = article.tags || [];
-    tags.slice(0, 10).forEach(t => {
-      const tEl = el('span', 'hero-tag');
-      tEl.textContent = t;
-      tagsRow.appendChild(tEl);
-    });
-    if (tags.length > 10) {
-      const more = el('span', 'hero-tag more');
-      more.textContent = `+${tags.length - 10}`;
-      tagsRow.appendChild(more);
-    }
-    body.appendChild(tagsRow);
-
-    // Meta 行: 阅读时间 / 字数 / 附件
-    const meta = el('div', 'hero-meta');
-    const parts = [];
-    if (article.reading_time_min) {
-      parts.push(`<span class="hero-meta-item">⏱ ${article.reading_time_min} 分钟</span>`);
-    }
-    if (article.word_count) {
-      parts.push(`<span class="hero-meta-item">${formatNum(article.word_count)} 字</span>`);
-    }
-    const atts = article.attachments || [];
-    if (atts.length > 0) {
-      const summary2 = atts.map(a => formatIcon(a.format)).join(' · ');
-      parts.push(`<span class="hero-attach-info">📎 <span class="att-count">${atts.length}</span> 附件 · ${escapeHtml(summary2)}</span>`);
-    }
-    meta.innerHTML = parts.join('<span class="hero-meta-sep">·</span>');
-    body.appendChild(meta);
-
-    card.appendChild(body);
-
-    // 绑定打开
-    const open = () => openReader(article);
-    card.addEventListener('click', open);
-    card.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
-    });
-
-    return card;
-  }
-
   // ── 渲染: 普通网格卡片 (重设计) ──────────────────────
   function renderGridCard(article) {
     const card = el('article', 'grid-card');
@@ -624,59 +532,25 @@
     return `${m[2]}-${m[3]}`;
   }
 
-  // ── 渲染: 文章列表 (Hero + Grid) ────────────────────
+  // ── 渲染: 文章列表 (2026-09-19 重构: 去掉 Hero, 单一 grid 按 date 倒序) ──
   function renderArticleList() {
-    // 清空
-    dom.heroSection.innerHTML = '';
+    // 清空网格
     dom.articleGrid.innerHTML = '';
 
-    // 顶部计数
     const total = STATE.filtered.length;
     if (total === 0) {
-      dom.articleCount.textContent = '';
       dom.topbarCount.textContent = '0 篇';
       dom.emptyState.classList.remove('hidden');
-      dom.heroSection.style.display = 'none';
       dom.articleGrid.style.display = 'none';
       return;
     }
     dom.emptyState.classList.add('hidden');
-    dom.heroSection.style.display = '';
     dom.articleGrid.style.display = '';
-    dom.articleCount.textContent = `${total} 篇`;
     dom.topbarCount.textContent = `${total} 篇`;
 
-    // 排序后的列表
+    // 按 date 倒序排好后直接渲染到 grid (用户要求: 不要推荐, 直接从新到旧)
     const sorted = sortArticles(STATE.filtered.slice(), STATE.sortMode);
-
-    // Hero: hero_priority ≥ 15 的文章全进(按 priority desc + date desc),最多 4 篇;
-    //       再用 date 降序补到 2 篇兜底(若 priority 高的不足 2 篇)。
-    const priorityArts = sorted.filter(a => (a.hero_priority || 0) >= 15)
-                               .sort((a, b) => {
-                                 const pd = (b.hero_priority || 0) - (a.hero_priority || 0);
-                                 return pd !== 0 ? pd : (b.date || '').localeCompare(a.date || '');
-                               })
-                               .slice(0, 4);
-    const dateSorted = sorted.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    const dateTop = dateSorted.slice(0, 2);
-    const heroIds = new Set([...priorityArts.map(a => a.id), ...dateTop.map(a => a.id)]);
-    const heroArts = [...priorityArts, ...dateTop.filter(a => !heroIds.has(a.id))];
-    const finalHeroIds = new Set(heroArts.map(a => a.id));
-
-    // Hero: 过滤后总数 >= 2 时显示
-    const showHero = heroArts.length >= 2;
-    if (showHero) {
-      heroArts.forEach(a => dom.heroSection.appendChild(renderHeroCard(a)));
-      dom.heroSection.style.display = '';
-    } else {
-      dom.heroSection.style.display = 'none';
-    }
-
-    // Grid: 其余(排除已在 Hero 的所有文章)
-    sorted.forEach(a => {
-      if (finalHeroIds.has(a.id)) return;
-      dom.articleGrid.appendChild(renderGridCard(a));
-    });
+    sorted.forEach(a => dom.articleGrid.appendChild(renderGridCard(a)));
   }
 
   // ── 排序 (严格按文章 date 字段 YYYY-MM-DD) ───────────
@@ -1128,22 +1002,19 @@
   
 
   // ── 启动诊断 (临时调试手机看不到新文章问题) ─────────
-  console.info(
-    '%c[hacms 诊断]',
-    'background:#d4a574;color:white;padding:2px 6px;border-radius:3px;font-weight:bold',
-    '\n  app.js 时间戳: ' + new Date().toISOString() +
-    '\n  manifest-light.json URL: ' + bustCache('content/index/manifest-light.json', null) +
-    '\n  已加载文章数: ' + STATE.articles.length +
-    '\n  已过滤非 QA: ' + STATE.filtered.length +
-    '\n  当前排序: ' + STATE.sortMode +
-    '\n  最新 3 篇: ' + STATE.articles
-      .slice()
-      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-      .slice(0, 3)
-      .map(a => '[' + a.date + '] ' + a.title.slice(0, 40))
-      .join('\n           ') +
-    '\n  localStorage 版本: ' + localStorage.getItem('hacms.manifest.version')
-  );
+  let _diag;
+  try {
+    _diag = {
+      ts: new Date().toISOString(),
+      manifestUrl: bustCache('content/index/manifest-light.json', null),
+      articlesLoaded: STATE.articles.length,
+      filteredNonQa: STATE.filtered.length,
+      sortMode: STATE.sortMode,
+      latest3: STATE.articles.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 3).map(a => '[' + a.date + '] ' + a.title.slice(0, 40)).join(' / '),
+      localStorageVersion: (typeof localStorage !== 'undefined') ? localStorage.getItem('hacms.manifest.version') : 'N/A',
+    };
+  } catch (e) { _diag = { error: e.message }; }
+  console.info('[hacms 诊断]', _diag);
 
 async function init() {
     bindEvents();
