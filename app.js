@@ -97,6 +97,10 @@
     statsOverlay:    $('#stats-overlay'),
     statsClose:      $('#stats-close'),
     statsBody:       $('#stats-body'),
+    themeToggle:     $('#theme-toggle'),     // 🆕 2026-09-24 暗色模式切换
+    metricArticles:  $('#metric-articles'),  // 🆕 顶部统计 — 文章数
+    metricQa:        $('#metric-qa'),         // 🆕 顶部统计 — 问答数
+    metricCats:      $('#metric-cats'),      // 🆕 顶部统计 — 分类数
     mainArea:        $('#main-area'),
     articleGrid:     $('#article-grid'),
     emptyState:      $('#empty-state'),
@@ -1056,6 +1060,21 @@
       if (e.target === dom.statsOverlay) closeStats();
     });
 
+    // 🆕 2026-09-24 暗色模式切换 (持久化到 localStorage)
+    const THEME_KEY = 'hacms-theme';
+    const applyTheme = (mode) => {
+      document.documentElement.setAttribute('data-theme', mode);
+      try { localStorage.setItem(THEME_KEY, mode); } catch (_) {}
+    };
+    const savedTheme = (() => { try { return localStorage.getItem(THEME_KEY); } catch (_) { return null; } })();
+    if (savedTheme === 'dark') applyTheme('dark');
+    if (dom.themeToggle) {
+      dom.themeToggle.addEventListener('click', () => {
+        const cur = document.documentElement.getAttribute('data-theme');
+        applyTheme(cur === 'dark' ? 'light' : 'dark');
+      });
+    }
+
     if (dom.emptyReset) {
       dom.emptyReset.addEventListener('click', () => {
         STATE.activeCategory = null;
@@ -1207,6 +1226,14 @@ async function init() {
     if (dom.footerArticleCount) dom.footerArticleCount.textContent = STATE.articles.length - STATE.qaList.length;
     if (dom.footerQaCount) dom.footerQaCount.textContent = STATE.qaList.length;
 
+    // 🆕 2026-09-24 顶部统计数字区 (图1 风格)
+    const articleTotal = STATE.articles.length - STATE.qaList.length;
+    const qaTotal = STATE.qaList.length;
+    const catTotal = new Set(STATE.articles.filter(a => a.series !== '智慧问答' && a.type !== 'qa').map(a => a.category)).size;
+    if (dom.metricArticles) dom.metricArticles.textContent = articleTotal;
+    if (dom.metricQa) dom.metricQa.textContent = qaTotal;
+    if (dom.metricCats) dom.metricCats.textContent = catTotal;
+
     renderSidebar();
 
     // 如果 URL 带 hash, 直接打开对应文章
@@ -1350,6 +1377,7 @@ async function init() {
     if (dom.articlesView) dom.articlesView.classList.remove('hidden');
     if (dom.qaView) dom.qaView.classList.add('hidden');
     if (dom.marketsView) dom.marketsView.classList.add('hidden');
+    document.body.classList.remove('qa-view-active', 'markets-view-active');
     if (dom.modeArticlesBtn) {
       dom.modeArticlesBtn.classList.add('active');
       dom.modeArticlesBtn.setAttribute('aria-selected', 'true');
@@ -1373,6 +1401,7 @@ async function init() {
     if (dom.articlesView) dom.articlesView.classList.add('hidden');
     if (dom.qaView) dom.qaView.classList.remove('hidden');
     if (dom.marketsView) dom.marketsView.classList.add('hidden');
+    document.body.classList.add('qa-view-active');
     if (dom.modeArticlesBtn) {
       dom.modeArticlesBtn.classList.remove('active');
       dom.modeArticlesBtn.setAttribute('aria-selected', 'false');
@@ -1398,6 +1427,7 @@ async function init() {
     if (dom.articlesView) dom.articlesView.classList.add('hidden');
     if (dom.qaView) dom.qaView.classList.add('hidden');
     if (dom.marketsView) dom.marketsView.classList.remove('hidden');
+    document.body.classList.add('markets-view-active');
     if (dom.modeArticlesBtn) {
       dom.modeArticlesBtn.classList.remove('active');
       dom.modeArticlesBtn.setAttribute('aria-selected', 'false');
