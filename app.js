@@ -400,9 +400,10 @@
     card.setAttribute('role', 'button');
     card.setAttribute('aria-label', `打开文章: ${article.title}`);
 
-    // 顶部细色条 (按 category 配色)
+    // 顶部细色条 (按 category 配色, 莫兰迪渐变)
     const colorBar = el('div', 'card-color-bar');
-    colorBar.style.background = getCategoryColor(article.category);
+    const _catColor = getCategoryColor(article.category);
+    colorBar.style.background = `linear-gradient(90deg, ${_catColor} 0%, ${_catColor}99 70%, transparent 100%)`;
     card.appendChild(colorBar);
 
     // 文本主体 (整张卡片就是 body)
@@ -639,6 +640,8 @@
       dom.contentIframe.classList.remove('hidden');
       dom.noHtmlNotice.classList.add('hidden');
       if (dom.downloadPane) dom.downloadPane.classList.add('hidden');
+      // 🆕 iframe 加载后, 自动生成文章 TOC 侧栏 (2026-09-24)
+      dom.contentIframe.addEventListener('load', () => injectArticleToc(), { once: true });
     } else {
       const wordAtt = (article.attachments || []).find(att => isWordDoc(att.format));
       if (wordAtt) {
@@ -846,6 +849,74 @@
     // 同时保证 hero/grid 计数与顶部 tab "调研报告 51" 一致.
     applyFilters();
     window.location.hash = '';
+  }
+
+  // ── 🆕 文章 TOC 自动生成 (2026-09-24) ─────────────────
+  function injectArticleToc() {
+    const iframe = dom.contentIframe;
+    if (!iframe || !iframe.contentDocument) return;
+    const doc = iframe.contentDocument;
+
+    // 移除旧 TOC (如果存在)
+    const oldToc = doc.getElementById('hacms-auto-toc');
+    if (oldToc) oldToc.remove();
+    const oldBtn = doc.getElementById('hacms-toc-toggle');
+    if (oldBtn) oldBtn.remove();
+
+    // 找所有 h2 / h3
+    const heads = Array.from(doc.querySelectorAll('h2, h3'));
+    if (heads.length === 0) return;
+
+    // 自动给每个 h2/h3 加 id (如果没有)
+    heads.forEach((h, i) => {
+      if (!h.id) {
+        const text = (h.textContent || '').trim();
+        const id = 'auto-h-' + i + '-' + text.replace(/[^\w\u4e00-\u9fa5]+/g, '-').substring(0, 40).toLowerCase();
+        h.id = id;
+      }
+    });
+
+    // 创建 TOC 侧栏
+    const toc = doc.createElement('aside');
+    toc.id = 'hacms-auto-toc';
+    toc.setAttribute('aria-label', '文章目录');
+    const h2Count = heads.filter(h => h.tagName === 'H2').length;
+    toc.innerHTML = `
+      <style>
+        #hacms-auto-toc { position: fixed; top: 80px; right: 16px; width: 220px; max-height: calc(100vh - 110px); overflow-y: auto; background: rgba(255,255,255,0.94); backdrop-filter: blur(8px); border: 1px solid #e2dcd0; border-radius: 12px; padding: 14px 16px; box-shadow: 0 4px 16px rgba(58,53,42,0.08); font-family: system-ui, -apple-system, "PingFang SC", sans-serif; font-size: 12px; z-index: 9999; }
+        #hacms-auto-toc::-webkit-scrollbar { width: 4px; }
+        #hacms-auto-toc::-webkit-scrollbar-thumb { background: #d4c8b8; border-radius: 2px; }
+        #hacms-toc-toggle { position: fixed; top: 70px; right: 16px; z-index: 9999; background: linear-gradient(135deg, #5c7a92 0%, #6fb3a1 100%); color: #fff; border: none; padding: 6px 12px; border-radius: 16px; font-size: 11px; cursor: pointer; box-shadow: 0 2px 8px rgba(58,53,42,0.15); font-family: system-ui, sans-serif; }
+        #hacms-auto-toc.collapsed { display: none; }
+        #hacms-auto-toc .toc-h-title { font-weight: 700; font-size: 11px; color: #9a9690; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #ede9dd; }
+        #hacms-auto-toc .toc-h-count { color: #5c7a92; }
+        #hacms-auto-toc ul { list-style: none; padding: 0; margin: 0; }
+        #hacms-auto-toc li { margin: 5px 0; line-height: 1.4; }
+        #hacms-auto-toc a { color: #5a5a5a; text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; border-left: 2px solid transparent; transition: all 0.2s; }
+        #hacms-auto-toc a:hover { background: #ebe7e0; color: #2a2a2a; border-left-color: #5c7a92; }
+        #hacms-auto-toc .toc-h3 a { padding-left: 18px; font-size: 11px; color: #9a9690; }
+        @media (max-width: 1024px) { #hacms-auto-toc { display: none; } #hacms-toc-toggle { display: none; } }
+      </style>
+      <div class="toc-h-title">📑 章节目录 · <span class="toc-h-count">${h2Count} 章</span></div>
+      <ul>
+        ${heads.map(h => {
+          const text = (h.textContent || '').trim().substring(0, 50);
+          return `<li class="toc-${h.tagName.toLowerCase()}"><a href="#${h.id}">${text}</a></li>`;
+        }).join('')}
+      </ul>
+    `;
+
+    // 创建切换按钮 (在 iframe 内浮动)
+    const btn = doc.createElement('button');
+    btn.id = 'hacms-toc-toggle';
+    btn.textContent = `📑 目录`;
+    btn.title = '显示/隐藏文章目录';
+    btn.addEventListener('click', () => {
+      toc.classList.toggle('collapsed');
+    });
+
+    doc.body.appendChild(toc);
+    doc.body.appendChild(btn);
   }
 
   // ── Open Graph meta 动态切换 ──────────────────────────
