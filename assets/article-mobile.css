@@ -1,0 +1,283 @@
+/* =============================================================================
+ * 肥嘟嘟的炼金工厂 · 文章手机端统一适配 v1 (2026-09-25)
+ *
+ * 设计目标:
+ *   - 主体 (正文) 永远是焦点, 顶栏/目录/Hero/标签都让位
+ *   - 下/上滑时, 顶栏自动收起/展开 (点击标题区切换)
+ *   - 标签 (pill) 默认折叠前 8 个, 展开按钮显示全部
+ *   - 目录 (TOC) 完整显示 (含子章节), 折叠/展开按钮
+ *   - 文章 H1 字号适配, 防止折断
+ *
+ * 引入方式: 在每篇 article/index.html 的 <head> 加:
+ *   <link rel="stylesheet" href="/assets/article-mobile.css?v=2026-09-25">
+ *
+ * 不修改 HTML 结构, 纯 CSS + 兼容原生 class 名
+ * ============================================================================= */
+
+/* ── 通用变量 ────────────────────────────────────────── */
+:root {
+  --am-rose: #DC3971;
+  --am-pink: #EC719F;
+  --am-blush: #F3B3CC;
+  --am-mint: #ABE5E8;
+  --am-teal: #34ADAE;
+  --am-paper: #FFFFFF;
+  --am-ink: #0f172a;
+  --am-muted: #64748b;
+  --am-rule: #e2e8f0;
+  --am-radius: 12px;
+  --am-bar-h: 56px;
+}
+
+/* ── 桌面端 (>1023px) — 完全继承原文样式, 不干预 ─── */
+@media (min-width: 1024px) {
+  /* 桌面端不做事, 让原文样式生效 */
+}
+
+/* =============================================================================
+ * 平板 (768-1023) — 适中介入
+ * ============================================================================= */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Hero 缩进 */
+  header.hero { padding: 2.5rem 1.5rem 2rem !important; }
+  header.hero h1 { font-size: 1.75rem !important; line-height: 1.25 !important; }
+  header.hero .text-xl { font-size: 1rem !important; }
+}
+
+/* =============================================================================
+ * 手机 (≤767px) — 全部重写, 主体优先
+ * ============================================================================= */
+@media (max-width: 767px) {
+  /* ── 全局 ─────────────────────────────────────── */
+  body {
+    font-size: 15px !important;
+    line-height: 1.7 !important;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* 让正文区始终有合理宽度 */
+  .max-w-5xl, .max-w-3xl {
+    max-width: 100% !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  /* ── Hero 区域 — 大改造 ────────────────────────── */
+  header.hero {
+    padding: 1rem 16px 1.25rem !important;
+    /* 不 sticky, 让下滑后 hero 跟内容走; JS 控制折叠 */
+    max-height: 56vh;
+    overflow-y: auto;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+  }
+  /* 下滑后 Hero 进一步压缩: 仅显示标题 + 徽章 */
+  header.hero.is-collapsed {
+    max-height: 80px;
+    overflow: hidden;
+  }
+  header.hero.is-collapsed h1,
+  header.hero.is-collapsed p,
+  header.hero.is-collapsed .text-slate-300,
+  header.hero.is-collapsed > div > div:nth-child(n+3) {
+    display: none !important;
+  }
+  header.hero.is-collapsed h1 {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 1.1rem !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* Hero 内部字号 */
+  header.hero h1 {
+    font-size: 1.4rem !important;        /* 18sp → 22.4px */
+    line-height: 1.3 !important;
+    margin-bottom: 0.5rem !important;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+  header.hero > div > div:first-child { /* 徽章区 */
+    margin-bottom: 0.5rem !important;
+  }
+  header.hero p.text-xl,
+  header.hero .text-xl {
+    font-size: 0.95rem !important;
+    line-height: 1.5 !important;
+    margin-bottom: 0.5rem !important;
+  }
+  /* 元数据区 (5 个 span) */
+  header.hero .flex.flex-wrap.gap-4 {
+    gap: 6px !important;
+    font-size: 11px !important;
+    margin-bottom: 0.5rem !important;
+  }
+  header.hero .flex.flex-wrap.gap-4 > span {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2px 6px;
+    border-radius: 6px;
+  }
+
+  /* ── Pill 标签 — 折叠前 8 个 ──────────────────── */
+  /* 识别: hero 内 pill 列表 (有 text-xs 或 .pill, 但不是 items-center 徽章区) */
+  header.hero .flex.flex-wrap.gap-2:not(.items-center) {
+    margin-top: 0.5rem !important;
+    max-height: 90px;          /* 2-3 行高, 折叠态 */
+    overflow: hidden;
+    position: relative;
+    transition: max-height 0.3s ease;
+  }
+  /* 超过 8 个 pill 隐藏其余 */
+  header.hero .flex.flex-wrap.gap-2:not(.items-center) > *:nth-child(n+9) {
+    display: none !important;
+  }
+  /* 展开状态 */
+  header.hero .flex.flex-wrap.gap-2:not(.items-center).is-expanded {
+    max-height: 800px;
+    overflow-y: auto;
+  }
+  header.hero .flex.flex-wrap.gap-2:not(.items-center).is-expanded > * {
+    display: inline-block !important;
+  }
+  /* "展开 ▼" 提示按钮 */
+  header.hero::after {
+    content: "▾ 展开全部标签";
+    position: absolute;
+    right: 16px;
+    bottom: 12px;
+    color: #fff;
+    background: rgba(220, 57, 113, 0.92);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    pointer-events: auto;
+    cursor: pointer;
+  }
+  header.hero.is-tags-expanded::after {
+    content: "▴ 收起标签";
+    background: rgba(15, 23, 42, 0.7);
+  }
+
+  /* Pill 字号 */
+  .pill {
+    font-size: 0.7rem !important;
+    padding: 2px 8px !important;
+  }
+
+  /* ── 主体内容 ──────────────────────────────────── */
+  main, .prose, body > div:not(header):not(.hero) {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+  /* TOC: 手机端显示完整目录 (覆盖 Tailwind 的 hidden lg:block) */
+  aside.hidden.lg\:block,
+  aside.w-64 {
+    display: block !important;
+    position: relative !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: 240px;
+    overflow-y: auto !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--am-rule) !important;
+    background: #f8fafc !important;
+    padding: 12px 16px !important;
+    margin: 0 0 12px 0 !important;
+  }
+  /* TOC nav 容器 */
+  aside nav#toc {
+    display: block !important;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  aside nav#toc > .toc-link {
+    display: block !important;
+    padding: 4px 8px !important;
+    border-left: 2px solid transparent !important;
+    color: var(--am-muted) !important;
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+    text-decoration: none !important;
+  }
+  aside nav#toc > .toc-link:hover {
+    border-left-color: var(--am-rose) !important;
+    background: rgba(220, 57, 113, 0.06) !important;
+    color: var(--am-ink) !important;
+  }
+  /* 子章节缩进 */
+  aside nav#toc > .toc-link.pl-6,
+  aside nav#toc > .toc-link.pl-10,
+  aside nav#toc > .toc-link.pl-12 {
+    padding-left: 16px !important;
+    font-size: 12px !important;
+    color: #94a3b8 !important;
+  }
+  aside nav#toc > .toc-link.pl-10 {
+    padding-left: 28px !important;
+    color: #cbd5e1 !important;
+  }
+
+  /* H1/H2/H3 字号 */
+  h1 { font-size: 1.5rem !important; line-height: 1.3 !important; }
+  h2 { font-size: 1.25rem !important; margin-top: 1.5rem !important; }
+  h3 { font-size: 1.1rem !important; }
+  h4 { font-size: 1rem !important; }
+
+  /* 表格 → 横向滚动 */
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+    font-size: 0.85em !important;
+  }
+
+  /* 代码块 */
+  pre {
+    font-size: 0.78rem !important;
+    padding: 10px !important;
+    border-radius: 8px !important;
+  }
+  pre code { font-size: inherit !important; }
+
+  /* 图片 → 自适应 */
+  img, svg, .mermaid svg {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  /* 引用块 */
+  blockquote {
+    padding: 0.5rem 0.75rem !important;
+    margin: 0.75rem 0 !important;
+    font-size: 0.9rem !important;
+  }
+
+  /* ── 底部 footer 紧凑 ──────────────────────────── */
+  .footer-rule, footer {
+    font-size: 11px !important;
+    padding-top: 0.5rem !important;
+    margin-top: 1.5rem !important;
+  }
+}
+
+/* =============================================================================
+ * 暗色模式兼容
+ * ============================================================================= */
+@media (max-width: 767px) {
+  [data-theme="dark"] body {
+    background: #15131A !important;
+    color: #F5EEF1 !important;
+  }
+  [data-theme="dark"] header.hero::after { color: #fff; }
+  [data-theme="dark"] nav.toc, [data-theme="dark"] .toc, [data-theme="dark"] aside.toc, [data-theme="dark"] #toc {
+    background: #1E1B26 !important;
+    border-color: #2E2932 !important;
+  }
+  [data-theme="dark"] nav.toc a, [data-theme="dark"] .toc a {
+    color: #B5ACB5 !important;
+  }
+}
