@@ -1,32 +1,34 @@
 /**
- * app.js — 肥嘟嘟的炼金工厂 v6
+ * app.js — 肥嘟嘟的炼金工厂 v7 (杂志风全宽布局)
  *
- * 变更 (2026-09-19):
- * - 主页重构: 去掉 Hero 推荐文章区, 所有文章按 date 倒序直接渲染到 grid
- * - 删除 renderHeroCard() (老推荐大卡)
- * - 删除 hero_priority / featured 字段引用
- * - 删除 "全部文章" 分割线
- * - 现在新文章第一篇就是最新文章, 不再被 Hero 算法过滤/排序隐藏
+ * 重大变更 (2026-09-24 v7):
+ * - 整体重设计: 杂志风 + 顶栏水平菜单 + 全宽卡片网格, 去掉 sidebar
+ * - 配色: 图3 (DC3971 玫红 / EC719F 桃粉 / F3B3CC 樱花粉 / ABE5E8 薄荷蓝 / 34ADAE 青绿)
+ * - 卡片: 顶部色带 + 大标题 + 摘要完整显示 + 渐隐 + 展开按钮
+ * - 分类: 从 sidebar 移到顶部水平筛选条 (filter-pill)
+ * - 标签: 从 sidebar 移到文章区上方横向 chip
+ * - 移动端: 顶栏模式切换收起, 改为汉堡菜单 + 抽屉 (覆盖式)
  *
- * 变更 (历史):
- * - 排序: 严格按文章 date (YYYY-MM-DD) 字段, 模式改为 date-desc / date-asc
- * - 卡片: 去掉左缩略图占位, 改用顶部细色条 + 分类徽章
- * - 搜索: 全文索引 + 高亮 + 摘要片段
- * - 标签: 词云样式, 字号按频次缩放
- * - 外部链接: target=_blank; 内部锚点保持当前页
+ * 沿用:
+ * - 全文搜索 / 高亮 / 片段
+ * - Reader iframe + 仅下载页
+ * - QA 视图 + 模式切换
+ * - Markets 视图
+ * - V3 增强 (相关面板 / 键盘 / 路由)
+ * - TOC 自动注入
+ * - 暗色模式 + 缓存
  */
 
 (function () {
   'use strict';
 
-
   // ── 全局状态 ──────────────────────────────────────────
   const STATE = {
     mode: 'HOME',
-    sidebarOpen: false,
     viewMode: 'articles',  // 'articles' | 'qa' — 视图模式
+    drawerOpen: false,
     articles: [],
-    qaList: [],            // 问答列表 (从 articles 过滤 type=='qa')
+    qaList: [],
     filtered: [],
     qaFiltered: [],
     activeCategory: null,
@@ -37,25 +39,23 @@
     sortMode: 'date-desc',
     qaSortMode: 'date-desc',
     prevHomeScroll: 0,
-    thumbCache: {},      // { articleId: 'path/to/img.png' | null }
-    thumbInflight: {},   // 防重复探测
-    searchIndex: {},     // { articleId: { title, summary, tags, content } }
+    searchIndex: {},
     searchIndexReady: false,
     searchIndexInflight: false,
   };
 
-  // ── 分类颜色映射 ─────────────────────────────────────
+  // ── 分类颜色映射 (去棕色, 用图3 5色板) ──────────────
   const CATEGORY_COLORS = {
-    '友商调研':     '#b87a4a',  // 棕橘 (紧邻洞察)
-    '洞察':         '#d4a574',  // 金/橙
-    '战略洞察':     '#8b7ab8',  // 紫
-    'AI应用':       '#5fb3a1',  // 青
-    'AI基础设施':   '#4a7fb8',  // 蓝
-    '安全':         '#c97b7b',  // 红
-    '技术调研':     '#7a8a99',  // 灰蓝
-    '其他':         '#9a9690',  // 灰
+    '友商调研':     '#EC719F',  // 桃粉 (替代原棕色)
+    '洞察':         '#DC3971',  // 玫红
+    '战略洞察':     '#34ADAE',  // 青绿
+    'AI应用':       '#ABE5E8',  // 薄荷蓝
+    'AI基础设施':   '#DC3971',  // 玫红
+    '安全':         '#F3B3CC',  // 樱花粉
+    '技术调研':     '#EC719F',  // 桃粉
+    '其他':         '#9A9AA6',  // 中性灰
   };
-  const DEFAULT_CATEGORY_COLOR = '#9a9690';
+  const DEFAULT_CATEGORY_COLOR = '#9A9AA6';
 
   function getCategoryColor(category) {
     return CATEGORY_COLORS[category] || DEFAULT_CATEGORY_COLOR;
@@ -67,10 +67,6 @@
 
   const dom = {
     appShell:        $('#app-shell'),
-    sidebar:         $('#sidebar'),
-    sidebarOverlay:  $('#sidebar-overlay'),
-    sidebarClose:    $('#sidebar-close'),
-    menuToggle:      $('#menu-toggle'),
     modeArticlesBtn: $('#mode-articles'),
     modeQaBtn:       $('#mode-qa'),
     modeMarketsBtn:  $('#mode-markets'),
@@ -79,42 +75,56 @@
     articlesView:    $('#articles-view'),
     qaView:          $('#qa-view'),
     marketsView:     $('#markets-view'),
+    // 水平筛选条 (替代 sidebar 分类列表)
     categoryList:    $('#category-list'),
-    tagCloud:        $('#tag-cloud'),
     tagsClear:       $('#tags-clear'),
+    // 标签云
+    tagCloudWrap:    $('#tag-cloud-wrap'),
+    tagCloud:        $('#tag-cloud'),
+    // 移动端抽屉
+    mobileToggle:    $('#mobile-toggle'),
+    mobileDrawer:    $('#mobile-drawer'),
+    drawerClose:     $('#drawer-close'),
+    drawerCategoryList: $('#drawer-category-list'),
+    drawerTagCloud:  $('#drawer-tag-cloud'),
+    drawerModeBtns:  $$('#drawer-modes .drawer-mode-btn'),
+    // QA
     qaTagCloud:      $('#qa-tag-cloud'),
     qaGrid:          $('#qa-grid'),
     qaEmpty:         $('#qa-empty'),
     qaSearchInput:   $('#qa-search-input'),
     qaSortSelect:    $('#qa-sort-select'),
-    topBar:          $('#top-bar'),
+    // 顶栏
     topbarCount:     $('#topbar-count'),
     footerArticleCount: $('#footer-article-count'),
     footerQaCount:   $('#footer-qa-count'),
     searchInput:     $('#search-input'),
     sortSelect:      $('#sort-select'),
+    themeToggle:     $('#theme-toggle'),
     statsBtn:        $('#stats-btn'),
     statsOverlay:    $('#stats-overlay'),
     statsClose:      $('#stats-close'),
     statsBody:       $('#stats-body'),
-    themeToggle:     $('#theme-toggle'),     // 🆕 2026-09-24 暗色模式切换
-    metricArticles:  $('#metric-articles'),  // 🆕 顶部统计 — 文章数
-    metricQa:        $('#metric-qa'),         // 🆕 顶部统计 — 问答数
-    metricCats:      $('#metric-cats'),      // 🆕 顶部统计 — 分类数
+    metricArticles:  $('#metric-articles'),
+    metricQa:        $('#metric-qa'),
+    metricCats:      $('#metric-cats'),
     mainArea:        $('#main-area'),
     articleGrid:     $('#article-grid'),
     emptyState:      $('#empty-state'),
     emptyReset:      $('#empty-reset'),
+    // Reader
     readerFrame:     $('#reader-frame'),
     readerBar:       $('#reader-bar'),
     btnBack:         $('#btn-back'),
-    downloadPane:    $('#download-pane'),  // 大体积文章专用下载页 (2026-09-19)
+    downloadPane:    $('#download-pane'),
     readerTitle:     $('#reader-title'),
     readerMeta:      $('#reader-meta'),
     readerAttach:    $('#reader-attachments'),
     iframeWrap:      $('#iframe-wrap'),
     contentIframe:   $('#content-iframe'),
     noHtmlNotice:    $('#no-html-notice'),
+    // Hero
+    heroSection:     $('#hero-section'),
   };
 
   // ── 工具函数 ──────────────────────────────────────────
@@ -135,20 +145,15 @@
       .replace(/'/g, '&#39;');
   };
 
-  // 转义正则元字符
   const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  // 外部 URL 判断 (http/https/mailto/相对协议)
   const isExternalUrl = (url) => /^(https?:|mailto:|tel:)/i.test(url);
 
-  // ── 高亮匹配关键字 → 返回带 <mark> 包裹的 HTML ──────────
-  // 注: 输入 text 必须是已 escape 过的 HTML 字符串
+  // ── 高亮匹配关键字 ──────────────────────────────────
   function highlightText(escapedHtml, query) {
     if (!query) return escapedHtml;
     const tokens = query.toLowerCase().split(/\s+/).filter(t => t.length >= 1);
     if (tokens.length === 0) return escapedHtml;
-    // 注意: 高亮标记要避开已存在的标签, 这里简化处理: 对 textContent 风格字符串加 mark
-    // 由于传入的是已 escape 的纯文本 (无标签), 直接 replace 即可
     let result = escapedHtml;
     tokens.forEach(tok => {
       const re = new RegExp(escapeRegex(tok), 'gi');
@@ -157,7 +162,6 @@
     return result;
   }
 
-  // 从纯文本中抽取包含 query 的 30 字片段
   function extractSnippet(text, query, len = 30) {
     if (!text || !query) return '';
     const tokens = query.toLowerCase().split(/\s+/).filter(t => t.length >= 1);
@@ -190,20 +194,16 @@
   const getWordViewerUrl = (docUrl) =>
     'https://view.officeapps.live.com/op/embed.aspx?src=' + encodeURIComponent(docUrl);
 
-  // 工具: 给 <a> 标签加 target=_blank (外部) / 保持当前页 (内部锚点)
   function applyAnchorTarget(anchor, href) {
     if (!href) return;
-    if (href.startsWith('#')) {
-      // 内部锚点: 保持当前页
-      return;
-    }
+    if (href.startsWith('#')) return;
     if (isExternalUrl(href) || href.startsWith('/')) {
       anchor.target = '_blank';
       anchor.rel = 'noopener noreferrer';
     }
   }
 
-  // 全文搜索: 同步在内存索引上做
+  // ── 全文搜索: 在内存索引上做 ─────────────────────────
   function searchMatch(article, query) {
     if (!query) return true;
     const q = query.toLowerCase().trim();
@@ -217,7 +217,6 @@
         (idx.content || '').toLowerCase().includes(q)
       );
     }
-    // 索引未就绪: 退回到只搜 title/summary/tags
     return (
       (article.title || '').toLowerCase().includes(q) ||
       (article.summary || '').toLowerCase().includes(q) ||
@@ -225,12 +224,10 @@
     );
   }
 
-  // ── 全文搜索索引 (后台构建, 不阻塞首屏) ──────────────
   async function buildSearchIndex() {
     if (STATE.searchIndexReady || STATE.searchIndexInflight) return;
     STATE.searchIndexInflight = true;
     const articles = STATE.articles;
-    // 限制单篇长度, 防止内存爆炸
     const MAX_CHARS = 80000;
     const task = (a) => fetch(a.html_path, { cache: 'force-cache' })
       .then(r => r.ok ? r.text() : '')
@@ -257,49 +254,42 @@
         };
       })
       .catch(() => {});
-    // 顺序: 先 4 篇立即, 其余 idle 时再处理, 避免阻塞首屏
     const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 200));
     articles.slice(0, 4).forEach(a => task(a));
     idle(() => {
       articles.slice(4).forEach(a => task(a));
-      // 等所有请求完成后再标记就绪
       Promise.all(articles.map(a => STATE.searchIndex[a.id] || task(a)))
         .finally(() => {
           STATE.searchIndexReady = true;
           STATE.searchIndexInflight = false;
-          // 如果有未应用的搜索, 重新过滤一次
           if (STATE.searchQuery) applyFilters();
         });
     });
   }
 
-  // ── 渲染: 分类 ──────────────────────────────────────
+  // ── 渲染: 分类筛选水平条 (新) ─────────────────────────
   function renderCategories() {
+    if (!dom.categoryList) return;
     dom.categoryList.innerHTML = '';
 
-    // 调研文章 (排除 QA 智慧问答系列)
-    // 调研文章 (排除 QA 智慧问答系列) - 侧边栏全部分类都显示 (含 "其他")
     const reportArticles = STATE.articles.filter(a =>
       a.series !== '智慧问答' && a.type !== 'qa'
     );
 
-    // "全部" 项
-    const allItem = el('button', 'cat-item');
-    allItem.dataset.cat = '';
-    if (!STATE.activeCategory) allItem.classList.add('active');
-    allItem.innerHTML = `
-      <span class="cat-name">全部文章</span>
-      <span class="cat-count">${reportArticles.filter(a => a.category !== '其他').length}</span>
-    `;
-    allItem.addEventListener('click', () => {
+    // "全部" 按钮
+    const allBtn = el('button', 'filter-pill');
+    allBtn.dataset.cat = '';
+    if (!STATE.activeCategory) allBtn.classList.add('active');
+    const allCount = reportArticles.filter(a => a.category !== '其他').length;
+    allBtn.innerHTML = `<span class="filter-pill-count">${allCount}</span> 全部`;
+    allBtn.addEventListener('click', () => {
       STATE.activeCategory = null;
-      renderSidebar();
+      renderCategories();
       applyFilters();
-      if (window.innerWidth < 1024) closeSidebar();
     });
-    dom.categoryList.appendChild(allItem);
+    dom.categoryList.appendChild(allBtn);
 
-    // 各分类项
+    // 各分类
     const catCount = {};
     reportArticles.forEach(a => {
       const c = a.category || '其他';
@@ -315,37 +305,84 @@
     });
 
     cats.forEach(cat => {
-      const item = el('button', 'cat-item');
-      item.dataset.cat = cat;
-      if (STATE.activeCategory === cat) item.classList.add('active');
-      item.innerHTML = `
-        <span class="cat-dot" style="background:${getCategoryColor(cat)}"></span>
-        <span class="cat-name">${escapeHtml(cat)}</span>
-        <span class="cat-count">${catCount[cat]}</span>
-      `;
-      item.addEventListener('click', () => {
+      const btn = el('button', 'filter-pill');
+      btn.dataset.cat = cat;
+      btn.style.setProperty('--fc', getCategoryColor(cat));
+      if (STATE.activeCategory === cat) btn.classList.add('active');
+      btn.innerHTML = `${escapeHtml(cat)} <span class="filter-pill-count">${catCount[cat]}</span>`;
+      btn.addEventListener('click', () => {
         STATE.activeCategory = STATE.activeCategory === cat ? null : cat;
-        renderSidebar();
+        renderCategories();
         applyFilters();
-        if (window.innerWidth < 1024) closeSidebar();
       });
-      dom.categoryList.appendChild(item);
+      dom.categoryList.appendChild(btn);
     });
   }
 
-  // ── 渲染: 标签词云 ────────────────────────────────────
+  // 抽屉版分类 (手机)
+  function renderDrawerCategories() {
+    if (!dom.drawerCategoryList) return;
+    dom.drawerCategoryList.innerHTML = '';
+
+    const reportArticles = STATE.articles.filter(a =>
+      a.series !== '智慧问答' && a.type !== 'qa'
+    );
+
+    const allBtn = el('button', 'drawer-mode-btn');
+    allBtn.dataset.cat = '';
+    if (!STATE.activeCategory) allBtn.classList.add('active');
+    allBtn.innerHTML = `全部文章 <span class="badge">${reportArticles.length}</span>`;
+    allBtn.addEventListener('click', () => {
+      STATE.activeCategory = null;
+      renderCategories();
+      renderDrawerCategories();
+      applyFilters();
+      closeDrawer();
+    });
+    dom.drawerCategoryList.appendChild(allBtn);
+
+    const catCount = {};
+    reportArticles.forEach(a => {
+      const c = a.category || '其他';
+      catCount[c] = (catCount[c] || 0) + 1;
+    });
+    const ORDER = ['友商调研', '洞察', '战略洞察', 'AI应用', 'AI基础设施', '安全', '技术调研', '其他'];
+    const cats = Object.keys(catCount).sort((a, b) => {
+      const ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
+      if (ia >= 0 && ib >= 0) return ia - ib;
+      if (ia >= 0) return -1;
+      if (ib >= 0) return 1;
+      return a.localeCompare(b);
+    });
+
+    cats.forEach(cat => {
+      const btn = el('button', 'drawer-mode-btn');
+      btn.dataset.cat = cat;
+      if (STATE.activeCategory === cat) btn.classList.add('active');
+      btn.innerHTML = `${escapeHtml(cat)} <span class="badge">${catCount[cat]}</span>`;
+      btn.addEventListener('click', () => {
+        STATE.activeCategory = STATE.activeCategory === cat ? null : cat;
+        renderCategories();
+        renderDrawerCategories();
+        applyFilters();
+        closeDrawer();
+      });
+      dom.drawerCategoryList.appendChild(btn);
+    });
+  }
+
+  // ── 渲染: 标签云 (横向滚动) ──────────────────────────
   function renderTagCloud() {
+    if (!dom.tagCloud) return;
     dom.tagCloud.innerHTML = '';
     const tagCount = {};
-    // 调研视图排除 QA
-    // 调研文章 (排除 QA 智慧问答系列) - 标签云显示全部调研 tag (含 D-Series)
     const reportArticles = STATE.articles.filter(a =>
       a.series !== '智慧问答' && a.type !== 'qa'
     );
     reportArticles.forEach(a => (a.tags || []).forEach(t => {
       tagCount[t] = (tagCount[t] || 0) + 1;
     }));
-    // 找到每个 tag 对应的主分类 (取该 tag 出现次数最多的文章分类)
+
     const tagCategory = {};
     reportArticles.forEach(a => {
       const c = a.category || '其他';
@@ -356,18 +393,11 @@
 
     const sorted = Object.entries(tagCount)
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-      .slice(0, 30);
-    const maxCount = sorted.length ? sorted[0][1] : 1;
-    const minCount = sorted.length ? sorted[sorted.length - 1][1] : 1;
-    const MIN_FS = 12, MAX_FS = 22;
+      .slice(0, 24);
 
     sorted.forEach(([tag, count]) => {
-      const btn = el('button', 'tag-cloud-item');
-      const ratio = maxCount === minCount ? 1 : (count - minCount) / (maxCount - minCount);
-      const fs = MIN_FS + ratio * (MAX_FS - MIN_FS);
-      btn.style.fontSize = fs + 'px';
-      btn.style.color = getCategoryColor(tagCategory[tag]);
-      btn.textContent = tag;
+      const btn = el('button', 'tag-chip');
+      btn.textContent = `${tag} (${count})`;
       btn.title = `${tag} · ${count} 篇`;
       if (STATE.activeTags.includes(tag)) btn.classList.add('active');
       btn.addEventListener('click', () => {
@@ -376,12 +406,10 @@
           : [...STATE.activeTags, tag];
         renderTagCloud();
         applyFilters();
-        if (window.innerWidth < 1024) closeSidebar();
       });
       dom.tagCloud.appendChild(btn);
     });
 
-    // 清除按钮
     if (dom.tagsClear) {
       if (STATE.activeTags.length > 0) {
         dom.tagsClear.hidden = false;
@@ -394,9 +422,96 @@
         dom.tagsClear.hidden = true;
       }
     }
+
+    // 标签区显隐
+    if (dom.tagCloudWrap) {
+      dom.tagCloudWrap.hidden = sorted.length === 0;
+    }
   }
 
-  // ── 渲染: 普通网格卡片 (重设计) ──────────────────────
+  // 抽屉版标签
+  function renderDrawerTagCloud() {
+    if (!dom.drawerTagCloud) return;
+    dom.drawerTagCloud.innerHTML = '';
+    const tagCount = {};
+    const reportArticles = STATE.articles.filter(a =>
+      a.series !== '智慧问答' && a.type !== 'qa'
+    );
+    reportArticles.forEach(a => (a.tags || []).forEach(t => {
+      tagCount[t] = (tagCount[t] || 0) + 1;
+    }));
+    const sorted = Object.entries(tagCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 30);
+    sorted.forEach(([tag, count]) => {
+      const btn = el('button', 'tag-chip');
+      btn.textContent = `${tag} (${count})`;
+      if (STATE.activeTags.includes(tag)) btn.classList.add('active');
+      btn.addEventListener('click', () => {
+        STATE.activeTags = STATE.activeTags.includes(tag)
+          ? STATE.activeTags.filter(t => t !== tag)
+          : [...STATE.activeTags, tag];
+        renderTagCloud();
+        renderDrawerTagCloud();
+        applyFilters();
+      });
+      dom.drawerTagCloud.appendChild(btn);
+    });
+  }
+
+  // ── 渲染: Hero 封面文章 (杂志大封面) ──────────────────
+  function renderHero(articles) {
+    if (!dom.heroSection) return;
+    if (!articles || articles.length === 0) {
+      dom.heroSection.innerHTML = '';
+      dom.heroSection.style.display = 'none';
+      return;
+    }
+    const top = articles[0];  // 最新一篇
+    dom.heroSection.style.display = '';
+
+    const heroCard = el('div', 'hero-card');
+    heroCard.addEventListener('click', () => openReader(top));
+
+    const body = el('div', 'hero-body');
+    const cat = el('span', 'hero-cat');
+    cat.textContent = (top.category || '深度调研') + ' · 最新发布';
+    body.appendChild(cat);
+
+    const title = el('h1', 'hero-title');
+    title.textContent = top.title;
+    body.appendChild(title);
+
+    const summary = el('p', 'hero-summary');
+    summary.textContent = top.summary || '';
+    body.appendChild(summary);
+
+    const meta = el('div', 'hero-meta');
+    const date = el('span', 'hero-meta-item');
+    date.textContent = `📅 ${formatDateTime(top) || top.date || ''}`;
+    meta.appendChild(date);
+    if (top.reading_time_min) {
+      const read = el('span', 'hero-meta-item');
+      read.textContent = `⏱ ${top.reading_time_min} 分钟阅读`;
+      meta.appendChild(read);
+    }
+    if (top.word_count) {
+      const words = el('span', 'hero-meta-item');
+      words.textContent = `📄 ${formatNum(top.word_count)} 字`;
+      meta.appendChild(words);
+    }
+    body.appendChild(meta);
+
+    const cta = el('div', 'hero-cta');
+    cta.textContent = '阅读全文 →';
+    body.appendChild(cta);
+
+    heroCard.appendChild(body);
+    dom.heroSection.innerHTML = '';
+    dom.heroSection.appendChild(heroCard);
+  }
+
+  // ── 渲染: 杂志风卡片 ──────────────────────────────────
   function renderGridCard(article) {
     const card = el('article', 'grid-card');
     card.dataset.id = article.id;
@@ -404,35 +519,35 @@
     card.setAttribute('role', 'button');
     card.setAttribute('aria-label', `打开文章: ${article.title}`);
 
-    // 顶部细色条 (按 category 配色, 莫兰迪渐变)
-    const colorBar = el('div', 'card-color-bar');
-    const _catColor = getCategoryColor(article.category);
-    colorBar.style.background = `linear-gradient(90deg, ${_catColor} 0%, ${_catColor}99 70%, transparent 100%)`;
-    card.appendChild(colorBar);
+    // 顶部色带 (杂志特征)
+    const band = el('div', 'grid-card-band');
+    band.style.background = getCategoryColor(article.category);
+    card.appendChild(band);
 
-    // 文本主体 (整张卡片就是 body)
     const body = el('div', 'grid-card-body');
 
-    // 分类徽章 + 日期
-    const metaRow = el('div', 'grid-card-meta');
+    // 顶部元数据: 分类 + 日期
+    const meta = el('div', 'grid-card-meta');
     const catColor = getCategoryColor(article.category);
     const catBadge = el('span', 'grid-card-cat');
     catBadge.textContent = article.category || '未分类';
-    catBadge.style.background = catColor;
-    metaRow.appendChild(catBadge);
-    // 体积大徽章 (2026-09-19) — 大体积文章专用, 文章页只显示摘要+下载
+    catBadge.style.setProperty('--cat-bg', catColor + '20');
+    catBadge.style.setProperty('--cat-color', catColor);
+    meta.appendChild(catBadge);
+
     if (article.download_only) {
       const dlBadge = el('span', 'card-download-badge');
       dlBadge.textContent = '📦 体积大';
-      dlBadge.title = '总体积超过 6MB, 文章页只展示摘要 + 下载链接';
-      metaRow.appendChild(dlBadge);
+      dlBadge.title = '总体积超过 6MB';
+      meta.appendChild(dlBadge);
     }
+
     const dateEl = el('span', 'grid-card-date');
     dateEl.textContent = formatDateTime(article);
-    metaRow.appendChild(dateEl);
-    body.appendChild(metaRow);
+    meta.appendChild(dateEl);
+    body.appendChild(meta);
 
-    // 标题
+    // 标题 (杂志大字)
     const title = el('h3', 'grid-card-title');
     if (STATE.searchQuery) {
       title.innerHTML = highlightText(escapeHtml(article.title), STATE.searchQuery);
@@ -441,11 +556,10 @@
     }
     body.appendChild(title);
 
-    // 摘要
+    // 摘要 (完整 + 渐隐)
     const summary = el('p', 'grid-card-summary');
     const rawSummary = article.summary || '';
-    // 🆕 2026-09-24: 判断是否需要截断 + 展开按钮
-    const SUMMARY_TRUNCATE_LEN = 180;       // 字符阈值 (经验值, ~5 行 × 36 字)
+    const SUMMARY_TRUNCATE_LEN = 180;
     const willTruncate = rawSummary.length > SUMMARY_TRUNCATE_LEN;
     if (STATE.searchQuery) {
       summary.innerHTML = highlightText(escapeHtml(rawSummary), STATE.searchQuery);
@@ -455,21 +569,21 @@
     if (willTruncate) summary.classList.add('is-truncated');
     body.appendChild(summary);
 
-    // 🆕 展开/收起按钮 (仅摘要超长时)
+    // 展开/收起按钮
     let expandBtn = null;
     if (willTruncate) {
       expandBtn = el('button', 'grid-card-expand');
       expandBtn.type = 'button';
       expandBtn.innerHTML = '展开 <span class="arrow">▼</span>';
       expandBtn.addEventListener('click', (e) => {
-        e.stopPropagation();      // 防止冒泡触发卡片打开文章
-        const open = summary.classList.toggle('expanded');
-        expandBtn.innerHTML = (open ? '收起 <span class="arrow">▼</span>' : '展开 <span class="arrow">▼</span>');
+        e.stopPropagation();
+        const isExpanded = summary.classList.toggle('expanded');
+        expandBtn.innerHTML = (isExpanded ? '收起 <span class="arrow">▼</span>' : '展开 <span class="arrow">▼</span>');
       });
       body.appendChild(expandBtn);
     }
 
-    // 搜索匹配片段 (仅在有 query 且命中内容时显示)
+    // 搜索片段
     if (STATE.searchQuery) {
       const idx = STATE.searchIndex[article.id];
       const snippet = idx ? extractSnippet(idx.content, STATE.searchQuery, 40) : '';
@@ -480,7 +594,7 @@
       }
     }
 
-    // 标签
+    // 标签条
     const tagsRow = el('div', 'grid-card-tags');
     const tags = article.tags || [];
     tags.slice(0, 4).forEach(t => {
@@ -495,7 +609,7 @@
     }
     body.appendChild(tagsRow);
 
-    // 底部: 阅读时间 / 附件 / 格式
+    // 底部: 阅读时间 / 字数 / 格式
     const footer = el('div', 'grid-card-footer');
     if (article.reading_time_min) {
       const r = el('span', 'grid-card-read');
@@ -510,14 +624,13 @@
       w.textContent = `${formatNum(article.word_count)} 字`;
       footer.appendChild(w);
     }
-    // 格式徽章
     const fmts = collectFormats(article);
     if (fmts.length) {
       const sep2 = el('span', 'grid-card-sep');
       sep2.textContent = '·';
       footer.appendChild(sep2);
       fmts.slice(0, 3).forEach(f => {
-        const b = el('span', `fmt-badge fmt-${f}`);
+        const b = el('span', 'grid-card-fmt');
         b.textContent = formatIcon(f);
         footer.appendChild(b);
       });
@@ -525,6 +638,10 @@
     body.appendChild(footer);
 
     card.appendChild(body);
+
+    // 卡片错落入场动画 (stagger)
+    const idx = Number(card.dataset.idx) || 0;
+    card.style.animationDelay = (Math.min(idx, 12) * 0.03) + 's';
 
     const open = () => openReader(article);
     card.addEventListener('click', open);
@@ -547,7 +664,6 @@
     return n.toLocaleString();
   }
 
-  // 把 date (YYYY-MM-DD) 格式化成 "MM-DD" (只显示日期, 排序用 date 字段)
   function formatDateTime(a) {
     const d = a.date || (a.updated_at ? a.updated_at.slice(0, 10) : '');
     if (!d) return '';
@@ -556,28 +672,44 @@
     return `${m[2]}-${m[3]}`;
   }
 
-  // ── 渲染: 文章列表 (2026-09-19 重构: 去掉 Hero, 单一 grid 按 date 倒序) ──
+  // ── 渲染: 文章列表 (杂志风) ─────────────────────────
   function renderArticleList() {
-    // 清空网格
     dom.articleGrid.innerHTML = '';
 
     const total = STATE.filtered.length;
     if (total === 0) {
-      dom.topbarCount.textContent = '0 篇';
+      if (dom.topbarCount) dom.topbarCount.textContent = '0 篇';
       dom.emptyState.classList.remove('hidden');
       dom.articleGrid.style.display = 'none';
+      if (dom.heroSection) dom.heroSection.style.display = 'none';
       return;
     }
     dom.emptyState.classList.add('hidden');
     dom.articleGrid.style.display = '';
-    dom.topbarCount.textContent = `${total} 篇`;
+    if (dom.topbarCount) dom.topbarCount.textContent = `${total} 篇`;
 
-    // 按 date 倒序排好后直接渲染到 grid (用户要求: 不要推荐, 直接从新到旧)
+    // 按 date 倒序
     const sorted = sortArticles(STATE.filtered.slice(), STATE.sortMode);
-    sorted.forEach(a => dom.articleGrid.appendChild(renderGridCard(a)));
+
+    // 第一篇做 Hero (杂志封面)
+    if (dom.heroSection && STATE.viewMode === 'articles' && !STATE.activeCategory && !STATE.searchQuery) {
+      renderHero(sorted);
+      // 其余做卡片
+      sorted.slice(1).forEach((a, idx) => {
+        const card = renderGridCard(a);
+        card.dataset.idx = idx;
+        dom.articleGrid.appendChild(card);
+      });
+    } else {
+      if (dom.heroSection) dom.heroSection.style.display = 'none';
+      sorted.forEach((a, idx) => {
+        const card = renderGridCard(a);
+        card.dataset.idx = idx;
+        dom.articleGrid.appendChild(card);
+      });
+    }
   }
 
-  // ── 排序 (严格按文章 date 字段 YYYY-MM-DD) ───────────
   function sortArticles(arr, mode) {
     const cmp = {
       'date-desc': (a, b) => (b.date || '').localeCompare(a.date || ''),
@@ -589,13 +721,11 @@
     return arr.sort(cmp);
   }
 
-  // ── 应用筛选 ────────────────────────────────────────
+  // ── 应用筛选 ─────────────────────────────────────────
   function applyFilters() {
-    // 调研视图排除 QA 智慧问答系列
     STATE.filtered = STATE.articles.filter(a => {
       if (a.series === '智慧问答' || a.type === 'qa') return false;
       const isAllView = !STATE.activeCategory;
-      // "全部文章" tab 排除 "其他" 类别 (D-Series 等专题报告)
       const catMatch = isAllView ? a.category !== '其他' : a.category === STATE.activeCategory;
       const tagMatch = STATE.activeTags.length === 0 || STATE.activeTags.every(t => (a.tags || []).includes(t));
       const searchOK = searchMatch(a, STATE.searchQuery);
@@ -604,26 +734,26 @@
     renderArticleList();
   }
 
-  // ── 侧边栏 ───────────────────────────────────────────
-  function openSidebar() {
-    STATE.sidebarOpen = true;
-    dom.sidebar.classList.add('open');
-    dom.sidebarOverlay.classList.remove('hidden');
-    dom.sidebarOverlay.classList.add('visible');
-  }
-  function closeSidebar() {
-    STATE.sidebarOpen = false;
-    dom.sidebar.classList.remove('open');
-    dom.sidebarOverlay.classList.add('hidden');
-    dom.sidebarOverlay.classList.remove('visible');
+  // ── 抽屉 (手机端) ────────────────────────────────────
+  function openDrawer() {
+    if (!dom.mobileDrawer) return;
+    STATE.drawerOpen = true;
+    dom.mobileDrawer.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
   }
 
-  // ── Reader ──────────────────────────────────────────
+  function closeDrawer() {
+    if (!dom.mobileDrawer) return;
+    STATE.drawerOpen = false;
+    dom.mobileDrawer.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  // ── Reader ────────────────────────────────────────────
   function openReader(article) {
     STATE.prevHomeScroll = window.scrollY;
 
     dom.readerTitle.textContent = article.title;
-    // 同步浏览器标题 + OG meta, 方便复制链接到微信时显示文章标题
     document.title = `${article.title} | 肥嘟嘟的炼金工厂`;
     setOpenGraphMeta(article);
     dom.readerMeta.innerHTML = `
@@ -635,7 +765,6 @@
     `;
 
     dom.readerAttach.innerHTML = '';
-    // 体积大文章: 顶栏不重复显示下载按钮 (避免与下方下载面板重复)
     if (article.download_only) {
       dom.readerAttach.classList.add('hidden');
     } else {
@@ -652,7 +781,6 @@
       });
     }
 
-    // 体积大 (>6MB) 文章 → 跳过 iframe, 直接渲染"摘要 + 下载"页 (2026-09-19 设计)
     if (article.download_only) {
       dom.contentIframe.classList.add('hidden');
       dom.noHtmlNotice.classList.add('hidden');
@@ -663,7 +791,6 @@
       dom.contentIframe.classList.remove('hidden');
       dom.noHtmlNotice.classList.add('hidden');
       if (dom.downloadPane) dom.downloadPane.classList.add('hidden');
-      // 🆕 iframe 加载后, 自动生成文章 TOC 侧栏 (2026-09-24)
       dom.contentIframe.addEventListener('load', () => injectArticleToc(), { once: true });
     } else {
       const wordAtt = (article.attachments || []).find(att => isWordDoc(att.format));
@@ -689,15 +816,13 @@
 
     dom.appShell.classList.add('hidden');
     dom.readerFrame.classList.remove('hidden');
-    closeSidebar();
+    closeDrawer();
     window.scrollTo(0, 0);
 
     STATE.mode = 'READER';
     window.location.hash = `article/${article.id}`;
   }
 
-  // 渲染"仅下载"文章页 — 体积大 (>6MB) 文章专用, 跳过 iframe
-  // 显示: 完整摘要 + 关键发现 + 下载按钮组 + 为什么这么大说明
   function renderDownloadOnlyPane(article) {
     if (!dom.downloadPane) return;
     const summary = article.summary || '（暂无摘要）';
@@ -710,15 +835,13 @@
     const tags = (article.tags || []).slice(0, 8);
     const tagsHtml = tags.map(t => `<span class="dl-tag">${escapeHtml(t)}</span>`).join('');
 
-    // 收集所有附件 (zip)
     const atts = (article.attachments || []).filter(a => a.format === 'zip' || /\.zip$/i.test(a.path || a.name || ''));
     const attsHtml = atts.map((a, i) => {
       const sizeMb = (a.size_mb != null) ? a.size_mb : ((a.size_bytes || 0) / 1024 / 1024).toFixed(1);
       const sizeTxt = sizeMb >= 1 ? `${(+sizeMb).toFixed(1)} MB` : `${Math.round((sizeMb||0)*1024)} KB`;
       const isImgPart = /images|图|images-p/i.test(a.name || '');
       const icon = isImgPart ? '🖼️' : (i === 0 ? '📄' : '📦');
-      const desc = a.description || (isImgPart ? '图片资源包 (解压后与 HTML 放在同一目录)' : 'HTML 主页 + 元数据');
-      // 路径标准化: 以 / 开头的绝对路径原样用, 否则补 / 前缀
+      const desc = a.description || (isImgPart ? '图片资源包' : 'HTML 主页 + 元数据');
       const href = a.path.startsWith('/') ? a.path : '/' + a.path;
       return `
         <a class="dl-attach-btn dl-attach-${a.format || 'zip'}" href="${escapeHtml(href)}" download="${escapeHtml(a.name || '')}" target="_blank" rel="noopener noreferrer">
@@ -736,8 +859,7 @@
         <header class="dl-hero">
           <div class="dl-hero-top">
             <span class="dl-cat" style="background:${escapeHtml(getCategoryColor(article.category))}">${escapeHtml(article.category || '未分类')}</span>
-            <span class="dl-size-badge">📦 体积大 · 下载查看 · ${totalSize} MB</span>
-            <span class="dl-pack-badge">${atts.length === 1 ? '✅ 1 个完整包 · 双击 index.html 即可' : `⚠️ ${atts.length} 个分片 zip · 必须解压到同一目录`}</span>
+            <span class="dl-size-badge">📦 体积大 · ${totalSize} MB</span>
           </div>
           <h1 class="dl-title">${escapeHtml(article.title)}</h1>
           <div class="dl-meta">
@@ -748,88 +870,14 @@
             <span>🏷 ${tags.length} 标签</span>
           </div>
         </header>
-
-        <section class="dl-stats">
-          <div class="dl-stat"><div class="dl-stat-num">${chapters}</div><div class="dl-stat-lbl">章节</div></div>
-          <div class="dl-stat"><div class="dl-stat-num">${wordCount}</div><div class="dl-stat-lbl">字数</div></div>
-          <div class="dl-stat"><div class="dl-stat-num">${imgCount}</div><div class="dl-stat-lbl">真图</div></div>
-          <div class="dl-stat"><div class="dl-stat-num">${refCount}</div><div class="dl-stat-lbl">引用</div></div>
-          <div class="dl-stat dl-stat-warn"><div class="dl-stat-num">${totalSize}<small>MB</small></div><div class="dl-stat-lbl">总体积</div></div>
-        </section>
-
         <section class="dl-summary">
           <h2 class="dl-h2">📋 内容摘要</h2>
           <div class="dl-summary-body">${escapeHtml(summary)}</div>
         </section>
-
         ${tagsHtml ? `<section class="dl-tags-section"><h2 class="dl-h2">🏷 主题标签</h2><div class="dl-tags">${tagsHtml}</div></section>` : ''}
-
         <section class="dl-downloads">
           <h2 class="dl-h2">📥 下载完整文章包</h2>
-          <p class="dl-hint">为避免在网页加载时一次性下载全部图片（拖慢页面），本文章只展示摘要。请下载下方完整包后用浏览器打开 <code>index.html</code> 查看。</p>
-
-          ${(() => {
-            // 按下载顺序生成使用说明 — 区分单包 / 多包两种情形
-            const zipAtts = atts; // 已是 zip 过滤后数组, 顺序与 manifest 一致
-            const totalAtts = zipAtts.length;
-            const isSinglePack = totalAtts === 1;
-            const stepsTitle = isSinglePack
-              ? '📖 怎么用（3 步搞定）'
-              : `📖 怎么拼（${totalAtts} 个 zip 必须按顺序合并）`;
-            const intro = isSinglePack
-              ? `本文章只有 <b>1 个完整包</b>，里面已经包含 <b>HTML 主页 + 全部图片 + 元数据</b>。下载后双击 <code>index.html</code> 即可。`
-              : `本文章拆成 <b>${totalAtts} 个 zip</b>，必须<b>全部下载</b>并<b>解压到同一个目录</b>，图片才能正确显示。下面是详细步骤：`;
-            const stepItems = isSinglePack ? `
-              <li><b>第 1 步：</b>点击下方「下载 ↓」按钮，把 <code>${escapeHtml(zipAtts[0]?.name || 'xxx.zip')}</code> 保存到本地任意目录（比如 <code>~/Downloads/hacms/</code>）。</li>
-              <li><b>第 2 步：</b>解压 zip（Windows 用 7-Zip / WinRAR，macOS 双击即可，Linux 用 <code>unzip</code> 命令）。</li>
-              <li><b>第 3 步：</b>进入解压后的文件夹，双击 <code>index.html</code>，用浏览器（Chrome / Edge / Safari）打开即可。所有交互（侧边 ToC、跳转、引用、References）全部保留，离线也能看。</li>
-            ` : zipAtts.map((a, i) => {
-              const isImg = /images|图|images-p/i.test(a.name || '');
-              const isFirst = i === 0;
-              return `
-              <li><b>第 ${i + 1} 步：</b>下载 <code>${escapeHtml(a.name)}</code>（${isImg ? '图片包' : 'HTML 主页包'}，${(a.size_mb != null ? a.size_mb.toFixed(1) : '?')} MB）${isFirst ? ` — 先建一个目录，比如 <code>~/Downloads/${escapeHtml(article.id)}/</code>，下载到这` : ""}</li>
-              `;
-            }).join('') + `
-              <li><b>第 ${totalAtts + 1} 步：</b>把所有 <b>${totalAtts} 个 zip 都解压到同一个目录</b>（<code>~/Downloads/${escapeHtml(article.id)}/</code>），让目录结构看起来像：<br>
-                <pre class="dl-tree">${escapeHtml(article.id)}/
-├── index.html
-├── data/manifest.json
-├── images/  (或 assets/，根据图片包实际目录)
-│   ├── xxx.png
-│   ├── yyy.jpg
-│   └── ...</pre>
-              </li>
-              <li><b>第 ${totalAtts + 2} 步：</b>双击 <code>index.html</code> 用浏览器打开。所有图片会自动加载，无需联网。</li>
-            `;
-            const warnBox = isSinglePack ? '' : `
-              <div class="dl-warn-box">
-                ⚠️ <b>注意：</b>${totalAtts} 个 zip 必须放在<b>同一个目录</b>下解压。如果只解压了 HTML 包而没解压图片包，打开 <code>index.html</code> 会看到一堆破图标（404）。如果解压到不同目录，图片路径会错位。
-              </div>
-            `;
-            return `
-              <div class="dl-usage-box">
-                <div class="dl-usage-title">${stepsTitle}</div>
-                <p class="dl-usage-intro">${intro}</p>
-                <ol class="dl-usage-steps">
-                  ${stepItems}
-                </ol>
-                ${warnBox}
-              </div>
-            `;
-          })()}
-
-          <div class="dl-attach-list">${attsHtml || '<p class="dl-empty">（未配置附件，请联系站长）</p>'}</div>
-          ${atts.length > 1 ? `<p class="dl-pack-warn">📦 <b>${atts.length} 个包，按上方步骤依次下载 + 解压到同一目录</b></p>` : ''}
-        </section>
-
-        <section class="dl-explainer">
-          <h2 class="dl-h2">💡 为什么不在网页里直接展示？</h2>
-          <ul class="dl-explainer-list">
-            <li>本文章总体积 <b>${totalSize} MB</b>，其中包含 <b>${imgCount} 张高清图片</b>。</li>
-            <li>直接在网页里渲染，浏览器需要并发下载几十张图片，<b>页面加载慢</b>、<b>流量浪费</b>、<b>移动端体验差</b>。</li>
-            <li>下载完整包（HTML + 图片）后，可离线浏览、随时翻阅、不受网络影响。</li>
-            <li>下载后用浏览器打开 <code>index.html</code> 即可，所有交互（侧边 ToC、跳转、引用、References）均完整保留。</li>
-          </ul>
+          <div class="dl-attach-list">${attsHtml || '<p class="dl-empty">（未配置附件）</p>'}</div>
         </section>
       </article>
     `;
@@ -840,15 +888,11 @@
     dom.readerTitle.textContent = '';
     dom.readerMeta.innerHTML = '';
     dom.readerAttach.innerHTML = '';
-    // BUG 修复: src 改为 about:blank 立即停止加载并清空内容,
-    // 避免用户快速点开/关闭时旧文章内容在 iframe 内残留闪现
     dom.contentIframe.src = 'about:blank';
-    // 清空"仅下载"页内容 (2026-09-19)
     if (dom.downloadPane) {
       dom.downloadPane.classList.add('hidden');
       dom.downloadPane.innerHTML = '';
     }
-
     const noticeEl = dom.noHtmlNotice.querySelector('.notice-inner');
     if (noticeEl) {
       noticeEl.innerHTML = `
@@ -857,67 +901,54 @@
         <p>请下载附件查看</p>
       `;
     }
-
     dom.appShell.classList.remove('hidden');
     window.scrollTo(0, STATE.prevHomeScroll);
-
-    // 恢复主页标题 + 主页 OG meta
     document.title = '肥嘟嘟的炼金工厂 · 调研报告与白皮书';
     setOpenGraphMeta(null);
     STATE.mode = 'HOME';
-
-    // BUG 修复: closeReader 之前如果通过 hash 路由打开过文章,
-    // STATE.filtered 仍是 STATE.articles 的全拷贝 (含 QA, 55 篇).
-    // 这里重新跑一次 applyFilters, 让 STATE.filtered 重新过滤 QA,
-    // 同时保证 hero/grid 计数与顶部 tab "调研报告 51" 一致.
     applyFilters();
     window.location.hash = '';
   }
 
-  // ── 🆕 文章 TOC 自动生成 (2026-09-24) ─────────────────
+  // ── 文章 TOC 自动生成 ───────────────────────────────
   function injectArticleToc() {
     const iframe = dom.contentIframe;
     if (!iframe || !iframe.contentDocument) return;
     const doc = iframe.contentDocument;
-
-    // 移除旧 TOC (如果存在)
     const oldToc = doc.getElementById('hacms-auto-toc');
     if (oldToc) oldToc.remove();
     const oldBtn = doc.getElementById('hacms-toc-toggle');
     if (oldBtn) oldBtn.remove();
 
-    // 找所有 h2 / h3
     const heads = Array.from(doc.querySelectorAll('h2, h3'));
     if (heads.length === 0) return;
 
-    // 自动给每个 h2/h3 加 id (如果没有)
     heads.forEach((h, i) => {
       if (!h.id) {
         const text = (h.textContent || '').trim();
-        const id = 'auto-h-' + i + '-' + text.replace(/[^\w\u4e00-\u9fa5]+/g, '-').substring(0, 40).toLowerCase();
+        const id = 'auto-h-' + i + '-' + text.replace(/[^\w一-鿿]+/g, '-').substring(0, 40).toLowerCase();
         h.id = id;
       }
     });
 
-    // 创建 TOC 侧栏
     const toc = doc.createElement('aside');
     toc.id = 'hacms-auto-toc';
     toc.setAttribute('aria-label', '文章目录');
     const h2Count = heads.filter(h => h.tagName === 'H2').length;
     toc.innerHTML = `
       <style>
-        #hacms-auto-toc { position: fixed; top: 80px; right: 16px; width: 220px; max-height: calc(100vh - 110px); overflow-y: auto; background: rgba(255,255,255,0.94); backdrop-filter: blur(8px); border: 1px solid #e2dcd0; border-radius: 12px; padding: 14px 16px; box-shadow: 0 4px 16px rgba(58,53,42,0.08); font-family: system-ui, -apple-system, "PingFang SC", sans-serif; font-size: 12px; z-index: 9999; }
+        #hacms-auto-toc { position: fixed; top: 90px; right: 16px; width: 220px; max-height: calc(100vh - 120px); overflow-y: auto; background: rgba(255,255,255,0.94); backdrop-filter: blur(8px); border: 1px solid #F0E5E8; border-radius: 12px; padding: 14px 16px; box-shadow: 0 4px 16px rgba(220,57,113,0.08); font-family: system-ui, -apple-system, "PingFang SC", sans-serif; font-size: 12px; z-index: 9999; }
         #hacms-auto-toc::-webkit-scrollbar { width: 4px; }
-        #hacms-auto-toc::-webkit-scrollbar-thumb { background: #d4c8b8; border-radius: 2px; }
-        #hacms-toc-toggle { position: fixed; top: 70px; right: 16px; z-index: 9999; background: linear-gradient(135deg, #5c7a92 0%, #6fb3a1 100%); color: #fff; border: none; padding: 6px 12px; border-radius: 16px; font-size: 11px; cursor: pointer; box-shadow: 0 2px 8px rgba(58,53,42,0.15); font-family: system-ui, sans-serif; }
+        #hacms-auto-toc::-webkit-scrollbar-thumb { background: #F3B3CC; border-radius: 2px; }
+        #hacms-toc-toggle { position: fixed; top: 80px; right: 16px; z-index: 9999; background: linear-gradient(135deg, #DC3971 0%, #EC719F 100%); color: #fff; border: none; padding: 6px 12px; border-radius: 16px; font-size: 11px; cursor: pointer; box-shadow: 0 2px 8px rgba(220,57,113,0.15); font-family: system-ui, sans-serif; }
         #hacms-auto-toc.collapsed { display: none; }
-        #hacms-auto-toc .toc-h-title { font-weight: 700; font-size: 11px; color: #9a9690; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #ede9dd; }
-        #hacms-auto-toc .toc-h-count { color: #5c7a92; }
+        #hacms-auto-toc .toc-h-title { font-weight: 700; font-size: 11px; color: #9A9AA6; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #F0E5E8; }
+        #hacms-auto-toc .toc-h-count { color: #DC3971; }
         #hacms-auto-toc ul { list-style: none; padding: 0; margin: 0; }
         #hacms-auto-toc li { margin: 5px 0; line-height: 1.4; }
-        #hacms-auto-toc a { color: #5a5a5a; text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; border-left: 2px solid transparent; transition: all 0.2s; }
-        #hacms-auto-toc a:hover { background: #ebe7e0; color: #2a2a2a; border-left-color: #5c7a92; }
-        #hacms-auto-toc .toc-h3 a { padding-left: 18px; font-size: 11px; color: #9a9690; }
+        #hacms-auto-toc a { color: #5A5A66; text-decoration: none; display: block; padding: 3px 6px; border-radius: 4px; border-left: 2px solid transparent; transition: all 0.2s; }
+        #hacms-auto-toc a:hover { background: rgba(220,57,113,0.08); color: #1A1A1F; border-left-color: #DC3971; }
+        #hacms-auto-toc .toc-h3 a { padding-left: 18px; font-size: 11px; color: #9A9AA6; }
         @media (max-width: 1024px) { #hacms-auto-toc { display: none; } #hacms-toc-toggle { display: none; } }
       </style>
       <div class="toc-h-title">📑 章节目录 · <span class="toc-h-count">${h2Count} 章</span></div>
@@ -929,17 +960,16 @@
       </ul>
     `;
 
-    // 创建切换按钮 (在 iframe 内浮动)
-    const btn = doc.createElement('button');
-    btn.id = 'hacms-toc-toggle';
-    btn.textContent = `📑 目录`;
-    btn.title = '显示/隐藏文章目录';
-    btn.addEventListener('click', () => {
+    const toggle = doc.createElement('button');
+    toggle.id = 'hacms-toc-toggle';
+    toggle.textContent = `📑 目录`;
+    toggle.title = '显示/隐藏文章目录';
+    toggle.addEventListener('click', () => {
       toc.classList.toggle('collapsed');
     });
 
     doc.body.appendChild(toc);
-    doc.body.appendChild(btn);
+    doc.body.appendChild(toggle);
   }
 
   // ── Open Graph meta 动态切换 ──────────────────────────
@@ -947,7 +977,7 @@
     const title = article ? article.title : '肥嘟嘟的炼金工厂 · 调研报告与白皮书';
     const desc = article
       ? (article.summary || '').slice(0, 120)
-      : '35 篇深度调研 · 涵盖 AI 基础设施 / 存储安全 / 勒索防御 / 数据安全';
+      : '深度调研报告与白皮书 · 涵盖 AI 基础设施 / 存储安全 / 勒索防御 / 数据安全';
     const url = article
       ? `${location.origin}/${article.html_path || ''}`
       : location.origin + location.pathname;
@@ -970,7 +1000,7 @@
     el.setAttribute('content', content);
   }
 
-  // ── 统计弹层 ────────────────────────────────────────
+  // ── 统计弹层 ──────────────────────────────────────────
   function openStats() {
     const articles = STATE.articles;
     const totalWords = articles.reduce((s, a) => s + (a.word_count || 0), 0);
@@ -985,7 +1015,6 @@
     const topTags = Object.entries(tagCount).sort((a, b) => b[1] - a[1]).slice(0, 10);
     const tagMax = Math.max(...topTags.map(([_, c]) => c));
 
-    // 年份分布
     const yearCount = {};
     articles.forEach(a => {
       const y = (a.date || '').slice(0, 4);
@@ -1015,18 +1044,15 @@
           <div class="stat-label">总阅读时长</div>
         </div>
       </div>
-
       <div class="stats-section">
         <div class="stats-section-title">分类分布</div>
         ${Object.entries(catCount).sort((a, b) => b[1] - a[1])
           .map(([c, n]) => barRow(c, n, catMax)).join('')}
       </div>
-
       <div class="stats-section">
         <div class="stats-section-title">Top 10 标签</div>
         ${topTags.map(([t, n]) => barRow(t, n, tagMax)).join('')}
       </div>
-
       <div class="stats-section">
         <div class="stats-section-title">年份分布</div>
         ${Object.entries(yearCount).sort().map(([y, n]) => barRow(y, n, Math.max(...Object.values(yearCount)))).join('')}
@@ -1044,7 +1070,7 @@
     setTimeout(() => dom.statsOverlay.classList.add('hidden'), 200);
   }
 
-  // ── 搜索 debounce ───────────────────────────────────
+  // ── 搜索 debounce ────────────────────────────────────
   let searchDebounceTimer = null;
   function onSearchInput(value) {
     clearTimeout(searchDebounceTimer);
@@ -1054,15 +1080,16 @@
     }, 100);
   }
 
-  // ── 事件绑定 ────────────────────────────────────────
+  // ── 事件绑定 ─────────────────────────────────────────
   function bindEvents() {
     dom.btnBack.addEventListener('click', closeReader);
 
-    dom.menuToggle.addEventListener('click', () => {
-      if (STATE.sidebarOpen) closeSidebar(); else openSidebar();
-    });
-    dom.sidebarClose.addEventListener('click', closeSidebar);
-    dom.sidebarOverlay.addEventListener('click', closeSidebar);
+    if (dom.mobileToggle) {
+      dom.mobileToggle.addEventListener('click', openDrawer);
+    }
+    if (dom.drawerClose) {
+      dom.drawerClose.addEventListener('click', closeDrawer);
+    }
 
     dom.searchInput.addEventListener('input', (e) => {
       onSearchInput(e.target.value);
@@ -1079,7 +1106,7 @@
       if (e.target === dom.statsOverlay) closeStats();
     });
 
-    // 🆕 2026-09-24 暗色模式切换 (持久化到 localStorage)
+    // 暗色模式
     const THEME_KEY = 'hacms-theme';
     const applyTheme = (mode) => {
       document.documentElement.setAttribute('data-theme', mode);
@@ -1102,7 +1129,10 @@
         STATE.sortMode = 'date-desc';
         dom.searchInput.value = '';
         dom.sortSelect.value = 'date-desc';
-        renderSidebar();
+        renderCategories();
+        renderTagCloud();
+        renderDrawerCategories();
+        renderDrawerTagCloud();
         applyFilters();
       });
     }
@@ -1110,7 +1140,7 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         if (dom.statsOverlay.classList.contains('visible')) { closeStats(); return; }
-        if (STATE.sidebarOpen) { closeSidebar(); return; }
+        if (STATE.drawerOpen) { closeDrawer(); return; }
         if (STATE.mode === 'READER') closeReader();
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -1131,68 +1161,35 @@
     });
   }
 
-  // ── 初始化 ──────────────────────────────────────────
-  // 客户端 manifest 版本缓存 key (versioned cache buster)
-  // 服务器 manifest v2 schema: { _meta: { version, ... }, articles: [...] }
-  // 客户端只缓存版本号, 每次启动对比, 不一致则强制绕过 fetch 缓存
+  // ── 初始化 ─────────────────────────────────────────
   const MANIFEST_VERSION_KEY = 'hacms.manifest.version';
 
-  // 解析 manifest 响应 — 兼容 v1 (裸数组) 和 v2 ({ _meta, articles })
   function parseManifestResponse(data) {
-    if (Array.isArray(data)) {
-      // v1: 裸数组
-      return { articles: data, version: null };
-    }
+    if (Array.isArray(data)) return { articles: data, version: null };
     if (data && typeof data === 'object' && Array.isArray(data.articles)) {
-      // v2: 包装对象
-      return {
-        articles: data.articles,
-        version: data._meta && data._meta.version || null,
-      };
+      return { articles: data.articles, version: data._meta && data._meta.version || null };
     }
-    // fallback: 未知格式
     return { articles: [], version: null };
   }
 
-  // 强制绕过浏览器 HTTP 缓存 — 通过 URL 加 ?v=<version>
   function bustCache(url, version) {
     if (!version) return url;
     const sep = url.includes('?') ? '&' : '?';
     return `${url}${sep}v=${encodeURIComponent(version)}`;
   }
 
-  
-
-  // ── 启动诊断 (临时调试手机看不到新文章问题) ─────────
-  let _diag;
-  try {
-    _diag = {
-      ts: new Date().toISOString(),
-      manifestUrl: bustCache('content/index/manifest-light.json', null),
-      articlesLoaded: STATE.articles.length,
-      filteredNonQa: STATE.filtered.length,
-      sortMode: STATE.sortMode,
-      latest3: STATE.articles.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 3).map(a => '[' + a.date + '] ' + a.title.slice(0, 40)).join(' / '),
-      localStorageVersion: (typeof localStorage !== 'undefined') ? localStorage.getItem('hacms.manifest.version') : 'N/A',
-    };
-  } catch (e) { _diag = { error: e.message }; }
-  console.info('[hacms 诊断]', _diag);
-
-async function init() {
+  async function init() {
     bindEvents();
     bindQaEvents();
 
-    // 读取上次缓存的版本号 — 用于下次启动对比
     let cachedVersion = null;
     try {
       cachedVersion = localStorage.getItem(MANIFEST_VERSION_KEY);
     } catch (e) { /* localStorage 不可用 */ }
 
     try {
-      // 第一步: 拿 light manifest (用 cache-busting 绕过 HTTP 缓存)
       const lightUrl = bustCache('content/index/manifest-light.json', cachedVersion);
       let r = await fetch(lightUrl, { cache: 'no-store' }).then(r => r.ok ? r : null);
-      // 第二步: light 失败 → 拿 full manifest
       if (!r) {
         const fullUrl = bustCache('content/index/manifest.json', cachedVersion);
         r = await fetch(fullUrl, { cache: 'no-store' }).then(r => r.ok ? r : null);
@@ -1203,21 +1200,16 @@ async function init() {
       const parsed = parseManifestResponse(raw);
       STATE.articles = parsed.articles;
 
-      // 第三步: 版本对比 + 缓存
       const serverVersion = parsed.version;
       if (serverVersion) {
         if (cachedVersion && cachedVersion !== serverVersion) {
-          // 版本不一致 — 清掉浏览器缓存的 HTML / JS / CSS, 触发完整刷新
-          console.info(`[hacms] manifest 版本变更: ${cachedVersion} → ${serverVersion}, 强制刷新`);
           try {
             if ('caches' in window) {
               caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
             }
           } catch (e) { /* ignore */ }
         }
-        try {
-          localStorage.setItem(MANIFEST_VERSION_KEY, serverVersion);
-        } catch (e) { /* ignore */ }
+        try { localStorage.setItem(MANIFEST_VERSION_KEY, serverVersion); } catch (e) {}
       }
     } catch (e) {
       STATE.articles = [];
@@ -1225,72 +1217,60 @@ async function init() {
     }
 
     STATE.filtered = [...STATE.articles];
-
-    // 分离 QA 条目 (series === '智慧问答')
     STATE.qaList = STATE.articles.filter(a => a.series === '智慧问答' || a.type === 'qa');
     STATE.qaFiltered = [...STATE.qaList];
 
-    // 顶栏计数
-    // "全部文章" tab 排除 "其他" 类别 (D-Series 等专题报告) - 跟 applyFilters 保持一致
+    const articleTotal = STATE.articles.length - STATE.qaList.length;
     const topbarTotal = STATE.articles.filter(a =>
       a.series !== '智慧问答' && a.type !== 'qa' && a.category !== '其他'
     ).length;
-    dom.topbarCount.textContent = `${topbarTotal} 篇`;
+    if (dom.topbarCount) dom.topbarCount.textContent = `${topbarTotal} 篇`;
 
-    // 模式按钮计数
-    if (dom.modeArticlesCount) dom.modeArticlesCount.textContent = STATE.articles.length - STATE.qaList.length;
+    if (dom.modeArticlesCount) dom.modeArticlesCount.textContent = articleTotal;
     if (dom.modeQaCount) dom.modeQaCount.textContent = STATE.qaList.length;
 
-    // 底栏计数 (动态)
-    if (dom.footerArticleCount) dom.footerArticleCount.textContent = STATE.articles.length - STATE.qaList.length;
+    if (dom.footerArticleCount) dom.footerArticleCount.textContent = articleTotal;
     if (dom.footerQaCount) dom.footerQaCount.textContent = STATE.qaList.length;
 
-    // 🆕 2026-09-24 顶部统计数字区 (图1 风格)
-    const articleTotal = STATE.articles.length - STATE.qaList.length;
     const qaTotal = STATE.qaList.length;
     const catTotal = new Set(STATE.articles.filter(a => a.series !== '智慧问答' && a.type !== 'qa').map(a => a.category)).size;
     if (dom.metricArticles) dom.metricArticles.textContent = articleTotal;
     if (dom.metricQa) dom.metricQa.textContent = qaTotal;
     if (dom.metricCats) dom.metricCats.textContent = catTotal;
 
-    renderSidebar();
+    renderCategories();
+    renderTagCloud();
+    renderDrawerCategories();
+    renderDrawerTagCloud();
 
-    // 如果 URL 带 hash, 直接打开对应文章
     const hash = window.location.hash;
     if (hash.startsWith('#article/')) {
       const id = hash.replace('#article/', '');
       const article = STATE.articles.find(a => a.id === id);
       if (article) {
-        // BUG 修复: 先 applyFilters 过滤 QA, 再 renderArticleList,
-        // 保证 closeReader 返回主页时 hero/grid 已经是过滤后的 51 篇
         applyFilters();
         openReader(article);
-        // 后台构建搜索索引 (不阻塞)
         buildSearchIndex();
         return;
       }
     }
 
-    // 如果 URL 带 #qa/ 切换到问答模式
     if (hash.startsWith('#qa/') || hash === '#qa') {
       const qaId = hash.replace('#qa/', '').replace('#qa', '');
       switchToQaView();
       if (qaId) {
-        // 打开具体问答
         const qa = STATE.qaList.find(q => q.id === qaId);
         if (qa) openQaReader(qa);
       }
       return;
     }
 
-    // 如果 URL 带 #markets 切换到世界金融分析模式
     if (hash === '#markets') {
       switchToMarketsView();
       return;
     }
 
     applyFilters();
-    // 后台构建搜索索引 (不阻塞首屏)
     buildSearchIndex();
   }
 
@@ -1300,97 +1280,6 @@ async function init() {
   // 智慧问答模块 v1
   // ═══════════════════════════════════════════════════════
 
-  // ── 侧边栏统一渲染 (按 viewMode 分发) ──────────────
-  function renderSidebar() {
-    if (!dom.categoryList) return;
-    if (STATE.viewMode === 'articles') {
-      renderCategories();      // 调研分类 (已排除 QA)
-      renderTagCloud();        // 调研 tag (排除 QA)
-    } else if (STATE.viewMode === 'qa') {
-      renderQaSidebar();       // QA 视图专属目录
-    } else if (STATE.viewMode === 'markets') {
-      renderMarketsSidebar();  // 金融市场视图专属目录
-    }
-  }
-
-  // QA 视图侧边栏: 按 series/qa_tags 聚合
-  function renderQaSidebar() {
-    dom.categoryList.innerHTML = '';
-    const total = STATE.qaList.length;
-    const allItem = el('button', 'cat-item active');
-    allItem.innerHTML = `
-      <span class="cat-name">全部问答</span>
-      <span class="cat-count">${total}</span>
-    `;
-    allItem.addEventListener('click', () => {
-      STATE.activeQaTags = [];
-      renderQaTagCloud();
-      applyQaFilters();
-      if (window.innerWidth < 1024) closeSidebar();
-    });
-    dom.categoryList.appendChild(allItem);
-
-    // 按 qa_tags 聚合 (前 12 个最热门)
-    const tagCount = {};
-    STATE.qaList.forEach(q => (q.qa_tags || q.tags || []).forEach(t => {
-      tagCount[t] = (tagCount[t] || 0) + 1;
-    }));
-    const sortedTags = Object.entries(tagCount)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 12);
-    sortedTags.forEach(([tag, count]) => {
-      const item = el('button', 'cat-item');
-      if (STATE.activeQaTags.includes(tag)) item.classList.add('active');
-      item.innerHTML = `
-        <span class="cat-name">${escapeHtml(tag)}</span>
-        <span class="cat-count">${count}</span>
-      `;
-      item.addEventListener('click', () => {
-        STATE.activeQaTags = STATE.activeQaTags.includes(tag)
-          ? STATE.activeQaTags.filter(t => t !== tag)
-          : [...STATE.activeQaTags, tag];
-        renderQaSidebar();
-        renderQaTagCloud();
-        applyQaFilters();
-        if (window.innerWidth < 1024) closeSidebar();
-      });
-      dom.categoryList.appendChild(item);
-    });
-  }
-
-  // 金融市场视图侧边栏: 按资产类型 / 地域聚合
-  function renderMarketsSidebar() {
-    dom.categoryList.innerHTML = '';
-    const items = [
-      { name: '全球概览', icon: '🌍', count: 1, key: 'global' },
-      { name: '美股 + 商品 + 外汇', icon: '🇺🇸', count: 1, key: 'us' },
-      { name: '中国 A 股 + 港股', icon: '🇨🇳', count: 1, key: 'china' }
-    ];
-    const intro = el('div', 'sidebar-intro');
-    intro.style.cssText = 'padding:10px 12px;font-size:12px;color:var(--text-3);line-height:1.5;border-bottom:1px solid var(--border);margin-bottom:8px;';
-    intro.innerHTML = '📈 <strong>世界金融分析</strong><br>实时多市场数据 · 27 个权威机构';
-    dom.categoryList.appendChild(intro);
-
-    items.forEach(it => {
-      const item = el('button', 'cat-item');
-      item.innerHTML = `
-        <span class="cat-dot" style="background:linear-gradient(135deg,#2563eb,#7c3aed);"></span>
-        <span class="cat-name">${it.icon} ${it.name}</span>
-        <span class="cat-count">${it.count}</span>
-      `;
-      item.addEventListener('click', () => {
-        // 通知 markets iframe 切 region (postMessage)
-        const iframe = document.getElementById('markets-iframe');
-        if (iframe && iframe.contentWindow) {
-          iframe.contentWindow.postMessage({ type: 'region', region: it.key }, '*');
-        }
-        if (window.innerWidth < 1024) closeSidebar();
-      });
-      dom.categoryList.appendChild(item);
-    });
-  }
-
-  // ── 模式切换 ────────────────────────────────────────
   function switchToArticlesView() {
     STATE.viewMode = 'articles';
     if (dom.articlesView) dom.articlesView.classList.remove('hidden');
@@ -1412,7 +1301,7 @@ async function init() {
     if (dom.topbarCount) {
       dom.topbarCount.textContent = `${STATE.articles.length - STATE.qaList.length} 篇调研`;
     }
-    renderSidebar();
+    renderArticleList();
   }
 
   function switchToQaView() {
@@ -1437,10 +1326,8 @@ async function init() {
       dom.topbarCount.textContent = `${STATE.qaList.length} 个问答`;
     }
     renderQaList();
-    renderSidebar();
   }
 
-  // 世界金融分析模式 (顶级功能域, 独立 SPA)
   function switchToMarketsView() {
     STATE.viewMode = 'markets';
     if (dom.articlesView) dom.articlesView.classList.add('hidden');
@@ -1462,10 +1349,8 @@ async function init() {
     if (dom.topbarCount) {
       dom.topbarCount.textContent = `世界金融分析`;
     }
-    renderSidebar();
   }
 
-  // ── 问答事件绑定 ───────────────────────────────────
   function bindQaEvents() {
     if (dom.modeArticlesBtn) {
       dom.modeArticlesBtn.addEventListener('click', () => {
@@ -1485,6 +1370,25 @@ async function init() {
         window.location.hash = '#markets';
       });
     }
+
+    // 抽屉版模式切换
+    dom.drawerModeBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const mode = btn.dataset.mode;
+        if (mode === 'articles') {
+          switchToArticlesView();
+          window.location.hash = '';
+        } else if (mode === 'qa') {
+          switchToQaView();
+          window.location.hash = '#qa';
+        } else if (mode === 'markets') {
+          switchToMarketsView();
+          window.location.hash = '#markets';
+        }
+        closeDrawer();
+      });
+    });
+
     if (dom.qaSearchInput) {
       let timer = null;
       dom.qaSearchInput.addEventListener('input', (e) => {
@@ -1503,7 +1407,6 @@ async function init() {
     }
   }
 
-  // ── 问答筛选 + 渲染 ───────────────────────────────
   function applyQaFilters() {
     STATE.qaFiltered = STATE.qaList.filter(q => {
       const tagMatch = STATE.activeQaTags.length === 0 || STATE.activeQaTags.every(t => (q.qa_tags || q.tags || []).includes(t));
@@ -1556,7 +1459,7 @@ async function init() {
     const list = STATE.qaFiltered.slice();
     const cmp = {
       'date-desc': (a, b) => (b.date || '').localeCompare(a.date || ''),
-      'date-asc':  (a, b) => (a.date || '').localeCompare(b.date || ''),
+      'date-asc':  (a, b) => (a.date || '').localeCompare(a.date || ''),
     }[STATE.qaSortMode] || ((a, b) => (b.date || '').localeCompare(a.date || ''));
     list.sort(cmp);
 
@@ -1581,7 +1484,6 @@ async function init() {
     card.setAttribute('role', 'button');
     card.setAttribute('aria-label', `打开问答: ${q.question || q.title}`);
 
-    // Header: Q 标 + 编号 + 日期
     const header = el('div', 'qa-card-header');
     const qBadge = el('span', 'qa-card-q');
     qBadge.textContent = 'Q';
@@ -1598,19 +1500,16 @@ async function init() {
     header.appendChild(dateEl);
     card.appendChild(header);
 
-    // 问题 (大字)
     const question = el('h3', 'qa-card-question');
     question.textContent = q.question || q.title || '';
     card.appendChild(question);
 
-    // 答案预览 (前 150 字)
     if (q.summary) {
       const preview = el('p', 'qa-card-answer-preview');
       preview.textContent = q.summary.length > 200 ? q.summary.slice(0, 200) + '…' : q.summary;
       card.appendChild(preview);
     }
 
-    // 标签
     const tags = q.qa_tags || q.tags || [];
     if (tags.length) {
       const tagsRow = el('div', 'qa-card-tags');
@@ -1622,7 +1521,6 @@ async function init() {
       card.appendChild(tagsRow);
     }
 
-    // Footer: 统计 + 打开提示
     const footer = el('div', 'qa-card-footer');
     const stats = el('div', 'qa-card-stats');
     if (q.references_count) {
@@ -1646,7 +1544,6 @@ async function init() {
     footer.appendChild(hint);
     card.appendChild(footer);
 
-    // 点击打开
     const open = () => openQaReader(q);
     card.addEventListener('click', open);
     card.addEventListener('keydown', (e) => {
@@ -1656,19 +1553,13 @@ async function init() {
     return card;
   }
 
-  // ── 打开问答 (跟文章 reader 类似的 iframe 框架, 但样式不同) ──
   function openQaReader(q) {
     if (!q.html_path) return;
-    // 修复: 不预先 set hash (那样会产生 [prev, prev#qa, target] 三步, back 1 步没意义)
-    // 现在只用 location.assign, 浏览器历史只有 [prev, target] 两步
-    // back 1 步直接回 prev (列表/上一题/主页), 自然 work
-    // 额外: 顶部 fixed bar 也有 ← 返回按钮 (双保险)
     location.assign(q.html_path);
   }
 
   // ═══════════════════════════════════════════════════════
-  // V3 增强模块 — 沿用 + 调整: 移除"全文搜索覆盖层" (改用主网格内高亮),
-  //                          related/series 链接加 target=_blank
+  // V3 增强模块
   // ═══════════════════════════════════════════════════════
   initV3Features();
 
@@ -1701,38 +1592,38 @@ async function init() {
 
       const panel = document.createElement('div');
       panel.id = 'v3-related-panel';
-      panel.style.cssText = 'position:fixed;right:0;top:0;bottom:0;width:280px;background:#f4f2ed;border-left:1px solid #d8d4cc;overflow-y:auto;padding:16px 14px;font-size:12.5px;line-height:1.6;color:#1a1a1a;z-index:150;display:none;';
+      panel.style.cssText = 'position:fixed;right:0;top:0;bottom:0;width:280px;background:#FCFAFB;border-left:1px solid #F0E5E8;overflow-y:auto;padding:16px 14px;font-size:12.5px;line-height:1.6;color:#1A1A1F;z-index:150;display:none;';
       document.body.appendChild(panel);
 
       function buildPanel() {
-        let html = '<div style="font-weight:700;font-size:13px;margin-bottom:10px;color:#3a4a6b;">📑 导航</div>';
+        let html = '<div style="font-weight:700;font-size:13px;margin-bottom:10px;color:#DC3971;">📑 导航</div>';
 
         if (prev || next) {
           html += '<div style="display:flex;gap:6px;margin-bottom:16px;">';
-          if (prev) html += `<a href="#article/${prev.id}" style="flex:1;padding:6px 8px;background:#fff;border:1px solid #d8d4cc;border-radius:4px;text-decoration:none;color:#5a5a5a;font-size:11.5px;">← ${escapeHtml(prev.title.slice(0, 18))}</a>`;
-          if (next) html += `<a href="#article/${next.id}" style="flex:1;padding:6px 8px;background:#fff;border:1px solid #d8d4cc;border-radius:4px;text-decoration:none;color:#5a5a5a;font-size:11.5px;text-align:right;">${escapeHtml(next.title.slice(0, 18))} →</a>`;
+          if (prev) html += `<a href="#article/${prev.id}" style="flex:1;padding:6px 8px;background:#fff;border:1px solid #F0E5E8;border-radius:4px;text-decoration:none;color:#5A5A66;font-size:11.5px;">← ${escapeHtml(prev.title.slice(0, 18))}</a>`;
+          if (next) html += `<a href="#article/${next.id}" style="flex:1;padding:6px 8px;background:#fff;border:1px solid #F0E5E8;border-radius:4px;text-decoration:none;color:#5A5A66;font-size:11.5px;text-align:right;">${escapeHtml(next.title.slice(0, 18))} →</a>`;
           html += '</div>';
         }
 
         if (article.series) {
-          html += `<div style="font-weight:700;font-size:13px;margin:14px 0 6px;color:#3a4a6b;">📚 系列：${escapeHtml(article.series)}</div>`;
+          html += `<div style="font-weight:700;font-size:13px;margin:14px 0 6px;color:#DC3971;">📚 系列：${escapeHtml(article.series)}</div>`;
           html += '<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px;">';
           for (const sa of seriesArts.slice(0, 6)) {
-            html += `<a href="#article/${sa.id}" target="_blank" rel="noopener noreferrer" style="padding:5px 8px;background:#eef0f5;border-radius:4px;text-decoration:none;color:#2c3a54;font-size:11.5px;">${escapeHtml(sa.title)}</a>`;
+            html += `<a href="#article/${sa.id}" target="_blank" rel="noopener noreferrer" style="padding:5px 8px;background:rgba(220,57,113,0.06);border-radius:4px;text-decoration:none;color:#1A1A1F;font-size:11.5px;">${escapeHtml(sa.title)}</a>`;
           }
           html += '</div>';
         }
 
         if (relatedArts.length) {
-          html += '<div style="font-weight:700;font-size:13px;margin:14px 0 6px;color:#3a4a6b;">🔗 相关文章</div>';
+          html += '<div style="font-weight:700;font-size:13px;margin:14px 0 6px;color:#DC3971;">🔗 相关文章</div>';
           html += '<div style="display:flex;flex-direction:column;gap:5px;">';
           for (const ra of relatedArts) {
-            html += `<a href="#article/${ra.id}" target="_blank" rel="noopener noreferrer" style="padding:5px 8px;background:#fff;border:1px solid #d8d4cc;border-radius:4px;text-decoration:none;color:#5a5a5a;font-size:11.5px;">${escapeHtml(ra.title)}</a>`;
+            html += `<a href="#article/${ra.id}" target="_blank" rel="noopener noreferrer" style="padding:5px 8px;background:#fff;border:1px solid #F0E5E8;border-radius:4px;text-decoration:none;color:#5A5A66;font-size:11.5px;">${escapeHtml(ra.title)}</a>`;
           }
           html += '</div>';
         }
 
-        html += '<div style="margin-top:18px;padding-top:12px;border-top:1px solid #d8d4cc;color:#9a9690;font-size:10.5px;">⌨ 快捷键：n/p 翻页 · t 关闭面板</div>';
+        html += '<div style="margin-top:18px;padding-top:12px;border-top:1px solid #F0E5E8;color:#9A9AA6;font-size:10.5px;">⌨ 快捷键：n/p 翻页 · t 关闭面板</div>';
         panel.innerHTML = html;
       }
 
@@ -1745,7 +1636,7 @@ async function init() {
         toggle.id = 'v3-toggle-btn';
         toggle.textContent = '📑';
         toggle.title = '显示导航面板 (t)';
-        toggle.style.cssText = 'position:fixed;right:12px;bottom:60px;width:40px;height:40px;border-radius:50%;background:#3a4a6b;color:#fff;border:none;font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);z-index:160;';
+        toggle.style.cssText = 'position:fixed;right:12px;bottom:60px;width:40px;height:40px;border-radius:50%;background:#DC3971;color:#fff;border:none;font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(220,57,113,0.3);z-index:160;';
         toggle.onclick = () => {
           const isOpen = panel.style.display === 'block';
           panel.style.display = isOpen ? 'none' : 'block';
@@ -1781,24 +1672,24 @@ async function init() {
 
     const overlay = document.createElement('div');
     overlay.id = 'v3-collection-overlay';
-    overlay.style.cssText = 'position:fixed;left:0;right:0;top:0;bottom:0;background:#f4f2ed;z-index:300;overflow-y:auto;padding:24px 36px;';
+    overlay.style.cssText = 'position:fixed;left:0;right:0;top:0;bottom:0;background:#FCFAFB;z-index:300;overflow-y:auto;padding:24px 36px;';
     overlay.innerHTML = `
       <div style="max-width:1280px;margin:0 auto;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #3a4a6b;">
-          <h1 style="font-size:24px;color:#3a4a6b;margin:0;">${escapeHtml(title)}</h1>
-          <a href="#" id="v3-collection-close" style="padding:6px 16px;background:#fff;border:1px solid #d8d4cc;border-radius:6px;text-decoration:none;color:#5a5a5a;">← 返回首页</a>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #DC3971;">
+          <h1 style="font-size:24px;color:#DC3971;margin:0;">${escapeHtml(title)}</h1>
+          <a href="#" id="v3-collection-close" style="padding:6px 16px;background:#fff;border:1px solid #F0E5E8;border-radius:6px;text-decoration:none;color:#5A5A66;">← 返回首页</a>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">
           ${filtered.map(a => `
-            <a href="#article/${a.id}" style="background:#fff;border:1px solid #d8d4cc;border-radius:8px;padding:14px;text-decoration:none;color:inherit;display:block;">
-              <div style="font-size:11px;color:#9a9690;margin-bottom:6px;">${escapeHtml(a.category || '')} · ${escapeHtml(formatDateTime(a))}</div>
-              <div style="font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:6px;line-height:1.4;">${escapeHtml(a.title)}</div>
-              <div style="font-size:12px;color:#5a5a5a;line-height:1.5;">${escapeHtml((a.summary || '').slice(0, 80))}${(a.summary || '').length > 80 ? '…' : ''}</div>
-              ${a.tags && a.tags.length ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">${a.tags.slice(0, 3).map(t => `<span style="background:#eae7e1;color:#5a5a5a;padding:1px 8px;border-radius:10px;font-size:10.5px;">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+            <a href="#article/${a.id}" style="background:#fff;border:1px solid #F0E5E8;border-radius:8px;padding:14px;text-decoration:none;color:inherit;display:block;">
+              <div style="font-size:11px;color:#9A9AA6;margin-bottom:6px;">${escapeHtml(a.category || '')} · ${escapeHtml(formatDateTime(a))}</div>
+              <div style="font-size:14px;font-weight:600;color:#1A1A1F;margin-bottom:6px;line-height:1.4;">${escapeHtml(a.title)}</div>
+              <div style="font-size:12px;color:#5A5A66;line-height:1.5;">${escapeHtml((a.summary || '').slice(0, 80))}${(a.summary || '').length > 80 ? '…' : ''}</div>
+              ${a.tags && a.tags.length ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">${a.tags.slice(0, 3).map(t => `<span style="background:rgba(236,113,159,0.12);color:#5A5A66;padding:1px 8px;border-radius:10px;font-size:10.5px;">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
             </a>
           `).join('')}
         </div>
-        ${filtered.length === 0 ? '<p style="color:#9a9690;">没有匹配的文章。</p>' : ''}
+        ${filtered.length === 0 ? '<p style="color:#9A9AA6;">没有匹配的文章。</p>' : ''}
       </div>
     `;
     document.body.appendChild(overlay);
