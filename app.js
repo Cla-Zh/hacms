@@ -443,12 +443,31 @@
 
     // 摘要
     const summary = el('p', 'grid-card-summary');
+    const rawSummary = article.summary || '';
+    // 🆕 2026-09-24: 判断是否需要截断 + 展开按钮
+    const SUMMARY_TRUNCATE_LEN = 180;       // 字符阈值 (经验值, ~5 行 × 36 字)
+    const willTruncate = rawSummary.length > SUMMARY_TRUNCATE_LEN;
     if (STATE.searchQuery) {
-      summary.innerHTML = highlightText(escapeHtml(article.summary || ''), STATE.searchQuery);
+      summary.innerHTML = highlightText(escapeHtml(rawSummary), STATE.searchQuery);
     } else {
-      summary.textContent = article.summary || '';
+      summary.textContent = rawSummary;
     }
+    if (willTruncate) summary.classList.add('is-truncated');
     body.appendChild(summary);
+
+    // 🆕 展开/收起按钮 (仅摘要超长时)
+    let expandBtn = null;
+    if (willTruncate) {
+      expandBtn = el('button', 'grid-card-expand');
+      expandBtn.type = 'button';
+      expandBtn.innerHTML = '展开 <span class="arrow">▼</span>';
+      expandBtn.addEventListener('click', (e) => {
+        e.stopPropagation();      // 防止冒泡触发卡片打开文章
+        const open = summary.classList.toggle('expanded');
+        expandBtn.innerHTML = (open ? '收起 <span class="arrow">▼</span>' : '展开 <span class="arrow">▼</span>');
+      });
+      body.appendChild(expandBtn);
+    }
 
     // 搜索匹配片段 (仅在有 query 且命中内容时显示)
     if (STATE.searchQuery) {
