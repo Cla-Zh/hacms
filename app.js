@@ -13,7 +13,6 @@
  * - 全文搜索 / 高亮 / 片段
  * - Reader iframe + 仅下载页
  * - QA 视图 + 模式切换
- * - Markets 视图
  * - V3 增强 (相关面板 / 键盘 / 路由)
  * - TOC 自动注入
  * - 暗色模式 + 缓存
@@ -69,12 +68,10 @@
     appShell:        $('#app-shell'),
     modeArticlesBtn: $('#mode-articles'),
     modeQaBtn:       $('#mode-qa'),
-    modeMarketsBtn:  $('#mode-markets'),
     modeArticlesCount: $('#mode-articles-count'),
     modeQaCount:     $('#mode-qa-count'),
     articlesView:    $('#articles-view'),
     qaView:          $('#qa-view'),
-    marketsView:     $('#markets-view'),
     // 水平筛选条 (替代 sidebar 分类列表)
     categoryList:    $('#category-list'),
     tagsClear:       $('#tags-clear'),
@@ -1265,11 +1262,6 @@
       return;
     }
 
-    if (hash === '#markets') {
-      switchToMarketsView();
-      return;
-    }
-
     applyFilters();
     buildSearchIndex();
   }
@@ -1284,8 +1276,7 @@
     STATE.viewMode = 'articles';
     if (dom.articlesView) dom.articlesView.classList.remove('hidden');
     if (dom.qaView) dom.qaView.classList.add('hidden');
-    if (dom.marketsView) dom.marketsView.classList.add('hidden');
-    document.body.classList.remove('qa-view-active', 'markets-view-active');
+    document.body.classList.remove('qa-view-active');
     if (dom.modeArticlesBtn) {
       dom.modeArticlesBtn.classList.add('active');
       dom.modeArticlesBtn.setAttribute('aria-selected', 'true');
@@ -1293,10 +1284,6 @@
     if (dom.modeQaBtn) {
       dom.modeQaBtn.classList.remove('active');
       dom.modeQaBtn.setAttribute('aria-selected', 'false');
-    }
-    if (dom.modeMarketsBtn) {
-      dom.modeMarketsBtn.classList.remove('active');
-      dom.modeMarketsBtn.setAttribute('aria-selected', 'false');
     }
     if (dom.topbarCount) {
       dom.topbarCount.textContent = `${STATE.articles.length - STATE.qaList.length} 篇调研`;
@@ -1308,7 +1295,6 @@
     STATE.viewMode = 'qa';
     if (dom.articlesView) dom.articlesView.classList.add('hidden');
     if (dom.qaView) dom.qaView.classList.remove('hidden');
-    if (dom.marketsView) dom.marketsView.classList.add('hidden');
     document.body.classList.add('qa-view-active');
     if (dom.modeArticlesBtn) {
       dom.modeArticlesBtn.classList.remove('active');
@@ -1318,37 +1304,10 @@
       dom.modeQaBtn.classList.add('active');
       dom.modeQaBtn.setAttribute('aria-selected', 'true');
     }
-    if (dom.modeMarketsBtn) {
-      dom.modeMarketsBtn.classList.remove('active');
-      dom.modeMarketsBtn.setAttribute('aria-selected', 'false');
-    }
     if (dom.topbarCount) {
       dom.topbarCount.textContent = `${STATE.qaList.length} 个问答`;
     }
     renderQaList();
-  }
-
-  function switchToMarketsView() {
-    STATE.viewMode = 'markets';
-    if (dom.articlesView) dom.articlesView.classList.add('hidden');
-    if (dom.qaView) dom.qaView.classList.add('hidden');
-    if (dom.marketsView) dom.marketsView.classList.remove('hidden');
-    document.body.classList.add('markets-view-active');
-    if (dom.modeArticlesBtn) {
-      dom.modeArticlesBtn.classList.remove('active');
-      dom.modeArticlesBtn.setAttribute('aria-selected', 'false');
-    }
-    if (dom.modeQaBtn) {
-      dom.modeQaBtn.classList.remove('active');
-      dom.modeQaBtn.setAttribute('aria-selected', 'false');
-    }
-    if (dom.modeMarketsBtn) {
-      dom.modeMarketsBtn.classList.add('active');
-      dom.modeMarketsBtn.setAttribute('aria-selected', 'true');
-    }
-    if (dom.topbarCount) {
-      dom.topbarCount.textContent = `世界金融分析`;
-    }
   }
 
   function bindQaEvents() {
@@ -1364,12 +1323,6 @@
         window.location.hash = '#qa';
       });
     }
-    if (dom.modeMarketsBtn) {
-      dom.modeMarketsBtn.addEventListener('click', () => {
-        switchToMarketsView();
-        window.location.hash = '#markets';
-      });
-    }
 
     // 抽屉版模式切换
     dom.drawerModeBtns.forEach((btn) => {
@@ -1381,9 +1334,6 @@
         } else if (mode === 'qa') {
           switchToQaView();
           window.location.hash = '#qa';
-        } else if (mode === 'markets') {
-          switchToMarketsView();
-          window.location.hash = '#markets';
         }
         closeDrawer();
       });
