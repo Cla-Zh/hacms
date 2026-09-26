@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<!-- ==========================================================================
+  DIRECTION CONTRACT (impeccable)
+  Mode: Read · 读者: 中文 LLM 推理系统工程师/架构师 · 场景: 桌面办公长读 + 偶发移动查阅
+  Pinned brief: 美观 · 扁平化 UI · 易读 · 代码级详实 · 全部信息可溯源
+  World: 纸面文档感 —— 纸白底、发丝线、单蓝强调色、零阴影、左固定章节目录
+  Type: 系统 CJK 文本栈（离线自包含约束下的有意选择）+ 等宽仅用于代码/数据
+  Motion: 唯一功能性动效 = scrollspy + 平滑锚点；无装饰动画
+  Truth: 所有论断锚定 commit 2d24ab3 源码（文件:行号）或外部 URL 引用列表
+=========================================================================== -->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="hero_priority" content="20">
+<meta name="description" content="[项目解析] UCM (Unified Cache Management) 代码级深度分析 — 对 ModelEngine-Group/unified-cache-management v0.9.0 的全量剖析 (代码结构 / 系统框架 / 分层架构 / 内容寻址哈希 / 前缀复用 / 分层异步传输 / 淘汰回收 / 稀疏注意力 / 单边 RDMA), 锚定 commit 2d24ab3 源码。vLLM / SGLang / MindIE 引擎集成, 2001 文件, 24 章节。">
+<meta property="og:title" content="UCM 统一缓存管理 · 代码级深度分析报告">
+<meta property="og:description" content="对 ModelEngine-Group/unified-cache-management 的全量剖析 — 代码结构 / 系统框架 / 分层架构 / 核心算法 / 性能证据 / 业界定位">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="UCM 统一缓存管理 · 代码级深度分析报告">
+<meta name="twitter:description" content="UCM v0.9.0 代码级深度分析 · 锚定 commit 2d24ab3 · 24 章节 · 项目解析">
+<link rel="stylesheet" href="/assets/article-mobile.css?v=2026-09-25">
+<script src="/assets/article-mobile.js?v=2026-09-25" defer></script>
+<title>UCM 统一缓存管理 · 代码级深度分析报告</title>
+<style>
+  :root{
+    --bg:#ffffff; --surface:#f7f8fa; --surface-2:#eef1f6;
+    --ink:#1a2233; --ink-2:#475069; --ink-3:#6b7488;
+    --line:#e3e8f0; --line-strong:#cdd5e1;
+    --accent:#2b5ce6; --accent-ink:#1d45b4; --accent-soft:#edf3fe;
+    --teal:#0d7d74; --teal-soft:#e9f6f4;
+    --warn:#92400e; --warn-soft:#fdf4e7;
+    --good:#0e7c4f; --good-soft:#e9f7f0;
+    --code-bg:#f4f6f9;
+    --mono:"JetBrains Mono","Cascadia Code",Consolas,"Liberation Mono",monospace;
+    --sans:"Inter",system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",sans-serif;
+    --nav-w:272px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth;scroll-padding-top:24px}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.85;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  ::selection{background:var(--accent);color:#fff}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:var(--line-strong);border:3px solid var(--bg);border-radius:8px}
+  ::-webkit-scrollbar-track{background:transparent}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+
+  /* ---------- 导航 ---------- */
+  .nav{position:fixed;inset:0 auto 0 0;width:var(--nav-w);border-right:1px solid var(--line);background:var(--bg);overflow-y:auto;padding:28px 22px 40px;z-index:40}
+  .nav-brand{display:block;text-decoration:none;color:var(--ink);margin-bottom:4px}
+  .nav-brand strong{display:block;font-size:17px;letter-spacing:-0.01em}
+  .nav-brand span{font-size:12.5px;color:var(--ink-3)}
+  .nav-meta{margin:14px 0 20px;padding:10px 12px;background:var(--surface);border:1px solid var(--line);border-radius:8px;font-family:var(--mono);font-size:11.5px;line-height:1.7;color:var(--ink-2)}
+  .nav-meta b{color:var(--ink);font-weight:600}
+  .nav-list{list-style:none;margin:0;padding:0}
+  .nav-list li{margin:1px 0}
+  .nav-list a{display:flex;gap:10px;align-items:baseline;padding:6px 10px;border-radius:7px;text-decoration:none;color:var(--ink-2);font-size:13.5px;line-height:1.45;border:1px solid transparent}
+  .nav-list a .no{font-family:var(--mono);font-size:11px;color:var(--ink-3);min-width:20px}
+  .nav-list a:hover{background:var(--surface);color:var(--ink)}
+  .nav-list a.active{background:var(--accent-soft);color:var(--accent-ink);border-color:#d7e3fb}
+  .nav-list a.active .no{color:var(--accent)}
+  .nav-sub{list-style:none;margin:2px 0 4px;padding:0 0 0 30px}
+  .nav-sub a{font-size:12.5px;padding:4px 10px}
+  .nav-toggle{display:none}
+
+  /* ---------- 主体 ---------- */
+  .main{margin-left:var(--nav-w);min-height:100vh}
+  .wrap{max-width:920px;margin:0 auto;padding:56px 48px 120px}
+  @media (max-width:1199px){
+    .nav{transform:translateX(-100%);transition:transform .25s ease;box-shadow:none}
+    body.nav-open .nav{transform:none;border-right:1px solid var(--line-strong)}
+    .main{margin-left:0}
+    .nav-toggle{display:flex;position:fixed;top:14px;left:14px;z-index:50;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--line-strong);border-radius:8px;padding:8px 13px;font:600 13px var(--sans);color:var(--ink-2);cursor:pointer}
+    .wrap{padding:76px 22px 100px}
+  }
+
+  /* ---------- 头部 ---------- */
+  .doc-head{border-bottom:1px solid var(--line);padding-bottom:36px;margin-bottom:14px}
+  .doc-head h1{font-size:32px;line-height:1.3;letter-spacing:-0.02em;margin:0 0 14px;font-weight:800}
+  .doc-head .lede{font-size:16.5px;color:var(--ink-2);max-width:46em;margin:0 0 22px}
+  .head-facts{display:flex;flex-wrap:wrap;gap:8px}
+  .fact{font-family:var(--mono);font-size:12px;color:var(--ink-2);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 10px}
+  .fact b{color:var(--ink);font-weight:600}
+  .fact a{color:var(--accent-ink);text-decoration:none}
+
+  /* ---------- 章节 ---------- */
+  section.ch{padding-top:34px}
+  h2{font-size:25px;line-height:1.35;letter-spacing:-0.015em;font-weight:800;margin:0 0 18px;padding-top:26px;border-top:1px solid var(--line)}
+  h2 .no{color:var(--accent);font-family:var(--mono);font-weight:700;font-size:20px;margin-right:10px}
+  section.ch:first-of-type h2{border-top:none;padding-top:0}
+  h3{font-size:18.5px;font-weight:700;margin:34px 0 10px;letter-spacing:-0.01em}
+  h4{font-size:16px;font-weight:700;margin:26px 0 8px}
+  p{margin:12px 0;max-width:52em}
+  ul,ol{margin:12px 0;padding-left:1.6em}
+  li{margin:5px 0}
+  li::marker{color:var(--ink-3)}
+  strong{font-weight:650}
+  a{color:var(--accent-ink);text-decoration-thickness:1px;text-underline-offset:3px}
+  a:hover{color:var(--accent)}
+
+  /* ---------- 统计块 ---------- */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:20px 0}
+  .stat{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--bg)}
+  .stat .v{font-family:var(--mono);font-size:23px;font-weight:700;letter-spacing:-0.02em;font-variant-numeric:tabular-nums}
+  .stat .v em{font-style:normal;font-size:13px;color:var(--ink-3);font-weight:500}
+  .stat .k{font-size:12.5px;color:var(--ink-3);margin-top:2px}
+  .stat.hot .v{color:var(--accent-ink)}
+
+  /* ---------- 面板/标注 ---------- */
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin:18px 0}
+  .panel > :first-child{margin-top:0}.panel > :last-child{margin-bottom:0}
+  .note,.warnbox,.okbox{border-radius:10px;padding:14px 18px;margin:18px 0;font-size:14.5px;border:1px solid}
+  .note{background:var(--accent-soft);border-color:#d7e3fb;color:#22355e}
+  .note b,.note strong{color:var(--accent-ink)}
+  .warnbox{background:var(--warn-soft);border-color:#f3ddba;color:#5f3d14}
+  .warnbox b,.warnbox strong{color:var(--warn)}
+  .okbox{background:var(--good-soft);border-color:#c4e8d5;color:#14513a}
+  .okbox b,.okbox strong{color:var(--good)}
+  .note p,.warnbox p,.okbox p{margin:6px 0}
+
+  /* ---------- 代码与引用 ---------- */
+  code{font-family:var(--mono);font-size:0.86em;background:var(--code-bg);border:1px solid var(--line);border-radius:5px;padding:1px 6px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  pre{background:var(--code-bg);border:1px solid var(--line);border-radius:10px;padding:16px 18px;overflow-x:auto;margin:16px 0;line-height:1.62}
+  pre code{background:none;border:none;padding:0;white-space:pre;font-size:13px;color:#2a3348}
+  .cref{font-family:var(--mono);font-size:11.5px;background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:0 5px;color:var(--ink-2);white-space:nowrap}
+  sup.ref{font-size:0.72em;line-height:0}
+  sup.ref a{color:var(--accent);text-decoration:none;font-family:var(--mono)}
+
+  /* ---------- 表格 ---------- */
+  .tbl-wrap{overflow-x:auto;margin:18px 0;border:1px solid var(--line);border-radius:10px}
+  table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;line-height:1.55;font-variant-numeric:tabular-nums}
+  .tbl th{background:var(--surface);text-align:left;font-weight:650;font-size:12.5px;color:var(--ink-2);padding:10px 14px;border-bottom:1px solid var(--line-strong);white-space:nowrap}
+  .tbl td{padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  .tbl tr:last-child td{border-bottom:none}
+  .tbl tbody tr:hover td{background:var(--surface)}
+  .tbl td code{white-space:normal;word-break:break-all}
+  .tbl .hl td{background:var(--accent-soft)}
+  .tag{display:inline-block;font-size:11px;font-weight:600;border-radius:5px;padding:1px 7px;border:1px solid;line-height:1.6;white-space:nowrap}
+  .tag.b{background:var(--accent-soft);color:var(--accent-ink);border-color:#d7e3fb}
+  .tag.g{background:var(--good-soft);color:var(--good);border-color:#c4e8d5}
+  .tag.w{background:var(--warn-soft);color:var(--warn);border-color:#f3ddba}
+  .tag.n{background:var(--surface);color:var(--ink-2);border-color:var(--line)}
+
+  /* ---------- 图 ---------- */
+  figure{margin:22px 0;border:1px solid var(--line);border-radius:10px;padding:20px;background:var(--bg);overflow-x:auto}
+  figcaption{font-size:12.5px;color:var(--ink-3);margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
+  svg text{font-family:var(--sans)}
+  svg .mono{font-family:var(--mono)}
+
+  /* ---------- 页脚/工具 ---------- */
+  .foot{margin-top:70px;padding-top:22px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-3)}
+  .to-top{position:fixed;right:22px;bottom:22px;width:42px;height:42px;border-radius:10px;border:1px solid var(--line-strong);background:var(--bg);color:var(--ink-2);font-size:18px;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:45}
+  .to-top.show{display:flex}
+  .to-top:hover{background:var(--surface)}
+  .kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line-strong);border-bottom-width:2px;border-radius:5px;padding:1px 6px;background:var(--surface)}
+
+  @media print{
+    .nav,.to-top,.nav-toggle{display:none!important}
+    .main{margin:0}.wrap{max-width:none;padding:0}
+    h2{page-break-after:avoid}figure,pre,.tbl-wrap{page-break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav" id="nav" aria-label="章节目录">
+  <a class="nav-brand" href="#top"><strong>UCM 深度分析报告</strong><span>Unified Cache Management · 代码级</span></a>
+  <div class="nav-meta">
+    仓库 <b>ModelEngine-Group/UCM</b><br>
+    提交 <b>2d24ab3</b> (develop)<br>
+    版本 <b>v0.9.0</b> · 协议 <b>MIT</b><br>
+    分析日期 <b>2026-09-26</b>
+  </div>
+  <ul class="nav-list" id="toc">
+    <li><a href="#ch1"><span class="no">01</span>项目速览</a></li>
+    <li><a href="#ch2"><span class="no">02</span>总体架构</a></li>
+    <li><a href="#ch3"><span class="no">03</span>引擎集成机制</a></li>
+    <li><a href="#ch4"><span class="no">04</span>核心算法详解</a></li>
+    <li class="nav-sub"><a href="#ch4-1">4.1 内容寻址：MD5 链式哈希</a></li>
+    <li class="nav-sub"><a href="#ch4-2">4.2 前缀查找与命中流程</a></li>
+    <li class="nav-sub"><a href="#ch4-3">4.3 异步分层传输流水</a></li>
+    <li class="nav-sub"><a href="#ch4-4">4.4 零拷贝设备 IO</a></li>
+    <li class="nav-sub"><a href="#ch4-5">4.5 淘汰与空间管理</a></li>
+    <li class="nav-sub"><a href="#ch4-6">4.6 稀疏注意力算法</a></li>
+    <li class="nav-sub"><a href="#ch4-7">4.7 P2P 传输与 DRAM 池</a></li>
+    <li><a href="#ch5"><span class="no">05</span>存储后端体系</a></li>
+    <li><a href="#ch6"><span class="no">06</span>PD 分离</a></li>
+    <li><a href="#ch7"><span class="no">07</span>性能数据</a></li>
+    <li><a href="#ch8"><span class="no">08</span>可观测性与工具链</a></li>
+    <li><a href="#ch9"><span class="no">09</span>业界发展脉络</a></li>
+    <li><a href="#ch10"><span class="no">10</span>潜在优化点</a></li>
+    <li><a href="#ch11"><span class="no">11</span>结论</a></li>
+    <li><a href="#ch12"><span class="no">12</span>参考与出处</a></li>
+  </ul>
+</nav>
+<button class="nav-toggle" id="navToggle" aria-label="打开目录">☰ 目录</button>
+
+<div class="main" id="top">
+<div class="wrap">
+
+<header class="doc-head">
+  <h1>Unified Cache Management（UCM）<br>代码级深度分析报告</h1>
+  <p class="lede">对 ModelEngine-Group/unified-cache-management 的全量剖析：代码结构、系统框架、分层架构、核心算法原理（内容寻址哈希 / 前缀复用 / 分层异步传输 / 淘汰回收 / 稀疏注意力 / 单边 RDMA 传输）、性能证据、业界定位与潜在优化方向。所有论断均可回溯到源码（文件:行号，锚定 commit <code>2d24ab3</code>）或编号外部引用。</p>
+  <div class="head-facts">
+    <span class="fact">版本 <b>v0.9.0</b></span>
+    <span class="fact">GitHub <b>337★ / 121 forks</b></span>
+    <span class="fact">主语言 <b>C++ / Python</b></span>
+    <span class="fact">引擎 <b>vLLM · vLLM-Ascend · SGLang · MindIE</b></span>
+    <span class="fact">平台 <b>CUDA · Ascend · MUSA · MACA</b></span>
+    <span class="fact">源码 <b>2001 文件</b></span>
+  </div>
+</header>
+
+<!-- ================================================================ -->
+<section class="ch" id="ch1">
+<h2><span class="no">01</span>项目速览</h2>
+
+<h3>1.1 它解决什么问题</h3>
+<p>LLM 推理分为 <strong>Prefill</strong>（对全部输入 token 并行计算注意力，产出 KV Cache 与首 token）与 <strong>Decode</strong>（逐 token 自回归生成）两个阶段。Prefill 的计算量随输入长度近似平方增长（注意力部分）且是首 token 延迟（TTFT）的主要构成。真实业务中——多轮对话、Agent 工作流、代码仓库问答、长文档分析——<strong>大量请求共享相同的前缀上下文</strong>：系统提示词、历史对话、项目代码、检索文档。如果对每个请求都重算这些前缀的 KV，会造成巨额重复计算。</p>
+<p>UCM（Unified Cache Manager）的官方定义是<strong>“推理引擎与存储之间的统一 KV Cache 层”</strong>：它把已经算好的 KV Cache 以内容哈希为键持久化到外部存储，使兼容的请求与推理实例可以<strong>复用既有计算</strong>，从而削减重复 Prefill；同时用外部存储（DRAM 池 / SSD / NFS / 分布式存储）扩展缓存容量，突破单进程 HBM 显存的容量上限<sup class="ref"><a href="#ref-22">[22]</a></sup>。官方文档宣称，在 vLLM 集成下，前缀重复显著的场景（多轮对话、长上下文推理）可获得 <strong>3–10× 的时延降低</strong><sup class="ref"><a href="#ref-22">[22]</a></sup>（docs/source/index.md:29）。</p>
+
+<div class="stats">
+  <div class="stat hot"><div class="v">3–10<em>×</em></div><div class="k">官方宣称时延降低（前缀重复场景）</div></div>
+  <div class="stat"><div class="v">3<em>+1</em></div><div class="k">推理引擎适配（vLLM/vLLM-Ascend/SGLang + MindIE）</div></div>
+  <div class="stat"><div class="v">11</div><div class="k">store_pipeline 组合（V1 注册）</div></div>
+  <div class="stat"><div class="v">14</div><div class="k">运行时 patch 分发的 vLLM 版本</div></div>
+  <div class="stat"><div class="v">7</div><div class="k">稀疏注意力算法族</div></div>
+  <div class="stat"><div class="v">6</div><div class="k">硬件平台构建（含 SIMU 仿真）</div></div>
+</div>
+
+<h3>1.2 项目身份</h3>
+<div class="tbl-wrap"><table class="tbl">
+  <tbody>
+  <tr><th style="width:150px">仓库</th><td><a href="https://github.com/ModelEngine-Group/unified-cache-management">ModelEngine-Group/unified-cache-management</a>，2025-07-10 创建，默认分支 develop<sup class="ref"><a href="#ref-20">[20]</a></sup></td></tr>
+  <tr><th>维护方</th><td>ModelEngine-Group（版权头为华为技术，<span class="cref">ucmstore_v1.py:5</span> 等各文件 “Copyright (c) 2025 Huawei Technologies Co., Ltd.”）</td></tr>
+  <tr><th>本次分析锚点</th><td>commit <code>2d24ab399370bcb93f8f8ace2bda0bc657652622</code>（develop 分支浅克隆，2026-09-26 检出）</td></tr>
+  <tr><th>版本</th><td><code>UCM_VERSION=0.9.0</code>（<span class="cref">version.ini:12</span>）；支持 vLLM 0.26–0.28、vLLM-Ascend 0.23–0.26（<span class="cref">version.ini:13-14</span>）；运行时 patch 分发覆盖 14 个 vLLM 版本（<span class="cref">apply_patch.py:127-142</span>）</td></tr>
+  <tr><th>语言与体量</th><td>C++（存储/传输/算子）+ Python（集成/编排/算法）；检出约 28.5MB、2001 个文件</td></tr>
+  <tr><th>协议</th><td>MIT（附加条件，见仓库 LICENSE）<sup class="ref"><a href="#ref-20">[20]</a></sup></td></tr>
+  <tr><th>文档站</th><td><a href="https://ucm.readthedocs.io/en/latest/">ucm.readthedocs.io</a>（MkDocs 新站）+ 仓内 Sphinx 旧站（docs/source/，性能硬数据集中于此）</td></tr>
+  <tr><th>Python 包</th><td><code>unified-cache-manager</code>，Python ≥3.10，运行时第三方依赖仅 <code>wrapt==1.17.2</code>（<span class="cref">pyproject.toml:16</span>；torch/vLLM 由引擎环境提供）</td></tr>
+  </tbody>
+</table></div>
+
+<h3>1.3 顶层代码结构</h3>
+<pre><code>unified-cache-management/
+├── ucm/                          # 主包
+│   ├── integration/              # 引擎适配层
+│   │   ├── vllm/                 #   vLLM：ucm_connector.py(3735行) + patch/(14版本)
+│   │   ├── sglang/               #   SGLang：HiCache L3 存储后端接入
+│   │   └── mindie/               #   MindIE：文件覆盖式插件替换 + C++ 哈希扩展
+│   ├── store/                    # 存储层（C++ 核心 + pybind 绑定 + Python 连接器）
+│   │   ├── detail/               #   V1 抽象：TaskWrapper/类型/模板
+│   │   ├── nfsstore  pcstore  posix  dram  cache  pipeline  …  # 12+ 后端
+│   │   └── factory_v1.py         #   V1 后端工厂（懒加载注册）
+│   ├── sparse/                   # 稀疏注意力：esa/ gsa/ gsa_on_device/ kvstar/ blend/ rerope/
+│   ├── transport/p2p/            # P2P 传输（HIXL 单边读写 + TCP 控制面，仅 Ascend）
+│   ├── shared/                   # 共享 C++ 基础设施
+│   │   ├── trans/                #   设备↔主机拷贝引擎（ffts/sdma_direct/io_aggregation/gdr）
+│   │   ├── pool/                 #   内存池（BufferPool / VariableBufferPool）
+│   │   ├── router/               #   数据面分片路由（一致性哈希/Maglev/亲和）
+│   │   ├── metrics/ infra/ vendor/
+│   ├── pd/                       # PD 分离演示代理（toy_proxy_server.py）
+│   └── sandbox/                  # 实验区（agentic_ai 占位、sparse/retake 视频稀疏）
+├── kv_semantics/                 # 独立 KV 语义客户端 SDK（C++，仅 asu 后端消费）
+├── benchmarks/                   # trace 回放/生成/分析
+├── test/  ucm/store/test/        # pytest E2E + C++ GTest（~45 例）
+├── toolkit/                      # 6 个运维工具（含 KV Cache 计算器）
+├── docker/  charts/  examples/   # 21 个 Dockerfile、Helm chart、示例
+└── docs/                         # docs-site(MkDocs 新) + source(Sphinx 旧)</code></pre>
+
+<div class="note"><p><b>读法提示：</b>UCM 的代码呈“双语言三明治”——Python 负责引擎集成与策略编排（集成层、稀疏算法调度侧、工厂），C++ 承担一切热路径（存储读写、设备拷贝、RDMA、检索算分），两者经 pybind11 生成的 <code>ucm*.so</code> 扩展衔接（<span class="cref">setup.py:135-256</span> 的 CMakeBuild 把 C++ 库装进 Python 包树）。</p></div>
+</section>
+
+<!-- ================================================================ -->
+<section class="ch" id="ch2">
+<h2><span class="no">02</span>总体架构</h2>
+
+<h3>2.1 分层视图</h3>
+<p>UCM 在逻辑上分为四层：<strong>引擎适配层</strong>（嵌入推理进程）、<strong>统一缓存层</strong>（决定复用什么、放在哪里、何时搬运）、<strong>全局 KV 存储层</strong>（可插拔后端的统一抽象）、以及贯穿三层的<strong>共享基础设施</strong>（设备传输、内存池、路由、度量）。官方架构文档同样按“应用与引擎 → Unified Cache → Global KV Store”三段描述<sup class="ref"><a href="#ref-22">[22]</a></sup>。</p>
+
+<figure>
+<svg viewBox="0 0 880 560" width="100%" role="img" aria-label="UCM 分层架构图">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6b7488"/></marker>
+  </defs>
+  <!-- 引擎层 -->
+  <rect x="20" y="16" width="840" height="86" rx="10" fill="#f7f8fa" stroke="#e3e8f0"/>
+  <text x="40" y="42" font-size="13" font-weight="700" fill="#475069">引擎适配层（嵌入推理进程 · Python + monkeypatch）</text>
+  <g font-size="12.5" fill="#1a2233">
+    <rect x="40" y="54" width="190" height="34" rx="7" fill="#ffffff" stroke="#cdd5e1"/><text x="60" y="76">vLLM（KV Connector v1）</text>
+    <rect x="250" y="54" width="190" height="34" rx="7" fill="#ffffff" stroke="#cdd5e1"/><text x="270" y="76">vLLM-Ascend（NPU）</text>
+    <rect x="460" y="54" width="170" height="34" rx="7" fill="#ffffff" stroke="#cdd5e1"/><text x="480" y="76">SGLang（HiCache L3）</text>
+    <rect x="650" y="54" width="170" height="34" rx="7" fill="#ffffff" stroke="#cdd5e1"/><text x="670" y="76">MindIE（插件替换）</text>
+  </g>
+  <line x1="440" y1="102" x2="440" y2="128" stroke="#6b7488" stroke-width="1.4" marker-end="url(#arr)"/>
+  <!-- 统一缓存层 -->
+  <rect x="20" y="130" width="840" height="150" rx="10" fill="#edf3fe" stroke="#d7e3fb"/>
+  <text x="40" y="156" font-size="13" font-weight="700" fill="#1d45b4">统一缓存层（复用策略 · 放置 · 搬运）</text>
+  <g font-size="12" fill="#1a2233">
+    <rect x="40" y="168" width="252" height="44" rx="7" fill="#ffffff" stroke="#cdd5e1"/>
+    <text x="54" y="186" font-weight="650">UCMConnector 门面</text><text x="54" y="203" fill="#6b7488" font-size="11">Direct / LayerWise / CP / HLA / FAWA / Lite</text>
+    <rect x="312" y="168" width="176" height="44" rx="7" fill="#ffffff" stroke="#cdd5e1"/>
+    <text x="326" y="186" font-weight="650">RequestHasher</text><text x="326" y="203" fill="#6b7488" font-size="11">MD5 链式块哈希</text>
+    <rect x="508" y="168" width="160" height="44" rx="7" fill="#ffffff" stroke="#cdd5e1"/>
+    <text x="522" y="186" font-weight="650">稀疏注意力</text><text x="522" y="203" fill="#6b7488" font-size="11">ESA · GSA · KVStar …</text>
+    <rect x="688" y="168" width="152" height="44" rx="7" fill="#ffffff" stroke="#cdd5e1"/>
+    <text x="702" y="186" font-weight="650">RankConsistency</text><text x="702" y="203" fill="#6b7488" font-size="11">跨 rank 一致追踪</text>
+    <rect x="40" y="224" width="800" height="40" rx="7" fill="#ffffff" stroke="#cdd5e1"/>
+    <text x="54" y="248" font-size="12">UcmKVStoreBaseV1 抽象接口：lookup / lookup_on_prefix / lookup_on_reverse / prefetch / load / dump / wait / check</text>
+  </g>
+  <line x1="440" y1="280" x2="440" y2="306" stroke="#6b7488" stroke-width="1.4" marker-end="url(#arr)"/>
+  <!-- 存储层 -->
+  <rect x="20" y="308" width="840" height="118" rx="10" fill="#f7f8fa" stroke="#e3e8f0"/>
+  <text x="40" y="334" font-size="13" font-weight="700" fill="#475069">全局 KV 存储层（C++ 热路径 · 可插拔后端）</text>
+  <g font-size="11.5" fill="#1a2233">
+    <rect x="40" y="346" width="126" height="30" rx="6" fill="#ffffff" stroke="#cdd5e1"/><text x="58" y="366">Pipeline 组合</text>
+    <rect x="178" y="346" width="112" height="30" rx="6" fill="#ffffff" stroke="#cdd5e1"/><text x="196" y="366">Cache 内存级</text>
+    <rect x="302" y="346" width="112" height="30" rx="6" fill="#ffffff" stroke="#cdd5e1"/><text x="316" y="366">Posix 本地盘</text>
+    <rect x="426" y="346" width="104" height="30" rx="6" fill="#ffffff" stroke="#cdd5e1"/><text x="442" y="366">NFS（v0）</text>
+    <rect x="542" y="346" width="120" height="30" rx="6" fill="#ffffff" stroke="#cdd5e1"/><text x="556" y="366">DRAM 池/RDMA</text>
+    <rect x="674" y="346" width="166" height="30" rx="6" fill="#ffffff" stroke="#cdd5e1"/><text x="688" y="366">Mooncake / YuanRong</text>
+    <rect x="40" y="384" width="126" height="30" rx="6" fill="#ffffff" stroke="#cdd5e1"/><text x="58" y="404">Ds3fs（3FS）</text>
+    <rect x="178" y="384" width="112" height="30" rx="6" fill="#ffffff" stroke="#cdd5e1"/><text x="192" y="404">Compress</text>
+    <rect x="302" y="384" width="112" height="30" rx="6" fill="#ffffff" stroke="#cdd5e1"/><text x="322" y="404">ASU / 仿真桩</text>
+  </g>
+  <line x1="440" y1="426" x2="440" y2="452" stroke="#6b7488" stroke-width="1.4" marker-end="url(#arr)"/>
+  <!-- 介质层 -->
+  <rect x="20" y="454" width="840" height="88" rx="10" fill="#e9f6f4" stroke="#bfe6de"/>
+  <text x="40" y="480" font-size="13" font-weight="700" fill="#0d7d74">物理介质与设备传输（shared/trans · shared/pool · shared/router）</text>
+  <g font-size="11.5" fill="#1a2233">
+    <rect x="40" y="492" width="150" height="32" rx="6" fill="#ffffff" stroke="#bfe6de"/><text x="54" y="513">HBM 显存（GPU/NPU）</text>
+    <rect x="202" y="492" width="140" height="32" rx="6" fill="#ffffff" stroke="#bfe6de"/><text x="216" y="513">主机 DRAM / SHM</text>
+    <rect x="354" y="492" width="120" height="32" rx="6" fill="#ffffff" stroke="#bfe6de"/><text x="368" y="513">本地 NVMe SSD</text>
+    <rect x="486" y="492" width="120" height="32" rx="6" fill="#ffffff" stroke="#bfe6de"/><text x="500" y="513">NFS / 3FS 文件</text>
+    <rect x="618" y="492" width="222" height="32" rx="6" fill="#ffffff" stroke="#bfe6de"/><text x="632" y="513">远端内存池（HIXL/RDMA 单边读写）</text>
+  </g>
+</svg>
+<figcaption>图 1 · UCM 分层架构（依据仓库目录结构、<span class="cref">ucm_connector.py</span> 门面分发逻辑与官方架构描述综合绘制）</figcaption>
+</figure>
+
+<h3>2.2 两层接口世代：v0 与 v1 并存</h3>
+<p>存储层存在<strong>两代 C++ 接口</strong>，这是理解全部后端代码的关键背景：</p>
+<div class="tbl-wrap"><table class="tbl">
+  <thead><tr><th style="width:110px">维度</th><th>v0（CCStore&lt;T&gt;）</th><th>v1（StoreV1）</th></tr></thead>
+  <tbody>
+  <tr><td>接口定义</td><td><span class="cref">ucm/store/ucmstore.h:31-47</span></td><td><span class="cref">ucm/store/ucmstore_v1.h:40-186</span></td></tr>
+  <tr><td>块标识 BlockId</td><td><code>std::string</code></td><td>定长 16 字节数组 <code>std::array&lt;std::byte,16&gt;</code>（<span class="cref">detail/type/types.h:33</span>）——即 MD5 digest 的原生长度</td></tr>
+  <tr><td>写生命周期</td><td>Alloc → Submit → Wait → Commit</td><td>Lookup×3 / Prefetch / Load / Dump / Check / Wait + CheckHealth</td></tr>
+  <tr><td>查找语义</td><td>单块/批量存在性</td><td>增加 <strong>前缀语义</strong>（lookup_on_prefix：遇首个缺失即停）与<strong>后缀语义</strong>（lookup_on_reverse：反向扫描，服务 full-attention+Mamba 混合模型，<span class="cref">ucmstore_v1.py:98-119</span>）</td></tr>
+  <tr><td>实现后端</td><td>nfsstore、pcstore</td><td>posix、dram、ds3fs、mooncakestore、yuanrongstore、cache、compress、pipeline、asu、delegator、empty、fake</td></tr>
+  </tbody>
+</table></div>
+<div class="warnbox"><p><b>命名错位（实锤）：</b>V1 Python 工厂把名字 <code>"UcmNfsStore"</code> 注册给了 <code>UcmPcStoreV1</code>（<span class="cref">factory_v1.py:65-67</span>）——即 V1 体系里名为 NFS 的连接器实际是 PC Store 实现。两代接口并存 + 名称错位是新读者最容易踩的坑（详见 10.4）。</p></div>
+
+<h3>2.3 构建系统</h3>
+<ul>
+  <li><strong>单 CMake 总装</strong>：根 <code>CMakeLists.txt</code> 以 <code>RUNTIME_ENVIRONMENT</code>（simu/ascend/ascend-a3/cuda/maca/musa 六选一）决定编译哪套设备后端（<span class="cref">CMakeLists.txt:19-31</span>）；<code>BUILD_UCM_ASU</code> 控制是否并入 kv_semantics SDK（<span class="cref">CMakeLists.txt:58-60</span>）。</li>
+  <li><strong>Python 包装</strong>：<code>setup.py</code> 的 <code>CMakeBuild</code> 驱动 CMake 并把 pybind 产物 <code>.so</code> 安装进包树（<span class="cref">setup.py:135-256</span>）；<code>PLATFORM</code> 环境变量映射目标平台（<span class="cref">setup.py:35,229-243</span>），未设置会打印醒目警告（<span class="cref">setup.py:85-104</span>）。</li>
+  <li><strong>构建开关</strong>：<code>ENABLE_SPARSE</code>（稀疏注意力）、<code>ENABLE_GDR</code>（GPUDirect RDMA）、<code>UCM_ENABLE_MINDIE</code>（MindIE 适配，另需 <code>UCM_CXX11_ABI</code> 0/1 匹配，<span class="cref">setup.py:37-49,67-81</span>）。</li>
+  <li><strong>运行时注入物</strong>：<code>ucm_patch.pth</code> 随 wheel 分发（<span class="cref">setup.py:314-318</span>），editable 安装时由 <code>inject_pth()</code> 写入 site-packages（<span class="cref">setup.py:259-293,320-321</span>）。</li>
+</ul>
+
+<div class="note"><p><b>设计判断：</b>“引擎适配 / 缓存机制 / 存储后端三条轴线独立演化”是 UCM 最重要的架构决策——引擎侧对接官方 Connector API、缓存侧用 16 字节内容键抽象、存储侧用 V1 接口 + 工厂懒加载（<span class="cref">factory_v1.py:34-62</span>），三者之间只有窄契约。这也是官方 README 宣称的 “pluggable interfaces” 的代码落点<sup class="ref"><a href="#ref-22">[22]</a></sup>。</p></div>
+</section>
+
+<!-- ================================================================ -->
+<section class="ch" id="ch3">
+<h2><span class="no">03</span>引擎集成机制</h2>
+
+<h3>3.1 注入链：.pth → import hook → 按需 monkeypatch</h3>
+<p>UCM 对 vLLM 的集成是<strong>“官方 KV Connector v1 API（数据面与调度面钩子）+ 侵入式 monkeypatch（补齐 vLLM 缺失能力）”</strong>的混合体。安装后用户侧零配置启动——注入在 Python 解释器启动时自动完成：</p>
+
+<figure>
+<svg viewBox="0 0 880 168" width="100%" role="img" aria-label="注入时序">
+  <defs><marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2b5ce6"/></marker></defs>
+  <g font-size="12">
+    <rect x="16" y="30" width="196" height="76" rx="9" fill="#edf3fe" stroke="#d7e3fb"/>
+    <text x="30" y="56" font-weight="700" fill="#1d45b4">① 进程启动</text>
+    <text x="30" y="76" fill="#475069">site 机制执行 ucm_patch.pth</text>
+    <text x="30" y="93" fill="#6b7488" font-size="10.5" class="mono">ucm_patch.pth:1</text>
+    <rect x="244" y="30" width="196" height="76" rx="9" fill="#ffffff" stroke="#cdd5e1"/>
+    <text x="258" y="56" font-weight="700">② 挂 meta_path 钩子</text>
+    <text x="258" y="76" fill="#475069">VllmImportTrigger 只盯 "vllm"</text>
+    <text x="258" y="93" fill="#6b7488" font-size="10.5" class="mono">boot_patch.py:24-48</text>
+    <rect x="472" y="30" width="196" height="76" rx="9" fill="#ffffff" stroke="#cdd5e1"/>
+    <text x="486" y="56" font-weight="700">③ import vllm 之后</text>
+    <text x="486" y="76" fill="#475069">apply_all_patches() 版本分发</text>
+    <text x="486" y="93" fill="#6b7488" font-size="10.5" class="mono">apply_patch.py:145-325</text>
+    <rect x="700" y="30" width="164" height="76" rx="9" fill="#ffffff" stroke="#cdd5e1"/>
+    <text x="714" y="56" font-weight="700">④ 二级懒打补丁</text>
+    <text x="714" y="76" fill="#475069">@when_imported 逐模块</text>
+    <text x="714" y="93" fill="#6b7488" font-size="10.5" class="mono">utils.py:86-103</text>
+  </g>
+  <g stroke="#2b5ce6" stroke-width="1.6">
+    <line x1="212" y1="68" x2="240" y2="68" marker-end="url(#arr2)"/>
+    <line x1="440" y1="68" x2="468" y2="68" marker-end="url(#arr2)"/>
+    <line x1="668" y1="68" x2="696" y2="68" marker-end="url(#arr2)"/>
+  </g>
+  <text x="16" y="140" font-size="11.5" fill="#6b7488">总开关 ENABLE_UCM_PATCH（apply_patch.py:151-153）；日志桥接 UCM_CAPTURE_VLLM_LOG=1 默认开（logger_patch.py:7-9）；稀疏开关 ENABLE_SPARSE（apply_patch.py:37-42）</text>
+</svg>
+<figcaption>图 2 · UCM 对 vLLM 的运行时注入链（依据 <span class="cref">boot_patch.py</span>、<span class="cref">apply_patch.py</span>、<span class="cref">patch/utils.py</span> 源码绘制）</figcaption>
+</figure>
+
+<p>四个关键机制：</p>
+<ul>
+  <li><strong>一级触发器</strong>：<code>VllmImportTrigger.find_spec</code> 仅匹配 <code>fullname=="vllm"</code>（<span class="cref">boot_patch.py:26-27</span>），匹配时暂时摘除自身防递归（:29-41），用 <code>VllmPatchLoader</code> 包裹真实 loader，在其 <code>exec_module</code> 完成后调用 <code>apply_all_patches()</code>（:13-21）。</li>
+  <li><strong>二级模块级 hook</strong>：<code>@when_imported("vllm.xxx")</code> 装饰器（<span class="cref">utils.py:86-103</span>）保证每个 patch 函数在其目标模块首次导入后才执行；已导入则立即执行并打 <code>_ucm_patched</code> 防重标记（:96-100）。</li>
+  <li><strong>打补丁原语</strong>：<code>patch_or_inject</code>（有则替换、无则注入，<span class="cref">utils.py:142-157</span>）、<code>patch_dataclass_fields</code>（整体替换 dataclass 的字段与构造，用于扩张 SchedulerOutput/KVConnectorOutput，<span class="cref">utils.py:106-139</span>）、<code>PatchOpProxy</code>（wrapt 代理 <code>torch.ops.vllm.*</code> 自定义算子，<span class="cref">utils.py:62-78</span>）。</li>
+  <li><strong>版本探测与分发</strong>：<code>_norm_version</code> 剥离 <code>+build/.post/rc</code> 后缀（<span class="cref">apply_patch.py:46-60</span>）；<code>SUPPORTED_VLLM_VERSIONS</code> 名单含 14 个版本（0.11.0、0.17.0–0.28.0，<span class="cref">apply_patch.py:127-142</span>）；不在名单且非 Ascend 直接抛 <code>RuntimeError</code>（:154-157）。</li>
+</ul>
+
+<h3>3.2 Connector 类谱系：一个门面，九种实现</h3>
+<p>核心文件 <code>ucm/integration/vllm/ucm_connector.py</code>（3735 行）。顶层 <code>UCMConnector</code>（<span class="cref">ucm_connector.py:3215</span>）继承 vLLM 官方 <code>KVConnectorBase_V1</code> 与 <code>SupportsHMA</code>（<span class="cref">ucm_connector.py:17-22</span>），在构造时按启动配置分发到具体实现（<span class="cref">ucm_connector.py:3224-3386</span>）：</p>
+
+<div class="tbl-wrap"><table class="tbl">
+  <thead><tr><th>实现类</th><th>位置</th><th>触发条件</th><th>行为特征</th></tr></thead>
+  <tbody>
+  <tr><td><code>UCMDirectConnector</code></td><td><span class="cref">:1363</span></td><td><code>use_layerwise=false</code></td><td>同步基类：“load → forward → save”（:1364-1366）；load 在 start_load_kv 内同步等待（:2228-2230）</td></tr>
+  <tr class="hl"><td><code>UCMLayerWiseConnector</code></td><td><span class="cref">:2570</span></td><td><b>默认</b>（use_layerwise=true，:3285-3289）；PP&gt;1 强制（:3334-3338）</td><td>层间三级流水：load l0 → fwd l0 → save l0 / load l1 → …（:2571-2576）</td></tr>
+  <tr><td><code>UCMCPConnector</code></td><td><span class="cref">:2874</span></td><td>DCP/PCP &gt; 1（:3344-3347）</td><td>context-parallel：块按 <code>[rank::cp_world_size]</code> 切片（:2942-2955）；哈希以 pcp_rank0 为基准并广播 seed（:2929-2938）</td></tr>
+  <tr><td><code>UCMHLALite/HLA Connector</code></td><td><span class="cref">hla_connector.py</span>（1891 行）</td><td>混合线性注意力模型</td><td>full-attn + linear-attn/mamba 多 KV group 布局</td></tr>
+  <tr><td><code>UCMFAWA(Lite)Connector</code></td><td><span class="cref">hma_connector.py</span>（1597 行）</td><td>FAWA 混合布局（SupportsHMA）</td><td>full-attention with attention-sinks 类混合</td></tr>
+  <tr><td><code>UCMLiteConnector</code></td><td><span class="cref">:3066</span></td><td><code>use_lite=true</code></td><td>trace 模式：只算哈希评估命中率、不搬数据（:3196-3212 全 pass）</td></tr>
+  <tr><td><code>UCMMockConnector</code></td><td><span class="cref">:3022</span></td><td>测试</td><td>按 hit_ratio 模拟命中（:3023-3063）</td></tr>
+  <tr><td><code>Blend connector</code></td><td><span class="cref">blend_connector.py</span></td><td>CacheBlend 场景</td><td>分块重算 + 块级 re-RoPE（import <span class="cref">ucm.sparse.blend.blockwise_rope</span>）</td></tr>
+  <tr><td><code>Monitor connector</code></td><td><span class="cref">inference_duration_monitor_connector.py</span></td><td><code>inference_duration_monitor</code></td><td>推理耗时观测（此时 requires_piecewise_for_cudagraph=True，:3216-3222）</td></tr>
+  <tr><td><code>UCMPDConnector</code></td><td><span class="cref">:2983</span></td><td>—</td><td><b>空壳占位</b>：核心方法直接 raise NotImplementedError（:3003,:3019）</td></tr>
+  </tbody>
+</table></div>
+
+<p>门面层还有三个值得注意的全局决策：</p>
+<ul>
+  <li><code>requires_kv_delivery</code> 显式返回 False（<span class="cref">:3388-3398</span>），docstring 明确：“UCM 是尽力而为的缓存，<strong>不是 P/D 分离的生产者</strong>”，并解释这是为了避免 async_scheduling + defer_block_free 组合下的全抢占死锁。</li>
+  <li>混合多 KV group 且 <code>kv_load_failure_policy='recompute'</code> 时直接 raise（<span class="cref">:3244-3270</span>）——UCM 上报 invalid block 后 vLLM 无法跨多 group 重算。</li>
+  <li>worker→scheduler 反向元数据 <code>UCMWorkerMetadata</code> 的聚合规则：<strong>MLA 取并集、非 MLA 取交集</strong>（<span class="cref">:1356-1359</span>）——因为 MLA 单份存储，任一 rank 命中即可用；非 MLA 各 rank 自有分片，必须全部命中。</li>
+</ul>
+
+<h3>3.3 一次请求的完整时序（调度侧 × Worker 侧）</h3>
+<p>UCM 挂接的是 vLLM v1 调度器与 model runner 的标准 Connector 调用点。下面以 LayerWise（默认）为例：</p>
+
+<figure>
+<svg viewBox="0 0 880 470" width="100%" role="img" aria-label="请求时序图">
+  <defs><marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#475069"/></marker></defs>
+  <!-- 泳道 -->
+  <g font-size="12" font-weight="700">
+    <rect x="16" y="14" width="270" height="34" rx="8" fill="#f7f8fa" stroke="#e3e8f0"/><text x="30" y="36">Scheduler 进程（调度侧）</text>
+    <rect x="306" y="14" width="270" height="34" rx="8" fill="#edf3fe" stroke="#d7e3fb"/><text x="320" y="36" fill="#1d45b4">UCMConnector</text>
+    <rect x="596" y="14" width="268" height="34" rx="8" fill="#f7f8fa" stroke="#e3e8f0"/><text x="610" y="36">Worker 进程 / Store（C++）</text>
+  </g>
+  <g stroke="#cdd5e1" stroke-dasharray="4 4"><line x1="151" y1="48" x2="151" y2="440"/><line x1="441" y1="48" x2="441" y2="440"/><line x1="730" y1="48" x2="730" y2="440"/></g>
+  <g font-size="11.5">
+    <!-- step 1 -->
+    <line x1="151" y1="76" x2="437" y2="76" stroke="#475069" stroke-width="1.4" marker-end="url(#arr3)"/>
+    <text x="160" y="70">① get_num_new_matched_tokens()</text>
+    <text x="446" y="70" fill="#6b7488" class="mono" font-size="10">:1794-1957</text>
+    <line x1="441" y1="96" x2="726" y2="96" stroke="#475069" stroke-width="1.4" marker-end="url(#arr3)"/>
+    <text x="446" y="90" fill="#475069">MD5 链式哈希 → lookup_on_prefix（遇缺失即停）</text>
+    <line x1="730" y1="116" x2="445" y2="116" stroke="#475069" stroke-width="1.4" marker-end="url(#arr3)"/>
+    <text x="446" y="110" fill="#475069">外部命中块数 → 报 (hit_tokens, load_async)</text>
+    <!-- step 2 -->
+    <line x1="151" y1="146" x2="437" y2="146" stroke="#475069" stroke-width="1.4" marker-end="url(#arr3)"/>
+    <text x="160" y="140">② update_state_after_alloc() 分配 vLLM 块</text>
+    <text x="446" y="140" fill="#6b7488" class="mono" font-size="10">:1959-2006</text>
+    <line x1="151" y1="172" x2="437" y2="172" stroke="#475069" stroke-width="1.4" marker-end="url(#arr3)"/>
+    <text x="160" y="166">③ build_connector_meta() 每步产出 UCMConnectorMetadata</text>
+    <text x="446" y="166" fill="#6b7488" class="mono" font-size="10">:2064-2137</text>
+    <!-- worker 侧 -->
+    <line x1="730" y1="202" x2="445" y2="202" stroke="#475069" stroke-width="1.4" marker-end="url(#arr3)"/>
+    <text x="446" y="196">④ start_load_kv()（首层）· 提交 load task + 设备指针表</text>
+    <text x="446" y="214" fill="#6b7488" class="mono" font-size="10">:2149-2230 · extract_block_addrs :547-570</text>
+    <line x1="730" y1="238" x2="445" y2="238" stroke="#475069" stroke-width="1.4" marker-end="url(#arr3)"/>
+    <text x="446" y="232">⑤ 每层 attention 前 wait_for_layer_load(l) 并预提交 l+1</text>
+    <text x="446" y="250" fill="#6b7488" class="mono" font-size="10">:2668-2724 · attention/layer.py:9-24</text>
+    <line x1="730" y1="274" x2="445" y2="274" stroke="#475069" stroke-width="1.4" marker-end="url(#arr3)"/>
+    <text x="446" y="268">⑥ 每层 attention 后 save_kv_layer(l) 提交本层 dump</text>
+    <text x="446" y="286" fill="#6b7488" class="mono" font-size="10">:2737-2846 · layer.py:27-45</text>
+    <line x1="730" y1="310" x2="445" y2="310" stroke="#475069" stroke-width="1.4" marker-end="url(#arr3)"/>
+    <text x="446" y="304">⑦ wait_for_save() 汇总新块 → submit_dump(prerequisite_event)</text>
+    <text x="446" y="322" fill="#6b7488" class="mono" font-size="10">:2350-2429 · 事件句柄 :2251-2259</text>
+    <!-- 结束 -->
+    <line x1="151" y1="352" x2="437" y2="352" stroke="#475069" stroke-width="1.4" marker-end="url(#arr3)"/>
+    <text x="160" y="346">⑧ request_finished()：异步 dump 未完 → 延迟释放 vLLM 块</text>
+    <text x="446" y="346" fill="#6b7488" class="mono" font-size="10">:2489-2497</text>
+    <line x1="151" y1="382" x2="437" y2="382" stroke="#475069" stroke-width="1.4" marker-end="url(#arr3)"/>
+    <text x="160" y="376">⑨ get_finished()：落盘确认后才回报 finished_sending</text>
+    <text x="446" y="376" fill="#6b7488" class="mono" font-size="10">:2543-2567</text>
+    <line x1="441" y1="408" x2="726" y2="408" stroke="#475069" stroke-width="1.4" marker-end="url(#arr3)"/>
+    <text x="446" y="402" fill="#475069">⑩ get_block_ids_with_load_errors() → 调度器截前缀重算（加载失败恢复）</text>
+    <text x="446" y="420" fill="#6b7488" class="mono" font-size="10">:3719-3728 · scheduler.py:279-344</text>
+  </g>
+</svg>
+<figcaption>图 3 · LayerWise 模式下一次请求的 lookup / load / save 时序（行号均指 <span class="cref">ucm_connector.py</span>，另有标注除外）</figcaption>
+</figure>
+
+<p>时序中四个最容易被忽视、但对正确性至关重要的设计：</p>
+<ul>
+  <li><strong>全命中重算保护</strong>（<span class="cref">:1929-1946</span>）：FULL cudagraph 会跳过 layerwise hook，因此当外部全部命中时，UCM 会强制少报命中、让 vLLM 至少重算 <code>_get_full_hit_recompute_tokens()</code>（默认 1 个 token，<span class="cref">:1528-1549</span>），避免层钩子完全不触发导致的数据缺失。</li>
+  <li><strong>异步 save 与块释放的精确接力</strong>：dump 挂到 <code>_pending_dump_tasks</code> 后由下一步 <code>_poll_pending_dump_tasks</code> 收割（<span class="cref">:2353-2360</span>）；若请求结束时 dump 未完，<code>request_finished</code> 返回延迟释放（<span class="cref">:2489-2497</span>），<code>get_finished</code> 中 <code>_wait_pending_dump_task</code> 阻塞确认（<span class="cref">:2550-2562</span>）——<strong>保证“vLLM 块被复用前，其数据已持久化”</strong>。</li>
+  <li><strong>加载失败不上报死锁</strong>：异步 load 失败也会上报完成（<span class="cref">:2537-2539</span> 注释），让请求离开 WAITING_FOR_REMOTE_KVS 状态转入重算，而不是永远悬挂。</li>
+  <li><strong>dump 的设备事件前置</strong>：<code>wait_for_save</code> 在提交 dump 时携带 <code>prerequisite_handle</code>（当前计算流 record 的事件，<span class="cref">:2251-2259</span>），C++ store 侧 <code>WaitEvent</code> 后才启动 D2H（接口注释 <span class="cref">ucmstore_v1.py:196-205</span>）——保证拷贝读到的显存是算完的 KV，而非脏数据。</li>
+</ul>
+
+<h3>3.4 加载失败恢复：从 backport 到上游化</h3>
+<p>v0110 的 pc patch 存在的核心理由是给 vLLM 0.11.0 补齐“外部加载失败”的恢复链路：<code>KVConnectorOutput</code> 被扩张出 <code>invalid_block_ids</code> 字段（<span class="cref">patch/v0110/vllm/pc/v1/outputs.py:5-18</span>），worker 侧经 <code>get_block_ids_with_load_errors()</code> 上报（<span class="cref">kv_connector_model_runner_mixin.py:41</span>），跨 worker 聚合取并集（<span class="cref">kv_connector/utils.py:45-55</span>），调度器 <code>update_from_output</code> 检测后调 <code>_handle_invalid_blocks</code>（<span class="cref">scheduler.py:279-344</span>）——等待中的请求截断到最长有效前缀重排，运行中的请求 preempt 重算。</p>
+<div class="okbox"><p><b>有力的演进证据：</b>从 vLLM ≥0.18 起，UCM 的 <code>load_failure_patch.py</code> 不再注入方法，只是<strong>包装上游已原生具备的</strong> <code>_update_requests_with_invalid_blocks</code>，仅修复多 KV group（HMA）下上游单组解包的崩溃（<span class="cref">load_failure_patch.py:11-17,47-50</span>）。这说明 UCM 0.11.0 的整套恢复机制是把“后来上游化的能力”做了前置 backport——其设计已被社区主流验证吸收。</p></div>
+
+<h3>3.5 patch 版本矩阵与演进趋势</h3>
+<div class="tbl-wrap"><table class="tbl">
+  <thead><tr><th>vLLM 版本</th><th>patch 目录</th><th>内容要点</th></tr></thead>
+  <tbody>
+  <tr><td>0.9.2 / 0.11.0</td><td><code>patch/0.9.2</code>、<code>patch/0.11.0</code></td><td>遗留 <b>git apply 源码补丁</b>（rerope 文档仍引用，<span class="cref">docs/source/user-guide/rerope/rerope.md:66</span>）</td></tr>
+  <tr><td>0.11.0</td><td><code>patch/v0110</code></td><td><b>完整运行时 patch</b>：pc（加载失败恢复 backport）+ sparse（GSA）+ ascend 双套；此后 monkeypatch 取代源码补丁（<span class="cref">apply_patch.py:24-27,200-205</span>）</td></tr>
+  <tr><td>0.17.0</td><td>—</td><td>无需 patch（<span class="cref">apply_patch.py:129</span>）</td></tr>
+  <tr><td>0.18.0 / 0.19.1</td><td><code>v0180</code> / <code>v0191</code></td><td>mamba 块对齐切分、PromptTokenStats、VllmConfig；ascend SFA 双版本（按含 rc 的完整版本号选择实现）、sample_tokens 上游源码嗅探（<span class="cref">pc_ascend_patch.py:19-24,62-63</span>）；0.19.1 首现 cpu_binding</td></tr>
+  <tr><td>0.20.2–0.25.1</td><td><code>v0202…v0251</code></td><td>vLLM 主线（CUDA）patch 面收窄为空壳，<b>仅 vllm_ascend 需要 per-version 补丁</b>：hybrid cache、sfa_kv_transfer（0.23+）、mamba copy 时序（0.21+）（<span class="cref">apply_patch.py:228-261,310-313</span>）</td></tr>
+  <tr><td>0.26.0–0.27.1</td><td><code>v0260…v0271</code></td><td>仅模型特例：MiniMax-M3（ascend+CUDA）、Kimi-K3 MLA 自定义路径绕过统一装饰器需手工 bracket KV hook（<span class="cref">apply_patch.py:307-319</span>）</td></tr>
+  <tr><td>0.28.0</td><td>—</td><td>无需 patch（<span class="cref">apply_patch.py:141</span>）</td></tr>
+  </tbody>
+</table></div>
+<p>横向公共补丁：<code>load_failure_patch</code>（≥0.18）、<code>engine_core_startup_shutdown_patch</code>（≥0.24，修复 connector 构造抛错导致 worker 僵尸、父进程 waitpid 永久阻塞，<span class="cref">engine_core_startup_shutdown_patch.py:24-40</span>）、<code>bind_memory_patch</code>（ascend 全版本，<span class="cref">bind_memory_patch.py:16-29</span>）。</p>
+<div class="note"><p><b>演进趋势判读：</b>① 源码 git patch → 运行时 import-hook monkeypatch（零侵入安装、版本自动分发）；② 单点修复随上游吸收持续减少（加载失败恢复即例）；③ CUDA 主线 patch 面收窄至模型特例，vllm_ascend 因 NPU 差异长期需要逐版本补丁；④ patch 性质从“功能注入”转向“兼容性/稳定性修复”。这是一条健康的上游协同曲线。</p></div>
+
+<h3>3.6 SGLang 与 MindIE：三条截然不同的接入路径</h3>
+<div class="tbl-wrap"><table class="tbl">
+  <thead><tr><th style="width:120px">维度</th><th>vLLM</th><th>SGLang</th><th>MindIE</th></tr></thead>
+  <tbody>
+  <tr><td>官方接口</td><td>KV Connector v1 API（参与调度决策，上报可复用 token 数）</td><td>HiCache <code>HiCacheStorage</code> L3 存储后端（引擎只“存取字节”，无调度感知）</td><td>无开放接口 → <b>文件覆盖式</b>替换其 prefix_cache 插件</td></tr>
+  <tr><td>注入方式</td><td>.pth → import hook → monkeypatch</td><td><b>零 hook</b>：<code>--hicache-storage-backend dynamic</code> + module_path/class_name 配置注入（docs quickstart_sglang.md:105-119）；遗留 0.5.5 为构建期 git apply</td><td>.pth → mindie boot hook → 把 3 个文件<b>物理复制进 mindie_llm 包</b>（<span class="cref">mindie/patch/boot_patch.py:28-59</span>）</td></tr>
+  <tr><td>块哈希</td><td>connector 自算 MD5 链（见 4.1）</td><td>引擎算好键，UCM 加 <code>_{model}_{rank}_{tp}</code> 后缀再 md5（<span class="cref">sglang/ucm_connector.py:495-511</span>）</td><td>C++ 扩展复刻 MindIE boost 风格 hash_combine 滚动哈希（<span class="cref">hash_mindie/uc_hash_ext.cpp:17-26,67-92</span>），须与 MindIE 内部严格一致</td></tr>
+  <tr><td>数据面</td><td>设备 KV ↔ store（裸指针表）</td><td>host page_first 内存池零拷贝 + 同步 wait（<span class="cref">sglang/ucm_connector.py:533-596</span>；强制 <code>--hicache-mem-layout page_first</code>）</td><td>NPU 设备指针表 KVPtrComputer（<span class="cref">mindie/uc_utils.py:4-35</span>），异步线程 + NPU event 落盘</td></tr>
+  <tr><td>调度感知</td><td>有（lookup 改变 num_computed_tokens）</td><td>无（batch_exists → lookup_on_prefix）</td><td>有（remote_computed_blocks 驱动）</td></tr>
+  <tr><td>版本耦合</td><td>14 版本运行时分发</td><td>现行 ≥0.5.9 零 patch；<b>0.5.5 patch 已与现行 connector 脱节</b>（引用了已删除符号）</td><td>与 MindIE-LLM 2.3.0 强绑定；仅 <code>UCM_ENABLE_MINDIE=1</code> 构建（<span class="cref">setup.py:47,194-196</span>）</td></tr>
+  </tbody>
+</table></div>
+<div class="warnbox"><p><b>未确认事项：</b>MindIE 的 <code>UnifiedCacheMempool</code> 引用了 <code>ucm.store.kvcs.connector.UcmKvcsStore</code>（<span class="cref">unifiedcache_mempool.py:311-322</span>），但该模块不在本仓库（glob 无结果），分发渠道未确认（推测为 Ascend 内部/另行分发）。报告中凡此类信息均如实标注。</p></div>
+</section>
+
+<!-- ================================================================ -->
+<section class="ch" id="ch4">
+<h2><span class="no">04</span>核心算法详解</h2>
+<p>本章是报告的核心：对 UCM 赖以工作的七组算法做原理级剖析。每组按「问题 → 算法步骤 → 代码实现 → 设计权衡」展开，全部结论锚定源码行号。</p>
+
+<h3 id="ch4-1">4.1 内容寻址：MD5 链式块哈希</h3>
+<h4>问题</h4>
+<p>要跨进程、跨实例复用 KV，首先需要回答：“两段上下文是否完全相同？”——而且要在<strong>不比较 KV 本体</strong>（每块可达数 MB）的前提下回答。UCM 的做法是给每个定长 token 块算一个<strong>内容指纹</strong>，指纹即存储键（content addressing）。</p>
+<h4>算法</h4>
+<p>实现于 <code>ucm/integration/vllm/request_hasher.py</code>（137 行，本报告作者逐行复核）。核心是 <strong>MD5 链式（chained/rolling）哈希</strong>：</p>
+<pre><code># ① 命名空间（每进程常量，request_hasher.py:76-82）
+meta = f"{model_name}:{tp_size}:{dtype}:{rank_id}{spec_info}{sparse_c8_info}"
+#    模型名 : 张量并行度 : 精度 : TP rank : 投机解码配置 : 稀疏量化标志
+
+# ② 链根（request_hasher.py:83）
+seed = MD5(meta_bytes + "UCM_HASH_SEED")
+
+# ③ 逐块链式推进（request_hasher.py:105-132）
+parent = seed
+for 每个满块 [start, start+block_size):
+    extra_keys = vllm.generate_block_hash_extra_keys(request, start, end, mm_idx)
+    parent = MD5( meta_bytes + pickle( (parent, token_ids[start:end], extra_keys) ) )
+    block_hashes.append(parent)</code></pre>
+<p>三个设计要点：</p>
+<ul>
+  <li><strong>链式依赖</strong>：第 n 块的哈希包含第 n−1 块的哈希——任一 token 变化会使其后<strong>所有</strong>块哈希改变。这使键天然携带前缀语义：共同前缀 ⇔ 相同前缀块键序列，与前缀查找（4.2）严格对齐。</li>
+  <li><strong>只对满块出哈希</strong>（<span class="cref">request_hasher.py:114-115</span>）：尾部不满一块的部分不落盘——因为 KV 复用粒度是块，尾块随请求生长未完成定型。</li>
+  <li><strong>extra_keys 语义完整性</strong>：直接复用 vLLM 的 <code>generate_block_hash_extra_keys()</code>（覆盖多模态 mm_features、LoRA、cache_salt、prompt_embeds，<span class="cref">request_hasher.py:9-12,48-54</span>）；若 vLLM 版本无此函数而请求携带这些语义，则抛 <code>RequestHashError</code> 拒绝静默产生错误键（<span class="cref">:19-36</span>）——这是正确性保护。</li>
+</ul>
+<figure>
+<svg viewBox="0 0 880 150" width="100%" role="img" aria-label="MD5 链式哈希">
+  <defs><marker id="arr4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2b5ce6"/></marker></defs>
+  <g font-size="11.5">
+    <rect x="16" y="44" width="120" height="52" rx="8" fill="#edf3fe" stroke="#d7e3fb"/>
+    <text x="30" y="66" font-weight="700" fill="#1d45b4">seed</text><text x="30" y="84" fill="#6b7488" font-size="10">= MD5(meta)</text>
+    <rect x="176" y="20" width="200" height="44" rx="8" fill="#ffffff" stroke="#cdd5e1"/>
+    <text x="188" y="38" fill="#475069">块 0：token_ids[0:bs]</text><text x="188" y="54" fill="#6b7488" font-size="10">+ extra_keys</text>
+    <rect x="176" y="80" width="200" height="44" rx="8" fill="#edf3fe" stroke="#d7e3fb"/>
+    <text x="188" y="98" font-weight="700" fill="#1d45b4">H₀ = MD5(meta‖pickle(seed, t₀, e₀))</text><text x="188" y="114" fill="#6b7488" font-size="10">16 字节 → 存储键</text>
+    <rect x="416" y="20" width="200" height="44" rx="8" fill="#ffffff" stroke="#cdd5e1"/>
+    <text x="428" y="38" fill="#475069">块 1：token_ids[bs:2bs]</text><text x="428" y="54" fill="#6b7488" font-size="10">+ extra_keys</text>
+    <rect x="416" y="80" width="200" height="44" rx="8" fill="#edf3fe" stroke="#d7e3fb"/>
+    <text x="428" y="98" font-weight="700" fill="#1d45b4">H₁ = MD5(meta‖pickle(H₀, t₁, e₁))</text><text x="428" y="114" fill="#6b7488" font-size="10">依赖 H₀</text>
+    <rect x="656" y="44" width="208" height="52" rx="8" fill="#f7f8fa" stroke="#e3e8f0"/>
+    <text x="670" y="66" fill="#475069">… Hₙ = MD5(meta‖(Hₙ₋₁, tₙ, eₙ))</text><text x="670" y="84" fill="#6b7488" font-size="10">前缀语义 ⇔ 键序列前缀一致</text>
+  </g>
+  <g stroke="#2b5ce6" stroke-width="1.5">
+    <line x1="136" y1="70" x2="172" y2="96" marker-end="url(#arr4)"/>
+    <line x1="276" y1="64" x2="276" y2="76" marker-end="url(#arr4)"/>
+    <line x1="376" y1="96" x2="412" y2="96" marker-end="url(#arr4)"/>
+    <line x1="516" y1="64" x2="516" y2="76" marker-end="url(#arr4)"/>
+    <line x1="616" y1="96" x2="652" y2="72" marker-end="url(#arr4)"/>
+  </g>
+</svg>
+<figcaption>图 4 · MD5 链式块哈希（依据 <span class="cref">request_hasher.py:76-132</span> 源码绘制）</figcaption>
+</figure>
+<h4>权衡与风险</h4>
+<ul>
+  <li><strong>命名空间维度即“兼容性边界”</strong>：模型名、TP 度、dtype、rank、投机解码、稀疏量化标志任一不同 → 键空间不同 → 永不误共享，但也永不命中。PD 分离配对正是靠两侧配置一致 + 同一套 hasher（见第 6 章）。</li>
+  <li><strong>rank 维度</strong>：非 MLA 模型每个 TP rank 独立命名空间（<span class="cref">:80</span>），各 rank 数据互不串扰；MLA 单份存储，故调度侧用 rank0 hasher + <code>_other_rank_hashers</code> 为其余 rank 预取（<span class="cref">ucm_connector.py:1554-1558</span>）。</li>
+  <li><strong>无碰撞防护</strong>：128-bit MD5 digest 直接作键，代码中<strong>没有</strong>任何二次校验。威胁模型是“同配置缓存键唯一性”而非恶意构造——与 vLLM 内置 prefix cache 的取舍一致；理论上误命中会静默加载错误 KV。代码未见防护或评估注释，列为设计取舍（见 10.1）。</li>
+  <li>对比其他引擎路径：SGLang 由引擎算键、UCM 加后缀再 md5；MindIE 用 C++ 扩展复刻其 boost 风格 hash_combine（见 3.6 表）。</li>
+</ul>
+
+<h3 id="ch4-2">4.2 前缀查找与命中流程</h3>
+<h4>问题</h4>
+<p>调度器在接纳一个请求时需要知道：“它的前缀有多少可以从外部存储直接拿 KV？”回答必须满足两条硬约束：<strong>只有连续前缀可复用</strong>（注意力因果性：第 n 块有用当且仅当 0..n−1 都有用）；<strong>查询必须廉价</strong>（不能读数据本体）。</p>
+<h4>算法与流程</h4>
+<ol>
+  <li><strong>哈希</strong>：<code>get_num_new_matched_tokens</code> 对请求全量 token 算块哈希（<span class="cref">ucm_connector.py:1811</span>）。</li>
+  <li><strong>扣除 HBM 已命中段</strong>：vLLM 进程内 prefix cache 已命中的前缀无需外部查找，<code>external_block_ids = ucm_block_ids[hbm_hit_block_num:]</code>（<span class="cref">:1848-1853</span>）——<strong>两级缓存 L1=HBM、L2=外部存储</strong>就此衔接。</li>
+  <li><strong>前缀语义查询</strong>：<code>lookup_on_prefix(external_block_ids)</code>（接口 <span class="cref">ucmstore_v1.py:81-95</span>）：从下标 0 起扫，<strong>遇第一个缺失块即停</strong>，返回最后连续命中块的下标（全 miss 返回 −1）。命中数 +1 即外部可复用块数（<span class="cref">:1866-1871</span>）。</li>
+  <li><strong>rank 一致性截断</strong>：被 RankConsistencyTracker 标记缺失的块会截断有效前缀（<span class="cref">rank_consistency.py:82-86</span>）——防止“某 rank 上 load 失败过的块”被反复尝试（该 tracker 自我定位为“性能守卫而非正确性机制”，<span class="cref">rank_consistency.py:39-44</span>）。</li>
+  <li><strong>resume-from-last-hit</strong>（<span class="cref">:1873-1886</span>）：若开启预取流水且整段未命中，从上次预取位置之后重查，承接预取进度避免重复扫描。</li>
+  <li><strong>全命中重算保护</strong>：见 3.3（<span class="cref">:1929-1946</span>）。</li>
+  <li><strong>反向查找</strong>（混合模型）：<code>lookup_on_reverse</code> 从尾部反向扫描找已存在的后缀段（<span class="cref">ucmstore_v1.py:98-119</span>），服务 full-attention + Mamba 混合架构的命中场景。</li>
+</ol>
+<div class="note"><p><b>为什么必须是“前缀语义”而非“逐块存在性”：</b>Transformer 第 n 层块 n 的 KV 只对“已具备 0..n−1 全部 KV”的请求有价值——中间缺一块，其后的 KV 对该请求即不可用（注意力无法跨越空洞）。逐块查（<code>lookup</code>）存在但用于统计；调度决策只用前缀查。这一语义在 V1 接口被显式建模（<span class="cref">ucmstore_v1.py:68-119</span>），是 UCM 区别于通用 KV 存储的关键领域建模。</p></div>
+
+<h3 id="ch4-3">4.3 异步分层传输流水</h3>
+<h4>问题</h4>
+<p>命中之后要搬运数据：load（外部 → HBM）与 dump（HBM → 外部）。KV 体量巨大（DeepSeek 级模型每 token 每层 KV 可达数十 KB——可用仓内 KV 计算器估算，toolkit），若串行“查完再搬、算完再存”，IO 延迟将直接加到关键路径。UCM 的答案是<strong>以层为粒度的三级流水</strong>。</p>
+<h4>Direct vs LayerWise</h4>
+<div class="tbl-wrap"><table class="tbl">
+  <thead><tr><th></th><th>Direct（:1363）</th><th>LayerWise（:2570，默认）</th></tr></thead>
+  <tbody>
+  <tr><td>load</td><td>start_load_kv 内<b>一次性提交全部层并同步 wait</b>（:2228-2230）</td><td>只提交<b>首层</b>；每层 attention 前 wait 本层 + 预提交下一层（:2668-2724）</td></tr>
+  <tr><td>save</td><td>wait_for_save 一次性提交全部层（:2406-2413）</td><td>每层 attention 后立即提交本层 dump（:2737-2846），_dumped_layer_ids 去重防投机解码重复（:2592-2595）</td></tr>
+  <tr><td>重叠效果</td><td>IO 与计算串行</td><td><b>load(l+1) ∥ forward(l) ∥ save(l−1)</b> 三级流水</td></tr>
+  <tr><td>指针表</td><td>整块指针一次算</td><td><code>dump_total_ptrs</code> 按层切片复用（:2737+）</td></tr>
+  </tbody>
+</table></div>
+<figure>
+<svg viewBox="0 0 880 176" width="100%" role="img" aria-label="层间流水">
+  <g font-size="11.5">
+    <text x="16" y="26" font-weight="700" fill="#475069">Direct</text>
+    <rect x="90" y="12" width="240" height="26" rx="6" fill="#fdf4e7" stroke="#f3ddba"/><text x="102" y="30" fill="#92400e">load 全部层（同步阻塞）</text>
+    <rect x="330" y="12" width="220" height="26" rx="6" fill="#edf3fe" stroke="#d7e3fb"/><text x="342" y="30" fill="#1d45b4">forward 全部层</text>
+    <rect x="550" y="12" width="240" height="26" rx="6" fill="#f7f8fa" stroke="#e3e8f0"/><text x="562" y="30" fill="#475069">save 全部层</text>
+    <text x="16" y="76" font-weight="700" fill="#475069">LayerWise</text>
+    <g>
+      <rect x="90" y="60" width="110" height="24" rx="6" fill="#fdf4e7" stroke="#f3ddba"/><text x="102" y="77" fill="#92400e">load L0</text>
+      <rect x="200" y="60" width="110" height="24" rx="6" fill="#fdf4e7" stroke="#f3ddba"/><text x="212" y="77" fill="#92400e">load L1</text>
+      <rect x="310" y="60" width="110" height="24" rx="6" fill="#fdf4e7" stroke="#f3ddba"/><text x="322" y="77" fill="#92400e">load L2</text>
+      <rect x="200" y="92" width="110" height="24" rx="6" fill="#edf3fe" stroke="#d7e3fb"/><text x="212" y="109" fill="#1d45b4">fwd L0</text>
+      <rect x="310" y="92" width="110" height="24" rx="6" fill="#edf3fe" stroke="#d7e3fb"/><text x="322" y="109" fill="#1d45b4">fwd L1</text>
+      <rect x="420" y="92" width="110" height="24" rx="6" fill="#edf3fe" stroke="#d7e3fb"/><text x="432" y="109" fill="#1d45b4">fwd L2</text>
+      <rect x="310" y="124" width="110" height="24" rx="6" fill="#e9f7f0" stroke="#c4e8d5"/><text x="322" y="141" fill="#0e7c4f">save L0</text>
+      <rect x="420" y="124" width="110" height="24" rx="6" fill="#e9f7f0" stroke="#c4e8d5"/><text x="432" y="141" fill="#0e7c4f">save L1</text>
+      <rect x="530" y="124" width="110" height="24" rx="6" fill="#e9f7f0" stroke="#c4e8d5"/><text x="542" y="141" fill="#0e7c4f">save L2</text>
+    </g>
+    <text x="660" y="100" fill="#6b7488">三条泳道在时间轴上重叠：<tspan font-weight="650" fill="#1a2233">IO 隐藏在计算之下</tspan></text>
+  </g>
+</svg>
+<figcaption>图 5 · 层间三级流水（依据 <span class="cref">ucm_connector.py:2571-2576</span> 类注释与时序代码绘制）</figcaption>
+</figure>
+<h4>异步完成的工程保障</h4>
+<ul>
+  <li><strong>事件前置</strong>：dump 提交携带计算流事件句柄，store 侧 WaitEvent 后才 D2H（3.3 已述，<span class="cref">ucmstore_v1.py:196-205</span>）。</li>
+  <li><strong>收割双路径</strong>：轮询收割（下一步 wait_for_save 开头 <code>_poll_pending_dump_tasks</code>，<span class="cref">:2353-2360</span>）+ 请求生命周期接力（request_finished 延迟块释放 → get_finished 落盘确认，<span class="cref">:2489-2562</span>）。</li>
+  <li><strong>抢占冲刷</strong>：被抢占请求的 pending dump 在 wait_for_save 开头统一处理（<span class="cref">handle_preemptions :2342-2348</span>），防止半写状态泄漏。</li>
+</ul>
+
+<h3 id="ch4-4">4.4 零拷贝设备 IO（shared/trans）</h3>
+<h4>问题</h4>
+<p>load/dump 的本体开销在 “HBM 显存 ↔ 主机内存” 一段。朴素实现逐块调 <code>cudaMemcpyAsync</code>/ACL 拷贝：每次 launch 有微秒级固定开销，而一层 KV 在 GQA 模型下可能碎成数十个小张量——碎片拷贝会把 launch 开销放大数十倍。UCM 在 <code>ucm/shared/trans/</code> 针对 Ascend 与 CUDA 各打造了一套优化栈，编译期单选后端（<span class="cref">trans/CMakeLists.txt:1-12</span>），<code>Stream</code> 为 18 个纯虚拷贝方法的多态基类（<span class="cref">stream.h:35-97</span>）。</p>
+<h4>Ascend 三件套</h4>
+<div class="tbl-wrap"><table class="tbl">
+  <thead><tr><th style="width:150px">机制</th><th>原理</th><th>代码证据</th></tr></thead>
+  <tbody>
+  <tr><td><b>ffts</b>（批提交原语）</td><td>把 N 个拷贝各编码为 128B <code>rtFftsPlusSdmaCtx_t</code> SDMA 描述符，按 <code>i%laneCount</code> 分车道（车道内串行、车道间并行），描述符间建依赖 DAG，<b>一次 rtFftsPlusTaskLaunch 提交整批</b>——“N 次拷贝 1 次 launch”</td><td><span class="cref">ffts_sdma_dispatcher.cc:53-152</span></td></tr>
+  <tr><td><b>io_aggregation</b>（两跳）</td><td>一个 KV 对象内众多碎片先经 FFTS 在 HBM 内 gather 到大 staging（<code>aclrtMalloc(HIGH_BAND_WIDTH)</code>），再做<b>一次大的 D2H memcpy</b>；load 反向。4 lane ×（copy+ffts 双流）× 双缓冲 × FFTS 8 车道</td><td><span class="cref">ascend_shard_io_aggregator.cc:174-259</span>；<span class="cref">ascend_io_aggregation_stream.cc:20-60</span></td></tr>
+  <tr><td><b>sdma_direct</b>（一跳）</td><td>去掉 staging：host buffer 先经 hugetlb + mlock + <code>aclrtHostRegisterV2(MAPPED|PINNED)</code> 获得 device 映射地址，FFTS SDMA 直接在 device 碎片与该映射地址间拷贝</td><td><span class="cref">ascend_buffer.cc:72-150,273-295</span>；调用点 <span class="cref">dump_queue.cc:143</span></td></tr>
+  </tbody>
+</table></div>
+<p>三者关系一句话：<strong>ffts = 批量任务提交原语；io_aggregation = ffts + HBM staging + 大拷贝（两跳，host 无需特殊映射）；sdma_direct = ffts 直挂 mapped host（一跳，要求 O_DIRECT/mapped buffer）</strong>。cache store 侧二选一且与 GDR 互斥（<span class="cref">copy_stream.h:73-115</span>）。</p>
+<h4>CUDA：GPUDirect RDMA（注意：不是 GDS）</h4>
+<p><code>trans/cuda/gdr/</code> 直接 include <code>infiniband/verbs.h</code>（<span class="cref">gdr_copy.cc:30</span>），自建 RC QP <strong>自环连接</strong>（连自己本机的 qpn/lid/gid，兼容 IB/RoCE，<span class="cref">gdr_copy.cc:69-136,272-273</span>）：H2D 用 <code>IBV_WR_RDMA_WRITE</code>、D2H 用 <code>IBV_WR_RDMA_READ</code>（<span class="cref">:584-589,645-687</span>）——数据经网卡硬件在 host 与 GPU 显存间直通，<strong>不占 copy engine、不走 cudaMemcpy</strong>。GPU 显存直接 <code>ibv_reg_mr</code> 注册，MR 二级缓存 + miss 临时注册兜底（<span class="cref">:437-479</span>）。<code>GdrStream</code> 为双线程流水线：8192 槽 SPSC 环 + scheduler 线程（Wait 操作 cudaEventSynchronize 保持与计算流依赖，<span class="cref">gdr_stream.cc:331-339</span>）+ completion 线程（eventfd 可中断 poll，<span class="cref">:375-420</span>）。启用需编译开关 + <code>useGdr</code> 配置，网卡默认 mlx5_0、可按卡配置（<span class="cref">cuda_device.cc:82-94</span>；<span class="cref">gdr_config.cc:34-35,78-86</span>）。</p>
+<h4>其余后端与同步</h4>
+<ul>
+  <li><strong>maca（摩尔线程）</strong>：复用全部 CUDA 源码，经 cu-bridge <code>cucc</code> 编译，唯一自有文件把内联 PTX 换成 <code>__ldcs/__stcg</code> intrinsic（<span class="cref">maca/CMakeLists.txt:1-15</span>；<span class="cref">maca_sm_kernel.cu:35-46</span>）。<strong>simu</strong>：纯 CPU memcpy 仿真，供无卡 CI（<span class="cref">simu_stream.cc:29-48</span>）。</li>
+  <li><strong>事件接力链</strong>：connector 侧 record 事件 → <code>dump_data(prerequisite_handle)</code> → C++ 包成非拥有视图 <code>Trans::Event</code>（<span class="cref">trans/event.h:32-49</span>）→ 拷贝流 WaitEvent（<span class="cref">dump_queue.cc:124-125</span>）；Ascend 常规流开启 FAST_LAUNCH|FAST_SYNC 并用 aclrtLaunchCallback 回调线程（<span class="cref">ascend_stream.cc:42-52,202-219</span>）。</li>
+  <li><strong>对齐与分片</strong>：store IO 尺寸按 4KiB 对齐向上 pad（<span class="cref">ucm_connector.py:115-138</span>）；SM kernel 有 32B 对齐前提（尾部字节静默不拷，<span class="cref">cuda_sm_kernel.cu:52-64</span>，见 10.2）。</li>
+</ul>
+<div class="note"><p><b>工程判断：</b>这套 trans 栈的定位非常克制——只负责 “device KV ↔ host(pinned/mapped)” 一跳，host → disk 归各 store 的队列实现（如 <span class="cref">pcstore trans_queue.cc:60-76</span>、<span class="cref">cache dump_queue.cc:159-169</span>）。职责单一 + 编译期单选后端，换来的是零运行时多态开销与清晰的平台演进路径。</p></div>
+
+<h3 id="ch4-5">4.5 淘汰与空间管理</h3>
+<h4>问题</h4>
+<p>外部存储容量有限，必须回答“放谁、删谁”。难点在于：KV 块数量巨大（百万级）、跨多进程/多实例共享同一存储、且删除不能与正在进行的读写冲突。UCM 在不同后端采用了三种不同精度的策略。</p>
+
+<h4>① nfsstore：文件 mtime 即热度（近似 LRU）</h4>
+<p>这是最精巧也最“抠门”的设计——<strong>不维护任何内存索引，直接借用文件系统的 mtime 当 LRU 时钟</strong>：</p>
+<ul>
+  <li><strong>命中即排队</strong>：Lookup 命中的块进入 <code>HotnessSet</code> 去重队列（<span class="cref">hotness_set.cc:31-35</span>）。</li>
+  <li><strong>定时批量“摸文件”</strong>：默认 60s 定时器（<span class="cref">nfsstore.h:56</span> <code>hotnessInterval{60}</code>）触发 <code>UpdateHotness</code>，swap 出队列后逐块 <code>utime(path, nullptr)</code> 把 mtime 刷新为现在（<span class="cref">hotness_set.cc:37-62</span>；<span class="cref">posix_file.cc:234-243</span>）——本报告作者已在源码中逐行核实。</li>
+  <li><strong>回收</strong>：容量 ≥70% 触发、&gt;capacity−blockSize 拒绝写入（<span class="cref">space_manager.cc:179-193</span>）；<code>SpaceRecycle</code> 后台线程全目录 DFS + 逐文件 stat 取 mtime，<strong>TopN 小顶堆挑最旧的 10%（上限 10240 个）删除</strong>（<span class="cref">space_recycle.cc:32-76</span>）。</li>
+  <li><strong>容量账本</strong>：<code>cluster/uc_property.bin</code> 是 256B mmap 文件，作为跨进程共享的容量记账（<span class="cref">space_property.cc:33-99</span>）——多进程挂载同一后端时各自加减。</li>
+  <li><strong>写入生命周期</strong>：每块一文件 <code>data/{front:016x}/{back:016x}.{act|dat}</code>，先写 <code>.act</code>，Commit 时 <b>rename 为 <code>.dat</code></b>（原子发布，<span class="cref">space_shard_layout.cc:117-130</span>；<span class="cref">space_manager.cc:133-156</span>）；多挂载点按 <code>hash(blockId)</code> 取模分散。</li>
+</ul>
+<p>评价：<strong>近似 LRU、非分代、无 LFU</strong>。优点是零索引内存开销、崩溃后索引即文件本身；代价是回收每轮全树 O(N) stat、且容量是账本而非盘点（异常退出会漂移，见 10.2）。</p>
+
+<h4>② posix（V1）：分片采样 GC + 跨实例租约</h4>
+<p>V1 posix store 的 <code>ShardGarbageCollector</code> 支持分片采样与精确两种模式（默认精确，配置 <code>posix_gc_precise_mode</code>），并有 <code>GcLease</code> 实现多实例间的回收互斥（<span class="cref">shard_gc.h:44-84</span>；<span class="cref">posix_store.cc:199-223</span>）。参数体系完整：70% 触发水位、每轮回收 10%、每分片最多 50000 块、采样比 0.1、30s 检查间隔（<span class="cref">config-parameters.md:73-83</span>）。</p>
+
+<h4>③ drampool（远端内存池）：内存内精确策略</h4>
+<p>内存池场景下元数据就在内存，可以做精确管理：1024 分片 <code>MetadataManager</code>，每 Entry 带状态机（INITIALIZED→READY→DELETING）+ 引用计数 + 租约超时（<span class="cref">entry.h:40-129</span>；<span class="cref">metadata.h:189-198</span>）；三种可插拔策略——<strong>精确 LRU</strong>（<span class="cref">lru_eviction_policy.h:47-106</span>）、<strong>TTL</strong>（<span class="cref">ttl_eviction_policy.h:35-65</span>）、<strong>Pos 位置优先</strong>（<span class="cref">pos_eviction_policy.h:36-73</span>，倾向保留序列前部的块——前缀块天然被更多请求共享，值得优先保留），每分片跑 periodic + deep 双 evictor。</p>
+<div class="note"><p><b>算法谱系小结：</b>三种实现恰好构成一条“精度↔开销”光谱——文件 mtime（零内存索引/近似）→ 分片采样 GC（低内存/较准）→ 内存精确 LRU+TTL+位置感知（准/仅内存池可行）。位置优先策略尤其值得注意：它把“前缀块共享度更高”这一 LLM 领域知识编码进了淘汰决策，是通用缓存系统不会有的设计。</p></div>
+
+<h3 id="ch4-6">4.6 稀疏注意力算法族</h3>
+<h4>问题</h4>
+<p>即使有了缓存复用，<strong>超长上下文的 KV 总量本身</strong>仍是瓶颈：128K token 的 KV 在显存中动辄数十 GB，且注意力计算随长度增长。稀疏注意力的思路是：<strong>每个 decode step 只让 query  attends 到“最重要”的 top-k 个 KV 块</strong>，其余块不加载/不参与计算——以可控的精度损失换数量级的显存与计算节省。UCM 把稀疏机制与缓存系统深度集成（sparse 块可 offload 到 UCM store 并按需取回），并统一在 <code>ucm/sparse/</code> 下实现了 7 种算法，由 <code>factory.py:48-56</code> 注册（ESA、GSAOnDevice、KVStarMultiStep、Blend；offload 版 GSA 已在 <span class="cref">factory.py:52</span> 被注释停用）。框架层 <code>base.py</code> 定义 scheduler/worker 双侧钩子；所有算法都在 vLLM 块管理器层面把非 top-k 块 free 并重配槽位。</p>
+
+<h4>① GSA on-device（重点）＝ HATA 的工程化</h4>
+<p>这是 UCM 稀疏体系的旗舰：<strong>随仓库附带 ACL 2025 Findings 论文</strong>（<span class="cref">gsa_on_device/paper/GSA-ACL-2025-paper.pdf</span>，486KB）。算法全称 Hash-Aware Top-k Attention，属 SimHash 家族（通用背景：随机超平面局部敏感哈希——用随机投影的符号作签名，汉明距离近似余弦相似度；代码中的体现如下）：</p>
+<ol>
+  <li><strong>签名生成</strong>：对 K 做随机投影 <code>Sign(K·W_H)</code> 后按 8bit 打包为 uint8 签名。投影矩阵 W_H 是 <strong>Haar 分布随机正交阵</strong>——由 QR 分解构造并调整符号保证 Haar 分布（<span class="cref">hash_encoder.py:413-427</span>，本报告作者已核实 :422-425 的 QR 调用）；pack 用 Triton kernel（GPU）或 <code>npu_sign_bits_pack</code>（NPU）。在线路径默认 <code>hash_weight_type="random"</code>——<strong>免训练</strong>。</li>
+  <li><strong>打分</strong>：decode 时 query 同样投影签名，与所有块签名算<strong>汉明距离</strong>（XOR + popcount）——CUDA 端是模板按 head 数特化的 <code>paged_ham_dist</code> kernel（<span class="cref">ham_dist/paged_ham_dist_mla.cu</span>）。</li>
+  <li><strong>Ascend 的向量化巧思</strong>：NPU 上没有 popcnt，于是把 ±1 解包后用 <b>cube 单元做 matmul</b>——利用恒等式 <code>点积 = r − 2·汉明距</code>（等长 ±1 向量），把“算距离”变成“矩阵乘”，再用 vector 单元做 topk；支持 chunk=1/8/16/64/128 聚合与 MLA rope 段二次 matmul（<span class="cref">hamming_dist_top_k_parallel.h:360-475</span>）。配套 <code>reshape_and_cache_bnsd</code> 是 AIV-only 的 paged 签名写回算子。</li>
+  <li><strong>块选择与保底</strong>：Python 驱动（<span class="cref">hamming_topk.py:15-54</span>）——块分数 = 块内 token 分数取 min，topk 取 <code>largest=False</code>（距离最小者），sink（开头）/recent（最近）块强制保留；GQA 时 kernel 内聚合 kv-head。</li>
+  <li><strong>逐层配置</strong>：<code>configs/*.json</code> 含逐层 <code>top_k_ratio</code>（首尾层全量、中间层 0.3）、<code>rollback_layers</code>、<code>skip_layers</code>、<code>must_select_blocks=[0,-2,-1]</code>、GPU/NPU 触发阈值；这些配置由仓内 <code>tools/</code> 的 <b>RALS 离线层跳过分析器</b>用超长语料 profiling 生成（<span class="cref">tools/handbook.md</span>）。</li>
+</ol>
+<div class="okbox"><p><b>论文数据（仓内 PDF 自述）：</b>512-token 预算下 LongBench-e 上优于 Quest/Loki 等方法，最高 7.2× 注意力加速。<b>注意区分：</b>论文中的最佳结果依赖训练后的投影，而代码在线路径默认随机（免训练）投影——两层结论不能混用，本报告如实标注此差异。</p></div>
+
+<h4>② ESA：检索式两级稀疏</h4>
+<ul>
+  <li>prefill 取最后 token 的 query 做 GQA 组内均值（<span class="cref">esa.py:425-447</span>，assert num_kv_heads==1，<strong>仅支持 MLA</strong>）；CPU C++ 线程池（绑核 + NUMA 感知，<span class="cref">retrieval_backend.cpp</span>）异步计算 q·k 点积 top-k。</li>
+  <li><strong>两级检索</strong>：第 0 层全量海选，后续层只在候选子集上重排（<span class="cref">esa.py:562-588</span>）——用首层的粗筛换后续层的算力。</li>
+  <li><code>topk_windows=[1]</code>：每步仅 1 块窗口预算（<span class="cref">esa.py:639-646</span>）；官方称只需 20%–30% 的块（sparse-attention 文档）。</li>
+</ul>
+
+<h4>③ GSA（offload 版，已停用）</h4>
+<p>K 均值代表向量（<span class="cref">k_repre.cpp</span> VectorMean），块得分 = 跨头求和、头内多代表取 max（<span class="cref">select_topk_block.cpp:43-66</span>）；强制保留首 1 块 + 尾 2 块（<span class="cref">select_topk_block.h:20</span>）；<code>topk_len=ceil(0.3×seq_len)</code> 夹在 [32,48] 块（<span class="cref">utils.py:40-47</span>）；触发阈值 prompt&gt;8400 且 decode（<span class="cref">gsa.py:86-90</span>）。C++ 双线程（CopyData+Calculate）与 GPU 层间重叠（<span class="cref">cal_kpre_and_topk.cpp:40-46</span>），支持 KV offload 到 UCM store + prefetch（<span class="cref">prefetch_engine.py</span>）。现已被 factory 注释停用——被 on-device 版取代。</p>
+
+<h4>④ KVStar：多步切换稀疏</h4>
+<p>prefill 末 chunk 起后台 CPU 检索；<strong>前 2 个 decode step 全量、第 3 步切换稀疏</strong>（<span class="cref">multistep.py:785-852</span>）——起步几步全量保证生成质量稳定。代表向量 = 每 8 token 的 <code>[mean;max]</code> 拼接（retrieval_stride=8，<span class="cref">multistep.py:64,762-781</span>）；init window 2 块 / local window 4 块 / topk_ratio 0.25。底层 <code>retrieve/core</code> 是 DDD 风格 C++：任务管理器轮询分派 → 绑核线程队列 → <code>simd_compute_kernel.cpp</code> 三套 SIMD 实现（NEON/AVX2/scalar，<span class="cref">:992-1001</span> 分派）；评分流水线 = q·k GEMV → softmax（快速 exp 近似）→ 跨 query/头/位置求和 → nth_element/堆 top-k（<span class="cref">:181-212,361-382,917-979</span>）；支持每 kv 头维度剪枝（<span class="cref">:294-325</span>）。</p>
+
+<h4>⑤ Blend：非 top-k 的前缀复用 + 分块重算</h4>
+<p>CacheBlend 思路：命中前缀直接复用 KV，<strong>未命中的中间 chunk 只重算这些 chunk</strong>。<code>compute_mask</code> 用布尔索引压缩本轮需算 token（<span class="cref">blend.py:349-368</span>），<code>execute_finished</code> 修正 logits_indices（<span class="cref">:370-378</span>）；关键件 <code>blockwise_rope.py</code> 是 Triton 块级 re-RoPE kernel——对 K cache 按每块 delta 角度<strong>原地二次旋转</strong>（<span class="cref">:52-59</span>），使“在位置 i 算出的 KV 块”能被搬到位置 j 复用。官方数据：TTFT 2.2–3.3×、吞吐 2.8–5×、质量降 1%–3%（cacheblend.md:17,25-26）。</p>
+
+<h4>⑥ ReRoPE：非驱逐的长窗外推</h4>
+<p>不删任何 KV，而是改造注意力分数：q 乘 log 缩放（<span class="cref">attn_forward_utils.py:17-21</span>）；S1 = 真实 RoPE 位置编码分数、S2 = 固定窗口位置/无 RoPE 的 K 分数，<code>pos_diff &lt; REROPE_WINDOW</code> 时用 S1、否则用 S2（Triton kernel <span class="cref">triton_unified_attention_rerope.py:239-258</span>）；窗口默认 32768（<span class="cref">rerope_utils.py:7-12</span>）。本质是让模型在超出训练长度的序列上仍保持局部位置感。</p>
+
+<h4>⑦ Retake（sandbox）：视频多模态 KV 压缩</h4>
+<p>面向 Qwen2-VL/2.5-VL/LLaVA-Video 的 HF transformers 实现，对应 ReTaKe/AdaReTaKe 论文（arXiv:2412.20504 / 2503.12559）：chunked prefill 视觉 token 时用 softmax(QK) 累计分做 top-k 驱逐（<span class="cref">longvideo_cache.py:297-329</span>）；<code>pos_embed_reforge</code> 反向去 RoPE → 时间位置等比重铸 → 重加 RoPE（<span class="cref">:268-372</span>）；支持 prompt 引导打分与 even/pyramid/empirical 层预算（<span class="cref">:414-472</span>）；另有相邻帧余弦相似融合与关键帧选择（<span class="cref">visual_compression.py</span>）。README 自称 256→2048 帧、7B/72B 模型 +2.3%/+2.8%。</p>
+
+<div class="tbl-wrap"><table class="tbl">
+  <thead><tr><th>算法</th><th>选择信号</th><th>执行位置</th><th>代表向量/签名</th><th>保底策略</th><th>状态</th></tr></thead>
+  <tbody>
+  <tr class="hl"><td><b>GSA on-device</b></td><td>汉明距离 top-k</td><td>GPU/NPU kernel</td><td>Sign(K·W)+bitpack（Haar 随机正交）</td><td>sink + recent + must_select</td><td><span class="tag g">主力</span></td></tr>
+  <tr><td>ESA</td><td>q·k 点积 top-k</td><td>CPU 绑核线程池</td><td>K 代表向量</td><td>两级检索、窗口 1 块</td><td><span class="tag g">可用（仅 MLA）</span></td></tr>
+  <tr><td>KVStar</td><td>softmax 加权打分 top-k</td><td>CPU SIMD（NEON/AVX2）</td><td>每 8 token [mean;max]</td><td>前 2 步全量</td><td><span class="tag g">可用</span></td></tr>
+  <tr><td>GSA offload</td><td>K 均值代表 max/sum</td><td>C++ 双线程</td><td>K 均值</td><td>首 1 + 尾 2 块</td><td><span class="tag w">已停用</span></td></tr>
+  <tr><td>Blend</td><td>不选块（前缀复用）</td><td>Triton kernel</td><td>—</td><td>未命中 chunk 重算 + re-RoPE</td><td><span class="tag g">可用</span></td></tr>
+  <tr><td>ReRoPE</td><td>不驱逐</td><td>Triton kernel</td><td>—</td><td>窗口内外双分数</td><td><span class="tag g">可用</span></td></tr>
+  <tr><td>Retake</td><td>注意力累计分 top-k</td><td>HF transformers</td><td>—</td><td>AdaKV 逐层预算</td><td><span class="tag n">sandbox</span></td></tr>
+  </tbody>
+</table></div>
+<div class="warnbox"><p><b>工程风险（源码实证，择要）：</b>① <code>fake_hamming_topk</code> 是“取前 k 块”的占位实现（<span class="cref">hamming_topk.py:57-76</span>），配置错误时会静默退化为无稀疏，需防误用；② KVStar 裸指针零拷贝 + 异步 H2D 存在竞态风险（<span class="cref">py_intf.cpp:20-26</span>）；③ CPU 检索绑核依赖 Linux lscpu/pthread/numa，不可移植；④ RALS 层策略基于特定 profiling 语料，业务迁移需重新分析；⑤ Blend 对共享 K cache 块原地旋转，多请求共享时存在旋转叠加风险。</p></div>
+
+<h3 id="ch4-7">4.7 P2P 传输与 DRAM 池（HIXL 单边读写）</h3>
+<h4>定位澄清</h4>
+<p><code>ucm/transport/p2p/</code> 与 PD 分离<strong>无关</strong>：它编译为 <code>ucm_p2p_transport</code>，<strong>仅 Ascend 构建</strong>（<span class="cref">p2p/CMakeLists.txt:1-5</span>），唯一调用方是 <code>ucm/store/dram</code>（DramStore + DramPool，<span class="cref">dram/CMakeLists.txt:33,49</span>）。它解决的是“把多台机器的 DRAM 连成可远程直写的 KV 内存池”。</p>
+<h4>分层设计</h4>
+<ul>
+  <li><strong>控制面（TCP）</strong>：线格式 <code>[u32 body_size(网络序)][36B 消息头][source ManagerID][payload]</code>（<span class="cref">control_protocol.h:31-54</span>），帧上限 4MiB；握手为请求-响应式双向元数据交换（ConnectRequest 带 HIXL 实例元数据 → ControlResponse → 双方各自 ImportMetadata+Connect，失败回滚，<span class="cref">transport_manager.cpp:277-352</span>）。线程模型 4 类：accept 线程、epoll 单收线程、弹性线程池（同 peer 串行）、每 HIXL 实例一 worker。双方互连时保留 ManagerID 较小方的连接去重。</li>
+  <li><strong>数据面（HIXL）</strong>：华为昇腾 CANN 高性能互联库（<span class="cref">hixl_instance.cpp:28</span> 引 <code>hixl/hixl.h</code>，链接 cann_hixl/metadef/ascendcl）。语义是<strong>单边（one-sided）Read/Write</strong>——发起方直接读写对端已注册内存（<code>hixl::READ/WRITE</code>，<span class="cref">hixl_instance.cpp:256,279</span>），即 RDMA 语义（代码无 “RDMA” 字样，底层链路 RoCE/UB 未确认）。内存注册是强制前提：FNV-1a(addr,len,device_id) 生成句柄、拒绝重叠注册（<span class="cref">memory_region_manager.cpp:35-91</span>），传输前校验地址被已注册 region 包含（<span class="cref">hixl_transport.cpp:517-537</span>）。支持 scatter-gather 段列表（<span class="cref">transport.h:98-109</span>）。</li>
+  <li><strong>零拷贝界定</strong>：数据面是零拷贝（Segment 地址直接填 TransferOpDesc，<span class="cref">hixl_instance.cpp:34-46</span>）；控制面非零拷贝（每条 payload 2~3 次 memcpy）——可接受，因 KV 本体不走 TCP。</li>
+</ul>
+<h4>使用画像：DramStore ⇄ DramPool</h4>
+<p>DramPool（Client 角色）主动连接 DramStore（Server，只暴露内存）；<strong>DUMP = Pool 用 Read 把 KV 从 Store 设备内存“拉”走</strong>（<span class="cref">drampool/task_worker.cc:113-158</span>），<strong>LOAD = 用 Write 写回</strong>（<span class="cref">:195-239</span>）。DramPool 是独立守护进程（4 线程模型，<span class="cref">drampool_server.h:89-103</span>），KV 存于 BufferPool：固定槽池 + <strong>IndexPool 无锁 CAS 空闲栈</strong>（64 位 {slot,ver} 打包防 ABA、alignas(64) 防伪共享，<span class="cref">index_pool.h:43-90</span>），每槽 localAddr/deviceAddr 同偏移——整池一次注册 RDMA 后远端按同偏移直写（<span class="cref">buffer_pool.h:41-47</span>）。</p>
+<h4>router：数据面分片（不是请求路由）</h4>
+<p><code>ucm/shared/router/</code> 把 cache key 确定性映射到 NodeId，接口仅 <code>RouteKeys</code>（<span class="cref">router.h:86-104</span>）。4 种策略：<strong>① RING_HASH_FULL_SPREAD</strong>（默认：每节点 128 vnode 一致性哈希环，<span class="cref">router.cc:36,61-80,153-180</span>）；<strong>② MAGLEV</strong>（素数表长校验回退 65537，<span class="cref">:189-231</span>）；<strong>③ CONTIGUOUS_BLOCK_AFFINITY</strong>（每 K 个连续 key 锚定首 key 节点，近似前缀局部性，<span class="cref">:233-270</span>）；<strong>④ BATCH_TOPK_AFFINITY</strong>（<span class="cref">:272-319</span>）。位置感知靠“算”不靠“查”——LOOKUP/DUMP/LOAD 同一路由结果（<span class="cref">dram/cc/task_manager.cc:225-256</span>）。</p>
+<div class="warnbox"><p><b>弱哈希隐患：</b>默认哈希是 <strong>CRC32-IEEE</strong>（<span class="cref">router.cc:38-59</span>）——32 位输出按生日界约 7.7 万 key 即 50% 碰撞概率，而两个生产调用方（DramStore、kv_semantics）都用默认值。碰撞 ≠ 数据错误（key 仍带完整标识），但会造成分布倾斜。详见 10.2。另注意：charts/docs 中的 “kthena-router” 是外部 PD 请求网关，与此数据面 router <b>同名不同物</b>。</p></div>
+</section>
+
+<!-- ================================================================ -->
+<section class="ch" id="ch5">
+<h2><span class="no">05</span>存储后端体系</h2>
+
+<h3>5.1 扩展契约</h3>
+<p>新增后端有三条路径（开发者文档 <span class="cref">extending-store.md:7-11</span>）：① 纯 Python 实现 <code>UcmKVStoreBaseV1</code>（11 个抽象方法，<span class="cref">ucmstore_v1.py:41-232</span>）；② 原生 C++ 实现 <code>UC::StoreV1</code>（须并发安全，<span class="cref">extending-store.md:108</span>）；③ Python 包装原生库。V1 工厂内置注册 <code>UcmPipelineStore</code> 与被命名为 “UcmNfsStore” 的 <code>UcmPcStoreV1</code>（<span class="cref">factory_v1.py:65-70</span>），其余后端经配置懒加载。</p>
+
+<h3>5.2 后端全景对比</h3>
+<div class="tbl-wrap"><table class="tbl">
+  <thead><tr><th>后端</th><th>世代</th><th>介质/协议</th><th>关键实现</th><th>状态</th></tr></thead>
+  <tbody>
+  <tr class="hl"><td><b>pcstore</b></td><td>v0/v1</td><td>本地/共享文件系统</td><td>双线程池流水线（devPool 聚合散射 ↔ filePool 整块 IO）；可选 GDR stream 与 SM kernel scatter-gather（<span class="cref">trans_queue.cc:43-243</span>）；配置项 16 个（<span class="cref">pcstore.h:35-60</span>）</td><td><span class="tag g">主力</span></td></tr>
+  <tr class="hl"><td><b>nfsstore</b></td><td>v0</td><td>NFS/共享文件系统</td><td>pimpl 三组件（Space/Trans/Hotness）；每块一文件 .act→.dat rename 提交；32 流/256KB IO/512 buffer 默认（<span class="cref">nfsstore.h:51-60</span>）；多设备拷贝引擎五选一编译（<span class="cref">device/CMakeLists.txt:1-13</span>）</td><td><span class="tag g">主力</span></td></tr>
+  <tr class="hl"><td><b>posix</b></td><td>v1</td><td>本地文件系统</td><td>libaio/psync 双 IO 引擎（<span class="cref">io_engine_aio.h:42</span>）；4KB 0x5a 写读自检（<span class="cref">posix_store.cc:47-67</span>）；分片采样 GC + GcLease 跨实例互斥</td><td><span class="tag g">主力</span></td></tr>
+  <tr><td><b>cache</b></td><td>v1</td><td>主机内存 + SHM</td><td>支持 GDR KV buffer 注册（<span class="cref">cache_store.cc:46-78</span>）；sdma_direct / io_aggregation 调用方；MLA 默认共享 256GiB</td><td><span class="tag g">主力（常作 L2）</span></td></tr>
+  <tr><td><b>dram + drampool</b></td><td>v1</td><td>远端 DRAM 池（HIXL/RDMA）</td><td>客户端 hixl 传输 + NodeScheduler + router（<span class="cref">dram_store.cc:82-143</span>）；服务端独立守护进程；1024 分片精确 LRU/TTL/Pos</td><td><span class="tag g">可用（仅 Ascend）</span></td></tr>
+  <tr><td><b>pipeline</b></td><td>v1</td><td>组合器</td><td>dlopen <code>Make&lt;Name&gt;Store</code> 逐级 Stack，<code>store_backend</code> 指针注入实现级联；每级 HealthBreakerStore 熔断（滑窗 8 / 失败 2 熔断 / 冷却退避，<span class="cref">pipeline_store.py.cc:167-183</span>；<span class="cref">health_breaker_store.h:40-80</span>）</td><td><span class="tag g">组合骨架</span></td></tr>
+  <tr><td><b>mooncakestore</b></td><td>v1</td><td>Mooncake（分布式 KV 池）</td><td>mooncake::Client RPC；key=hex(blockId)+"_0"；miss 可级联 storeBackend（<span class="cref">mooncake_store.cc:142-173</span>）</td><td><span class="tag g">可用</span></td></tr>
+  <tr><td><b>yuanrongstore</b></td><td>v1</td><td>华为元戎 datasystem</td><td>HeteroClient/KVClient；支持 remoteH2D；Lookup 两级级联（<span class="cref">yuanrong_store.cc:65-132</span>）</td><td><span class="tag g">可用</span></td></tr>
+  <tr><td><b>ds3fs</b></td><td>v1</td><td>DeepSeek 3FS</td><td>数据面 hf3fs_usrbio 用户态环形 IO，每 worker 独立 ior 上下文（<span class="cref">ds3fs/trans_queue.cc:26,45-66</span>）</td><td><span class="tag g">可用</span></td></tr>
+  <tr><td><b>compress</b></td><td>v1</td><td>包装器（套在其他后端前）</td><td>dump 前 <b>Tunstall 压缩</b>（6bit 符号、动态表 + 64 预设表双模式，<span class="cref">compress_lib/tunstall.h:27-37,77-83</span>）；compress_ratio 16≈2.0x</td><td><span class="tag g">可用</span></td></tr>
+  <tr><td><b>asu</b></td><td>v1</td><td>kv_semantics SDK（UB/ROCE/TCP）</td><td>KvClient 的 StoreV1 适配；CacheKey=hash(BlockId) 取 8B；MLA/GQA/HMA 布局；provider AICPU/AIV/FAKE（<span class="cref">asu_store.cc:44-123</span>）</td><td><span class="tag n">特定平台</span></td></tr>
+  <tr><td><b>delegator</b></td><td>v1</td><td>拷贝委托包装器</td><td><b>后端绑定未完成</b>，无工厂时 Unsupported（<span class="cref">delegator_store.cc:132-137</span>）</td><td><span class="tag w">半成品</span></td></tr>
+  <tr><td><b>empty / fake</b></td><td>v1</td><td>—</td><td>测试桩</td><td><span class="tag n">测试</span></td></tr>
+  </tbody>
+</table></div>
+
+<h3>5.3 注册管线（配置即架构）</h3>
+<p>V1 体系下“用什么存储”由 <code>store_pipeline</code> 配置声明，已注册 11 种（<span class="cref">config-parameters.md:101-113</span>，含 Empty/Fake 测试桩）：</p>
+<pre><code>Cache|Posix          Cache|Empty        Cache|Fake         Empty
+Fake               Mooncake         Mooncake|Posix   YuanRong
+YuanRong|Posix     Cache|Ds3fs      Cache|Compress|Posix</code></pre>
+<p>语义：<code>|</code> 左侧是近端快层、右侧是远端/容量层——Lookup 逐级、Dump 级联下沉，且每级经过健康熔断器（连续失败熔断、成功窗口恢复，store_health 配置 <span class="cref">config-parameters.md:89-95</span>）。这是典型的<strong>多级缓存（Memory Hierarchy）模式</strong>在 LLM KV 领域的落地：Cache≈L2、Posix/Mooncake≈L3，与引擎内 HBM（L1）衔接。</p>
+
+<h3>5.4 两个深挖的后端实现</h3>
+<h4>nfsstore 的写入路径（全链路）</h4>
+<pre><code>Python dump()
+ → DumpFromDevice → SubmitPy 组 Task            (nfsstore.py.cc:69-102)
+ → TaskManager::Submit → Split(n) 轮转分片下发     (task_manager.h:42-69)
+ → PosixQueue::D2S                               (posix_queue.cc:99-111)
+     GetBuffer → D2HSync(设备→主机) → File::Write(.act)
+ → 末片回调扣 Latch 闩锁 → Wait 返回
+ → Commit：rename .act → .dat（原子可见）         (space_manager.cc:133-156)</code></pre>
+<p>要点：任务分片（Shard）携带 <code>{block, offset, address, length, owner, buffer, done}</code>（<span class="cref">task_shard.h:40-78</span>），<code>Split</code> 把 n 片轮转派给多队列、每组末片挂完成回调扣闩锁（<span class="cref">task_shard.h:95-113</span>）；host 路径 4K 对齐走 O_DIRECT（<span class="cref">posix_queue.cc:66-139</span>）；<code>device/</code> 五个目录（ascend/cuda/maca/musa/simu）只是 D2H/H2D 拷贝引擎抽象（<span class="cref">idevice.h:33-64</span>），<strong>并非 device-direct 直存</strong>——nfsstore 没有 GDS/GDR 路径（见 10.2）。</p>
+<h4>compress：Tunstall 变长码压缩 KV</h4>
+<p>compress 是<strong>包装器后端</strong>：dump 前先压缩再交给下游。算法选的是 <strong>Tunstall 变长→定长码</strong>（通用背景：把变长输入符号串映射到定长码字，解码无需逐位解析、可随机访问，适合需要按块随机读取的场景）：6bit 符号（<code>TS_SYMB_BITS 6</code>，<span class="cref">compress_lib/tunstall.h:27</span>）、动态表与 64 个预设表双模式（<span class="cref">:30,35-37,77-83</span>）、8/12bit mark 编码（<span class="cref">:31</span>）。配置 <code>compress_ratio 16 ≈ 2.0x</code>、解压线程默认 6（layerwise 场景建议 40+）（<span class="cref">compress_store.md:55-60</span>）。KV 激活值集中在低幅值区间的统计特性是压缩可行的前提——2 倍压缩率意味着同等 SSD 容量缓存两倍上下文。</p>
+
+<h3>5.5 kv_semantics：独立 KV 语义 SDK</h3>
+<p>仓内还有一个与 ucm/store 平级的 C++ SDK：<code>kv_semantics/</code>。CacheKey 8B、设备 buffer 512B 对齐（<span class="cref">kv_types.h:39-43</span>）；<code>KvClient</code> 接口覆盖 Query/Load/Store/Batch*/Delete 的 Async + Check/Wait + RegisterRegions（<span class="cref">kv_client.h:33-61</span>）；协议 UB/ROCE/TCP；trans_provider 有 aicpu / aiv（UB 卸载）/ fake 三种；metrics 由 yaml 代码生成。它仅在 <code>BUILD_UCM_ASU=ON</code> 时并入构建（<span class="cref">CMakeLists.txt:58-60</span>），唯一消费者是 asu 后端——可理解为面向 Ascend 专用 KV 硬件/传输体系的独立客户端栈。</p>
+</section>
+
+<!-- ================================================================ -->
+<section class="ch" id="ch6">
+<h2><span class="no">06</span>PD 分离（Prefill/Decode Disaggregation）</h2>
+
+<h3>6.1 定位澄清：ucm/pd 不是实现体</h3>
+<p><code>ucm/pd/</code> 全部内容只有 2 个文件：空 <code>__init__.py</code> 与 <code>toy_proxy_server.py</code>（344 行）——一个改编自 vLLM NIXL 测试的<strong>演示级</strong> HTTP 反向代理（<span class="cref">toy_proxy_server.py:1</span> 注释自述）。同时 <code>UCMPDConnector</code> 是 raise NotImplementedError 的空壳（<span class="cref">ucm_connector.py:2983-3019</span>），门面也显式声明 <code>requires_kv_delivery=False</code>（<span class="cref">:3388-3398</span>）。<strong>UCM 本体的 PD 交接不走专用 connector，而是复用内容寻址 + 共享存储语义</strong>。</p>
+
+<h3>6.2 路线 A：共享存储（集中式，UCM 主推）</h3>
+<ol>
+  <li>代理先把请求发给 Prefill 实例并强制 <code>max_tokens=1</code>（<span class="cref">toy_proxy_server.py:249-259</span>）——Prefill 只算 KV 不生成长文。</li>
+  <li>Prefill 侧的 UCMConnector 把 KV 按 <strong>MD5 内容键</strong> dump 进共享存储（NFS/PipelineStore）。</li>
+  <li>代理把原请求流式转发 Decode 实例（<span class="cref">:262-278</span>）。</li>
+  <li>Decode 侧 connector 用<strong>同一套 RequestHasher</strong> 算键 → lookup_on_prefix 命中 → load。文档明示 “<strong>No P2P communication is required</strong>”（centralized_pd.md:4）。</li>
+</ol>
+<p>配对完全靠内容哈希，因此要求 P/D 两侧模型/TP/dtype/sparse 配置严格一致（哈希命名空间，<span class="cref">request_hasher.py:76-80</span>）；文档还对 decoder 显式设 <code>PYTHONHASHSEED=123456</code>（centralized_pd.md:268）——既是巧妙之处（零协调），也是运维易踩坑之处（任何一侧配置漂移即全部 miss，见 10.1）。</p>
+
+<h3>6.3 路线 B：K8s 分布式（MultiConnector + 外部网关）</h3>
+<p>生产部署走 Helm chart：<code>MultiConnector</code> = 1 个 Mooncake 子 connector（负责 P→D 传输）+ 1 个 UCMConnector（前缀复用），chart 有专门的校验逻辑（<span class="cref">resolve-kv-transfer-config.py:288-295</span>）；请求入口是外部 <strong>kthena-router</strong> 网关（charts README:5）——注意它与 4.7 的数据面 router 同名不同物。支持矩阵中 PD 分离有三档：Shared-store / UCM 传输 / 大规模 EP<sup class="ref"><a href="#ref-21">[21]</a></sup>。</p>
+
+<div class="warnbox"><p><b>演示代理的工程短板（若照抄进生产必踩坑）：</b>httpx 客户端 <code>timeout=None</code> 无超时（<span class="cref">toy_proxy_server.py:32,43,68</span>）；P/D 两轮询迭代器随机配对（:50-55）；<strong>无写完成同步</strong>——Prefill 返回 HTTP 200 ≠ KV 已落盘（dump 是异步的），Decode 可能 lookup 落空退化为自算（best-effort，文档亦自述）；<code>send_request_to_service</code> 是死代码（:192-213）；流式响应 media_type 误标 application/json（:278,298）。</p></div>
+</section>
+
+<!-- ================================================================ -->
+<section class="ch" id="ch7">
+<h2><span class="no">07</span>性能数据（全部出自仓内文档原文）</h2>
+<div class="note"><p><b>取证说明：</b>以下数字均逐字取自仓库文档（docs/source/ 旧站——新站 benchmark 页目前仅“待补充”，<span class="cref">docs/docs-site/docs/zh/benchmark/index.md:3</span>）。它们是厂商自测数据，硬件/模型/命中率各不相同，<strong>横向不可比，仅展示各后端的量级与场景</strong>。总宣称：前缀重复场景时延降 3–10×（<span class="cref">docs/source/index.md:29</span>）。</p></div>
+
+<h3>7.1 各后端实测</h3>
+<div class="tbl-wrap"><table class="tbl">
+  <thead><tr><th>后端/场景</th><th>配置</th><th>结果（原文数字）</th><th>出处</th></tr></thead>
+  <tbody>
+  <tr><td><b>NFS Store</b>（禁 HBM 纯 SSD）</td><td>QwQ-32B=1 台 H20×2GPU；DeepSeek-V3=2 台 H20×16GPU</td><td>QwQ-32B TTFT 加速 <b>+122.6%~+237.4%</b>（如 32K/c1 10.2037s→3.0713s）；DS-V3 <b>+86.9%~+300.0%</b>（4K/c4 5.43s→1.36s）；单点：16K 输入 TTFT 15323.87→3183.97 ms（约 5×）</td><td><span class="cref">nfs_store.md:8-64,180-205</span></td></tr>
+  <tr><td><b>Pipeline Cache|Posix</b></td><td>QwQ-32B 4×H100；DS-R1-awq 8×H100</td><td>+42.5%~+148.3%（32K/c16 11891.61→4790.00ms）；+64.3%~+193.8%（16K/c16 11752.48→4000.46ms）</td><td><span class="cref">pipeline_store.md:23-56</span></td></tr>
+  <tr><td><b>Ds3fs</b>（3FS 两节点各 2 NVMe）</td><td>QwQ-32B 2×H100；DS-R1-awq 8×H100</td><td>+71%~+148%；+36%~+198%（32K/c1 2937.73→987.10ms）</td><td><span class="cref">ds3fs_store.md:16-65</span></td></tr>
+  <tr><td><b>Mooncake</b></td><td>GLM4.7-W8A8，Ascend</td><td>50% 命中 TTFT speedup +20%~+35%；90% 命中 <b>+43%~+76%</b>（64K/c4 27.141→6.548s；128K/c2 56.878→13.528s）</td><td><span class="cref">mooncake_store.md:20-35</span></td></tr>
+  <tr><td><b>Compress</b>（KVfold 2.0x）</td><td>Qwen2.5-14B，Kunpeng920+4×910B4</td><td>layer-wise TTFT 降幅 −9.04%~+44.15%（16K/bs16/100%命中 7170.8→4005.21ms）；block-wise +3.16%~+52.03%；文中总结 32K 全命中最多 40%+/50%+</td><td><span class="cref">compress_store.md:171-238</span></td></tr>
+  <tr><td><b>PD 最佳实践</b></td><td>GLM-5.1，4 节点 A3 各 8×910C，90% 命中率</td><td>64K×20 并发 TTFT 降至 7,854ms（<b>−78.6%</b>）、吞吐 <b>+92.4%</b>；64K×30C 11,372ms（−82.1%）/+141.0%；128K×10C 46,967→15,942ms（−66.1%）/+83.5%；部署建议：20 并发下请求长度 ≤94K tokens</td><td><span class="cref">GLM-5.1-A3_4Node_PD_Disaggregation.md:20-51</span></td></tr>
+  <tr><td><b>CacheBlend</b></td><td>—</td><td>TTFT 2.2~3.3×、吞吐 2.8~5×、质量降 1%~3%</td><td><span class="cref">cacheblend.md:17,25-26</span></td></tr>
+  <tr><td><b>GSA 稀疏</b></td><td>128K+ 上下文</td><td>注意力 3–5× 加速、精度损失 &lt;2%</td><td><span class="cref">gsa.md:28-30</span></td></tr>
+  </tbody>
+</table></div>
+
+<h3>7.2 benchmarks/ 工具链</h3>
+<ul>
+  <li><code>trace_replay.py</code>：按 Mooncake trace 时间戳回放（hash_id → 512 token/块确定性生成）；指标 TTFT/TPOT/ITL/E2EL 分位数 + 吞吐 + Goodput，落 Excel；并分段记录 send→running→worker→loadkv→forward→savekv 耗时（<span class="cref">benchmarks/README.md:85-126</span>）。</li>
+  <li><code>gene_trace.py</code>：从 ucm.log 反向生成 trace；<code>auto_trace_analysis.py</code>（2519 行）：模拟 HBM→DRAM→FS 三级命中率（参数 --dram-pool-size-gb/--fs-pool-size-gb/--num-nodes）。</li>
+</ul>
+
+<h3>7.3 测试覆盖</h3>
+<p>C++ GTest 约 45 例（cache/dram/drampool/posix/pipeline/mooncake/yuanrong/pcstore/asu/delegator 等）+ Python E2E 21 例（cache_on_posix 命中、posix aio/gc、ds3fs、mooncake、nfsstore、pcstore、带宽脚本）+ test/ 下 pytest 框架（stage0-3 × feature × platform 标记；性能用例默认 1000/1024/8 并发与 4000/500/1 并发，含多轮对话与 doc_qa 场景；结果可落 PG/Mongo/localFile）。</p>
+</section>
+
+<!-- ================================================================ -->
+<section class="ch" id="ch8">
+<h2><span class="no">08</span>可观测性与工具链</h2>
+
+<h3>8.1 Metrics 体系</h3>
+<p>统一 <code>ucm:</code> 前缀，复用 vLLM <code>/metrics</code> 端点，标签 model_name/engine/worker_rank，默认启用（<span class="cref">metrics-reference.md</span>）：</p>
+<div class="tbl-wrap"><table class="tbl">
+  <thead><tr><th>组件</th><th>Counter</th><th>Histogram</th><th>Gauge</th><th>关键指标举例</th></tr></thead>
+  <tbody>
+  <tr><td>Connector</td><td>7</td><td>24</td><td>—</td><td>load/save_bytes_total、total_prefix_query/gpu_hbm_hit/ucm_hit tokens&amp;blocks_total、save_duration、interval_lookup_hit_rates（默认不导出）</td></tr>
+  <tr><td>Cache Store</td><td>11</td><td>17</td><td>—</td><td>lookup hit/miss、load wait/backend/success shards、h2d/d2h duration、带宽</td></tr>
+  <tr><td>Posix</td><td>4</td><td>6</td><td>5</td><td>s2h/h2s bytes、容量水位、store_health、gc_running、posix_(un)healthy_count_total</td></tr>
+  <tr><td>Mooncake</td><td>13</td><td>16</td><td>1</td><td>—</td></tr>
+  <tr><td>YuanRong</td><td>7</td><td>—</td><td>8</td><td>—</td></tr>
+  </tbody>
+</table></div>
+<p>命中率 PromQL：<code>rate(ucm:ucm_hit_tokens_total) / rate(ucm:total_prefix_query_tokens_total)</code>（<span class="cref">metrics-reference.md:261-267</span>）。Grafana dashboard 随仓提供（grafana_vllm/store/connector.json，另有 dram、kv_client）；metrics_configs.yaml 中还有文档未覆盖的 DramStore/DramPool 指标族。</p>
+
+<h3>8.2 toolkit（ucm-toolkit，六件工具）</h3>
+<div class="tbl-wrap"><table class="tbl">
+  <thead><tr><th>工具</th><th>用途</th><th>要点</th></tr></thead>
+  <tbody>
+  <tr><td><code>precheck</code></td><td>部署前环境检查</td><td>CUDA 算力≥8.0、内核≥5.10、Ascend HDK&gt;25.2.0、/dev/shm&lt;512GiB 告警、带宽&lt;8GB/s 告警；psync/aio 双引擎混合读写压测</td></tr>
+  <tr><td><code>posix-aio</code></td><td>存储带宽测量</td><td>模型驱动模式自动判 GQA/MLA/DSA 拓扑</td></tr>
+  <tr><td><code>metrics-view</code></td><td>终端指标查看</td><td>SQLite 后台采集；MLA 需 --config-param tp_size=N</td></tr>
+  <tr><td><code>nic-monitor</code></td><td>网卡监控</td><td>ethtool 系，需 root</td></tr>
+  <tr><td><code>dev-sandbox</code></td><td>C++ 微基准</td><td>多流 CE vs FFTS direct H2D SDMA、pinned/O_DIRECT/shm、GQA/MLA 拓扑对比</td></tr>
+  <tr><td><b>KV Cache 计算器</b></td><td>容量规划</td><td>浏览器页面，正/反算 KV 容量（每 token 每层 KV 大小 × 层数 × 并发 × 长度）</td></tr>
+  </tbody>
+</table></div>
+
+<h3>8.3 部署形态</h3>
+<ul>
+  <li><strong>Docker</strong>：21 个 Dockerfile——vllm-cuda（latest/v0.18.0/v0.20.2/v0.21.0）、vllm-ascend a2×8 + a3×6（v0.18.0~v0.23.0 系列）、sglang-cuda-v0.5.5、mindie-ascend.a2-v2；无 compose。</li>
+  <li><strong>Helm</strong>（charts/unified-cache-chart v0.1.0）：<strong>非 operator</strong>——只渲染 Kthena CRD（ModelServing/ModelServer/ModelRoute），controller/设备插件需预装；14 个 profile（CUDA 7 + Ascend 7：qwen3-0.6B 单/双机、PD 1P1D/2P2D/多机、deepseek-r1-awq、deepseek-v3p1、qwen3-235b）；PD 传输可选 Mooncake（可配 UCM）或 NIXL（不可配 UCM）；存储支持 dynamicPVC/staticPVC/PVC/hostPath/csi/nfs 六种来源；可选 ServiceMonitor。</li>
+  <li><strong>examples</strong>：6 个离线脚本（基础/ESA/Blend/GSAonDevice/KVStar/ReRoPE）+ 6 个 YAML 配置（Cache|Posix、Mooncake|Posix、YuanRong|Posix、asu、drampool）；快速开始组合 = vLLM(CUDA)/vLLM-Ascend/SGLang + Qwen2.5-14B×TP2 + Cache|Posix。</li>
+</ul>
+</section>
+
+<!-- ================================================================ -->
+<section class="ch" id="ch9">
+<h2><span class="no">09</span>业界发展脉络与定位</h2>
+<p>KV Cache 复用是近三年 LLM 推理系统最活跃的战线之一。以下脉络全部基于 2026-09-26 实时抓取的 GitHub API、官方 README 与论文页面（引用编号见第 12 章；星数为抓取时点实测值）。</p>
+
+<h3>9.1 时间线</h3>
+<div class="tbl-wrap"><table class="tbl">
+  <thead><tr><th>时间</th><th>工作</th><th>核心贡献</th><th>社区规模</th></tr></thead>
+  <tbody>
+  <tr><td>2023</td><td><b>PagedAttention / vLLM</b>（SOSP'23）</td><td>借鉴 OS 虚拟内存分页管理 KV cache，近零显存浪费 + 请求间 KV 共享，吞吐较 FasterTransformer/Orca 提升 2–4×<sup class="ref"><a href="#ref-2">[2]</a></sup>；其后加入进程内前缀缓存（APC）</td><td>92,691★<sup class="ref"><a href="#ref-1">[1]</a></sup></td></tr>
+  <tr><td>2023-12</td><td><b>RadixAttention / SGLang</b></td><td>以 radix tree 组织 GPU 显存内 KV 实现前缀复用 + 压缩 FSM 加速结构化输出，多任务吞吐最高 6.4×<sup class="ref"><a href="#ref-4">[4]</a></sup></td><td>36,439★<sup class="ref"><a href="#ref-3">[3]</a></sup></td></tr>
+  <tr><td>2024</td><td><b>CachedAttention</b>（ATC'24）/ <b>InferCept</b>（ICML'24）</td><td>学术原型：分级 KV 缓存 + layer-wise 预加载 + 异步保存重叠 IO，TTFT 最高降 87%、prefill 吞吐最高 7.8×、成本最高降 70%<sup class="ref"><a href="#ref-7">[7]</a></sup>；InferCept 指出增强型 LLM 外部交互重算占前向时间 37–40%，吞吐提升 1.6–2×<sup class="ref"><a href="#ref-8">[8]</a></sup></td><td>论文</td></tr>
+  <tr><td>2024-06</td><td><b>Mooncake</b>（月之暗面）</td><td>KVCache 中心 PD 分离 + 分布式缓存池；FAST'25 最佳论文；模拟吞吐最高 +525%、真实负载多承载 75% 请求<sup class="ref"><a href="#ref-11">[11]</a></sup>；Transfer Engine 支持 TCP/RDMA/EFA/NVMe-oF/NVLink/CXL/Ascend，8×400G RoCE 达 190GB/s<sup class="ref"><a href="#ref-10">[10]</a></sup></td><td>6,660★<sup class="ref"><a href="#ref-9">[9]</a></sup></td></tr>
+  <tr><td>2024-05</td><td><b>LMCache</b></td><td>vendor-neutral KV cache 管理层：GPU→CPU→盘→远端分级卸载，后端含 Redis/Mooncake/S3/NIXL/GDS；CacheBlend 非前缀复用；2025-10 加入 PyTorch Foundation<sup class="ref"><a href="#ref-13">[13]</a></sup></td><td>11,909★<sup class="ref"><a href="#ref-12">[12]</a></sup></td></tr>
+  <tr><td>2024-06</td><td><b>AIBrix</b>（字节，vLLM 组织）</td><td>云原生控制面：LLM 网关、KV 感知路由、Distributed KV Cache、高密度 LoRA<sup class="ref"><a href="#ref-19">[19]</a></sup></td><td>5,113★<sup class="ref"><a href="#ref-18">[18]</a></sup></td></tr>
+  <tr><td>2025-03</td><td><b>NIXL</b> / <b>NVIDIA Dynamo</b></td><td>NIXL：点对点推理传输库（UCX/POSIX/GDS/HF3FS/Mooncake 插件）<sup class="ref"><a href="#ref-17">[17]</a></sup>；Dynamo：数据中心级编排——PD 分离、KV 感知路由（TTFT 快 2×）、KVBM 分级卸载、S3/Azure blob KV offload<sup class="ref"><a href="#ref-15">[15]</a></sup></td><td>1,274★ / 8,161★<sup class="ref"><a href="#ref-16">[16]</a></sup><sup class="ref"><a href="#ref-14">[14]</a></sup></td></tr>
+  <tr><td>2025-09</td><td><b>SGLang HiCache</b></td><td>HiRadixTree 把 RadixAttention 扩展为 GPU/CPU/外部存储分级缓存；GPU 辅助 IO 使传输最高 3×；后端插件仅需 get/exist/set（已集成 Mooncake/3FS/NIXL）；官方案例 TTFT −56%~−84%<sup class="ref"><a href="#ref-6">[6]</a></sup></td><td>（SGLang 内建）</td></tr>
+  <tr class="hl"><td>2025-07</td><td><b>UCM</b>（本报告对象）</td><td>统一 KV Cache 层：三引擎适配 + 12 种后端实现/11 种注册管线 + 稀疏注意力集成 + Ascend/CUDA 双栈；官方宣称前缀重复场景时延降 3–10×<sup class="ref"><a href="#ref-22">[22]</a></sup></td><td>337★<sup class="ref"><a href="#ref-20">[20]</a></sup></td></tr>
+  </tbody>
+</table></div>
+
+<h3>9.2 技术路线对比</h3>
+<p>业界方案沿三条轴线分化：<strong>缓存层级</strong>（引擎内显存 → 主机内存 → 外部存储 → 远端池）、<strong>耦合方式</strong>（引擎内建 vs 外部独立层）、<strong>硬件栈</strong>（CUDA-only vs 多栈）。</p>
+<div class="tbl-wrap"><table class="tbl">
+  <thead><tr><th>方案</th><th>定位</th><th>引擎耦合</th><th>分级存储</th><th>Ascend 支持</th><th>与 UCM 的关系</th></tr></thead>
+  <tbody>
+  <tr><td>vLLM APC</td><td>引擎内前缀缓存</td><td>内建</td><td>仅 HBM</td><td>经 vLLM-Ascend</td><td>UCM 的 L1，经 connector 衔接<sup class="ref"><a href="#ref-21">[21]</a></sup></td></tr>
+  <tr><td>SGLang HiCache</td><td>引擎内分级缓存</td><td>内建（SGLang）</td><td>HBM→DRAM→外部存储</td><td>未明确</td><td>UCM 可作为其 L3 后端接入<sup class="ref"><a href="#ref-6">[6]</a></sup></td></tr>
+  <tr><td>LMCache</td><td>引擎无关 KV 层</td><td>vLLM 生态为主</td><td>GPU→CPU→盘→远端（Redis/Mooncake/S3/NIXL/GDS）</td><td>“incoming”（2025-06 博客）<sup class="ref"><a href="#ref-13">[13]</a></sup></td><td><b>定位最接近的竞品</b></td></tr>
+  <tr><td>Mooncake</td><td>KVCache 中心 PD 分离 + 缓存池</td><td>独立平台</td><td>DRAM+SSD 池，RDMA 传输</td><td>Transfer Engine 明确支持 Ascend<sup class="ref"><a href="#ref-10">[10]</a></sup></td><td>竞品 + 后端（UCM 可挂 Mooncake）<sup class="ref"><a href="#ref-21">[21]</a></sup></td></tr>
+  <tr><td>NIXL / Dynamo</td><td>传输库 / 编排层</td><td>NVIDIA 生态</td><td>KVBM 分级 + S3/Azure offload</td><td>无</td><td>层级不同：UCM 不做路由编排<sup class="ref"><a href="#ref-15">[15]</a></sup></td></tr>
+  <tr><td>AIBrix</td><td>K8s 推理控制面</td><td>vLLM 聚焦</td><td>Distributed KV Cache</td><td>无</td><td>层级不同（网关层）<sup class="ref"><a href="#ref-19">[19]</a></sup></td></tr>
+  <tr class="hl"><td><b>UCM</b></td><td>引擎与存储间的统一缓存层</td><td>三引擎 + MindIE</td><td>HBM→SHM→SSD/NFS→远端池，11 种注册管线</td><td><b>一等公民（910C/910B）</b><sup class="ref"><a href="#ref-21">[21]</a></sup></td><td>—</td></tr>
+  </tbody>
+</table></div>
+
+<h3>9.3 UCM 的差异化坐标</h3>
+<ul>
+  <li><strong>Ascend + CUDA 双栈一等支持</strong>：对比项中仅 Mooncake Transfer Engine 明确支持 Ascend 传输<sup class="ref"><a href="#ref-10">[10]</a></sup>；UCM 把 vLLM-Ascend（910C/910B）列为与 vLLM 平级的一等列<sup class="ref"><a href="#ref-21">[21]</a></sup>，且 trans 层为 NPU 定制了 FFTS/SDMA 优化栈（4.4）。此外还覆盖 MUSA、MACA 国产平台（构建支持，<span class="cref">setup.py:229-243</span>）。</li>
+  <li><strong>存储后端广度</strong>：NFS/Posix/3FS/Mooncake/YuanRong/DRAM 池/KV 压缩 + 组合管线与熔断（5.3）；多数竞品只覆盖其中 2–3 种。</li>
+  <li><strong>稀疏注意力与缓存系统集成</strong>：7 种稀疏算法（4.6）且稀疏块可 offload 到 UCM store——“稀疏”与“复用”在同一框架内协同，这是独立稀疏库不具备的形态。</li>
+  <li><strong>工程纵深</strong>：加载失败恢复（已上游化）、层间流水、事件同步、健康熔断、全套 metrics/工具链（8 章）——生产级细节密度高。</li>
+  <li><strong>差距面</strong>：社区规模尚小（337★ vs LMCache 11.9k★、vLLM 92.7k★，2026-09-26 抓取）<sup class="ref"><a href="#ref-20">[20]</a></sup>；无路由编排层（对照 Dynamo/AIBrix）；SGLang 列模型覆盖面窄于其 vLLM 列<sup class="ref"><a href="#ref-21">[21]</a></sup>。</li>
+</ul>
+</section>
+
+<!-- ================================================================ -->
+<section class="ch" id="ch10">
+<h2><span class="no">10</span>潜在优化点</h2>
+<p>本章所有条目都来自本轮代码级阅读发现的<strong>具体证据</strong>（文件:行号），按「正确性 → 性能 → 工程」分组，并给出建议方向。它们是分析者基于源码观察的建议，不代表项目方立场；标注<span class="tag w">未确认</span>的条目表示仓内信息不足以定论。</p>
+
+<h3>10.1 正确性与韧性</h3>
+<div class="tbl-wrap"><table class="tbl">
+  <thead><tr><th style="width:36px">#</th><th style="width:180px">问题</th><th>证据与机理</th><th>建议方向</th></tr></thead>
+  <tbody>
+  <tr><td>1</td><td>块哈希无碰撞防护</td><td>MD5 digest 直接作 store 键，无二次校验（<span class="cref">request_hasher.py:85-92</span>）；理论误命中会静默加载错误 KV。威胁模型与 vLLM APC 一致，但 UCM 的键会<strong>跨进程、跨实例、落盘长期存在</strong>，暴露面更大</td><td>dump 时附带块 token 校验和（如首 N 个 token id 的短哈希）并在 load 后校验；或提供可选的 xxhash/SHA 键算法开关。成本低、收益是“永不静默错数据”</td></tr>
+  <tr><td>2</td><td>BufferPool 双释放无防护</td><td><code>BufferPool::Free</code> 只收下标，<code>IndexPool</code> CAS 空闲栈不防双 free（<span class="cref">index_pool.h:71-84</span>）；双 Free → 槽别名 → 远端直写写冲突。可变池有 node.used 校验，防护不对称</td><td>在 Free 路径复用可变池的 used 标记校验，或为 IndexPool 的 slot 增加代际（generation）计数——栈里已有 ver 字段防 ABA，可顺带防双放</td></tr>
+  <tr><td>3</td><td>PD 配对的配置漂移陷阱</td><td>配对依赖两侧哈希命名空间完全一致 + 文档要求手工设 <code>PYTHONHASHSEED=123456</code>（centralized_pd.md:268）；任一侧漂移 → 全部 miss，<strong>无任何告警</strong>（best-effort 语义掩盖故障）</td><td>P/D 握手时交换哈希 meta 指纹并在代理侧比对告警；命中率 metrics 已有（8.1），补一条“P→D 配对命中率”专板即可把静默故障变成可观测故障</td></tr>
+  <tr><td>4</td><td>SGLang 0.5.5 遗留 patch 腐烂</td><td>该 patch 引用的 <code>uc_get_hash_str/register_uc_hasher</code> 在现行 connector 已不存在（grep 仅见于 patch 文件自身）</td><td>删除或冻结归档遗留 patch；文档明示“仅 ≥0.5.9 受支持”</td></tr>
+  <tr><td>5</td><td>容量账本漂移</td><td>nfsstore 容量是 mmap 账本（<span class="cref">space_property.cc:33-99</span>）加减记账，进程异常退出后与实际磁盘占用漂移</td><td>周期性与 <code>statfs</code>/目录盘点对账（SpaceRecycle 每轮 DFS 时已遍历全树，顺手对账几乎零成本）</td></tr>
+  <tr><td>6</td><td>fake_hamming_topk 占位陷阱</td><td>“取前 k 块”的占位实现（<span class="cref">hamming_topk.py:57-76</span>）混入配置路径会静默退化为无稀疏</td><td>占位实现改名加 <code>debug_</code> 前缀 + 启动日志告警；或要求显式环境变量解锁</td></tr>
+  </tbody>
+</table></div>
+
+<h3>10.2 性能</h3>
+<div class="tbl-wrap"><table class="tbl">
+  <thead><tr><th style="width:36px">#</th><th style="width:180px">问题</th><th>证据与机理</th><th>建议方向</th></tr></thead>
+  <tbody>
+  <tr><td>7</td><td>HixlInstance 全串行</td><td>每实例绑一 device、专属 worker 线程全串行（<span class="cref">hixl_instance.h:45-46</span> 注释，:101-173）——单 device 的 RDMA 吞吐受单线程上限</td><td>按队列对（QP）拆分 worker 或引入提交/完成分离的双线程（参照 GdrStream 的 scheduler+completion 模型，仓内已有成熟范式）</td></tr>
+  <tr><td>8</td><td>TCP 控制面无超时</td><td>Send/Connect 遇 EAGAIN 时 <code>poll(-1)</code> 无限等待（<span class="cref">tcp_transport.cpp:125-140</span>）——对端黑洞时永久挂起</td><td>引入可配超时 + 熔断；控制面已有 4MiB 帧上限，超时是同等级别的健壮性基线</td></tr>
+  <tr><td>9</td><td>Direct 模式首次 load 阻塞</td><td>同步 <code>wait_load</code> 在 forward 前阻塞（<span class="cref">ucm_connector.py:2228-2230</span>）——大命中量时 TTFT 受 store 读带宽直接制约（设计取舍，layerwise 只缓解 save 侧）</td><td>异步 load 已有开关（<code>use_request_async_load</code>）；可默认化并把“load 未完成 token 数”纳入调度配额</td></tr>
+  <tr><td>10</td><td>router 默认 CRC32 弱哈希</td><td>32 位输出，生日界约 7.7 万 key 即 50% 碰撞（<span class="cref">router.cc:38-59</span>），两个生产调用方均用默认——碰撞导致分片倾斜</td><td>默认改 xxhash64/FNV-1a-64；BlockId 已是 16B MD5，直接取前 8B 即高质量哈希，零额外计算</td></tr>
+  <tr><td>11</td><td>DramStore 成员静态</td><td>节点列表建一次不再更新（<span class="cref">dram_store.cc:128-133</span>）；<code>dynamicAdjustEnabled</code> 是死配置（<span class="cref">router.h:68,74</span> 全仓无消费方）</td><td>实现成员变更监听 + 一致性哈希环重建（128 vnode 的环重建成本很低），或删除死配置避免误导</td></tr>
+  <tr><td>12</td><td>nfsstore 无设备直存路径</td><td>device/ 目录只是 D2H/H2D 拷贝引擎（<span class="cref">idevice.h:33-64</span>），数据必须经主机内存中转——SSD/NFS 场景下 GDS（cuFile）可省一跳</td><td>CUDA 路径增加 GDS 直存选项（pcstore 已有 GDR 先例，接口位置现成）</td></tr>
+  <tr><td>13</td><td>回收全树 stat 扫描</td><td>SpaceRecycle 每轮 DFS + 逐文件 stat 取 mtime（<span class="cref">space_recycle.cc:32-76</span>），百万块时 O(N) 元数据风暴</td><td>分代热度（generational）：新块免扫、按代降频；或维护增量日志替代全量扫描</td></tr>
+  <tr><td>14</td><td>io_aggregation 形状固化</td><td>形状首用后固化，异形状延迟到提交时才报错（<span class="cref">ascend_shard_io_aggregator.cc:121-131</span>）</td><td>按形状分桶多实例，或 Setup 期显式声明形状集合并提前报错</td></tr>
+  <tr><td>15</td><td>GdrStream 忙等</td><td><code>Synchronized()</code> 自旋烧 CPU（<span class="cref">gdr_stream.cc:207-210</span>）</td><td>eventfd/futex 休眠等待（completion 线程已用 eventfd，范式现成）</td></tr>
+  </tbody>
+</table></div>
+
+<h3>10.3 工程与生态</h3>
+<div class="tbl-wrap"><table class="tbl">
+  <thead><tr><th style="width:36px">#</th><th style="width:180px">问题</th><th>证据</th><th>建议方向</th></tr></thead>
+  <tbody>
+  <tr><td>16</td><td>命名错位：V1 “NfsStore” 实为 PcStore</td><td><span class="cref">factory_v1.py:65-67</span></td><td>增加别名 <code>UcmPcStore</code> 并在 “UcmNfsStore” 上打 deprecation 警告</td></tr>
+  <tr><td>17</td><td>半成品混入关键路径</td><td>delegator 后端绑定未完成（<span class="cref">delegator_store.cc:132-137</span>）；UCMPDConnector 空壳（<span class="cref">ucm_connector.py:2983-3019</span>）；VariableBufferPool 生产零引用；toy_proxy 无超时/无写完成同步</td><td>空壳/半成品集中到 <code>sandbox/</code> 或打 <code>experimental_</code> 前缀；文档对每个后端标注成熟度标签（本报告 5.2 表可作蓝本）</td></tr>
+  <tr><td>18</td><td>/dev/shm 文件做进程内通信</td><td>worker↔scheduler 的 unique_id/block_size 经 <code>/dev/shm/ucm_*_&lt;pid&gt;</code> 文件传递，依赖 10 分钟 mtime 清理与 ppid 关系（<span class="cref">ucm_connector.py:243-337</span>）——容器/非 Linux 脆弱</td><td>改经 vLLM 既有的进程组广播或 KVConnector 元数据通道</td></tr>
+  <tr><td>19</td><td>CPU 绑核不可移植</td><td>sparse 检索线程池依赖 lscpu/pthread/numa（ESA/KVStar）</td><td>拓扑探测失败时降级为不绑核并告警；Windows/macOS 直接禁用以保正确性</td></tr>
+  <tr><td>20</td><td>文档双站分裂 + 新站 benchmark 空页</td><td>性能硬数据全在旧站 docs/source/，新站 <span class="cref">docs/docs-site/docs/zh/benchmark/index.md:3</span> 仅“待补充”</td><td>单站化并把 benchmark 数据迁移到新站；性能数字注明硬件/命中率/版本（本报告 7.1 表可作迁移底稿）</td></tr>
+  <tr><td>21</td><td>引擎矩阵失衡</td><td>支持矩阵中 vLLM 列的模型覆盖显著多于 SGLang 列（支持矩阵<sup class="ref"><a href="#ref-21">[21]</a></sup>）</td><td>优先补齐 SGLang HiCache 后端的模型覆盖测试矩阵</td></tr>
+  </tbody>
+</table></div>
+</section>
+
+<!-- ================================================================ -->
+<section class="ch" id="ch11">
+<h2><span class="no">11</span>结论</h2>
+<p><strong>UCM 是一个工程纵深突出的“KV Cache 中间层”</strong>：在引擎侧，它以官方 KV Connector v1 API 为骨架、以精细的 monkeypatch 补齐能力（其中加载失败恢复机制后来被 vLLM 上游吸收，是最有力的设计正确性背书）；在算法侧，MD5 链式内容寻址 + 前缀语义查找 + 层间三级流水 + 事件同步构成了严密的复用闭环，并叠加以 HATA/GSA-on-device 为旗舰的七种稀疏注意力算法；在存储侧，11 种注册管线、三种精度递进的淘汰策略、FFTS/SDMA/GDR 设备优化栈与 HIXL 单边 RDMA 内存池，把“KV 分级缓存”从论文概念做成了可运维的系统。</p>
+<p><strong>业界坐标</strong>：在“引擎无关 KV 缓存层”这一格上，它与 LMCache 定位最接近；差异化在于 Ascend/CUDA 双栈一等支持、存储后端广度、稀疏-缓存一体化，以及更深的生产工程细节（metrics、工具链、Helm、熔断）。短板同样清晰：社区规模尚小、无路由编排层、SGLang 覆盖面窄、若干半成品与文档分裂。</p>
+<p><strong>给采用者的三句话</strong>：① 前缀重复显著（多轮对话/Agent/RAG/代码助手）且算力吃紧的场景值得立即试点，官方 3–10× 宣称与仓内实测数据的量级一致；② 从 <code>Cache|Posix</code> 管线 + 默认 layerwise 起步，用 <code>metrics-view</code>/Grafana 盯住命中率再逐步加码；③ 接入前先读第 10 章——尤其是哈希命名空间一致性与 <code>PYTHONHASHSEED</code> 两个运维陷阱。</p>
+</section>
+
+<!-- ================================================================ -->
+<section class="ch" id="ch12">
+<h2><span class="no">12</span>参考与出处</h2>
+
+<h3>12.1 分析方法论</h3>
+<ul>
+  <li><strong>代码锚点</strong>：全部源码论断锚定 commit <code>2d24ab399370bcb93f8f8ace2bda0bc657652622</code>（develop 分支，2026-09-26 浅克隆）；行号以该提交为准。</li>
+  <li><strong>分析方式</strong>：主分析线程亲自精读核心文件（request_hasher.py 全文、ucm_connector.py 关键段、ucmstore_v1.py、factory_v1.py、pcstore.h、hotness_set.cc、posix_file.cc、nfsstore.h、setup.py、version.ini 等），并派出 5 个并行分析代理分头精读存储层、引擎集成层、稀疏算法、文档/基准、业界调研（共约 128KB 中间报告，含全部 文件:行号 证据）；主线程对 12 处承载性论断做了独立复核。</li>
+  <li><strong>外部信息</strong>：业界数据全部来自 2026-09-26 实时抓取的 GitHub API / 官方 README / 论文页面（下方编号引用）；星数为抓取时点实测。</li>
+  <li><strong>诚实标注</strong>：仓内信息不足处以<span class="tag w">未确认</span>标注（FFTS/HIXL 全称、HIXL 底层链路、<code>ucm.store.kvcs</code> 分发渠道等）；性能数字均为仓内文档原文的厂商自测，横向不可比。</li>
+</ul>
+
+<h3>12.2 关键源码文件索引（本报告高频引用）</h3>
+<div class="tbl-wrap"><table class="tbl">
+  <thead><tr><th>文件</th><th>内容</th></tr></thead>
+  <tbody>
+  <tr><td><code>ucm/integration/vllm/ucm_connector.py</code></td><td>3735 行 Connector 门面与 9 种实现、时序与失败恢复</td></tr>
+  <tr><td><code>ucm/integration/vllm/request_hasher.py</code></td><td>137 行 MD5 链式哈希全文</td></tr>
+  <tr><td><code>ucm/integration/vllm/patch/{boot_patch,apply_patch,utils}.py</code></td><td>注入链与 14 版本 patch 分发</td></tr>
+  <tr><td><code>ucm/store/ucmstore_v1.py / ucmstore_v1.h</code></td><td>V1 存储抽象（lookup_on_prefix 等 11 方法）</td></tr>
+  <tr><td><code>ucm/store/nfsstore/cc/domain/{space,hotness,file}/</code></td><td>.act/.dat 原子提交、mtime 热度、TopN 回收</td></tr>
+  <tr><td><code>ucm/shared/trans/{ascend,cuda}/</code></td><td>FFTS/SDMA/io_aggregation/GPUDirect RDMA 拷贝栈</td></tr>
+  <tr><td><code>ucm/transport/p2p/</code></td><td>HIXL 单边读写 + TCP 控制面（仅 Ascend）</td></tr>
+  <tr><td><code>ucm/shared/{pool,router}/</code></td><td>BufferPool 无锁空闲栈、数据面分片路由</td></tr>
+  <tr><td><code>ucm/sparse/{esa,gsa,gsa_on_device,kvstar,blend,rerope}/</code></td><td>七种稀疏算法 + ACL 2025 论文 PDF</td></tr>
+  <tr><td><code>ucm/store/dram/cc/drampool/</code></td><td>远端内存池：1024 分片精确 LRU/TTL/Pos</td></tr>
+  </tbody>
+</table></div>
+
+<h3>12.3 外部引用（2026-09-26 抓取）</h3>
+<ol class="refs">
+  <li id="ref-1">[1] GitHub API · vllm-project/vllm（92,691★）：<a href="https://api.github.com/repos/vllm-project/vllm">api.github.com/repos/vllm-project/vllm</a>；论文（SOSP'23）：<a href="https://arxiv.org/abs/2309.06180">arXiv:2309.06180</a></li>
+  <li id="ref-2">[2] vLLM 官方博客：<a href="https://blog.vllm.ai/2023/06/20/vllm.html">vLLM: Easy, Fast, and Cheap LLM Serving with PagedAttention</a></li>
+  <li id="ref-3">[3] GitHub API · sgl-project/sglang（36,439★）：<a href="https://api.github.com/repos/sgl-project/sglang">api.github.com/repos/sgl-project/sglang</a></li>
+  <li id="ref-4">[4] SGLang 论文：<a href="https://arxiv.org/abs/2312.07104">Efficient Execution of Structured Language Model Programs with RadixAttention</a></li>
+  <li id="ref-5">[5] SGLang HiCache 文档：<a href="https://sgl-project.github.io/advanced/hicache.html">sgl-project.github.io/advanced/hicache.html</a></li>
+  <li id="ref-6">[6] LMSYS 博客（2025-09-10）：<a href="https://lmsys.org/blog/2025-09-10-sglang-hicache/">SGLang HiCache: Next-Generation Hierarchical KV Cache</a></li>
+  <li id="ref-7">[7] CachedAttention（USENIX ATC'24）：<a href="https://www.usenix.org/conference/atc24/presentation/gao-bin-cost">Efficiently Caching Attention States for Interactive LLM Serving</a></li>
+  <li id="ref-8">[8] InferCept（ICML'24）：<a href="https://arxiv.org/abs/2406.06918">Efficient LLM Inference with Augmented LLMs</a></li>
+  <li id="ref-9">[9] GitHub API · kvcache-ai/Mooncake（6,660★）：<a href="https://api.github.com/repos/kvcache-ai/Mooncake">api.github.com/repos/kvcache-ai/Mooncake</a></li>
+  <li id="ref-10">[10] Mooncake Transfer Engine：<a href="https://github.com/kvcache-ai/Mooncake">github.com/kvcache-ai/Mooncake</a>（README：TCP/RDMA/EFA/NVMe-oF/NVLink/CXL/Ascend，8×400G RoCE 190GB/s）</li>
+  <li id="ref-11">[11] Mooncake 论文（FAST'25 最佳论文）：<a href="https://www.usenix.org/conference/fast25/presentation/qin">Mooncake: A KVCache-centric Disaggregated Architecture for LLM Serving</a></li>
+  <li id="ref-12">[12] GitHub API · LMCache/LMCache（11,909★）：<a href="https://api.github.com/repos/LMCache/LMCache">api.github.com/repos/LMCache/LMCache</a></li>
+  <li id="ref-13">[13] LMCache 官方：<a href="https://lmcache.ai/">lmcache.ai</a>（2025-10 加入 PyTorch Foundation；Ascend “incoming”）</li>
+  <li id="ref-14">[14] GitHub API · ai-dynamo/dynamo（8,161★）：<a href="https://api.github.com/repos/ai-dynamo/dynamo">api.github.com/repos/ai-dynamo/dynamo</a></li>
+  <li id="ref-15">[15] NVIDIA Dynamo：<a href="https://github.com/ai-dynamo/dynamo">github.com/ai-dynamo/dynamo</a>（KV 感知路由 TTFT 2×、KVBM、S3/Azure blob offload）</li>
+  <li id="ref-16">[16] GitHub API · ai-dynamo/nixl（1,274★）：<a href="https://api.github.com/repos/ai-dynamo/nixl">api.github.com/repos/ai-dynamo/nixl</a></li>
+  <li id="ref-17">[17] NIXL：<a href="https://github.com/ai-dynamo/nixl">github.com/ai-dynamo/nixl</a>（UCX/POSIX/GDS/HF3FS/Mooncake 插件）</li>
+  <li id="ref-18">[18] GitHub API · vllm-project/aibrix（5,113★）：<a href="https://api.github.com/repos/vllm-project/aibrix">api.github.com/repos/vllm-project/aibrix</a></li>
+  <li id="ref-19">[19] AIBrix：<a href="https://github.com/vllm-project/aibrix">github.com/vllm-project/aibrix</a></li>
+  <li id="ref-20">[20] GitHub API · ModelEngine-Group/unified-cache-management（337★/121 forks，2025-07-10 创建）：<a href="https://api.github.com/repos/ModelEngine-Group/unified-cache-management">api.github.com/repos/ModelEngine-Group/unified-cache-management</a></li>
+  <li id="ref-21">[21] UCM 官方文档（支持矩阵）：<a href="https://ucm.readthedocs.io/en/latest/">ucm.readthedocs.io/en/latest/</a></li>
+  <li id="ref-22">[22] UCM 官方文档（架构与 3–10× 宣称）：<a href="https://ucm.readthedocs.io/en/latest/introduction/architecture.html">ucm.readthedocs.io/en/latest/introduction/architecture.html</a> 与仓内 docs/source/index.md:29</li>
+</ol>
+
+<div class="foot">
+  <p><strong>UCM 代码级深度分析报告</strong> · 锚定 commit <code>2d24ab3</code> · 生成于 2026-09-26 · 单文件自包含 HTML（离线可读）· 所有论断可回溯源码行号或上述外部引用 · 键盘 <span class="kbd">Home</span> 回到顶部</p>
+</div>
+</section>
+
+</div>
+</div>
+
+<button class="to-top" id="toTop" aria-label="回到顶部" title="回到顶部">↑</button>
+<script>
+(function(){
+  /* scrollspy：唯一功能性动效 */
+  var links = Array.prototype.slice.call(document.querySelectorAll('#toc a'));
+  var map = {};
+  links.forEach(function(a){ map[a.getAttribute('href').slice(1)] = a; });
+  var ids = Object.keys(map);
+  var current = null;
+  function onScroll(){
+    var y = window.scrollY + 90, active = ids[0];
+    for (var i=0;i<ids.length;i++){
+      var el = document.getElementById(ids[i]);
+      if (el && el.getBoundingClientRect().top + window.scrollY <= y) active = ids[i];
+    }
+    if (active !== current){
+      if (current && map[current]) map[current].classList.remove('active');
+      if (map[active]) map[active].classList.add('active');
+      current = active;
+    }
+    var b = document.getElementById('toTop');
+    if (window.scrollY > 600) b.classList.add('show'); else b.classList.remove('show');
+  }
+  window.addEventListener('scroll', onScroll, {passive:true});
+  onScroll();
+  document.getElementById('toTop').addEventListener('click', function(){ window.scrollTo({top:0, behavior:'smooth'}); });
+  var t = document.getElementById('navToggle');
+  if (t) t.addEventListener('click', function(){ document.body.classList.toggle('nav-open'); });
+  document.querySelectorAll('#toc a').forEach(function(a){
+    a.addEventListener('click', function(){ document.body.classList.remove('nav-open'); });
+  });
+})();
+</script>
+</body>
+</html>

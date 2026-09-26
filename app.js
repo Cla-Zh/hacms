@@ -52,6 +52,7 @@
     'AI基础设施':   '#DC3971',  // 玫红
     '安全':         '#F3B3CC',  // 樱花粉
     '技术调研':     '#EC719F',  // 桃粉
+    '项目解析':     '#F3B3CC',  // 樱花粉 (项目代码级技术拆解)
     '其他':         '#9A9AA6',  // 中性灰
   };
   const DEFAULT_CATEGORY_COLOR = '#9A9AA6';
@@ -292,7 +293,7 @@
       const c = a.category || '其他';
       catCount[c] = (catCount[c] || 0) + 1;
     });
-    const ORDER = ['友商调研', '洞察', '战略洞察', 'AI应用', 'AI基础设施', '安全', '技术调研', '其他'];
+    const ORDER = ['友商调研', '洞察', '战略洞察', 'AI应用', 'AI基础设施', '安全', '技术调研', '项目解析', '其他'];
     const cats = Object.keys(catCount).sort((a, b) => {
       const ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
       if (ia >= 0 && ib >= 0) return ia - ib;
@@ -343,7 +344,7 @@
       const c = a.category || '其他';
       catCount[c] = (catCount[c] || 0) + 1;
     });
-    const ORDER = ['友商调研', '洞察', '战略洞察', 'AI应用', 'AI基础设施', '安全', '技术调研', '其他'];
+    const ORDER = ['友商调研', '洞察', '战略洞察', 'AI应用', 'AI基础设施', '安全', '技术调研', '项目解析', '其他'];
     const cats = Object.keys(catCount).sort((a, b) => {
       const ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
       if (ia >= 0 && ib >= 0) return ia - ib;
