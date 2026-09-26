@@ -1,0 +1,1603 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="hero_priority" content="22">
+<meta name="description" content="[项目解析] vLLM × vLLM-Ascend 代码级端到端深度逆向分析 — 双仓画像 / 系统架构 / 请求生命周期 / 调度器 (schedule 961 行) / PagedAttention 显存管理 / Ascend 算子体系 / HCCL 分布式通信 / 性能瓶颈与代码层证据。12 章节 27 表格。">
+<meta property="og:title" content="vLLM × vLLM-Ascend 代码级深度逆向分析">
+<meta property="og:description" content="vLLM × vLLM-Ascend 端到端代码级逆向分析 — 调度器 / PagedAttention / Ascend 算子 / HCCL 分布式 / 性能瓶颈证据">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="vLLM × vLLM-Ascend 代码级深度逆向分析">
+<meta name="twitter:description" content="vLLM × vLLM-Ascend · 12 章节 · 27 表格 · 代码级逆向 · 项目解析">
+<link rel="stylesheet" href="/assets/article-mobile.css?v=2026-09-25">
+<script src="/assets/article-mobile.js?v=2026-09-25" defer></script>
+<title>vLLM × vLLM-Ascend 代码级深度逆向分析</title>
+<style>
+/* ============ 设计令牌：深色科技文档体系 ============ */
+:root{
+  --bg-0:#0a0e14;          /* 页面底 */
+  --bg-1:#0f141d;          /* 正文底 */
+  --bg-2:#151c28;          /* 卡片底 */
+  --bg-3:#1b2433;          /* 卡片悬停/内嵌 */
+  --bg-code:#0c1119;       /* 代码块底 */
+  --line:#243044;          /* 分隔线 */
+  --line-soft:#1a2333;
+  --tx-0:#e8eef7;          /* 主文字 */
+  --tx-1:#aebacd;          /* 次文字 */
+  --tx-2:#6d7d94;          /* 弱文字 */
+  --acc-0:#5eead4;         /* 主强调 青 */
+  --acc-1:#7dd3fc;         /* 次强调 蓝 */
+  --acc-2:#c4b5fd;         /* 紫 */
+  --acc-3:#fbbf24;         /* 琥珀 警示 */
+  --acc-4:#f87171;         /* 红 */
+  --acc-5:#34d399;         /* 绿 */
+  --grad-a:linear-gradient(135deg,#5eead4,#7dd3fc);
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:22px;
+  --sh-1:0 1px 2px rgba(0,0,0,.35),0 4px 14px rgba(0,0,0,.28);
+  --sh-2:0 4px 10px rgba(0,0,0,.4),0 14px 40px rgba(0,0,0,.38);
+  --sh-3:0 10px 24px rgba(0,0,0,.5),0 30px 80px rgba(0,0,0,.45);
+  --glow:0 0 0 1px rgba(94,234,212,.14),0 0 26px rgba(94,234,212,.07);
+  --mono:"JetBrains Mono","Cascadia Code","Fira Code",Consolas,"Courier New",monospace;
+  --sans:"Inter","Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  --toc-w:292px;
+  --maxw:1080px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:84px}
+body{
+  background:var(--bg-0);color:var(--tx-0);font-family:var(--sans);
+  font-size:16px;line-height:1.85;
+  background-image:
+    radial-gradient(1200px 500px at 85% -5%,rgba(125,211,252,.05),transparent 60%),
+    radial-gradient(900px 420px at 8% 0%,rgba(94,234,212,.045),transparent 60%);
+}
+::selection{background:rgba(94,234,212,.28);color:#fff}
+/* 滚动条 */
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:var(--bg-0)}
+::-webkit-scrollbar-thumb{background:#2a3850;border-radius:6px;border:2px solid var(--bg-0)}
+::-webkit-scrollbar-thumb:hover{background:#3a4c6e}
+
+/* ============ 布局骨架 ============ */
+.layout{display:flex;min-height:100vh}
+main{flex:1;min-width:0;padding:0 clamp(18px,4vw,56px) 120px}
+.content{max-width:var(--maxw);margin:0 auto}
+
+/* ============ 顶部通栏 ============ */
+.topbar{
+  position:sticky;top:0;z-index:60;height:60px;
+  display:flex;align-items:center;gap:14px;padding:0 clamp(16px,3vw,32px);
+  background:rgba(10,14,20,.82);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line-soft);
+}
+.topbar .dot{width:9px;height:9px;border-radius:50%;background:var(--acc-0)}
+.topbar .tt{font-weight:700;font-size:15px;letter-spacing:.4px}
+.topbar .tt em{font-style:normal;background:var(--grad-a);-webkit-background-clip:text;background-clip:text;color:transparent}
+.topbar .meta{margin-left:auto;display:flex;gap:10px;align-items:center;font-size:12px;color:var(--tx-2)}
+#tocToggle{display:none;background:var(--bg-2);border:1px solid var(--line);color:var(--tx-1);
+  border-radius:var(--r-sm);padding:6px 11px;font-size:13px;cursor:pointer}
+
+/* ============ 侧边目录 ============ */
+nav#toc{
+  position:sticky;top:60px;height:calc(100vh - 60px);width:var(--toc-w);flex:0 0 var(--toc-w);
+  overflow-y:auto;padding:26px 18px 60px 10px;
+  border-right:1px solid var(--line-soft);background:rgba(15,20,29,.5);
+}
+#toc .toc-h{font-size:11px;letter-spacing:2.5px;color:var(--tx-2);text-transform:uppercase;padding:0 12px 12px}
+#toc a{
+  display:block;padding:7px 12px;margin:1px 0;border-radius:9px;color:var(--tx-1);
+  text-decoration:none;font-size:13.5px;line-height:1.45;border-left:2px solid transparent;
+  transition:all .18s ease;
+}
+#toc a:hover{background:var(--bg-2);color:var(--tx-0)}
+#toc a.lv2{padding-left:28px;font-size:12.5px;color:var(--tx-2)}
+#toc a.on{
+  background:linear-gradient(90deg,rgba(94,234,212,.12),transparent);
+  border-left-color:var(--acc-0);color:var(--acc-0);font-weight:600;
+}
+
+/* ============ 章节卡片 ============ */
+section.chapter{
+  background:var(--bg-1);border:1px solid var(--line-soft);border-radius:var(--r-xl);
+  padding:clamp(22px,3.4vw,44px);margin:34px 0;box-shadow:var(--sh-1);
+}
+h1,h2,h3,h4{line-height:1.4;font-weight:700}
+h2.ch-t{
+  font-size:clamp(22px,2.6vw,30px);padding-bottom:16px;margin-bottom:22px;
+  border-bottom:1px solid var(--line-soft);display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+}
+h2.ch-t .no{
+  font-family:var(--mono);font-size:.62em;color:var(--acc-0);
+  border:1px solid rgba(94,234,212,.35);border-radius:8px;padding:3px 9px;white-space:nowrap;
+}
+h3{font-size:19px;margin:34px 0 12px;color:var(--acc-1);display:flex;gap:9px;align-items:baseline}
+h3::before{content:"▸";color:var(--acc-0);font-size:.8em}
+h4{font-size:16px;margin:22px 0 8px;color:var(--tx-0)}
+p{margin:10px 0;color:var(--tx-1)}
+p strong,li strong{color:var(--tx-0)}
+ul,ol{margin:10px 0 10px 24px;color:var(--tx-1)}
+li{margin:5px 0}
+hr.sep{border:0;border-top:1px dashed var(--line);margin:30px 0}
+
+/* ============ 代码与徽章 ============ */
+code{
+  font-family:var(--mono);font-size:.86em;background:var(--bg-3);color:var(--acc-0);
+  padding:2px 7px;border-radius:6px;border:1px solid var(--line-soft);
+}
+pre{
+  background:var(--bg-code);border:1px solid var(--line);border-radius:var(--r-md);
+  padding:18px 20px;overflow-x:auto;margin:14px 0;box-shadow:inset 0 2px 10px rgba(0,0,0,.4);
+  position:relative;
+}
+pre code{background:none;border:0;padding:0;font-size:13px;line-height:1.75;color:#cdd9ea;display:block}
+pre .k{color:#7dd3fc}      /* 关键字 */
+pre .s{color:#a5d6a7}      /* 字符串 */
+pre .c{color:#5b6b83;font-style:italic} /* 注释 */
+pre .f{color:#c4b5fd}      /* 函数 */
+pre .n{color:#fbbf24}      /* 数字 */
+pre .t{color:#5eead4}      /* 类型/类 */
+pre .o{color:#f8a5c2}      /* 运算符 */
+
+/* 源码徽章（可点击） */
+a.badge,span.badge{
+  display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11.5px;
+  background:rgba(125,211,252,.09);color:var(--acc-1);border:1px solid rgba(125,211,252,.25);
+  border-radius:999px;padding:2px 10px;margin:1px 3px;text-decoration:none;white-space:nowrap;
+  transition:all .16s ease;vertical-align:1px;
+}
+a.badge:hover{background:rgba(125,211,252,.2);border-color:var(--acc-1);box-shadow:0 4px 14px rgba(0,0,0,.45);transform:translateY(-1px)}
+a.badge::before{content:"⌥";font-size:10px;opacity:.7}
+a.badge.asc{background:rgba(196,181,253,.09);color:var(--acc-2);border-color:rgba(196,181,253,.28)}
+a.badge.asc:hover{background:rgba(196,181,253,.2);border-color:var(--acc-2);box-shadow:0 4px 14px rgba(0,0,0,.45);transform:translateY(-1px)}
+
+/* ============ 表格 ============ */
+.tbl-wrap{overflow-x:auto;margin:16px 0;border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sh-1)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;background:var(--bg-2)}
+th{
+  background:linear-gradient(180deg,#1c2635,#172030);color:var(--acc-1);text-align:left;
+  padding:11px 14px;font-weight:600;border-bottom:1px solid var(--line);white-space:nowrap;
+}
+td{padding:10px 14px;border-bottom:1px solid var(--line-soft);color:var(--tx-1);vertical-align:top}
+tr:last-child td{border-bottom:0}
+tbody tr{transition:background .15s}
+tbody tr:hover{background:rgba(125,211,252,.045)}
+td code,th code{font-size:12px}
+
+/* ============ 提示块 ============ */
+.callout{
+  border-radius:var(--r-md);padding:14px 18px;margin:16px 0;border:1px solid var(--line);
+  background:var(--bg-2);box-shadow:var(--sh-1);
+}
+.callout .co-t{font-weight:700;font-size:13px;letter-spacing:1px;margin-bottom:4px;color:var(--acc-1)}
+.callout.warn{background:rgba(251,191,36,.05)}
+.callout.warn .co-t{color:var(--acc-3)}
+.callout.danger{background:rgba(248,113,113,.05)}
+.callout.danger .co-t{color:var(--acc-4)}
+.callout.good{background:rgba(52,211,153,.05)}
+.callout.good .co-t{color:var(--acc-5)}
+.callout p{margin:4px 0;font-size:14px}
+.tag-pred{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:700;
+  background:rgba(251,191,36,.16);color:var(--acc-3);border:1px solid rgba(251,191,36,.4);
+  border-radius:6px;padding:1px 8px;margin-right:8px;vertical-align:2px;letter-spacing:1px}
+
+/* ============ 折叠面板 ============ */
+details.acc{
+  background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-md);
+  margin:14px 0;overflow:hidden;box-shadow:var(--sh-1);
+}
+details.acc>summary{
+  cursor:pointer;list-style:none;padding:14px 18px;font-weight:600;font-size:14.5px;
+  color:var(--tx-0);display:flex;align-items:center;gap:10px;user-select:none;
+  transition:background .15s;
+}
+details.acc>summary::-webkit-details-marker{display:none}
+details.acc>summary::before{
+  content:"+";font-family:var(--mono);font-size:16px;color:var(--acc-0);
+  width:22px;height:22px;flex:0 0 22px;border:1px solid rgba(94,234,212,.35);border-radius:7px;
+  display:flex;align-items:center;justify-content:center;transition:all .2s;
+}
+details.acc[open]>summary::before{content:"–";background:rgba(94,234,212,.14)}
+details.acc>summary:hover{background:var(--bg-3)}
+details.acc .acc-body{padding:4px 18px 18px;border-top:1px solid var(--line-soft)}
+details.acc .acc-body p:first-child{margin-top:12px}
+
+/* ============ SVG 图卡 ============ */
+.fig{
+  background:var(--bg-code);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:22px;margin:20px 0;box-shadow:var(--sh-2);overflow-x:auto;
+}
+.fig svg{display:block;margin:0 auto;max-width:100%;height:auto}
+.fig .cap{
+  text-align:center;font-size:13px;color:var(--tx-2);margin-top:14px;font-style:italic;
+}
+.fig .cap b{color:var(--acc-1);font-style:normal}
+
+/* ============ Hero ============ */
+.hero{
+  margin:34px 0;padding:clamp(30px,4.5vw,58px);border-radius:var(--r-xl);
+  background:
+    radial-gradient(800px 300px at 90% 0%,rgba(125,211,252,.09),transparent 60%),
+    radial-gradient(700px 300px at 5% 100%,rgba(94,234,212,.08),transparent 60%),
+    var(--bg-1);
+  border:1px solid var(--line);box-shadow:var(--sh-2);position:relative;overflow:hidden;
+}
+.hero h1{font-size:clamp(26px,4vw,42px);line-height:1.25;letter-spacing:.5px}
+.hero h1 .g{background:var(--grad-a);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .sub{color:var(--tx-1);font-size:clamp(14px,1.6vw,17px);margin-top:14px;max-width:860px}
+.hero .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.chip{
+  font-family:var(--mono);font-size:12px;padding:5px 13px;border-radius:999px;
+  background:var(--bg-3);border:1px solid var(--line);color:var(--tx-1);
+}
+.chip b{color:var(--acc-0);font-weight:600}
+.chip a{color:var(--acc-1);text-decoration:none}
+.chip a:hover{text-decoration:underline}
+
+/* ============ 源码索引矩阵 ============ */
+.idx-note{font-size:12.5px;color:var(--tx-2);margin-top:8px}
+
+/* ============ 页脚 ============ */
+footer{
+  text-align:center;color:var(--tx-2);font-size:12.5px;padding:40px 0 20px;
+  border-top:1px solid var(--line-soft);margin-top:40px;
+}
+footer code{font-size:11px}
+
+/* ============ 响应式 ============ */
+@media (max-width:1180px){
+  nav#toc{position:fixed;left:0;top:60px;bottom:0;z-index:55;transform:translateX(-102%);
+    transition:transform .25s ease;background:var(--bg-0);box-shadow:var(--sh-3)}
+  nav#toc.open{transform:translateX(0)}
+  #tocToggle{display:inline-block}
+}
+@media (max-width:640px){
+  body{font-size:15px}
+  .topbar .meta span.hide-m{display:none}
+  pre code{font-size:12px}
+  section.chapter{padding:20px 16px}
+}
+@media (min-width:2200px){
+  :root{--maxw:1280px}
+  body{font-size:17.5px}
+}
+@media print{
+  nav#toc,.topbar #tocToggle{display:none}
+  body{background:#fff;color:#000}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <button id="tocToggle" aria-label="切换目录">☰ 目录</button>
+  <span class="dot"></span>
+  <span class="tt"><em>vLLM × vLLM-Ascend</em> · 代码级深度逆向分析</span>
+  <span class="meta">
+    <span class="hide-m">双仓 main @ 2026-09-26</span>
+    <span>全量源码回查版</span>
+  </span>
+</div>
+
+<div class="layout">
+<nav id="toc" aria-label="目录">
+  <div class="toc-h">报告目录</div>
+  <a href="#ch1">01 · 研究方法与双仓画像</a>
+  <a href="#ch2">02 · 系统架构全景</a>
+  <a href="#ch2-1" class="lv2">V1 引擎核心与进程模型</a>
+  <a href="#ch2-2" class="lv2">双核解耦：插件注入链路</a>
+  <a href="#ch3">03 · 端到端请求生命周期</a>
+  <a href="#ch4">04 · 调度器深度拆解</a>
+  <a href="#ch4-1" class="lv2">连续批处理与 Chunked Prefill</a>
+  <a href="#ch4-2" class="lv2">抢占与防饥饿机制</a>
+  <a href="#ch5">05 · vLLM-Ascend 接入范式</a>
+  <a href="#ch5-1" class="lv2">NPUPlatform 钩子族</a>
+  <a href="#ch5-2" class="lv2">patch 机制与契约边界</a>
+  <a href="#ch6">06 · PagedAttention 与显存管理</a>
+  <a href="#ch6-1" class="lv2">块管理器与前缀缓存</a>
+  <a href="#ch6-2" class="lv2">Ascend HBM 适配</a>
+  <a href="#ch7">07 · Ascend 算子体系</a>
+  <a href="#ch8">08 · 分布式通信与 PD 分离</a>
+  <a href="#ch9">09 · 接口 SPI 与生态改造点</a>
+  <a href="#ch9-1" class="lv2">四个改造锚点指南</a>
+  <a href="#ch10">10 · 性能瓶颈与技术债务</a>
+  <a href="#ch11">11 · 前沿演进预测</a>
+  <a href="#ch12">12 · 源码索引矩阵与结论</a>
+</nav>
+
+<main>
+<div class="content">
+
+<header class="hero">
+  <h1>vLLM × vLLM-Ascend<br><span class="g">代码级端到端深度逆向分析</span></h1>
+  <p class="sub">对 vllm-project/vllm 与 vllm-project/vllm-ascend 双仓 main 分支的全景架构剖析、核心关键技术原理拆解与未来演进预测。所有论断均完成本地源码回查，行级引用绑定提交 SHA，全文徽章可一键跳转 GitHub 对应源码行。</p>
+  <div class="chips">
+    <span class="chip">vllm <b><a href="https://github.com/vllm-project/vllm/tree/d64f277c54d444284bdbcd16e7fd1073b0a3b50e" target="_blank" rel="noopener">d64f277</a></b></span>
+    <span class="chip">vllm-ascend <b><a href="https://github.com/vllm-project/vllm-ascend/tree/4d1412d102c16669af3ec73174fc5f8b359b56d9" target="_blank" rel="noopener">4d1412d</a></b></span>
+    <span class="chip">快照日期 <b>2026-09-26</b></span>
+    <span class="chip">vllm 源码文件 <b>7,386</b></span>
+    <span class="chip">vllm-ascend 源码文件 <b>4,300</b></span>
+    <span class="chip">手工 SVG 架构图 <b>×3</b></span>
+  </div>
+</header>
+
+<footer>
+  <p>vLLM × vLLM-Ascend 代码级深度逆向分析 · 单文件自包含报告（零外部依赖）</p>
+  <p>分析基准：vllm <code>d64f277c54d444284bdbcd16e7fd1073b0a3b50e</code> · vllm-ascend <code>4d1412d102c16669af3ec73174fc5f8b359b56d9</code> · 快照 2026-09-26</p>
+  <p>方法：12 个并行领域代理 + 主线独立复核 · 全部行级引用经本地源码回查 · 第 11 章为标注预测</p>
+</footer>
+
+<!-- ================= 第 1 章 ================= -->
+<section class="chapter" id="ch1">
+<h2 class="ch-t"><span class="no">CH.01</span>研究方法与双仓画像</h2>
+
+<p>本报告是对 <strong>vLLM 推理引擎</strong>与其<strong>华为昇腾硬件插件 vLLM-Ascend</strong> 的代码级（Code-level）端到端逆向分析。分析对象不是文档、不是论文、不是二手转述——而是两个仓库 <strong>main 分支在同一时刻的源码快照</strong>，全部论断均可回溯到具体文件与行号。</p>
+
+<h3>1.1 分析对象锁定：为什么是这两个提交</h3>
+<p>研究的第一步是<strong>锁定不可变的分析基准</strong>。vLLM 主干每天合入数十个 PR，任何不绑定提交哈希（Commit SHA）的行号引用都会在数日后漂移失效。因此本报告所有引用锚定在以下两个提交上，它们分别是 2026-09-26 当日两个仓库 main 分支的头提交：</p>
+
+<div class="tbl-wrap"><table>
+<thead><tr><th>仓库</th><th>Commit SHA（完整）</th><th>提交时间 (UTC)</th><th>提交主题</th></tr></thead>
+<tbody>
+<tr><td><a href="https://github.com/vllm-project/vllm" target="_blank" rel="noopener">vllm-project/vllm</a></td>
+<td><code>d64f277c54d444284bdbcd16e7fd1073b0a3b50e</code></td><td>2026-09-26 13:50</td>
+<td>[Bugfix] Fix Anthropic Thinking Disabled with P/D (#58786)</td></tr>
+<tr><td><a href="https://github.com/vllm-project/vllm-ascend" target="_blank" rel="noopener">vllm-project/vllm-ascend</a></td>
+<td><code>4d1412d102c16669af3ec73174fc5f8b359b56d9</code></td><td>2026-09-26 13:35</td>
+<td>[CI][Feature] Install flash-linear-attention-npu in Dockerfiles (#17534)</td></tr>
+</tbody></table></div>
+
+<div class="callout">
+<div class="co-t">获取方式说明（可复现）</div>
+<p>标准 <code>git clone --depth=1</code> 在本分析环境中连续遭遇 GitHub 连接重置与超时。为获得<strong>与 SHA 位级一致</strong>的源码树，改用 codeload 按提交哈希拉取源码包：<code>https://codeload.github.com/&lt;owner&gt;/&lt;repo&gt;/tar.gz/&lt;SHA&gt;</code>。这保证了分析所用的每一个字节都属于上述两个提交，而非"clone 那一刻的 main"。</p>
+</div>
+
+<h3>1.2 双仓画像：规模、定位与依赖基线</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>维度</th><th>vllm（上游主干）</th><th>vllm-ascend（昇腾插件）</th></tr></thead>
+<tbody>
+<tr><td>源码文件数（本快照）</td><td>7,386</td><td>4,300</td></tr>
+<tr><td>社区热度（2026-09-26 GitHub API 实测）</td><td>★ 92,691</td><td>★ 2,892 · Fork 2,367</td></tr>
+<tr><td>仓库定位</td><td>高吞吐、低显存的大模型推理与服务引擎</td><td>"Community maintained hardware plugin for vLLM on Huawei Ascend"（官方描述）</td></tr>
+<tr><td>创建时间</td><td>2023 年（PagedAttention 论文同源）</td><td>2025-01-29</td></tr>
+<tr><td>构建期关键依赖</td><td><code>torch == 2.13.0</code> <a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/pyproject.toml#L1-L13" target="_blank" rel="noopener">pyproject.toml</a></td>
+<td><code>torch==2.10.0</code> · <code>torch-npu==2.10.0.post4</code> · <code>triton-ascend==3.2.2</code> <a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/pyproject.toml#L1-LL32" target="_blank" rel="noopener">pyproject.toml</a></td></tr>
+<tr><td>Python 要求</td><td>3.10–3.14</td><td>≥3.10 <a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/setup.py#L500-L502" target="_blank" rel="noopener">setup.py:501</a></td></tr>
+<tr><td>许可证</td><td colspan="2">Apache-2.0</td></tr>
+</tbody></table></div>
+
+<p>两个值得注意的<strong>版本错配事实</strong>：其一，vLLM 主干构建基线已推进到 PyTorch 2.13，而 vllm-ascend 钉在 torch 2.10 + torch-npu 2.10.0.post4——插件无法跟随上游的 torch 节奏，必须等待华为 CANN/torch-npu 的对应发布，这是硬件插件的天然滞后；其二，vllm-ascend 的依赖清单中<strong>并未 pin vllm 包本体</strong>，其版本对齐依赖运行时探测与补丁守卫（详见第 5 章契约边界分析）。</p>
+
+<h3>1.3 分析协议：六维并行 + 100% 回查</h3>
+<p>本报告由 <strong>1 个主分析线程 + 12 个并行领域分析代理</strong>协作完成，遵循严格的反幻觉协议：</p>
+<ul>
+<li><strong>每条论断必须附带（文件:行号）证据</strong>，行号由分析代理实际打开文件核实，禁止凭记忆书写；</li>
+<li><strong>主线抽查复核</strong>：对承重论断（架构机制、注册链路、算法公式）由主线程亲自重读源码二次确认，本报告标注的每一处行号引用都经过至少一次独立复核；</li>
+<li><strong>代码事实与前瞻预测严格分离</strong>：第 11 章全部内容以 <span class="tag-pred">预测</span> 标签显式标注，且每条预测注明其外推所依据的代码事实；</li>
+<li><strong>链接即证据</strong>：正文中所有 <a class="badge" href="#ch12">徽章</a>（青色=vllm，紫色=vllm-ascend）均可点击，直达 GitHub 上绑定 SHA 的源码行区间。</li>
+</ul>
+
+<h3>1.4 顶层目录拓扑（两仓对照）</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>vllm/vllm/（34 个顶级包）</th><th>职责速览</th></tr></thead>
+<tbody>
+<tr><td><code>v1/</code></td><td><strong>V1 引擎全部家当</strong>：engine / core(调度+KV) / worker / executor / attention / spec_decode / kv_offload / hisparse / pool / watermarking / fault_tolerance 等 16 个子包</td></tr>
+<tr><td><code>entrypoints/</code></td><td>对外接口层：<strong>本快照已重构为"按特性分包"</strong>——openai / anthropic / cohere / pooling / generate / serve / launchers 等（不再是旧版扁平 serving_*.py）</td></tr>
+<tr><td><code>platforms/ · plugins/</code></td><td>硬件平台抽象与插件发现机制（vLLM-Ascend 的注入点，第 5 章）</td></tr>
+<tr><td><code>model_executor/ · models/</code></td><td>模型实现与注册表、量化层、采样层</td></tr>
+<tr><td><code>distributed/</code></td><td>并行状态、通信器、KV 传输 connector 体系（15+ 内置实现）</td></tr>
+<tr><td><code>compilation/ · ir/ · kernels/</code></td><td>torch.compile 集成、计算图 IR、CUDA/Triton 内核工具</td></tr>
+<tr><td><code>engine/（顶层旧路径）</code></td><td>V0 已 100% 移除：llm_engine.py/async_llm_engine.py 仅为 7 行 V1 别名（第 10 章）；顶层已无 worker/ 目录</td></tr>
+</tbody></table></div>
+
+<div class="tbl-wrap"><table>
+<thead><tr><th>vllm-ascend/vllm_ascend/（22 个顶级包）</th><th>职责速览</th></tr></thead>
+<tbody>
+<tr><td><code>platform.py</code></td><td><strong>NPUPlatform（1604 行）</strong>：整个插件的注册中枢（第 5 章）</td></tr>
+<tr><td><code>worker/（含 v2/ 子树）</code></td><td>NPUWorker、NPUModelRunner(v1) 与完整的 v2 执行路径（自带 sampler/spec_decode/eplb 全套）</td></tr>
+<tr><td><code>attention/</code></td><td>13 个注意力后端文件：attention_v1 / mla_v1 / sfa_v1 / fa3_v1 / dsa_v1 / dsa_v41 / indexer 系 / sparse_flash_mla…</td></tr>
+<tr><td><code>ops/ · compilation/ · patch/</code></td><td>三层算子注册体系、ACL Graph 编译路径、对上游的 monkeypatch 清单</td></tr>
+<tr><td><code>distributed/</code></td><td>HCCL 通信、kv_transfer（kv_p2p / kv_pool / sparse_kv_offload）、weight_transfer</td></tr>
+<tr><td><code>quantization/ · spec_decode/ · lora/</code></td><td>W8A8/W4A8/FP8 量化、投机解码、LoRA 适配</td></tr>
+<tr><td><code>eplb/ · ec_manager/ · xlite/ · weight_switch/ · observability/ · profiler/</code></td><td>昇腾特色生态件（专家均衡/编码器缓存/xlite 引擎/权重热切/指标/性能剖析）</td></tr>
+<tr><td><code>csrc/（C++ 扩展）</code></td><td>aclnn 适配、attention / gmm / moe / mc2(通算融合) / mla_preprocess 等 Ascend C 算子</td></tr>
+</tbody></table></div>
+<p class="idx-note">▲ 目录清单由主线对两个源码树直接枚举确认（2026-09-26 快照）。</p>
+</section>
+
+<!-- ================= 第 2 章 ================= -->
+<section class="chapter" id="ch2">
+<h2 class="ch-t"><span class="no">CH.02</span>系统架构全景：双核解耦的分层世界</h2>
+
+<p>把两个仓库叠在一起看，整体架构呈现"<strong>一个六层主干 + 一个运行期注入的硬件插件</strong>"的双核形态。vLLM 主干只依赖抽象契约；vLLM-Ascend 在运行期通过五个注入面提供实现。下图是全报告的总纲：</p>
+
+<div class="fig">
+<svg viewBox="0 0 1180 920" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="双核解耦分层架构全景图">
+<defs>
+  <marker id="ar1" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+    <path d="M0,0 L8,4.5 L0,9 Z" fill="#7dd3fc"/>
+  </marker>
+  <marker id="ar1p" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+    <path d="M0,0 L8,4.5 L0,9 Z" fill="#c4b5fd"/>
+  </marker>
+</defs>
+<style>
+  .bx{fill:#151c28;stroke:#243044;stroke-width:1.4;rx:10}
+  .bxB{fill:#152233;stroke:#7dd3fc;stroke-width:1.5}
+  .bxP{fill:#211a33;stroke:#c4b5fd;stroke-width:1.6}
+  .bxA{fill:#2a2210;stroke:#fbbf24;stroke-width:1.5}
+  .t1{fill:#e8eef7;font:600 14px 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+  .t2{fill:#aebacd;font:12.5px 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+  .t3{fill:#6d7d94;font:11.5px 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+  .m1{fill:#5eead4;font:600 12px 'JetBrains Mono',Consolas,monospace}
+  .m2{fill:#7dd3fc;font:12px 'JetBrains Mono',Consolas,monospace}
+  .m3{fill:#c4b5fd;font:12px 'JetBrains Mono',Consolas,monospace}
+  .mA{fill:#fbbf24;font:11.5px 'JetBrains Mono',Consolas,monospace}
+  .zlab{fill:#6d7d94;font:600 12px 'JetBrains Mono',Consolas,monospace;letter-spacing:2px}
+  .lnP{stroke:#c4b5fd;stroke-width:1.8;fill:none}
+  .lnD{stroke:#3d4b63;stroke-width:1.3;fill:none;stroke-dasharray:6 5}
+  .lnA{stroke:#fbbf24;stroke-width:1.6;fill:none;stroke-dasharray:3 4}
+  .zone{fill:rgba(21,28,40,.35);stroke:#243044;stroke-width:1.2;rx:14}
+  .zoneA{fill:rgba(33,26,51,.25);stroke:#c4b5fd;stroke-width:1.2;stroke-dasharray:8 6;rx:14}
+</style>
+
+<text x="30" y="34" class="t1" font-size="17">vLLM 主干（上游，蓝）× vLLM-Ascend 插件（OOT，紫）—— 虚线为注入点</text>
+<text x="30" y="56" class="t3">左右两列同层对应：右列组件在运行期替换/扩展左列同层契约 · 绑定 commit d64f277 / 4d1412d</text>
+
+<rect x="30" y="72" width="700" height="104" class="zone"/>
+<text x="46" y="94" class="zlab">L1 · 接入层（process0）</text>
+<rect x="48" y="104" width="158" height="56" class="bxB"/>
+<text x="62" y="126" class="m2">OpenAI API</text><text x="62" y="144" class="t3">chat/completion/…</text>
+<rect x="216" y="104" width="158" height="56" class="bxB"/>
+<text x="230" y="126" class="m2">Anthropic / Cohere</text><text x="230" y="144" class="t3">/v1/messages 等</text>
+<rect x="384" y="104" width="158" height="56" class="bxB"/>
+<text x="398" y="126" class="m2">离线 LLM 类</text><text x="398" y="144" class="t3">generate/encode</text>
+<rect x="552" y="104" width="160" height="56" class="bxB"/>
+<text x="566" y="126" class="m2">serve 运维面</text><text x="566" y="144" class="t3">health/lora/profile</text>
+
+<rect x="30" y="192" width="700" height="104" class="zone"/>
+<text x="46" y="214" class="zlab">L2 · 引擎核心（AsyncLLM 进程 ⇄ EngineCore 进程）</text>
+<rect x="48" y="224" width="196" height="56" class="bxB"/>
+<text x="62" y="246" class="m2">AsyncLLM / LLMEngine</text><text x="62" y="264" class="t3">InputProcessor·OutputProcessor</text>
+<rect x="286" y="224" width="150" height="56" class="bx"/>
+<text x="300" y="246" class="m2">ZMQ + msgpack</text><text x="300" y="264" class="t3">跨进程异步消息</text>
+<rect x="478" y="224" width="234" height="56" class="bxB"/>
+<text x="492" y="246" class="m2">EngineCore 主循环</text><text x="492" y="264" class="t3">step(): 调度→执行→输出 :633</text>
+
+<rect x="30" y="312" width="700" height="104" class="zone"/>
+<text x="46" y="334" class="zlab">L3 · 调度与显存（engine-core 进程内）</text>
+<rect x="48" y="344" width="210" height="56" class="bxB"/>
+<text x="62" y="366" class="m2">Scheduler :79</text><text x="62" y="384" class="t3">连续批处理/chunked prefill/抢占</text>
+<rect x="270" y="344" width="200" height="56" class="bxB"/>
+<text x="284" y="366" class="m2">KVCacheManager</text><text x="284" y="384" class="t3">allocate_slots :371</text>
+<rect x="482" y="344" width="230" height="56" class="bxB"/>
+<text x="496" y="366" class="m2">BlockPool + 前缀哈希</text><text x="496" y="384" class="t3">prefix cache · 引用计数 · 驱逐</text>
+
+<rect x="30" y="432" width="700" height="104" class="zone"/>
+<text x="46" y="454" class="zlab">L4 · 执行抽象（worker 进程）</text>
+<rect x="48" y="464" width="180" height="56" class="bxB"/>
+<text x="62" y="486" class="m2">Executor</text><text x="62" y="504" class="t3">uniproc/mp/ray</text>
+<rect x="240" y="464" width="200" height="56" class="bxB"/>
+<text x="254" y="486" class="m2">WorkerBase</text><text x="254" y="504" class="t3">worker_cls 字符串解析 :278</text>
+<rect x="452" y="464" width="260" height="56" class="bxB"/>
+<text x="466" y="486" class="m2">GPUModelRunner(v1/v2)</text><text x="466" y="504" class="t3">输入组批→前向→采样</text>
+
+<rect x="30" y="552" width="700" height="104" class="zone"/>
+<text x="46" y="574" class="zlab">L5 · 平台/算子/模型契约（OOT 设计内扩展点）</text>
+<rect x="48" y="584" width="150" height="56" class="bxB"/>
+<text x="62" y="606" class="m2">Platform 基类</text><text x="62" y="624" class="t3">interface.py:135</text>
+<rect x="210" y="584" width="170" height="56" class="bxB"/>
+<text x="224" y="606" class="m2">CustomOp / 注册表</text><text x="224" y="624" class="t3">register_oot</text>
+<rect x="392" y="584" width="160" height="56" class="bxB"/>
+<text x="406" y="606" class="m2">AttentionBackend</text><text x="406" y="624" class="t3">v1/attention:58</text>
+<rect x="564" y="584" width="148" height="56" class="bxB"/>
+<text x="578" y="606" class="m2">ModelRegistry</text><text x="578" y="624" class="t3">registry.py:1122</text>
+
+<rect x="30" y="672" width="700" height="104" class="zone"/>
+<text x="46" y="694" class="zlab">L6 · 硬件内核（CUDA 世界）</text>
+<rect x="48" y="704" width="150" height="56" class="bx"/>
+<text x="62" y="726" class="m2">CUDA / Triton</text><text x="62" y="744" class="t3">stable-ABI _C</text>
+<rect x="210" y="704" width="160" height="56" class="bx"/>
+<text x="224" y="726" class="m2">FlashAttention</text><text x="224" y="744" class="t3">FlashInfer / FA3</text>
+<rect x="382" y="704" width="140" height="56" class="bx"/>
+<text x="396" y="726" class="m2">NCCL / 自研AR</text><text x="396" y="744" class="t3">CustomAllreduce</text>
+<rect x="534" y="704" width="178" height="56" class="bx"/>
+<text x="548" y="726" class="m2">torch.compile</text><text x="548" y="744" class="t3">piecewise CUDA Graph</text>
+
+<rect x="760" y="72" width="390" height="704" class="zoneA"/>
+<text x="778" y="96" class="m3" font-size="13">vllm_ascend（pip 插件包）</text>
+<text x="778" y="114" class="t3">entry_points 注册 → 运行期注入</text>
+
+<rect x="778" y="192" width="354" height="104" class="bxP"/>
+<text x="794" y="216" class="m3">NPUPlatform（platform.py:80）</text>
+<text x="794" y="236" class="t3">PlatformEnum.OOT · device_type="npu"</text>
+<text x="794" y="254" class="t3">~25 钩子：配置修正/后端选择/通信器…</text>
+<text x="794" y="274" class="mA">worker_cls 注入 → NPUWorker</text>
+
+<rect x="778" y="312" width="354" height="104" class="bxP"/>
+<text x="794" y="336" class="m3">NPUWorker / NPUModelRunner</text>
+<text x="794" y="356" class="t3">继承 WorkerBase / GPUModelRunner</text>
+<text x="794" y="374" class="t3">init: set_device → hccl → 显存水位</text>
+<text x="794" y="392" class="t3">v1 + v2 + 310P 三套执行路径</text>
+
+<rect x="778" y="432" width="354" height="104" class="bxP"/>
+<text x="794" y="456" class="m3">三通道算子 + 6 族注意力后端</text>
+<text x="794" y="476" class="t3">torch_npu 原生 · _C_ascend(155 调用点)</text>
+<text x="794" y="494" class="t3">Triton-Ascend(~60) · CustomOp OOT ×28</text>
+<text x="794" y="512" class="t3">Attention/MLA/SFA/DSA/DSA41/FA3</text>
+
+<rect x="778" y="552" width="354" height="104" class="bxP"/>
+<text x="794" y="576" class="m3">HCCL / CANN / ACL Graph</text>
+<text x="794" y="596" class="t3">HCCL 集合通信 · MC2 通算融合</text>
+<text x="794" y="614" class="t3">torch.npu.graph + UpdatableGraph</text>
+<text x="794" y="632" class="t3">25 项模型注册 · W8A8/FP8 量化</text>
+
+<rect x="778" y="672" width="354" height="104" class="bxA"/>
+<text x="794" y="696" class="mA">patch 机制（28 platform + ~30 worker）</text>
+<text x="794" y="716" class="t3">Scheduler/EngineCore/KV 协调器/schema</text>
+<text x="794" y="734" class="t3">逐模型 forward · triton 重绑定</text>
+<text x="794" y="752" class="t3">每条登记上游 PR + 移除计划</text>
+
+<path class="lnP" d="M778,232 C740,232 740,610 700,612" marker-end="url(#ar1p)"/>
+<text x="700" y="204" class="m3">① entry_points</text>
+<text x="700" y="220" class="m3">platform_plugins</text>
+
+<path class="lnP" d="M778,364 C720,364 700,486 714,492" marker-end="url(#ar1p)"/>
+<text x="664" y="430" class="m3">② worker_cls</text>
+
+<path class="lnP" d="M778,496 C730,500 690,610 716,614" marker-end="url(#ar1p)"/>
+<text x="676" y="560" class="m3">③ register_oot</text>
+
+<path class="lnA" d="M880,672 C860,560 830,420 716,392" marker-end="url(#ar1p)"/>
+<text x="838" y="520" class="mA">④ monkeypatch → L2/L3 内部点</text>
+
+<path class="lnD" d="M730,124 L760,124"/>
+<path class="lnD" d="M730,252 L760,252"/>
+<path class="lnD" d="M730,372 L760,372"/>
+<path class="lnD" d="M730,492 L760,492"/>
+<path class="lnD" d="M730,612 L760,612"/>
+<path class="lnD" d="M730,732 L760,732"/>
+
+<rect x="30" y="800" width="1120" height="100" class="zone"/>
+<text x="48" y="826" class="t2">解耦本质：vLLM 只依赖「契约」（Platform/WorkerBase/CustomOp/AttentionBackend/ModelRegistry 的抽象与字符串 qualname），vllm-ascend 在运行期提供「实现」。</text>
+<text x="48" y="848" class="t2">五个注入面：①平台探测（entry_points）②Worker 字符串注入 ③算子 OOT 注册 ④monkeypatch（契约缺口）⑤connector 外部模块优先（factory.py:103-115）。</text>
+<text x="48" y="872" class="t3">流程自上而下：API 请求 → AsyncLLM 输入处理 → ZMQ → EngineCore 调度 → Executor 广播 → Worker/ModelRunner 前向 → 采样 → 输出回传（详见 CH.03 时序图）</text>
+</svg>
+<div class="cap"><b>图 1</b> · 《vLLM 与 vLLM-Ascend 双核解耦分层架构全景图》—— 手工绘制，全部组件标注源码锚点</div>
+</div>
+
+<h3 id="ch2-1">2.1 V1 引擎核心：三进程职责分离</h3>
+<p>V1 的运行时是明确的<strong>三角色进程模型</strong>：前端进程持有 <code>AsyncLLM</code>（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/async_llm.py#L80" target="_blank" rel="noopener">async_llm.py:80</a>），内含 InputProcessor（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/input_processor.py#L41" target="_blank" rel="noopener">input_processor.py:41</a>）与 OutputProcessor（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/output_processor.py#L464" target="_blank" rel="noopener">output_processor.py:464</a>）；<code>EngineCoreClient</code> 按部署形态五选一——Inproc(:343) / SyncMP(:906) / AsyncMP(:1086) / DPAsyncMP(:1366) / DPLBAsyncMP(:1550)，由 <code>make_async_mp_client</code> 按 DP+LB 模式裁断（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/core_client.py#L155-L170" target="_blank" rel="noopener">core_client.py:155-170</a>）。引擎进程是 <code>EngineCoreProc</code>（core.py:1088）包裹 <code>EngineCore</code>（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/core.py#L111" target="_blank" rel="noopener">core.py:111</a>）：主线程跑 <code>run_busy_loop</code>（:1473），另起<strong>两个 daemon ZMQ IO 线程</strong>（:1178-1199）专职收发，保证主循环不被 IO 阻塞。</p>
+
+<details class="acc">
+<summary>EngineCore.step() 逐行拆解（core.py:633-662，主线亲验）</summary>
+<div class="acc-body">
+<pre><code data-lang="python" class="ln" data-start="633">def step(self) -&gt; tuple[dict[int, EngineCoreOutputs], bool]:
+    """Schedule, execute, and make output."""
+    if not self.scheduler.has_requests():          # 641 无请求直接空转
+        return {}, False
+    scheduler_output = self.scheduler.schedule(    # 643 ① 调度（L3 全部智慧）
+        self._should_throttle_prefills())
+    future = self.model_executor.execute_model(    # 644 ② 派发执行（非阻塞 Future）
+        scheduler_output, non_block=True)
+    grammar_output = self.scheduler.get_grammar_bitmask(  # 645 ③ 结构化输出掩码
+        scheduler_output)      #     —— 与模型前向"重叠"计算
+    with (self.capture_iteration_details(scheduler_output) as iteration_details,
+          self.log_error_detail(scheduler_output)):
+        model_output = future.result()             # 650 ④ 等执行结果
+        if model_output is None:                   # 651 异步流水线模式
+            model_output = self.model_executor.sample_tokens(grammar_output)
+    self._process_aborts_queue()                   # 656 ⑤ 先处理执行期到达的 abort
+    engine_core_outputs = self.scheduler.update_from_output(  # 657 ⑥ 状态推进
+        scheduler_output, model_output)
+    return engine_core_outputs, scheduler_output.total_num_scheduled_tokens &gt; 0</code></pre>
+<p>四个设计细节值得品味：① 调度与执行通过 <strong>Future 解耦</strong>，为 async_scheduling 的"调度-执行重叠"留下接口；② 结构化输出的 grammar bitmask 在等 future 期间计算——把 CPU 工作塞进 NPU/GPU 前向的影子里；③ abort 在更新状态<strong>之前</strong>处理，避免已死请求占用新一步资源；④ 返回值的第二分量（本步是否真的跑了模型）喂给 <code>post_step</code> 决定是否提取草稿 token（core.py:664-671）。</p>
+</div>
+</details>
+
+<h3>2.2 执行器与数据契约：一切归约到 collective_rpc</h3>
+<p><code>Executor.get_class</code>（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/executor/abstract.py#L52-L96" target="_blank" rel="noopener">abstract.py:52-96</a>）按 backend 选 uniproc/multiproc/ray/external_launcher；所有执行器把 <code>execute_model</code> 归约到 <code>collective_rpc</code> 原语。MultiprocExecutor（:111）用<strong>共享内存消息队列</strong> <code>rpc_broadcast_mq</code> 广播调度输出、<code>worker_response_mq</code> 回收结果，且<strong>仅 output_rank 回传</strong>（:340-351）——TP 组内只让一名 worker 说话。Worker 链路：<code>WorkerBase</code>（worker_base.py:44）→ <code>WorkerWrapperBase</code>（:212）→ <code>gpu_worker.Worker</code>（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/worker/gpu_worker.py#L182" target="_blank" rel="noopener">gpu_worker.py:182</a>）。</p>
+<p>数据契约三段式：<code>SchedulerOutput</code>（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/core/sched/output.py#L231" target="_blank" rel="noopener">sched/output.py:231</a>，新请求全量 + 缓存请求 diff）→ <code>ModelRunnerOutput</code>（outputs.py:260）→ <code>EngineCoreOutputs</code>（engine/__init__.py:256，含 engine_index / scheduler_stats / wave 信息）。GPUModelRunner.execute_model 四段式：preprocess(:4183) → forward(:4395) → postprocess+暂存 execute_model_state 返回 None(:4435-4512) → sample_tokens(:4529)——返回 None 再由 sample_tokens 取回正是 async_scheduling 流水线的挂接点。</p>
+<div class="callout">
+<div class="co-t">注意：V1 与 V2 ModelRunner 并存</div>
+<p>本快照中上游已出现 <strong>两套 ModelRunner</strong>：经典 V1 在 <code>v1/worker/gpu_model_runner.py:479</code>，新 V2 在 <code>v1/worker/gpu/model_runner.py:183</code>（主线亲验两处 execute_model）。vllm-ascend 的 <code>worker/v2/</code> 子树正是对这个上游 V2 路径的镜像适配，并以 patch 强制"仅环境变量显式开启"（第 5 章 patch_use_v2_model_runner）。V2 是 vLLM 执行层的下一次地震，两个仓库都在为此布局。</p>
+</div>
+
+<h3>2.3 跨进程异步模型：ZMQ 通道矩阵与零拷贝序列化</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>通道</th><th>套接字模式</th><th>载荷</th></tr></thead>
+<tbody>
+<tr><td>input（前端→引擎）</td><td>ROUTER ⇄ DEALER</td><td>EngineCoreRequest（首帧字节即请求类型 :287-299）</td></tr>
+<tr><td>output（引擎→前端）</td><td>PUSH → PULL</td><td>EngineCoreOutputs（增量 token + 统计）</td></tr>
+<tr><td>handshake</td><td>ROUTER ⇄ DEALER</td><td>HELLO → EngineHandshakeMetadata → ReadyResponse → READY（core.py:1298-1348）</td></tr>
+</tbody></table></div>
+<p>序列化用 <strong>msgspec/msgpack</strong>，tensor/ndarray 走零拷贝（阈值 <code>VLLM_MSGPACK_ZERO_COPY_THRESHOLD</code>，<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/serial_utils.py#L236-L272" target="_blank" rel="noopener">serial_utils.py:236-272</a>）；pickle 兜底必须显式 <code>VLLM_ALLOW_INSECURE_SERIALIZATION=1</code>（:220-234）——反序列化攻击面的显式开关。关闭路径有 <code>ENGINE_CORE_DEAD</code> 哨兵消息（core.py:1697-1708）保证前端不会因引擎猝死而挂起。</p>
+
+<h3 id="ch2-2">2.4 DP 协调：波次锁步的代价与设计</h3>
+<p>数据并行（DP，主要服务 MoE 专家并行）由独立进程 <code>DPCoordinator</code>（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/coordinator.py#L23" target="_blank" rel="noopener">coordinator.py:23</a>）聚合各引擎统计并广播 START_DP_WAVE；各 EngineCore 每步末做一次 <strong>all-reduce 锁步</strong>（sync_dp_state，core.py:2342-2346），无请求的引擎以 dummy batch 陪跑（:2287-2294）——这是 MoE all-to-all 必须全员到场的代价。负载均衡形态（DPLBAsyncMP）与 vllm-ascend 的 patch_balance_schedule/patch_dyntra_lb_core（第 5 章补丁表）正是围绕"减少锁步与陪跑浪费"展开的同题作文。</p>
+</section>
+
+<!-- ================= 第 3 章 ================= -->
+<section class="chapter" id="ch3">
+<h2 class="ch-t"><span class="no">CH.03</span>端到端请求生命周期：从 HTTP 到 SSE 的十四跳</h2>
+
+<p>一个 chat 请求在 vLLM（以及注入 NPU 后的 vLLM-Ascend）体内走过的完整路径，下图先给出总览，随后逐跳给出文件与行号。所有行号均在本快照亲验；注意本快照的 entrypoints 已按特性重构分包，与旧版扁平结构不同。</p>
+
+<div class="fig">
+<svg viewBox="0 0 1180 860" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="请求生命周期时序图">
+<defs>
+  <marker id="ar2b" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+    <path d="M0,0 L8,4.5 L0,9 Z" fill="#7dd3fc"/>
+  </marker>
+  <marker id="ar2t" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+    <path d="M0,0 L8,4.5 L0,9 Z" fill="#5eead4"/>
+  </marker>
+</defs>
+<style>
+  .lb{fill:#152233;stroke:#7dd3fc;stroke-width:1.5;rx:10}
+  .lbT{fill:#102a26;stroke:#5eead4;stroke-width:1.6;rx:10}
+  .ll{stroke:#3d4b63;stroke-width:1.2;stroke-dasharray:5 5}
+  .t1{fill:#e8eef7;font:600 13.5px 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+  .t2{fill:#aebacd;font:12px 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+  .t3{fill:#6d7d94;font:11px 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+  .m2{fill:#7dd3fc;font:11.5px 'JetBrains Mono',Consolas,monospace}
+  .m1{fill:#5eead4;font:11.5px 'JetBrains Mono',Consolas,monospace}
+  .mA{fill:#fbbf24;font:11px 'JetBrains Mono',Consolas,monospace}
+  .msg{stroke:#7dd3fc;stroke-width:1.5;fill:none}
+  .msgT{stroke:#5eead4;stroke-width:1.7;fill:none}
+  .self{stroke:#3d4b63;stroke-width:1.4;fill:none}
+  .loop{fill:rgba(125,211,252,.05);stroke:#7dd3fc;stroke-width:1.2;stroke-dasharray:8 6;rx:12}
+</style>
+
+<rect x="20" y="20" width="130" height="46" class="lb"/><text x="46" y="48" class="t1">Client</text>
+<rect x="230" y="20" width="180" height="46" class="lb"/><text x="246" y="41" class="t1">API Server</text><text x="246" y="58" class="t3">AsyncLLM·InputProcessor</text>
+<rect x="490" y="20" width="160" height="46" class="lbT"/><text x="506" y="41" class="t1">EngineCore</text><text x="506" y="58" class="t3">busy loop（独立进程）</text>
+<rect x="720" y="20" width="190" height="46" class="lbT"/><text x="736" y="41" class="t1">Worker/ModelRunner</text><text x="736" y="58" class="t3">NPU/GPU 进程 · 含 Sampler</text>
+<rect x="990" y="20" width="170" height="46" class="lb"/><text x="1006" y="41" class="t1">OutputProcessor</text><text x="1006" y="58" class="t3">增量 detokenize</text>
+
+<line x1="85" y1="66" x2="85" y2="830" class="ll"/>
+<line x1="320" y1="66" x2="320" y2="830" class="ll"/>
+<line x1="570" y1="66" x2="570" y2="830" class="ll"/>
+<line x1="815" y1="66" x2="815" y2="830" class="ll"/>
+<line x1="1075" y1="66" x2="1075" y2="830" class="ll"/>
+
+<path class="msg" d="M88,100 L317,100" marker-end="url(#ar2b)"/>
+<text x="96" y="92" class="m2">POST /v1/chat/completions（stream=true）</text>
+<path class="self" d="M320,124 L370,124 L370,140 L323,140" marker-end="url(#ar2b)"/>
+<text x="330" y="118" class="t3">pydantic 校验 → tokenize → InputProcessor.process_inputs</text>
+<path class="msg" d="M323,168 L567,168" marker-end="url(#ar2b)"/>
+<text x="330" y="160" class="m2">ZMQ DEALER→ROUTER：EngineCoreRequest（msgspec 序列化）</text>
+
+<path class="self" d="M570,192 L620,192 L620,208 L573,208" marker-end="url(#ar2t)"/>
+<text x="580" y="186" class="m1">add_request → waiting 队列（core/sched）</text>
+<path class="self" d="M570,232 L620,232 L620,248 L573,248" marker-end="url(#ar2t)"/>
+<text x="580" y="226" class="m1">schedule()：前缀命中 → allocate_slots 分块</text>
+
+<path class="msgT" d="M573,276 L812,276" marker-end="url(#ar2t)"/>
+<text x="580" y="268" class="m1">SchedulerOutput（collective_rpc 广播，新请求全量+旧请求 diff）</text>
+<path class="self" d="M815,300 L865,300 L865,316 L818,316" marker-end="url(#ar2t)"/>
+<text x="825" y="294" class="t3">preprocess（块表 H2D/slot_mapping）→ forward</text>
+<path class="self" d="M815,340 L865,340 L865,356 L818,356" marker-end="url(#ar2t)"/>
+<text x="825" y="334" class="t3">sample：logits → top-p/temperature → token</text>
+<path class="msgT" d="M812,384 L573,384" marker-end="url(#ar2t)"/>
+<text x="580" y="376" class="m1">ModelRunnerOutput（仅 output_rank 回传）</text>
+<path class="self" d="M570,408 L620,408 L620,424 L573,424" marker-end="url(#ar2t)"/>
+<text x="580" y="402" class="m1">update_from_output：状态推进 + 完成检测</text>
+
+<path class="msg" d="M567,452 L323,452" marker-end="url(#ar2b)"/>
+<text x="330" y="444" class="m2">ZMQ PUSH→PULL：EngineCoreOutputs</text>
+<path class="msg" d="M323,480 L1072,480" marker-end="url(#ar2b)"/>
+<text x="330" y="472" class="m2">OutputProcessor：增量 detokenize（仅解新 token）</text>
+<path class="msg" d="M1072,508 L88,508" marker-end="url(#ar2b)"/>
+<text x="330" y="500" class="m2">SSE chunk：data: {"choices":[{"delta":{"content":"…"}}]}</text>
+
+<rect x="60" y="536" width="1090" height="150" class="loop"/>
+<text x="78" y="560" class="m2">解码循环 ×N：每步重复「调度→前向→采样→回传」</text>
+<text x="78" y="582" class="t2">async_scheduling：步 k+1 的调度/输入准备与步 k 的 NPU 前向重叠（batch_queue 流水线）</text>
+<text x="78" y="604" class="t2">chunked prefill：长 prompt 按 token 预算切片，与解码请求同批混跑（连续批处理）</text>
+<text x="78" y="626" class="mA">Ascend 差异：执行 = NPUWorker→NPUModelRunner→FIA 算子；通信 = HCCL；图 = ACL Graph</text>
+<text x="78" y="656" class="t3">结构化输出：grammar bitmask 在等执行 Future 期间计算（core.py:645），藏进前向影子</text>
+
+<path class="msgT" d="M573,716 L323,716" marker-end="url(#ar2t)"/>
+<text x="330" y="708" class="m1">finish_reason = stop / length（stop 条件在 update_from_output 内判定）</text>
+<path class="msg" d="M320,744 L88,744" marker-end="url(#ar2b)"/>
+<text x="96" y="736" class="m2">SSE：data: [DONE]</text>
+<path class="self" d="M570,772 L620,772 L620,788 L573,788" marker-end="url(#ar2t)"/>
+<text x="580" y="766" class="m1">释放：KV 块 refcnt→0 回 FreeBlockQueue（可复用前缀保留哈希待命中）</text>
+<text x="60" y="828" class="t3">异常路径：abort → _process_aborts_queue 在状态更新前先清理（core.py:656）；引擎猝死 → ENGINE_CORE_DEAD 哨兵唤醒前端（core.py:1697-1708）</text>
+</svg>
+<div class="cap"><b>图 2</b> · 《端到端推理请求生命周期与异步交互时序图》—— 手工绘制，全部跳点标注源码锚点</div>
+</div>
+
+<h3>3.1 十四跳逐跳索引</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>#</th><th>跳点</th><th>锚点</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>HTTP 路由 create_chat_completion；流式 StreamingResponse</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/entrypoints/openai/chat_completion/api_router.py#L54" target="_blank" rel="noopener">api_router.py:54</a></td></tr>
+<tr><td>2</td><td>OpenAIServingChat._create_chat_completion：render → to_sampling_params → engine_client.generate</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/entrypoints/openai/chat_completion/serving.py#L259" target="_blank" rel="noopener">serving.py:259</a></td></tr>
+<tr><td>3</td><td>AsyncLLM.generate：add_request 建 RequestOutputCollector 队列后消费 yield</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/async_llm.py#L666" target="_blank" rel="noopener">async_llm.py:666</a></td></tr>
+<tr><td>4</td><td>AsyncLLM.add_request：process_inputs → output_processor 注册 → ZMQ 发送</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/async_llm.py#L374" target="_blank" rel="noopener">async_llm.py:374</a></td></tr>
+<tr><td>5</td><td>InputProcessor.process_inputs → 产出 <strong>EngineCoreRequest</strong>（此时尚非 Request）</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/input_processor.py#L327" target="_blank" rel="noopener">input_processor.py:327</a></td></tr>
+<tr><td>6</td><td>跨进程：EngineCore 输入线程 preprocess_add_request → Request.from_engine_core_request</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/core.py#L1063" target="_blank" rel="noopener">core.py:1063</a></td></tr>
+<tr><td>7</td><td>Request 构造：status=WAITING、_all_token_ids 初始化、update_block_hashes 算前缀键</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/request.py#L60" target="_blank" rel="noopener">request.py:60</a></td></tr>
+<tr><td>8</td><td>EngineCore.add_request → scheduler.add_request 入 waiting</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/core.py#L489" target="_blank" rel="noopener">core.py:489</a></td></tr>
+<tr><td>9</td><td>调度循环 EngineCore.step()（六步，见 CH.02 折叠面板）</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/core.py#L633" target="_blank" rel="noopener">core.py:633</a></td></tr>
+<tr><td>10</td><td>GPUModelRunner.execute_model：_update_states 持久 batch → _sample → rejection_sampler（投机时）</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/worker/gpu_model_runner.py#L4149" target="_blank" rel="noopener">gpu_model_runner.py:4149</a></td></tr>
+<tr><td>11</td><td>Sampler.forward：logits 留 logprobs → float32 → logits_processors → sample</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/sample/sampler.py#L72" target="_blank" rel="noopener">sampler.py:72</a></td></tr>
+<tr><td>12</td><td>回程：AsyncLLM 后台 output_handler 按 VLLM_V1_OUTPUT_PROC_CHUNK_SIZE 分片消费</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/async_llm.py#L813-L874" target="_blank" rel="noopener">async_llm.py:813-874</a></td></tr>
+<tr><td>13</td><td>增量 detokenize：detokenizer.update + stop 串检测 → queue.put</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/output_processor.py#L641" target="_blank" rel="noopener">output_processor.py:641</a></td></tr>
+<tr><td>14</td><td>SSE：chat_completion_stream_generator yield "data: …" → "data: [DONE]"</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/entrypoints/openai/chat_completion/serving.py#L451" target="_blank" rel="noopener">serving.py:451</a></td></tr>
+</tbody></table></div>
+
+<h3>3.2 三个值得驻足的设计细节</h3>
+<ul>
+<li><strong>EngineCoreRequest ≠ Request</strong>：前端产物（跳 5）是传输 DTO；调度侧 Request 在 EngineCore 输入线程里由 <code>from_engine_core_request</code> 重建（跳 6-7）——两个类的分离让前端无法污染调度不变式。前缀缓存键（block hashes）在 Request 构造时就算好（request.py:283-288），不等首次调度。</li>
+<li><strong>max_tokens=None 的兜底语义</strong>：InputProcessor 会补成 <code>max_model_len - prompt_len</code>（input_processor.py:415-418）——"不设限"实际是"到模型上限为止"的显式计算。</li>
+<li><strong>增量 detokenize 的唯一全 batch 循环点</strong>：<code>process_outputs</code>（output_processor.py:641，注释 :658-665 自承）是前端每步唯一 O(batch) 的 Python 循环；detokenizer 优先 Fast 路径（DecodeStream），失败退化 Slow（detokenizer.py:49-66,:166,:249），stop 串命中时若 EngineCore 尚未判停则由前端<strong>反向发 abort</strong>（:754-758 → async_llm.py:852-856）——字符串级停止是"前端发现、逆向通知"的反向通道。</li>
+</ul>
+
+<h3>3.3 结束路径：双层停止与延迟释放</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>层</th><th>机制</th><th>锚点</th></tr></thead>
+<tbody>
+<tr><td>token 级（权威）</td><td><code>check_stop</code> 顺序五判：EOS → stop_token_ids → max_model_len/max_tokens（FINISHED_LENGTH_CAPPED）→ min_tokens 继续 → repetition_detection（FINISHED_REPETITION）</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/core/sched/utils.py#L98-L140" target="_blank" rel="noopener">sched/utils.py:98-140</a></td></tr>
+<tr><td>字符串级（前端）</td><td>check_stop_strings 取最早命中串并按 include_stop_str 截断；min_tokens 期内不查</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/detokenizer.py#L308-L360" target="_blank" rel="noopener">detokenizer.py:308-360</a></td></tr>
+<tr><td>abort</td><td>断连 → AsyncLLM.abort(internal=True) → Scheduler.finish_requests(FINISHED_ABORTED) 两遍扫描摘除队列；执行期到达的 abort 在 future.result() 后优先处理</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/core/sched/scheduler.py#L2564-L2626" target="_blank" rel="noopener">scheduler.py:2564-2626</a></td></tr>
+<tr><td>KV 释放</td><td>停止 → _free_request：connector 问延迟 → 释 encoder cache → 登记 finished_req_ids（下步通知 worker 清模型侧状态）→ coordinator.free 逆序降引用（尾块先逐出，<strong>前缀块留 cache 复用</strong>）；异步 KV consumer 在途时入 deferred_frees 待排水</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/core/sched/scheduler.py#L2628-L2714" target="_blank" rel="noopener">scheduler.py:2628-2714</a></td></tr>
+</tbody></table></div>
+<div class="callout">
+<div class="co-t">为什么释块要"延迟排水"？</div>
+<p>异步 KV 传输（connector consumer）可能仍在向本请求的块里写数据，立即回收会让在途 DMA 写坏新主人的内容。闸门 <code>_request_blocks_can_be_freed</code>（:2672-2677）比较 <code>last_sched_seq &lt;= processed_step_seq</code>，不可释放的块进 <code>deferred_frees</code>，等 update_from_output 推进 <code>processed_step_seq</code> 后由 <code>_drain_deferred_frees</code> 逆序归还——一套类 RCU 的宽限期机制。</p>
+</div>
+</section>
+
+<!-- ================= 第 4 章 ================= -->
+<section class="chapter" id="ch4">
+<h2 class="ch-t"><span class="no">CH.04</span>调度器深度拆解：schedule() 的 961 行</h2>
+
+<p><code>Scheduler.schedule()</code>（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/core/sched/scheduler.py#L557-L1518" target="_blank" rel="noopener">scheduler.py:557-1518</a>）是整个 vLLM 最密的单函数。它的总流程：</p>
+<pre><code data-lang="python">初始化（双预算/DP均衡/长prefill阈值）     :558-623
+ → RUNNING 循环（闸门→钳制→分块，失败则抢占）:624-857
+ → （本步无抢占才）WAITING 循环（命中→钳制→接纳）:868-1352
+ → 断言 + SchedulerOutput 组装              :1354-1484
+ → connector 元数据 → 栅栏 → 统一推进游标     :1490-1518</code></pre>
+
+<h3>4.0 核心不变式：没有 prefill/decode 阶段之分</h3>
+<div class="callout">
+<div class="co-t">Woosuk 注释（scheduler.py:559-568，主线亲验）</div>
+<p>"There's no 'decoding phase' nor 'prefill phase' in the scheduler."——每个请求只有 <code>num_computed_tokens</code> 与 <code>num_tokens_with_spec</code>（= len(prompt)+len(output)+len(spec)，request.py:299-300），调度器每步让前者追赶后者。这个不变式统一覆盖了 chunked prefill、prefix caching、speculative decoding，乃至未来的 jump decoding——<strong>阶段模型的消亡</strong>正是 V1 调度器比 V0 简洁的根本原因。</p>
+</div>
+
+<h3 id="ch4-1">4.1 初始化段与双预算（:558-623）</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>预算/阈值</th><th>取值</th><th>职责</th></tr></thead>
+<tbody>
+<tr><td><code>token_budget</code></td><td>max_num_scheduled_tokens（:577）</td><td><strong>签发口径</strong>：本步所有请求 num_new_tokens 之和的上限（断言 :1355-1356）——吞吐主阀门</td></tr>
+<tr><td><code>input_budget</code></td><td>max_num_batched_tokens（:580）</td><td><strong>前向输入口径</strong>：每请求扣 <code>num_new_tokens + draft_slots</code>（:822,:1318）；<code>input_budget &lt;= draft_slots</code> 即停排（:628-629）——draft 行只耗它不耗前者</td></tr>
+<tr><td>DP prefill balancing</td><td>defer_prefills（:600-604）</td><td>throttled 步推迟 prefill 除非饱和——DP 各引擎的 prefill 节拍对齐</td></tr>
+<tr><td>long_prefill_token_threshold</td><td>:606-622</td><td>仅多于 1 个可调度请求时生效；adaptive 下限抬到 <code>input_budget // num_eligible_reqs</code>——<strong>长 prefill 防饿死</strong>他人的公平底线</td></tr>
+</tbody></table></div>
+<p class="idx-note">两预算语义（config/scheduler.py:49-61）：max_num_batched_tokens=单迭代前向可处理的最大 token 数；max_num_scheduled_tokens=调度器单迭代可签发的最大 token 数（默认取前者，投机解码等场景可更小）。</p>
+
+<h3>4.2 RUNNING 循环：五道跳过闸门与抢占（:624-857）</h3>
+<p>RUNNING 优先于 WAITING（连续批处理的"老人先走"）。循环内五类跳过：① input_budget 耗尽即 break；② <strong>异步 max_tokens 预判</strong>（:631-645，确定已达上限就不多排一步）；③ <strong>PP cadence</strong>（:647-651，同请求 decode 须隔 pp_size 步对齐广播槽环）；④ DP defer 的 prefill chunk 让位；⑤ 多模态 encoder cache 未就绪让位。</p>
+<p><strong>num_new_tokens 钳制链</strong>（:670-718）：基值 <code>= num_tokens_with_spec + num_output_placeholders − num_computed_tokens</code> → long-prefill 截断 → <code>min(token_budget, input_budget − draft_slots)</code> → max_model_len 钳制 → Mamba 块对齐 → encoder 调度 → MTP lookahead 预留（chunk 边界不落在 lookahead 内）。为 0 则越过（不堵队，Woosuk 注释 :734-736：调度非严格 FCFS）。</p>
+<details class="acc">
+<summary>抢占机制全解：重算式抢占（V1 无 swap）与 victim 回滚</summary>
+<div class="acc-body">
+<p>allocate_slots 失败进入抢占循环（:741-747）：<strong>victim 选择</strong>按策略分两路——PRIORITY 取 <code>max(running, key=(priority, arrival_time))</code>（优先级最低且最晚到者，:761-765），FCFS 直接取队尾 <code>running[-1]</code>（:767）。两道保险：延迟释放闸门 <code>_request_blocks_can_be_freed</code> 为否则放弃本轮（:769-771）；PRIORITY 下若 victim 本步已被排过，须<strong>回滚</strong>其预算/spec/encoder 记账（:773-797）。</p>
+<p><code>_preempt_request</code>（:801-805 → :1539-1582）：释放全部块与 encoder cache、<code>num_computed_tokens=0</code>——<strong>V1 是重算式抢占，没有 V0 的 swap-to-CPU</strong>；恢复时靠 prefix cache 命中减算（若开 connector 可换出）。被抢占请求 prepend 回 waiting 队首（:1581）保证下一轮最先 reconsider。victim 即自身或无块可腾 → break。</p>
+</div>
+</details>
+
+<h3>4.3 WAITING 循环：准入、前缀命中与 connector 协商（:868-1352）</h3>
+<p><strong>仅当本步无抢占且未暂停才接纳新请求</strong>（:869）——抢占过的步先消化存量。准入上限 <code>len(running) + num_waiting_for_streaming_input &lt; max_num_active_reqs</code>（:877-879）。</p>
+<p><strong>前缀命中</strong>（:926-1057）只对新请求（num_computed==0）查找：<code>get_computed_blocks</code>（kv_cache_manager.py:264）→ coordinator.find_longest_cache_hit；<strong>全命中时强制 max_cache_hit_length = num_tokens−1</strong>——末 token 必须重算以取 logits（:289-295），这是"prefix cache 不能替你把最后一个 token 的分布也变出来"的物理约束。有 connector 时进入<strong>本地-远端协商</strong>：本地命中块对齐后问 <code>get_num_new_matched_tokens</code>（:950-954）；远端严格更长则截本地子块尾、把边界交给远端（:977-988），否则留本地——PD 池化场景"谁的长谁服务"的仲裁逻辑。</p>
+<p><strong>uniform spec 填充</strong>（:1091-1113）：纯 decode 且 num_new==1 时填充到 <code>1+num_spec</code>，保 cudagraph 的均匀 decode 形状；填不够干脆 break 不排——图捕获形状优先于单步吞吐。<strong>未开 chunked prefill 时 prompt 放不下即 break</strong>（:1118-1126）：关闭时整个 prompt 必须一步排完。<strong>异步 KV 加载</strong>（load_kv_async）：只分配不前向，置 <code>WAITING_FOR_REMOTE_KVS</code> 入 _inflight_prefills（:1263-1294）——PD 分离的 decode 侧在此等待 prefill 侧推 KV。</p>
+
+<h3 id="ch4-2">4.4 输出组装与统一推进（:1354-1518）</h3>
+<ul>
+<li><strong>断言三连</strong>：总量 ≤ max_num_scheduled_tokens、预算非负、running ≤ max_num_seqs（:1355-1360）；</li>
+<li><strong>new/cached 双数据结构</strong>：新请求全量（V2 合并 resumed 带 _all_token_ids）+ 缓存请求 diff（:1379-1408）——每步传输量与 batch 中老请求数解耦；</li>
+<li><strong>动态投机</strong>：<code>dynamic_sd_lookup[请求数]</code> 按批大小查 K 值（:1446-1451）——batch 越大草稿越短；</li>
+<li><strong>统一推进游标</strong> <code>_update_after_schedule</code>（:1584-1616）：接纳步只记命中基线，<code>num_computed_tokens += num_scheduled</code> 在步末统一推进——注释 :1585-1593 给出理由：保 output 原始数、下步可续排、<strong>spec 被拒后可由 update_from_output 回滚</strong>（:2062-2066 同步扣减 num_computed 与 placeholders）；</li>
+<li><strong>栅栏序号</strong> <code>sched_step_seq += 1</code>（仅非空步，:1511-1514）——3.3 节延迟释放的时间基准。</li>
+</ul>
+
+<h3>4.5 update_from_output：回滚、停止与 KV 事件（:1967-2357）</h3>
+<p>主循环注释自承"性能敏感"（:2010-2012）。逐请求：扣 num_in_flight → 执行期被 abort 者跳过 → <strong>spec 回滚</strong>（num_rejected = num_draft − accepted，非 stale 时同步回退 num_computed_tokens 与 placeholders，:2054-2066）→ 逐 token append 并 check_stop（3.3 节）→ 结构化输出 accept_tokens 拒绝即 FINISHED_ERROR（:2124-2135）→ <strong>partial prefill 断言无输出</strong>（:2224-2225，chunk 中间步不产生用户可见 token）。末尾 <code>take_events()</code> 合并块存/释事件为 <strong>KVEventBatch</strong> 发布（:2303-2318）——这是 connector/外部池观察块生命周期的官方事件流，外挂存储系统（如 UCM）正是订阅它来做分层迁移决策。</p>
+<div class="callout good">
+<div class="co-t">✓ 本章证据等级</div>
+<p>schedule() 初始化段、RUNNING 循环开头由主线亲验（:557-676）；WAITING 循环、抢占、输出组装、update_from_output 由 S1-β2 代理逐段读码（193 行报告全文存档），抽查行号与主线锚点一致。scheduler.py 全文 3339 行，本章引用未超出已读区段。</p>
+</div>
+</section>
+
+<!-- ================= 第 5 章 ================= -->
+<section class="chapter" id="ch5">
+<h2 class="ch-t"><span class="no">CH.05</span>vLLM-Ascend 接入范式：硬件插件如何无缝注入</h2>
+
+<p>vLLM-Ascend 不是 vLLM 的分叉（fork），而是一个 <strong>out-of-tree（OOT）硬件插件</strong>：它以 pip 包形态安装，利用 vLLM 的插件发现机制在运行时被"吸"进引擎内部，替换平台抽象、Worker、算子与模型实现，而 vLLM 主体代码对此近乎无感。本章逐环拆解这条注入链路。</p>
+
+<h3 id="ch5-0">5.0 注入全景：一条五段式加载链</h3>
+<pre><code data-lang="bash">pip 安装 vllm_ascend
+   │  setup.py 声明 entry_points（2 个 vLLM 组 + 1 个外部指标组）
+   ▼
+importlib.metadata entry_points
+   ├─ group "vllm.platform_plugins":  ascend → vllm_ascend:register
+   └─ group "vllm.general_plugins":   ascend_kv_connector / _model_loader /
+                                      _service_profiling / _model
+   ▼
+vLLM 进程启动
+   ├─[各进程] current_platform 首次访问 → 惰性解析
+   │     └─ vllm_ascend.register() → "vllm_ascend.platform.NPUPlatform"
+   │           └─ 实例化 NPUPlatform（OOT 唯一激活，优先于 builtin）
+   ├─[process0] EngineArgs → NPUPlatform.pre_register_and_update(parser)
+   │     └─ adapt_patch(global)：导入 patch/platform 全部补丁 + 注册量化类
+   ├─[config 构建] VllmConfig.__post_init__ → check_and_update_config()
+   │     └─ 修正不兼容配置 / 写入 worker_cls / scheduler_cls / 编译后端
+   ├─[engine-core & worker 子进程] load_general_plugins()
+   │     ├─ register_connector/_model_loader/_service_profiling
+   │     │     └─ _ensure_global_patch()  ← monkeypatch 在子进程重放的关键
+   │     └─ register_model() → ModelRegistry.register_model × 25 项架构
+   └─[worker 进程] WorkerBase.__init__
+         └─ resolve_obj_by_qualname(parallel_config.worker_cls) → NPUWorker
+               ├─ adapt_patch() → 导入 patch/worker 全部补丁
+               ├─ register_ascend_customop() → CustomOp.register_oot × ~28 类
+               └─ init_device → torch.npu.set_device → enable_custom_op()
+                     └─ import vllm_ascend_C（C++ 扩展，torch.ops._C_ascend）</code></pre>
+
+<h3 id="ch5-1">5.1 机制地基：vLLM 的插件发现与平台解析</h3>
+<p>vLLM 在 <a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/plugins/__init__.py#L18-L30" target="_blank" rel="noopener">plugins/__init__.py:18-30</a> 定义了五个 entry point 组，其中与本插件相关的两组分工明确：<code>vllm.platform_plugins</code> 用于平台探测（首次访问 <code>current_platform</code> 时加载），<code>vllm.general_plugins</code> 在<strong>每个进程</strong>（process0 / engine-core / worker）各执行一次。加载器 <code>load_plugins_by_group</code> 基于 <code>importlib.metadata.entry_points</code> 发现并受 <code>VLLM_PLUGINS</code> 白名单过滤 <a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/plugins/__init__.py#L36-L74" target="_blank" rel="noopener">plugins/__init__.py:36-74</a>。</p>
+<p>平台解析的决策链在 <code>resolve_current_platform_cls_qualname()</code> <a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/platforms/__init__.py#L240-L293" target="_blank" rel="noopener">platforms/__init__.py:240-293</a>（本报告主线亲验）：先短路显式 CPU 目标，再依次调用内置探测（tpu/cuda/rocm/xpu/cpu，<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/platforms/__init__.py#L231-L237" target="_blank" rel="noopener">:231-237</a>）与 OOT 插件探测；<strong>恰好一个 OOT 插件激活时优先于全部内置平台</strong>（:277-279），两个以上 OOT 同时激活直接 RuntimeError（:272-276），全未命中退回 <code>UnspecifiedPlatform</code>（:291）。<code>current_platform</code> 是模块级 <code>__getattr__</code> 惰性单例 <a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/platforms/__init__.py#L303-L326" target="_blank" rel="noopener">:303-326</a>——注释中明确说明此设计正是为了让 OOT 插件能先 <code>from vllm.platforms import Platform</code> 再被解析。</p>
+
+<div class="callout warn">
+<div class="co-t">⚠ 一个反直觉事实</div>
+<p>vllm-ascend 的 <code>register()</code> <strong>无条件返回</strong> <code>"vllm_ascend.platform.NPUPlatform"</code> <a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/__init__.py#L72-L75" target="_blank" rel="noopener">vllm_ascend/__init__.py:72-75</a>——只要包装了就声称激活，真正的设备检查推迟到 Worker 初始化时的 <code>check_ascend_device_type()</code> <a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/worker/worker.py#L156" target="_blank" rel="noopener">worker.py:156</a>。这意味着在同时装有 CUDA GPU 与 vllm-ascend 的机器上，OOT 优先级规则会让 NPU 平台胜出。</p>
+</div>
+
+<h3>5.2 NPUPlatform：1604 行的注册中枢</h3>
+<p><code>NPUPlatform(Platform)</code> 声明 <code>PlatformEnum.OOT</code>，核心类属性：<code>device_type="npu"</code>、<code>device_control_env_var="ASCEND_RT_VISIBLE_DEVICES"</code>、<code>dispatch_key="PrivateUse1"</code>（PyTorch 私有后端派发键）、<code>simple_compile_backend="eager"</code>（默认禁用 torch.compile）<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/platform.py#L80-L99" target="_blank" rel="noopener">platform.py:80-99</a>。它实现约 25 个平台钩子，关键者如下：</p>
+
+<div class="tbl-wrap"><table>
+<thead><tr><th>钩子</th><th>位置</th><th>行为要点</th></tr></thead>
+<tbody>
+<tr><td><code>pre_register_and_update</code></td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/platform.py#L298-L332" target="_blank" rel="noopener">platform.py:298-332</a></td><td>应用全局 patch；CLI <code>--quantization</code> 追加 "ascend"；按硬件 profile 导入量化配置类。vLLM 调用点 <a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/engine/arg_utils.py#L2155" target="_blank" rel="noopener">arg_utils.py:2155</a></td></tr>
+<tr><td><code>check_and_update_config</code></td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/platform.py#L458-L514" target="_blank" rel="noopener">platform.py:458-514</a></td><td>十步流程：量化自动探测 → <code>_fix_incompatible_config</code>（重置 ~25 个 GPU 专属参数）→ init_ascend_config → 编译/aclgraph 模式 → <strong>写入 worker_cls/scheduler_cls</strong> → 设 <code>PYTORCH_NPU_ALLOC_CONF=expandable_segments:True</code></td></tr>
+<tr><td><code>get_attn_backend_cls</code></td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/platform.py#L238-L279" target="_blank" rel="noopener">platform.py:238-279</a></td><td>按 (use_mla, use_sparse, use_compress) 三元组查表返回 5 个后端 qualname：MLA / 标准 Attention / SFA / DSA / FA3（RL 训推一致场景）</td></tr>
+<tr><td><code>get_punica_wrapper</code></td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/platform.py#L196" target="_blank" rel="noopener">platform.py:196</a></td><td>→ PunicaWrapperNPU（继承上游 PunicaWrapperBase，LoRA 推理底座）</td></tr>
+<tr><td>显存查询</td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/platform.py#L222-L235" target="_blank" rel="noopener">platform.py:222-235</a></td><td><code>get_device_total_memory</code> → torch.npu.mem_get_info</td></tr>
+<tr><td><code>import_kernels</code></td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/platform.py#L281-L295" target="_blank" rel="noopener">platform.py:281-295</a></td><td><strong>故意不提前 import C 扩展</strong>——避免 CANN RTS 在 set_device 前初始化导致 ASCEND_RT_VISIBLE_DEVICES 失效（注释引 PR #884）</td></tr>
+<tr><td><code>get_device_communicator_cls</code></td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/platform.py#L204-L206" target="_blank" rel="noopener">platform.py:204-206</a></td><td>→ NPUCommunicator（HCCL 后端）</td></tr>
+<tr><td><code>set_additional_forward_context</code></td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/platform.py#L516-L640" target="_blank" rel="noopener">platform.py:516-640</a></td><td>前向期注入 MoE 通信方式（MC2/ALLTOALL/ALLGATHER）、mc2_mask、mx 量化算法等到 attn_metadata</td></tr>
+</tbody></table></div>
+
+<details class="acc">
+<summary>深层细节：Worker 类替换与设备初始化链路（NPUWorker / NPUModelRunner）</summary>
+<div class="acc-body">
+<p><strong>worker 类不走 entry point</strong>，而是由 <code>check_and_update_config</code> 第 8 步写入 <code>parallel_config.worker_cls</code> 字符串 <a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/platform.py#L1253-L1267" target="_blank" rel="noopener">platform.py:1253-1267</a>：默认取硬件 profile 的 <code>default_worker_cls</code>（NPUWorker <a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/device/hardware_profile.py#L254" target="_blank" rel="noopener">hardware_profile.py:254</a>），310P → NPUWorker310，xlite → XliteWorker。vLLM 侧在 <code>WorkerBase.__init__</code> 用 <code>resolve_obj_by_qualname</code> 实例化 <a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/worker/worker_base.py#L278-L287" target="_blank" rel="noopener">worker_base.py:278-287</a>——字符串注入使 vLLM 无需 import 任何 ascend 符号。</p>
+<p><strong>NPUWorker.__init__</strong> 序列（<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/worker/worker.py#L121" target="_blank" rel="noopener">worker.py:121</a>，主线亲验类定义）：adapt_patch(worker 级) → register_dummy_fusion_op → register_ascend_customop → init_ascend_config + check_ascend_device_type → super().__init__。<strong>_init_device</strong> 先 <code>torch.npu.set_device</code>（<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/worker/worker.py#L432" target="_blank" rel="noopener">:432</a>）再 <code>enable_custom_op()</code> 惰性导入 <code>vllm_ascend_C</code>——顺序严格，因为 CANN 一旦初始化就会消费掉可见设备环境变量。显存预算 <code>requested_memory = total × gpu_memory_utilization</code>（:454）。分布式环境以 <strong>"hccl"</strong> 为后端初始化（<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/worker/worker.py#L1243-L1245" target="_blank" rel="noopener">:1243-1245</a>）。</p>
+<p><strong>NPUModelRunner(GPUModelRunner)</strong> 直接继承上游 V1 runner <a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/worker/model_runner_v1.py#L351" target="_blank" rel="noopener">model_runner_v1.py:351</a>，仅覆写 NPU 相关方法；另有完整的 v2 实验 runner（worker/v2/）与 310P 变体。</p>
+</div>
+</details>
+
+<h3 id="ch5-2">5.3 patch 机制：monkeypatch 的工程化治理</h3>
+<p>vllm-ascend 对上游无法通过契约覆盖的扩展点采用 monkeypatch，但治理方式远超一般 hack：<code>patch/__init__.py</code>（1629 行）本身就是一份<strong>补丁登记文档</strong>，每条记录 Why / How / 上游 PR 编号 / 移除计划。补丁分两级：<strong>platform 级 28 个模块</strong>（引擎启动前应用，经 <code>pre_register_and_update</code> → <code>adapt_patch(is_global_patch=True)</code> 触发 <a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/utils.py#L632-L636" target="_blank" rel="noopener">utils.py:632-636</a>），<strong>worker 级 ~30 个模块</strong>（每个 Worker 构造时应用）。</p>
+<div class="callout">
+<div class="co-t">关键设计：补丁如何传播到子进程</div>
+<p>vLLM V1 的 engine-core 与 worker 是独立进程，测试框架的 conftest 钩子在那里不运行。vllm-ascend 的解法：除 <code>register_model</code> 外的每个 general 插件入口都先调 <code>_ensure_global_patch()</code> <a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/__init__.py#L52-L69" target="_blank" rel="noopener">vllm_ascend/__init__.py:52-69</a>——vLLM 保证 general plugins 在每个进程各执行一次，补丁借此在子进程重放。这是整个 patch 体系成立的进程模型支点。</p>
+</div>
+
+<details class="acc">
+<summary>platform 级补丁清单（28 项，按 patch/__init__.py 登记文档归纳）</summary>
+<div class="acc-body">
+<div class="tbl-wrap"><table>
+<thead><tr><th>补丁</th><th>上游目标</th><th>动机 / 对应上游 PR</th></tr></thead>
+<tbody>
+<tr><td>patch_balance_schedule</td><td>Scheduler / DPEngineCoreProc</td><td>PD 混合均衡调度，等上游 #29721</td></tr>
+<tr><td>patch_engine_core / patch_dyntra_lb_core</td><td>EngineCoreProc.run_engine_core 等</td><td>统一 engine-core 入口包装，运行时选 DyntraLB/Balance DP 核心；spawn 子进程重放</td></tr>
+<tr><td>patch_fused_moe</td><td>fused_moe.FusedMoEFactory</td><td>全局重定向到 AscendMoERunner（MoE 走 NPU 通信路径）</td></tr>
+<tr><td>patch_kv_cache_coordinator</td><td>HybridKVCacheCoordinator.find_longest_cache_hit</td><td>PD 分离 hybrid Mamba 的前缀命中修正</td></tr>
+<tr><td>patch_mamba_*（×4）</td><td>Scheduler._mamba_block_aligned_split 等</td><td>mamba 块对齐（910 用 128 / 310P 另行对齐）</td></tr>
+<tr><td>patch_torch_accelerator</td><td>torch.accelerator.memory_stats 等 5 API</td><td>上游不再路由 NPU → 转发到 torch.npu</td></tr>
+<tr><td>patch_indexer_kv_dtype</td><td>AttentionConfig.indexer_kv_dtype Literal</td><td>放宽 pydantic Literal 接受 "int8"（rebuild_dataclass 级侵入）</td></tr>
+<tr><td>patch_pp_mtp</td><td>ModelRunnerOutput / EngineCore.post_step / Scheduler</td><td>PP+MTP 混合部署的 spec token 回写与 PP IPC</td></tr>
+<tr><td>patch_multiproc_executor</td><td>MultiprocExecutor</td><td>daemon=False 供 EPLB 再开进程</td></tr>
+<tr><td>patch_use_v2_model_runner</td><td>VllmConfig.use_v2_model_runner</td><td>v2 runner 仅 env 显式开启，禁用上游白名单推断</td></tr>
+<tr><td>patch_glm5next_config 等配置类（×4）</td><td>_CONFIG_REGISTRY / ModelConfig / SpeculativeConfig</td><td>下游模型配置注册与校验绕过</td></tr>
+<tr><td>其余 ~14 项</td><td colspan="2">分布式对齐 / dp device ids / EPLB 平台排除 / profiling chunk / structured output / MLA prefill backend / vision batch_norm 兼容…（完整 28 项见 patch/__init__.py 登记文档）</td></tr>
+</tbody></table></div>
+<p class="idx-note">worker 级 ~30 项补丁同样登记在册：triton kernel 重绑定（mamba/fla/gumbel/logprob）、bind_kv_cache 跳过 NPU raise、逐模型 forward/权重加载补丁、v2 runner 适配（12 个 patch_v2/* 模块）等。</p>
+</div>
+</details>
+
+<h3>5.4 契约边界：稳定 API 与必须 patch 的缺口</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>✅ 稳定契约（设计内扩展点）</th><th>⚠ 不稳定点（必须 monkeypatch）</th></tr></thead>
+<tbody>
+<tr><td>Platform 基类 + OOT 平台发现（interface.py:135）</td><td>EngineCoreProc.run_engine_core / EngineCore.__init__——无 engine-core 插件点</td></tr>
+<tr><td>entry_points 两组（plugins/__init__.py:18-30）</td><td>Scheduler 的 mamba split / update_from_output / PP fence——无调度器 hook</td></tr>
+<tr><td>WorkerBase + worker_cls 字符串解析（worker_base.py:278-287）</td><td>KV cache coordinator 命中查询 / bind_kv_cache 平台 raise</td></tr>
+<tr><td>NPUModelRunner 继承 GPUModelRunner</td><td>torch.accelerator 内存 API 不路由 NPU；triton 缺 next_power_of_2</td></tr>
+<tr><td>Attention backend qualname 选择（selector.py:215-225）</td><td>FusedMoEFactory 无 backend dispatch；rejection sampler 函数级替换</td></tr>
+<tr><td>ModelRegistry.register_model（registry.py:1122）</td><td>pydantic 配置 schema（Literal 放宽需 rebuild_dataclass）</td></tr>
+<tr><td>CustomOp.register_oot / direct_register_custom_op</td><td>use_v2_model_runner 白名单推断逻辑；模型私有方法</td></tr>
+</tbody></table></div>
+<p><strong>判读</strong>：vLLM 的 OOT 接口覆盖了"面"（平台/算子/模型/注意力后端），补丁集中在 V1 引擎内部高速演进的"点"（调度器、EngineCore、KV 协调器、配置 schema）。每条补丁登记上游 PR 与"Future Plan: Remove this patch when…"——补丁被当作<strong>待上游化的临时契约</strong>管理，而非永久分叉。</p>
+
+<details class="acc">
+<summary>版本对齐机制：main 对 main，release 对同号</summary>
+<div class="acc-body">
+<ul>
+<li><strong>运行时版本判定</strong>：<code>vllm_version_is(target)</code>（<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/utils.py#L673-L694" target="_blank" rel="noopener">utils.py:673-694</a>）读 <code>vllm.__version__</code> 或 VLLM_VERSION 环境变量，PEP 440 比较；</li>
+<li><strong>发布策略</strong>（README:92-95）：main 分支对应 vLLM main（Ascend CI 持续监控），<code>releases/vX.Y.Z</code> 跟随 vLLM 同名版本；</li>
+<li><strong>依赖 pin</strong>：pin 住 torch 2.10.0 / torch-npu 2.10.0.post4 / triton-ascend 3.2.2，但<strong>不 pin vllm 本体</strong>；</li>
+<li><strong>补丁内嵌版本守卫</strong>：多个 patch 检测上游符号是否存在（如 register_kv_cache_dtype），patch 文档中出现 "pinned vLLM 84030bbe/16cfe728" 字样，说明补丁按 pin 的上游提交裁剪；</li>
+<li>【未确认】未发现独立的 vllm commit pin 文件——兼容关系靠同版本号约定 + CI 维护。</li>
+</ul>
+</div>
+</details>
+
+<h3>5.5 模型注册：25 项架构的三种接入模式</h3>
+<p>general 插件 <code>ascend_model</code> 触发 <code>ModelRegistry.register_model</code> 注册 25 项架构 <a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/models/__init__.py#L4-L91" target="_blank" rel="noopener">models/__init__.py:4-91</a>，呈现三种模式：</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th>模式</th><th>代表架构</th><th>机制</th></tr></thead>
+<tbody>
+<tr><td>继承上游 + 层替换</td><td>Kimi K3 系、Gemma4</td><td>继承 vllm.models 上游类（如 kimi_k3.py:55-56），仅替换 MLA/MoE/KDA 层为 NPU 实现</td></tr>
+<tr><td>完全下游实现</td><td>GLM-5.3（Glm5Next 系）、DeepSeek-V4 系、MiniMax-M3</td><td>上游尚未合入，vllm_ascend/models/ 携带整套模型目录 + patch 注册配置类</td></tr>
+<tr><td>草稿模型别名</td><td>MTP / Eagle3 / DSpark / DFlash2</td><td>投机解码草稿架构注册为 Ascend 变体别名</td></tr>
+</tbody></table></div>
+<div class="callout good">
+<div class="co-t">✓ 本章证据等级</div>
+<p>插件发现链、entry_points 声明、NPUPlatform 类属性与四大钩子行号、NPUWorker 初始化序列均由主线程独立复核通过；补丁清单（28+30）按 patch/__init__.py 登记文档归纳，单条细节未逐一重读——引用时已注明出处为该登记文档。</p>
+</div>
+</section>
+
+<!-- ================= 第 6 章 ================= -->
+<section class="chapter" id="ch6">
+<h2 class="ch-t"><span class="no">CH.06</span>PagedAttention 与显存管理：从逻辑块到 HBM 物理块</h2>
+
+<p>PagedAttention（SOSP'23）是 vLLM 的立身之本：把 KV cache 切成分页式固定大小块，用类操作系统页表的方式消除显存碎片，再以块级哈希实现前缀共享。本章把这套机制从请求视角一路追到 HBM 物理地址，并给出 Ascend 侧的适配差异。</p>
+
+<div class="fig">
+<svg viewBox="0 0 1180 800" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="PagedAttention 块映射原理图">
+<defs>
+  <marker id="ar3" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+    <path d="M0,0 L8,4.5 L0,9 Z" fill="#7dd3fc"/>
+  </marker>
+  <marker id="ar3t" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+    <path d="M0,0 L8,4.5 L0,9 Z" fill="#5eead4"/>
+  </marker>
+</defs>
+<style>
+  .bx{fill:#151c28;stroke:#243044;stroke-width:1.4;rx:10}
+  .bxT{fill:#102a26;stroke:#5eead4;stroke-width:1.6}
+  .bxB{fill:#152233;stroke:#7dd3fc;stroke-width:1.4}
+  .bxP{fill:#211a33;stroke:#c4b5fd;stroke-width:1.4}
+  .bxF{fill:#12161f;stroke:#2a3850;stroke-width:1.2;stroke-dasharray:5 4}
+  .t1{fill:#e8eef7;font:600 14px 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+  .t2{fill:#aebacd;font:12.5px 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+  .t3{fill:#6d7d94;font:11.5px 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+  .m1{fill:#5eead4;font:600 12.5px 'JetBrains Mono',Consolas,monospace}
+  .m2{fill:#7dd3fc;font:12px 'JetBrains Mono',Consolas,monospace}
+  .m3{fill:#c4b5fd;font:12px 'JetBrains Mono',Consolas,monospace}
+  .mA{fill:#fbbf24;font:11.5px 'JetBrains Mono',Consolas,monospace}
+  .ln{stroke:#7dd3fc;stroke-width:1.6;fill:none}
+  .lnT{stroke:#5eead4;stroke-width:1.8;fill:none}
+  .lnD{stroke:#3d4b63;stroke-width:1.3;fill:none;stroke-dasharray:6 5}
+  .zone{fill:none;stroke:#243044;stroke-width:1.2;stroke-dasharray:8 6;rx:14}
+  .zlab{fill:#6d7d94;font:600 12px 'JetBrains Mono',Consolas,monospace;letter-spacing:2px}
+</style>
+
+<rect x="30" y="18" width="1120" height="108" class="zone"/>
+<text x="48" y="42" class="zlab">PREFIX CACHE · 块级哈希链（KVCacheBlock.hash）</text>
+<text x="48" y="66" class="t2">hash 输入 = 父块哈希 + 本块 16 个 token_id（+extra_keys: LoRA/多模态/cache_salt/prompt_embeds）· 默认 sha256</text>
+<rect x="48" y="78" width="150" height="34" class="bxP"/>
+<text x="66" y="100" class="m3">H(B0)=0x9a…</text>
+<rect x="218" y="78" width="150" height="34" class="bxP"/>
+<text x="236" y="100" class="m3">H(B1)=0x41…</text>
+<rect x="388" y="78" width="170" height="34" class="bxP"/>
+<text x="406" y="100" class="m3">H(B2)=0xf7…</text>
+<path class="ln" d="M198,95 L216,95" marker-end="url(#ar3)"/>
+<path class="ln" d="M368,95 L386,95" marker-end="url(#ar3)"/>
+<rect x="600" y="70" width="540" height="46" class="bx"/>
+<text x="618" y="90" class="t2">哈希表命中 → 直接复用物理块（refcnt+1，零重算）</text>
+<text x="618" y="108" class="t3">get_computed_blocks() · kv_cache_manager.py:264 · 逐块比对最长前缀</text>
+<path class="lnD" d="M558,95 L598,95" marker-end="url(#ar3)"/>
+
+<rect x="30" y="150" width="270" height="420" class="zone"/>
+<text x="48" y="174" class="zlab">① 请求 · 逻辑视图</text>
+<text x="48" y="198" class="t2">Request A · 41 tokens</text>
+<text x="48" y="216" class="t3">prompt 34 + generated 7</text>
+<rect x="52" y="232" width="210" height="88" class="bxB"/>
+<text x="68" y="256" class="m2">逻辑块 L0</text>
+<text x="68" y="276" class="t3">tokens 0..15（满）</text>
+<text x="68" y="294" class="t3">hash = 0x9a…</text>
+<rect x="52" y="332" width="210" height="88" class="bxB"/>
+<text x="68" y="356" class="m2">逻辑块 L1</text>
+<text x="68" y="376" class="t3">tokens 16..31（满）</text>
+<text x="68" y="394" class="t3">hash = 0x41…</text>
+<rect x="52" y="432" width="210" height="88" class="bxB"/>
+<text x="68" y="456" class="m2">逻辑块 L2</text>
+<text x="68" y="476" class="t3">tokens 32..40（9/16 未满）</text>
+<text x="68" y="494" class="t3">尾部块未哈希，不可复用</text>
+<text x="48" y="550" class="t3">块大小 block_size=16（vLLM 默认 cache.py:71）</text>
+
+<rect x="330" y="150" width="250" height="420" class="zone"/>
+<text x="348" y="174" class="zlab">② Block Table</text>
+<text x="348" y="198" class="t3">每请求一张 · 逻辑→物理映射</text>
+<rect x="352" y="216" width="206" height="42" class="bx"/>
+<text x="366" y="242" class="m2">L0 → 物理块 #7</text>
+<rect x="352" y="268" width="206" height="42" class="bx"/>
+<text x="366" y="294" class="m2">L1 → 物理块 #2</text>
+<rect x="352" y="320" width="206" height="42" class="bx"/>
+<text x="366" y="346" class="m2">L2 → 物理块 #11</text>
+<text x="348" y="396" class="t2">随解码增长动态追加行</text>
+<text x="348" y="418" class="t3">allocate_slots() 批量分配</text>
+<text x="348" y="436" class="t3">kv_cache_manager.py:371</text>
+<rect x="352" y="458" width="206" height="86" class="bx"/>
+<text x="366" y="480" class="mA">Ascend 侧</text>
+<text x="366" y="500" class="t3">block_table 张量随 attn_metadata</text>
+<text x="366" y="518" class="t3">直传 FIA 算子（attention_v1.py</text>
+<text x="366" y="534" class="t3">:814-832 → :888-954）</text>
+
+<rect x="610" y="150" width="540" height="420" class="zone"/>
+<text x="628" y="174" class="zlab">③ HBM 物理块池（num_blocks × 16 tokens × layers × KV）</text>
+
+<rect x="640" y="196" width="112" height="76" class="bxF"/><text x="652" y="228" class="t3">#0 free</text>
+<rect x="764" y="196" width="112" height="76" class="bxP"/><text x="776" y="220" class="m3">#1 共享前缀</text><text x="776" y="240" class="t3">refcnt=2</text><text x="776" y="258" class="t3">req A + B</text>
+<rect x="888" y="196" width="112" height="76" class="bxT"/><text x="900" y="228" class="m1">#2 ← L1</text><text x="900" y="248" class="t3">req A 独占</text>
+<rect x="1012" y="196" width="112" height="76" class="bxF"/><text x="1024" y="228" class="t3">#3 free</text>
+<rect x="640" y="284" width="112" height="76" class="bxF"/><text x="652" y="316" class="t3">#4 free</text>
+<rect x="764" y="284" width="112" height="76" class="bxB"/><text x="776" y="316" class="m2">#5 req B</text><text x="776" y="336" class="t3">独占</text>
+<rect x="888" y="284" width="112" height="76" class="bxF"/><text x="900" y="316" class="t3">#6 free</text>
+<rect x="1012" y="284" width="112" height="76" class="bxT"/><text x="1024" y="316" class="m1">#7 ← L0</text><text x="1024" y="336" class="t3">req A 独占</text>
+<rect x="640" y="372" width="112" height="76" class="bxF"/><text x="652" y="404" class="t3">#8 free</text>
+<rect x="764" y="372" width="112" height="76" class="bxB"/><text x="776" y="404" class="m2">#9 req C</text><text x="776" y="424" class="t3">独占</text>
+<rect x="888" y="372" width="112" height="76" class="bxF"/><text x="900" y="404" class="t3">#10 free</text>
+<rect x="1012" y="372" width="112" height="76" class="bxT"/><text x="1024" y="404" class="m1">#11 ← L2</text><text x="1024" y="424" class="t3">写入中 9/16</text>
+<rect x="640" y="460" width="112" height="76" class="bxF"/><text x="652" y="492" class="t3">#12 free</text>
+<rect x="764" y="460" width="112" height="76" class="bxF"/><text x="776" y="492" class="t3">#13 free</text>
+<rect x="888" y="460" width="112" height="76" class="bxB"/><text x="900" y="492" class="m2">#14 req B</text><text x="900" y="512" class="t3">独占</text>
+<rect x="1012" y="460" width="112" height="76" class="bxF"/><text x="1024" y="492" class="t3">#15 free</text>
+
+<text x="628" y="556" class="t3">物理块 = 连续 HBM 切片：扁平 int8 池 as_strided 成 [层,块,头,块内槽,通道]（kv_cache_interface.py:1388-1407）</text>
+
+<path class="lnT" d="M558,237 C620,237 950,180 1010,205" marker-end="url(#ar3t)"/>
+<path class="lnT" d="M558,289 C640,289 820,250 886,240" marker-end="url(#ar3t)"/>
+<path class="lnT" d="M558,341 C660,341 960,340 1010,380" marker-end="url(#ar3t)"/>
+
+<rect x="30" y="594" width="560" height="180" class="zone"/>
+<text x="48" y="618" class="zlab">④ 内核内寻址（每个 token 的 K/V 读在哪）</text>
+<text x="48" y="644" class="t2">逻辑token t → 块内 (t//16, t%16) → block_table[t//16]=p</text>
+<text x="48" y="666" class="t2">→ 物理槽位 slot = p×16 + t%16（kernel :466-476）</text>
+<text x="48" y="694" class="t3">GPU：FlashAttention/FlashInfer 按 block_table 间接寻址</text>
+<text x="48" y="716" class="t3">Ascend：npu_fused_infer_attention_score 同契约直读块表（TND 布局）</text>
+<text x="48" y="738" class="mA">Ascend：权重可经 weight_nz_mode 重排为 FRACTAL_NZ；KV cache 保持 ND（NHD 默认）</text>
+
+<rect x="620" y="594" width="530" height="180" class="zone"/>
+<text x="638" y="618" class="zlab">⑤ FreeBlockQueue · 分配与驱逐</text>
+<rect x="640" y="634" width="70" height="34" class="bxF"/><text x="650" y="656" class="t3">#0</text>
+<rect x="718" y="634" width="70" height="34" class="bxF"/><text x="728" y="656" class="t3">#3</text>
+<rect x="796" y="634" width="70" height="34" class="bxF"/><text x="806" y="656" class="t3">#4</text>
+<rect x="874" y="634" width="70" height="34" class="bxF"/><text x="884" y="656" class="t3">#6</text>
+<rect x="952" y="634" width="70" height="34" class="bxF"/><text x="962" y="656" class="t3">#8</text>
+<rect x="1030" y="634" width="70" height="34" class="bxF"/><text x="1040" y="656" class="t3">…</text>
+<text x="638" y="698" class="t3">无哈希块 prepend 队首（LIFO 即复用）；带哈希块 append 队尾（FIFO→LRU 驱逐）</text>
+<text x="638" y="720" class="t3">驱逐发生在新分配无块可用时（block_pool.py:668-702/776-807）</text>
+<text x="638" y="742" class="t3">再不足 → 抢占请求（preempt），KV 回收待重算或经 connector 换出</text>
+</svg>
+<div class="cap"><b>图 3</b> · 《PagedAttention 逻辑块到 Ascend HBM 物理块寻址与映射原理解析图》—— 手工绘制，全部机制标注源码锚点</div>
+</div>
+
+<h3 id="ch6-1">6.1 块管理四层架构与 allocate_slots 三阶段</h3>
+<p>V1 的 KV 管理是清晰的四层：<code>KVCacheManager</code>（对外门面）→ <code>KVCacheCoordinator</code>（多类型协调：full-attention/MLA/滑窗/mamba 混合模型各管一摊）→ <code>SingleTypeKVCacheManager</code> 族（单类型策略）→ <code>BlockPool</code>（物理块池）。核心入口 <code>allocate_slots</code>（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/core/kv_cache_manager.py#L371-L608" target="_blank" rel="noopener">kv_cache_manager.py:371-608</a>）分三阶段：① 释放滑窗外块 + 容量检查（watermark / full_sequence_must_fit 准入门）；② 挂载前缀命中块（refcnt+1，不重算）；③ 从 BlockPool 弹新块并 cache 提交——分配上限按 <code>request.num_tokens</code> 计算，<strong>不含投机草稿 token</strong>。</p>
+
+<h3>6.2 前缀缓存：块级哈希链与 LRU 驱逐</h3>
+<p>块哈希默认 <strong>sha256</strong>（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/config/cache.py#L144" target="_blank" rel="noopener">cache.py:144</a>），采用链式输入：父块哈希 + 本块 token ids + extra_keys（LoRA / 多模态 / cache_salt / prompt_embeds，<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/core/kv_cache_utils.py#L650-L680" target="_blank" rel="noopener">kv_cache_utils.py:650-680</a>）——链式结构保证"相同前缀的后续块哈希必然相同"，这是跨请求共享的数学基础；cache_salt 混入让租户间无法互相命中，是多租户隔离的暗桩。BlockPool 的空闲队列是双向链表：<strong>无哈希块 prepend 队首（LIFO 立即复用），带哈希块 append 队尾（FIFO，最久未命中者先被驱逐）</strong>（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/core/block_pool.py#L776-L807" target="_blank" rel="noopener">block_pool.py:776-807</a>），驱逐发生在新分配无块可用时（:668-702）。</p>
+
+<h3>6.3 块表与寻址：从 slot 公式到 as_strided 显存池</h3>
+<p>Worker 侧的 <code>BlockTable</code>（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/worker/block_table.py#L57" target="_blank" rel="noopener">v1/worker/block_table.py:57</a>）以"行=请求、值=物理块 id"组批，经 append_row → commit_block_table（H2D）→ Triton kernel 生成 slot_mapping。寻址公式：<code>slot = block_table[req][pos // B] * B + pos % B</code>（kernel 实现 :466-476）。显存本体是<strong>扁平 int8 大池</strong>，按 dtype/层数/头数 <code>as_strided</code> 解释成 [L,B,H,N,C]（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/kv_cache_interface.py#L1388-L1407" target="_blank" rel="noopener">kv_cache_interface.py:1388-1407</a>）——dtype 可换而池布局不变，这是 fp8 KV cache 零成本切换的根基。块大小默认 16（cache.py:71），后端选择优先级 FLASH_ATTN &gt; FLASHINFER &gt; TRITON_ATTN &gt; FLEX（platforms/cuda.py:83-179）。</p>
+
+<details class="acc">
+<summary>显存预算公式链（gpu_memory_utilization 如何变成 num_gpu_blocks）</summary>
+<div class="acc-body">
+<pre><code data-lang="python"># ① 用户水位（默认 0.92，config/cache.py:103）
+requested_memory   = ceil(total_memory × gpu_memory_utilization)   # worker/utils.py:537-539
+# ② profile_run 实测非 KV 占用（权重 + 激活峰值 + 非 torch 部分）
+available_memory   = requested − non_kv_cache_memory − cudagraph_pool  # gpu_worker.py:673-677
+# ③ 每块字节数（按各 KV 组逐层 page_size 求和取最大组）
+bytes_per_block    = max_over_groups( Σ_layers page_size )         # kv_cache_utils.py:1595-1621
+                   = L × 2 × block_size × num_kv_heads × head_size × dtype_size   # 标准全注意力
+# ④ 块数（跨 TP worker 取最小值，保证全组一致）
+num_gpu_blocks     = available_memory // bytes_per_block           # kv_cache_utils.py:1760
+                     → 跨 worker min(:2784-2798)</code></pre>
+<p>Ascend 侧同公式但有三处特有修正（S3-β 报告亲验）：图捕获前记录 torch peak 以排除 ACL graph 池（<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/worker/worker.py#L596-L607" target="_blank" rel="noopener">worker.py:596-607</a>）、multi-group per-layer buffer 预算缩放（:657-668）、sparse_kv_offload 三限取 min（:511-545）。</p>
+</div>
+</details>
+
+<h3 id="ch6-2">6.4 Ascend HBM 适配：ND 布局、FIA 消费与两条互斥的显存路线</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>维度</th><th>vLLM（GPU）</th><th>vLLM-Ascend（NPU）</th></tr></thead>
+<tbody>
+<tr><td>KV cache 布局</td><td>扁平 int8 池 as_strided；块表间接寻址</td><td><strong>同为 ND</strong>：GQA 默认 (2,blocks,block,heads,dim) NHD，可选 LBHNC/HND 转 BNSD（attention_v1.py:102-111）；MLA 单压缩 cache（mla_v1.py:102-109）——<strong>NZ 分形只作用于权重</strong>（weight_nz_mode，ascend_config.py:611），不用于 KV</td></tr>
+<tr><td>块表消费</td><td>FlashAttention/FlashInfer kernel 参数</td><td>_get_fia_params 按 attn_state 选块表（PrefillNoCache 时 None），<code>npu_fused_infer_attention_score(_v2)</code> 以 <code>block_table=</code> 关键字直传（attention_v1.py:812-832 → :876-927）</td></tr>
+<tr><td>block_size 默认值</td><td><strong>16</strong>（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/config/cache.py#L71" target="_blank" rel="noopener">cache.py:71</a>）</td><td><strong>128</strong>（refresh_block_size，<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/utils.py#L1313-L1314" target="_blank" rel="noopener">utils.py:1313-1314</a>）；deepseek_v4 强制 32（仅允许 32/64/128）——碎片与元数据开销的相反权衡，见第 10 章</td></tr>
+<tr><td>分配器</td><td>CuMemAllocator（sleep 模式 D2H+解映射）</td><td><strong>CaMemAllocator</strong>（camem.py:113-310）：CuMemAllocator 的 CANN 同构移植，tag 制睡眠（offload tag D2H 到 pinned CPU，其余 unmap_and_release）</td></tr>
+<tr><td>显存增长策略</td><td>max_split_size_mb=20 临时限拆分</td><td><code>PYTORCH_NPU_ALLOC_CONF=expandable_segments:True</code>（platform.py:1339-1358）——与 CaMemAllocator <strong>硬断言互斥</strong>（camem.py:151-157），sleep 时反向移除</td></tr>
+<tr><td>sleep 编排</td><td>NCCL 不占设备显存，无需处理</td><td>Ascend 独有：销毁/重建全部 HCCL 组 + ACL graph 工作区清理与图重捕获（sleep_mem_optimized.py:35-216）</td></tr>
+</tbody></table></div>
+<div class="callout warn">
+<div class="co-t">⚠ 两条互斥的显存管理路线</div>
+<p>expandable_segments（torch_npu 原生弹性段）与 CaMemAllocator（vLLM 式可插拔分配器）在 Ascend 上<strong>不能共存</strong>（camem.py:151-157 硬断言）。前者服务常规推理的碎片治理，后者服务 RL 训推一体的 sleep/wake 显存让位——选型由配置驱动，platform 层在两条路线间自动切换（platform.py:1339-1375）。</p>
+</div>
+
+<h3>6.5 KV 卸载新体系：从 GPU 到外部存储的分层管道</h3>
+<p>本快照中 vLLM 的 KV 卸载已从"连接器零散实现"演进为<strong>体系化四层</strong>：<code>v1/kv_offload/</code>（抽象层 + cpu/tiering 多级管理器）、<code>v1/simple_kv_offload/</code>（SimpleCPUOffloadConnector）、<code>v1/kv_hints/</code>（编排器提示协议 protocol.py:9-26）、<code>v1/hisparse/</code>（NVIDIA 稀疏三级数据面）。Ascend 侧对应：<code>kv_pool/</code>（ascend_store：mooncake/memcache/yuanrong 三后端 + UCM + native/preempt/simple 三实现）与 <code>sparse_kv_offload/</code>（6 元组缓存 + memfabric AICPU + 调度预算放大，sparse_kv_offload_manager.py:36-45）。这套分层是第 9 章"外挂存储改造点"和第 11 章"CXL/内存池化"预测的代码地基。</p>
+</section>
+
+<!-- ================= 第 7 章 ================= -->
+<section class="chapter" id="ch7">
+<h2 class="ch-t"><span class="no">CH.07</span>Ascend 算子体系：三通道并存的内核世界</h2>
+
+<p>如果说平台插件是 vLLM-Ascend 的"骨架"，算子体系就是它的"肌肉"。与 vLLM CUDA 侧"少量 C++ 扩展 + 大量 Triton"的结构不同，Ascend 侧形成了 <strong>torch_npu 原生融合算子、自研 CANN 扩展（_C_ascend）、Triton-Ascend 内核</strong>三通道并存的格局，且自研比重显著更高——全仓对 <code>torch.ops._C_ascend.*</code> 的调用达 <strong>155 处</strong>。</p>
+
+<h3>7.0 三通道总览与注册机制</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>通道</th><th>命名空间</th><th>注册机制</th><th>代表算子</th></tr></thead>
+<tbody>
+<tr><td>① torch_npu 原生</td><td><code>torch_npu.npu_*</code></td><td>Python 层 <code>CustomOp.register_oot</code> 替换 ~28 个 vLLM 算子类（<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/utils.py#L768-L899" target="_blank" rel="noopener">utils.py:768-899</a>）</td><td>npu_rms_norm · npu_mrope · npu_swiglu · npu_fused_infer_attention_score · npu_moe_distribute_dispatch/combine_v2</td></tr>
+<tr><td>② 自研 CANN 扩展</td><td><code>torch.ops._C_ascend.*</code></td><td>C++ <code>TORCH_LIBRARY_EXPAND(CONCAT(_C,_ascend), ops)</code> 双注册块（<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/csrc/torch_binding.cpp#L2751" target="_blank" rel="noopener">torch_binding.cpp:2751</a>/<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/csrc/torch_binding.cpp#L2811" target="_blank" rel="noopener">:2811</a>，主线亲验），<code>torch::kPrivateUse1</code> 派发；meta 函数经 <code>Library("_C_ascend","IMPL")</code> 注册</td><td>sparse_flash_attention/mla · lightning_indexer v2/v3 · compressor · dispatch_ffn_combine · moe_gating_top_k · recurrent_gated_delta_rule · swap_blocks_batch · LoRA bgmv/sgmv · store_kv_block</td></tr>
+<tr><td>③ Triton-Ascend</td><td><code>vllm_ascend.ops.triton.*</code></td><td>直接 Python import + patch_triton 重绑定上游入口</td><td>fla / kda / mamba / linearnorm / swiglu_quant / muls_add 等约 60 个文件</td></tr>
+</tbody></table></div>
+<p>另有 7 个算子借 vLLM 官方 <code>direct_register_custom_op(dispatch_key="PrivateUse1")</code> 注册进 <code>torch.ops.vllm</code> 命名空间（<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/ops/register_custom_ops.py#L222-L275" target="_blank" rel="noopener">register_custom_ops.py:222-275</a>，主线亲验 7 个注册点），使 vLLM 的编译切分点能直接引用（如 <code>vllm::mla_forward</code>/<code>vllm::dsa_forward</code> 被加入 splitting_ops）。</p>
+
+<details class="acc">
+<summary>机制对比：vLLM CUDA 侧算子是怎么注册的（为什么 Ascend 不一样）</summary>
+<div class="acc-body">
+<p>本快照中 vLLM 上游 C++ 扩展已迁移到 <strong>stable ABI</strong>：<code>STABLE_TORCH_LIBRARY_FRAGMENT(_C, ops)</code>（csrc/libtorch_stable/torch_bindings.cpp:10），MoE 另有独立的 <code>_moe_C</code> 模块；Python 侧 <code>_custom_ops.py</code> 只做薄封装并带约 40 处 <code>register_fake</code>（供 torch.compile 推导形状）。而 Ascend 侧仍是传统 <code>TORCH_LIBRARY</code> + PrivateUse1，调用点散布在各 Python 模块中（正在形成集中的 <code>device/device_op.py</code> DeviceOperator 层）。<strong>判读</strong>：上游在为"跨版本二进制兼容"收敛算子接口，Ascend 还在快速扩张算子面的阶段，散点注册是速度换秩序的取舍。</p>
+</div>
+</details>
+
+<h3>7.1 标杆算子解剖：RMSNorm / RoPE / FIA 注意力</h3>
+<p>三个最高频算子展示了通道①的典型形态——<code>forward_oot</code> 钩子内直接调用 torch_npu 融合算子：</p>
+<pre><code data-lang="python" class="ln" data-start="99"># vllm_ascend/ops/layernorm.py:99 —— AscendRMSNorm.forward_oot
+def forward_oot(self, x: torch.Tensor) -&gt; torch.Tensor:
+    return torch_npu.npu_rms_norm(x, self.weight, self.variance_epsilon)[0]
+
+# vllm_ascend/ops/rotary_embedding.py:242 —— 多模态旋转位置编码
+return torch_npu.npu_mrope(positions, query, key, self.cos_sin_cache,
+                           self.mrope_section, self.head_size)   # :242
+# 同文件 :674 单路 RoPE 走 npu_rotary_mul</code></pre>
+<p>注意力核心调用的是 CANN 的 <code>npu_fused_infer_attention_score</code>（FIA）：TND 布局、sparse_mode 0/3/4、<strong>block_table 直接传参</strong>、actual_seq_lengths 变长批处理（attention_v1.py:876-1000，主线亲验调用区存在）。块表从 metadata 构建到入核的完整链路：attention_v1.py:315（builder 接收）→ :369-389（组批）→ :814-832（写入 metadata）→ :888-954（FIA 调用）。</p>
+
+<h3>7.2 Attention 后端矩阵：6 族 + 全 CP 组合</h3>
+<p>vllm-ascend/attention/ 下实现了<strong>六族后端</strong>，全部满足 vLLM V1 契约（AttentionBackend :58 / AttentionMetadataBuilder :596 / AttentionImpl :908，位于 <a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/attention/backend.py#L58" target="_blank" rel="noopener">vllm/v1/attention/backend.py</a>——注意：本快照中旧的 <code>vllm/attention/</code> 目录<strong>已整体移除</strong>，主线亲验）：</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th>后端</th><th>目标模型/场景</th><th>核心算子路径</th><th>锚点</th></tr></thead>
+<tbody>
+<tr><td>AscendAttentionBackend（注册名 "ASCEND"）</td><td>通用 MHA/GQA</td><td>npu_fused_infer_attention_score[_v2]</td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/attention/attention_v1.py#L70" target="_blank" rel="noopener">attention_v1.py:70</a>（impl :502，C8 变体 :1297）</td></tr>
+<tr><td>AscendMLABackend</td><td>DeepSeek 系 MLA</td><td>_C_ascend.npu_mla_prolog_v3 + FIA</td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/attention/mla_v1.py#L85" target="_blank" rel="noopener">mla_v1.py:85</a>（impl :810）</td></tr>
+<tr><td>AscendSFABackend</td><td>DeepSeek V3.2 稀疏注意力</td><td>_C_ascend.npu_sparse_flash_attention</td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/attention/sfa_v1.py#L358" target="_blank" rel="noopener">sfa_v1.py:358</a>（impl :737）</td></tr>
+<tr><td>AscendDSABackend（5 变体）</td><td>DeepSeek V4 压缩+索引</td><td>compressor + lightning_indexer 系</td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/attention/dsa_v1.py#L214" target="_blank" rel="noopener">dsa_v1.py:214-320</a></td></tr>
+<tr><td>DeepseekV41CacheBackend</td><td>DeepSeek V4.1</td><td>_C_ascend.npu_sparse_flash_mla</td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/attention/dsa_v41.py#L1052" target="_blank" rel="noopener">dsa_v41.py:1052</a></td></tr>
+<tr><td>AscendFABackend</td><td>RL 训推一致（FA3 NPU）</td><td>fa3 内核</td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/attention/fa3_v1.py#L11" target="_blank" rel="noopener">fa3_v1.py:11</a></td></tr>
+</tbody></table></div>
+<p><strong>上下文并行（CP）覆盖全矩阵</strong>：attention/context_parallel/ 下 attention_cp / mla_cp / dsa_cp / dsa_v41_cp / sfa_cp 五个 CP 实现（sfa_cp.py:62-1587 含五个 impl 类），KV 按 shard 分片（common_cp.py:11-52），未引入专用 ring 算子——prefill 区做 CP all-gather，o_proj 保留双路径。后端选择由 NPUPlatform.get_attn_backend_cls 按 (use_mla, use_sparse, use_compress) 键查表（<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/platform.py#L248-L253" target="_blank" rel="noopener">platform.py:248-253</a>），与 5.2 节钩子表呼应。</p>
+
+<h3>7.3 csrc 双工程与 _cann_ops_custom 之谜</h3>
+<p>csrc 实际包含<strong>两个构建工程</strong>：根 CMake 编译 pybind 模块 <code>vllm_ascend_C</code>（链接 torch_npu + ascendcl，CMakeLists.txt:113,192-193）；csrc/CMakeLists.txt 编译 CANN OPP vendor 算子包 "cann_ops-transformer"（vendor=custom，SOC→arch22/32/35 映射 :33-40）。每个自研算子的目录结构是 CANN 标准三段式：<code>op_host</code>（定义+tiling）+ <code>op_kernel</code>（arch32/35 的 Ascend C 实现）+ <code>torch_adpt.h</code>（绑定）。C++ 侧经 aclnn 适配层 <code>EXEC_NPU_CMD</code> 宏（45 处）调 CANN op-api。</p>
+<div class="callout">
+<div class="co-t">_cann_ops_custom 是什么？</div>
+<p>源码树里它只有一个 <code>.gitkeep</code>——它是 <strong>CANN 自定义算子包的安装落地目录</strong>：build_aclnn.sh:261-285 把 <code>cann-ops-transformer*.run</code> 装进 <code>vllm_ascend/_cann_ops_custom</code>；setup.py:388-397 构建 wheel 时拷回包内；CMakeLists.txt:217 给 vllm_ascend_C 配 rpath 指向其中的 op_api/lib；运行时 <code>bootstrap_custom_op_env()</code> 将其前置到 <code>ASCEND_CUSTOM_OPP_PATH</code>（<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/utils.py#L410-L419" target="_blank" rel="noopener">utils.py:410-419</a>）。</p>
+</div>
+
+<h3>7.4 ACL Graph：CUDA Graph 的昇腾同构重写</h3>
+<ul>
+<li><strong>捕获/回放</strong>：ACLGraphWrapper（compilation/acl_graph.py:66）基于 <code>torch.npu.graph(pool=global_graph_pool)</code> 懒捕获（:210），replay 于 :300；<strong>piecewise 模式完全复用 vLLM 的 split_graph/PiecewiseBackend</strong>，经 <code>get_static_graph_wrapper_cls</code> 注入（platform.py:209-213），splitting_ops 增补 <code>vllm::mla_forward</code>/<code>vllm::dsa_forward</code>（platform.py:1232-1237）。</li>
+<li><strong>Ascend 独有增强 UpdatableGraph</strong>（updatable_graph.py:79）：利用 CANN graph_task_group/task_update API <strong>在线改写已捕获图中的 attention 参数</strong>（register_task :120-145、update :156-174），参数变化免重捕获；目前仅 AscendAttentionBackend 迁入新机制，MLA/SFA 仍走旧 GraphParams 路径（acl_graph.py:331-357）。</li>
+<li><strong>融合 pass 生态</strong>：FX pattern match（use_inductor=False，platform.py:1211），GraphFusionPassManager 替代上游 PostGradPassManager，但生效 pass 仅 3 个（norm_quant / qknorm_rope / muls_add fusion）对比上游 20+；torchair/npugraph_ex 仅作 FX eager 后端，piecewise 下被强制关闭（platform.py:1238-1240）。</li>
+<li><strong>现状判读</strong>：FULL/PIECEWISE/Breakable 三模式齐备；差距在 pass 生态单薄、FULL 图参数更新新旧两制并存、依赖 CANN task-group API（旧 HDK 直接失败，acl_graph.py:227-234）。</li>
+</ul>
+</section>
+
+<!-- ================= 第 8 章 ================= -->
+<section class="chapter" id="ch8">
+<h2 class="ch-t"><span class="no">CH.08</span>分布式通信与 PD 分离：HCCL 一肩挑的世界</h2>
+
+<h3>8.1 通信底座：没有 Custom AllReduce 的取舍</h3>
+<p>vLLM CUDA 侧的通信是一条 <strong>7 级选择链</strong>（cuda_communicator.py:335-408），顶端是自研 <code>CustomAllreduce</code> IPC kernel（custom_all_reduce.cuh：1-stage :9 / 2-stage :32）——在小消息 TP all-reduce 场景绕过 NCCL 以压低延迟。Ascend 侧的答案截然不同：<code>NPUCommunicator</code> 显式 <code>ca_comm=None</code>（<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/distributed/npu_communicator.py#L57" target="_blank" rel="noopener">npu_communicator.py:57</a>），不覆写 all_reduce，全部集合通信交给 <strong>HCCL</strong>（华为集合通信库）：pyhccl_wrapper 仅绑定 6 个 HCCL 函数（HcclGetRootInfo/CommInitRootInfo/AllReduce/Broadcast 等，pyhccl_wrapper.py:113-250），其余走 torch_npu 的 ProcessGroup(hccl)。设备初始化处以后端字符串 <code>"hccl"</code> 调用 <code>init_distributed_environment</code>（<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/worker/worker.py#L1243-L1245" target="_blank" rel="noopener">worker.py:1243-1245</a>，主线亲验）。</p>
+<p>在此之上，Ascend 还创建了若干<strong>专用通信组</strong>：<code>_MC2</code>（MoE 通算融合）、<code>_DYNAMIC_EPLB</code>（专家动态均衡）、<code>_P_TP</code>（PD 分离）与细粒度 TP 组（distributed/parallel_state.py:132-133），并带 HCCL ProcessGroup 复用补丁（patch_distributed.py:58-76）。</p>
+<div class="callout">
+<div class="co-t">拓扑发现去哪了？</div>
+<p>代码库中<strong>不存在</strong> HCCS/RoCE/rank_table 的 Python 拓扑发现逻辑（全仓仅 1 条注释命中）——昇腾集群的链路发现完全下沉到 CANN/HCCL 运行时。对开发者意味着：TP/PP/EP 的物理亲和性优化在 Python 层无可调抓手，只能靠通信组划分与算子选择间接影响。</p>
+</div>
+
+<h3>8.2 通信-计算重叠：战场在 MoE，不在 TP</h3>
+<p>这是 Ascend 与 CUDA 侧最鲜明的策略分野。TP 方向：全仓 grep 不到 <code>npu_mm_all_reduce</code> 类 MatMul+AllReduce 融合算子——TP all-reduce 仍是独立的 HCCL 调用。MoE 方向则是另一幅图景，通信方式有四种模式（moe_comm_method.py:56-63）：</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th>MoE 通信模式</th><th>机制</th><th>锚点</th></tr></thead>
+<tbody>
+<tr><td>ALLTOALL</td><td>标准 all-to-all token 分发（npu_moe_distribute_dispatch_v2/combine_v2）</td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/ops/fused_moe/token_dispatcher.py#L232" target="_blank" rel="noopener">token_dispatcher.py:232</a>/:331</td></tr>
+<tr><td>ALLGATHER</td><td>all-gather 后本地计算</td><td>moe_comm_method.py:56-63</td></tr>
+<tr><td>MC2</td><td>通算融合（限 512 tokens/rank）</td><td>同上</td></tr>
+<tr><td>FUSED_MC2</td><td><strong>单算子 dispatch_ffn_combine：dispatch+FFN+combine 三元融合</strong>，hcom 通信名取自 get_hccl_comm_name</td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/ops/fused_moe/moe_comm_method.py#L553-L569" target="_blank" rel="noopener">moe_comm_method.py:553-569</a> · <a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/csrc/torch_binding.cpp#L3169" target="_blank" rel="noopener">torch_binding.cpp:3169</a></td></tr>
+</tbody></table></div>
+<p>运行时由 <code>set_additional_forward_context</code> 在前向前把选定的通信模式、mc2_mask、padding 长度注入 attn_metadata（<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/platform.py#L516-L640" target="_blank" rel="noopener">platform.py:516-640</a>）。PP 方向则直接复用 vLLM 的组 isend/irecv_tensor_dict（worker.py:773/799），无 Ascend 专属改动。</p>
+
+<h3>8.3 PD 分离：11+ connector 的繁荣生态</h3>
+<p>Prefill-Decode 分离在 Ascend 侧不是单一实现，而是一个 <strong>全部满足 KVConnectorBase_V1 契约的 connector 家族</strong>（注册于 <a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/distributed/kv_transfer/__init__.py#L45-L135" target="_blank" rel="noopener">kv_transfer/__init__.py:45-135</a>）：</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th>类别</th><th>Connector</th><th>机制要点</th></tr></thead>
+<tbody>
+<tr><td>P2P 直传（Mooncake 系 ×6）</td><td>MooncakeConnectorV1 / V2 / Pull / D2RH / Hybrid / Layerwise</td><td>基于 mooncake TransferEngine（mooncake_transfer_engine.py:17-37）的实例间 KV 直传</td></tr>
+<tr><td>池化存储</td><td>AscendStoreConnector / MooncakeConnectorStoreV1 / UCMConnector</td><td>mooncake/memcache/yuanrong 后端的共享 KV 池（UCM 即本报告姊妹篇分析的 Unified Cache Manager）</td></tr>
+<tr><td>层级卸载（覆盖上游同名）</td><td>OffloadingConnector / SimpleCPUOffloadConnector / PreemptOffloadConnector</td><td>走 _C_ascend.swap_blocks_batch + aclrtMemcpyBatchAsync 的批量异步换出</td></tr>
+<tr><td>稀疏 KV 专用</td><td>SfaRemoteD2HConnector</td><td>SFA 稀疏 KV 的 D2H 卸载，强制 MemFabric 传输层（worker.py:176/512/678）</td></tr>
+<tr><td>组合</td><td>AscendMultiConnector</td><td>覆盖上游 MultiConnector，多 connector 串联</td></tr>
+</tbody></table></div>
+<div class="callout warn">
+<div class="co-t">⚠ llmdatadist 已退出历史舞台</div>
+<p>早期版本的 Ascend PD 分离基于华为 llmdatadist 库；本快照中全仓仅 release_notes.md:2255 一条历史文档还提到它——代码层面已被 mooncake/MemFabric 体系完全取代。网上的旧教程（基于 llmdatadist 的 PD 部署）对当前 main 已不适用。</p>
+</div>
+<p>契约侧，OOT 接入的官方通道是 <code>kv_connector_module_path</code> 优先机制（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/distributed/kv_transfer/kv_connector/factory.py#L103-L115" target="_blank" rel="noopener">factory.py:103-115</a>）：外部包路径的 connector 类优先于内置注册表被加载——这正是 vllm-ascend 能覆盖上游同名 connector 而不改一行 vLLM 代码的原因。</p>
+</section>
+
+<!-- ================= 第 9 章 ================= -->
+<section class="chapter" id="ch9">
+<h2 class="ch-t"><span class="no">CH.09</span>接口 SPI 与生态改造点：二次开发锚点指南</h2>
+
+<h3>9.0 对外 API 面：已重构的 entrypoints 分包</h3>
+<p><strong>布局警示</strong>：本快照的 <code>vllm/entrypoints/</code> 已从旧版扁平 <code>openai/serving_*.py</code> 重构为"<strong>按特性分包 + 每包 api_router.py</strong>"，路由统一由 <code>launchers/api_server/routers.py:12</code> 的 <code>register_api_routers()</code> 按 supported_tasks 条件挂载。服务层基类：<code>BaseServing</code>（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/entrypoints/serve/engine/serving.py#L29" target="_blank" rel="noopener">serve/engine/serving.py:29</a>，主线亲验）。</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th>协议族</th><th>端点（代表）</th><th>实现类锚点</th></tr></thead>
+<tbody>
+<tr><td>OpenAI</td><td>/v1/chat/completions(+batch)、/v1/completions、responses×3、/v1/models、/v1/embeddings+/v2/embed、/score、/rerank×3、/classify、/v1/audio/*、WS /v1/realtime</td><td>OpenAIServingChat（chat_completion/serving.py:118）</td></tr>
+<tr><td>Anthropic</td><td>/v1/messages、/v1/messages/count_tokens</td><td>AnthropicServingMessages（anthropic/serving.py:102，<strong>继承 OpenAIServingChat</strong>）</td></tr>
+<tr><td>Cohere / 其他</td><td>/cohere/v2/chat；generative_scoring；tokenize/detokenize；scale_out P/D 三面</td><td>各特性包 serving.py</td></tr>
+<tr><td>运维面 serve/</td><td>health/profile/lora/elastic_ep/fault_tolerance/sagemaker + dev 面（sleep、RLHF 权重热更 12 路由、cache/rpc/server_info）</td><td>serve/ 目录</td></tr>
+<tr><td>离线 LLM 类</td><td>generate/chat/enqueue/encode/embed/classify/score + 系统管理 + RLHF 权重热更族</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/entrypoints/llm.py#L67" target="_blank" rel="noopener">llm.py:67</a>（三 mixin 组合）</td></tr>
+<tr><td>gRPC</td><td colspan="2">仓库内无自有 servicer——launchers/grpc_server.py 依赖外部包 smg-grpc-servicer【RPC 方法集未确认】</td></tr>
+</tbody></table></div>
+
+<h3>9.1 内部 SPI 契约清单</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>SPI</th><th>契约位置</th><th>要点</th></tr></thead>
+<tbody>
+<tr><td>Platform 插件</td><td>platforms/interface.py + plugins/__init__.py:18-30</td><td>OOT 发现链见 CH.05</td></tr>
+<tr><td>Model 注册</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/model_executor/models/registry.py#L1122" target="_blank" rel="noopener">registry.py:1122</a></td><td>register_model 支持类或 "module:Class" 惰性字符串；interfaces.py 20+ 能力 Protocol（含 MixtureOfExperts.set_eplb_state）</td></tr>
+<tr><td>Attention 后端</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/attention/backend.py#L58" target="_blank" rel="noopener">v1/attention/backend.py:58</a></td><td>三层契约：Backend(:58)/Builder(:596)/Impl(:908)+MLAImpl(:1042)；旧 vllm/attention/ 目录已移除</td></tr>
+<tr><td>KV Connector v1</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/distributed/kv_transfer/kv_connector/v1/base.py#L178" target="_blank" rel="noopener">v1/base.py:178</a></td><td>7 抽象方法（下表）；15+ 内置实现可仿</td></tr>
+<tr><td>LogitsProcessor</td><td>v1/sample/logits_processor/interface.py:60</td><td>双通道注册：entry point 组 vllm.logits_processors + FQCN 字符串</td></tr>
+<tr><td>结构化输出</td><td>backend_types.py:97/:31</td><td>Backend/Grammar 双 ABC；内置 xgrammar/guidance/lm_format_enforcer</td></tr>
+<tr><td>reasoning / tool_parsers</td><td>各自 __init__ 的 Manager</td><td>register_lazy_module 惰性注册；reasoning 内置约 30 个</td></tr>
+</tbody></table></div>
+
+<h3 id="ch9-1">9.2 改造点 A：外挂/池化存储接入</h3>
+<p><strong>KVConnectorBase_V1 最小骨架 = 7 个抽象方法</strong>（构造强制 <code>(vllm_config, role, kv_cache_config)</code>，base.py:202-220）：</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th>侧</th><th>方法</th><th>锚点</th><th>职责</th></tr></thead>
+<tbody>
+<tr><td>Worker</td><td>start_load_kv / wait_for_layer_load</td><td>base.py:304-333</td><td>前向前启动/按层等待 KV 加载</td></tr>
+<tr><td>Worker</td><td>save_kv_layer / wait_for_save</td><td>base.py:335-368</td><td>逐层保存 / 等待异步落盘完成</td></tr>
+<tr><td>Scheduler</td><td>get_num_new_matched_tokens</td><td>base.py:477-510</td><td>外部命中协商（4.3 节"谁的长谁服务"）</td></tr>
+<tr><td>Scheduler</td><td>update_state_after_alloc</td><td>base.py:512-536</td><td>分配后登记外部块</td></tr>
+<tr><td>Scheduler</td><td>build_connector_meta</td><td>base.py:538-551</td><td>产出随 SchedulerOutput 下发的元数据</td></tr>
+</tbody></table></div>
+<p>实用骨架还需覆写 register_kv_caches、get_finished（异步完成回报）、request_finished（返 True 接管块释放）、take_events 等；启用 HMA（默认）还须实现 <code>SupportsHMA.request_finished_all_groups</code>（base.py:98-126）否则工厂直接抛错。<strong>模板推荐</strong>：学习通路选 <code>ExampleConnector</code>（example_connector.py:85-452，safetensors 落盘，恰好只实现 7 抽象方法）；生产卸载选 <code>SimpleCPUOffloadConnector</code>（:55-321，异步范式齐备）。<strong>注册入口</strong>：<code>KVConnectorFactory.register_connector</code>（factory.py:30-40）懒注册，或最高优先级的 <code>kv_connector_module_path</code> 直指定类（:103-124）——vllm-ascend 正是经 entry_points→register_connector 链替换了 Offloading/SimpleCPUOffload/Multi 三个上游 connector 并注册 Mooncake 系 6 个（kv_transfer/__init__.py:21-135）。</p>
+
+<h3>9.3 改造点 B：推测解码双栈</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>环节</th><th>vLLM 调用点</th><th>Ascend 适配</th></tr></thead>
+<tbody>
+<tr><td>propose（草稿）</td><td><code>propose_draft_token_ids</code> 按 method 分派（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/worker/gpu_model_runner.py#L4957" target="_blank" rel="noopener">gpu_model_runner.py:4957</a>）；LLM 系走 SpecDecodeBaseProposer.propose 多步循环（llm_base_proposer.py:512-774）；ngram 为 numba CPU 实现</td><td>统一入口 <code>get_spec_decode_method</code>（<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/spec_decode/__init__.py#L41-L70" target="_blank" rel="noopener">spec_decode/__init__.py:41-70</a>）：ngram/ngram_gpu/suffix/medusa/dspark/eagle/eagle3/mtp/dflash/dflash2/draft_model 全覆盖</td></tr>
+<tr><td>verify（验证）</td><td>_sample 有 spec_decode_metadata 时走 rejection_sampler（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/worker/gpu_model_runner.py#L3636-L3665" target="_blank" rel="noopener">gpu_model_runner.py:3636-3665</a>）</td><td>rejection_sampler_utils.py 的 NPU 拒绝采样</td></tr>
+<tr><td>调度侧</td><td colspan="2">草稿截断入 scheduled_spec_decode_tokens 并清空请求侧（scheduler.py:825-841）；按 num_rejected 回滚 num_computed_tokens 与 placeholders（:2048-2066）；update_draft_token_ids 回流（:2470-2526）</td></tr>
+<tr><td>v2 栈</td><td>上游 gpu/ 目录 speculator 体系</td><td><code>AscendAutoRegressiveSpeculator</code> 基类（autoregressive/speculator.py:64-70）+ eagle/mtp/dflash/dflash2/dspark 五变体；dflash2 的 <code>_selector_walk_kernel_ascend</code> 因 triton-ascend 无法 lower tldevice.log1p 改用等价 log(1-u) 且禁 fp64</td></tr>
+</tbody></table></div>
+
+<h3>9.4 改造点 C：Agent 运行时协作（多租户/会话/fork）</h3>
+<ul>
+<li><strong>prefix 命中语义</strong>：链式 hash = 父块 hash + 本块 token + extra_keys（LoRA/多模态/<strong>cache_salt 仅首块</strong>/prompt_embeds，kv_cache_utils.py:611-674）；命中块经 BlockPool.touch 增引用并移出空闲队列；显式失效 <code>evict_blocks</code>（block_pool.py:809-813）。</li>
+<li><strong>cache_salt = 命名空间隔离</strong>：混进首块哈希后沿链传导，同前缀不同 salt → 缓存互不命中；API 层已全协议暴露（OpenAI chat/completion/responses、Anthropic 均有该字段，校验 generate/base/protocol.py:33-48）——<strong>多 Agent 会话的 prefix-cache 租户隔离开箱即用</strong>。</li>
+<li><strong>优先级调度</strong>：<code>Request.priority</code>（值小者优先，request.py:357-362）+ PriorityRequestQueue 堆（request_queue.py:131-197）+ 抢占选"优先级最低且最晚到"者（scheduler.py:761-765）；<code>--scheduler-policy=priority</code> 启用。</li>
+<li><strong>会话 fork / KV 快照：原生不支持</strong>【全 v1 检索无 fork API】。async_llm 的 checkpoint_prepare/restore 是 RL 训练态权重同步，与 KV 无关。五个可行劫持点：① <strong>prefix cache 即 fork</strong>（相同前缀+相同 salt 重发即共享 KV，零改码）；② salt 命名空间定向失效；③ KV Connector 外置快照（base.py:571-590 的 save/load 路径）；④ 订阅 BlockStored/BlockRemoved 事件流外建会话→块索引（block_pool.py:332-343）；⑤ evict_blocks 显式失效。</li>
+</ul>
+<div class="callout">
+<div class="co-t">vllm/v1/pool/ 是什么？（正名）</div>
+<p>与 KV/会话池<strong>无关</strong>——是 pooling 模型支持：PoolingCursor/PoolingStates 跟踪 chunked prefill 的 pooling 游标（metadata.py:13-50）；late_interaction.py 实现 ColBERT 式 cache_query/score_doc，并按 query_key 的 crc32 把同 key 请求钉到同一引擎（:30-36）。</p>
+</div>
+
+<h3>9.5 改造点 D：量化生态的注册闭环</h3>
+<p>vLLM 侧 <code>QUANTIZATION_METHODS</code> 共 <strong>34 项</strong>（quantization/__init__.py:15-50）；<code>@register_quantization_config(name)</code> 装饰器（:61-109）注册新方法时会<strong>自动追加到 current_platform.supported_quantization</strong>（:97-100）——这就是 vllm-ascend 的闭环：其 4 个 Config（ModelSlim 注册名 "ascend"、compressed_tensors、fp8/deepseek_v4_fp8、mxfp8/modelopt_mxfp8）经装饰器注册后自动落入 NPUPlatform.supported_quantization 白名单（<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/platform.py#L92-L99" target="_blank" rel="noopener">platform.py:92-99</a>），vLLM 校验侧 <code>verify_quantization</code>（platforms/interface.py:1036-1042）放行。权重加载替换插槽 <code>process_weights_after_loading</code>：vLLM 在 model_loader/utils.py:133-194 统一回调，Ascend 各 scheme 在 methods/base.py:154/178/298 与 15+ 具体实现（w8a8_dynamic/w4a8/mxfp8/fp8_block/kv_c8 等）覆写。<strong>新增 NPU 量化方法的四步</strong>：继承 QuantizationConfig + AscendLinearScheme/AscendMoEScheme → @register_quantization_config → @register_scheme(quant_type, layer_type) 进二维注册表（methods/registry.py:21-62）→ 覆写 process_weights_after_loading。</p>
+
+<details class="acc">
+<summary>Ascend 特有生态件速览（eplb / ec_manager / xlite / weight_switch / observability / profiler）</summary>
+<div class="acc-body">
+<div class="tbl-wrap"><table>
+<thead><tr><th>组件</th><th>定位</th><th>关键锚点</th></tr></thead>
+<tbody>
+<tr><td>eplb</td><td>专家并行负载均衡全链路：独立进程异步决策、4 策略插件、D2D 权重搬迁</td><td>eplb_worker.py:29 · VllmEplbAdaptor:69 · D2DExpertWeightLoader:32</td></tr>
+<tr><td>ec_manager</td><td>多模态 encoder 缓存，打分制淘汰（score = 频率 × 重算成本）</td><td>score_ec_manager.py:83</td></tr>
+<tr><td>xlite</td><td>华为 xlite 推理引擎封装（另一条执行路径）</td><td>xlite.py:57 XliteModelBase + Runner/Worker</td></tr>
+<tr><td>weight_switch</td><td>并行域无关的整权重热切换（RL 训推一体）</td><td>WeightSwitchMixin linear.py:146</td></tr>
+<tr><td>observability</td><td>ms_service_metric 指标提供方（含 EPLB 热度 gauge）</td><td>provider.py:8</td></tr>
+<tr><td>profiler</td><td>torch_npu profiler 封装</td><td>torch_npu_profiler.py:29</td></tr>
+</tbody></table></div>
+</div>
+</details>
+</section>
+
+<!-- ================= 第 10 章 ================= -->
+<section class="chapter" id="ch10">
+<h2 class="ch-t"><span class="no">CH.10</span>性能瓶颈与技术债务：代码里的诚实证据</h2>
+
+<p>优秀的代码库会把债务写在注释里。本章的每条瓶颈都以源码事实为据——包括开发者自己留下的 TODO、FIXME 与 "not ideal" 自白。</p>
+
+<h3>10.1 V0 已死，债务在别处</h3>
+<p>先澄清一个过时认知：<strong>V0 执行路径已 100% 移除</strong>——顶层 <code>vllm/worker</code>、<code>vllm/executor</code>、<code>vllm/core</code> 目录均不存在（Test-Path 亲验），<code>vllm/engine/llm_engine.py</code> 与 <code>async_llm_engine.py</code> 各仅剩 7 行 V1 纯别名；官方在 <a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/docs/usage/v1_guide.md#L5" target="_blank" rel="noopener">docs/usage/v1_guide.md:5</a> 宣告 "fully deprecated V0"（RFC #18571）。真正的残留债务是 3152 行的 <code>arg_utils.py</code> 配置矩阵——所有历史参数的生存与兼容都在这一个文件里博弈。</p>
+
+<h3>10.2 Host 侧开销：async_scheduling 的收益与代价</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>机制</th><th>收益</th><th>代价/债务</th><th>锚点</th></tr></thead>
+<tbody>
+<tr><td>non_block 执行 + Future</td><td>grammar bitmask 藏进前向影子</td><td>调度器用 <code>[-1]</code> 占位盲记账 sampled token</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/core.py#L643-L652" target="_blank" rel="noopener">core.py:643-652</a></td></tr>
+<tr><td>sampled token 驻留设备</td><td>避开 CPU 同步（AsyncScheduler 不被 .item() 阻塞）</td><td>状态对账复杂度转移到 runner</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/worker/gpu_model_runner.py#L3713-L3747" target="_blank" rel="noopener">gpu_model_runner.py:3713-3747</a></td></tr>
+<tr><td>PP+async：GPU 广播 token</td><td>scheduler 免回传</td><td>Ascend PP+MTP 需临时<strong>关闭</strong> async 的 hack</td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/patch/platform/patch_pp_mtp.py#L173-L190" target="_blank" rel="noopener">patch_pp_mtp.py:173-190</a></td></tr>
+<tr><td>CpuGpuBuffer + numpy 双视图</td><td>pinned + non_blocking H2D，元数据零 Python 循环</td><td><strong>token 流本体仍是 per-request Python list</strong>——numpy 化只覆盖结构化元数据</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/utils.py#L110-L143" target="_blank" rel="noopener">v1/utils.py:110-143</a> · <a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/worker/gpu_input_batch.py#L34-L88" target="_blank" rel="noopener">gpu_input_batch.py:34-88</a></td></tr>
+</tbody></table></div>
+<p>Ascend 侧的直接受益者：vllm-ascend 对 CpuGpuBuffer 的 numpy 视图做<strong>向量化写入</strong>（<code>query_start_loc.np[...]</code>，model_runner_v1.py:1056-1067）。但 DP padding 决策里仍有一次 all-reduce + <code>.item()</code> 同步（model_runner_v1.py:3448-3449）——项目 AGENTS.md 明确警告过 device 侧 <code>.item()</code> 会阻塞 AsyncScheduler，这是已承认的气泡点。</p>
+
+<h3>10.3 动态 shape 与图捕获：枚举离散步长的共同妥协</h3>
+<p>两个仓库对"动态 batch 与静态图"的矛盾给出同构答案：<strong>枚举离散 capture 尺寸 + 运行时 padding 到最近档位</strong>。vLLM 侧：编译缓存以 <code>sha256(env,config,code,compiler)[:10]</code> 为键（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/compilation/backends.py#L1054-L1075" target="_blank" rel="noopener">backends.py:1054-1075</a>）——任一被 trace 文件改动即整体失效；piecewise 逐尺寸单尺寸编译；capture sizes 强制向上取整对齐。Ascend 侧的三处特有痛点：</p>
+<ul>
+<li><strong>LCM 对齐 workaround</strong>：FULL decode + DSA CP/SP 时预对齐到 <code>lcm(uniform_decode_query_len, tp_size)</code>，代码内 TODO 自承待上游联合对齐后删除（<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/worker/model_runner_v1.py#L6190-L6201" target="_blank" rel="noopener">model_runner_v1.py:6190-6201</a>）；</li>
+<li><strong>ACLGraphWrapper 不做动态 shape 假设</strong>（acl_graph.py:82-89）——问题被整体推给 runner 的 padding 层，职责边界干净但 padding 开销集中；</li>
+<li><strong>编译栈双轨</strong>：<code>simple_compile_backend="eager"</code>（<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/platform.py#L84" target="_blank" rel="noopener">platform.py:84</a>）让上游小函数级 @torch.compile（采样/logprobs/custom_op 封装）在 NPU 全部退化 eager、失去 inductor 融合；主模型走自研 fusion_pass_compile + aclgraph——双轨并行是长期维护债务的主要来源。<code>enforce_eager</code> 在 ascend 仓出现 36 处。</li>
+</ul>
+
+<h3>10.4 显存碎片与通信 bubble：16 vs 128 的相反权衡</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>议题</th><th>事实</th><th>影响</th></tr></thead>
+<tbody>
+<tr><td>块大小默认值</td><td>vLLM=16；Ascend=128（deepseek_v4 强制 32）</td><td>128 块元数据/调度开销降为 1/8，但每请求尾部平均浪费 ~64 token KV，prefix 命中边界变粗 8 倍；上游解法是 <code>prefix_match_unit</code> 解耦匹配粒度与物理块（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/config/cache.py#L91-L102" target="_blank" rel="noopener">cache.py:91-102</a>）</td></tr>
+<tr><td>Ascend 块大小决策位置</td><td>TODO 自承"放错了地方"（<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/platform.py#L370-L372" target="_blank" rel="noopener">platform.py:370-372</a>）</td><td>块大小应由 attention backend 决定而非 platform 配置——债务清单第 1 位</td></tr>
+<tr><td>PP 气泡</td><td>vLLM <strong>无 interleaved/virtual PP</strong>（全仓 grep 无 virtual_pipeline）；draft 模型全压末 rank——注释自承 "not ideal"（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/worker/gpu_model_runner.py#L600-L603" target="_blank" rel="noopener">gpu_model_runner.py:600-603</a>）；ubatch 微批数硬编码 2（ubatching.py:14-16）</td><td>层内通算重叠有通道，调度级气泡消除无解；PP+MTP 场景被进一步放大</td></tr>
+<tr><td>MC2 能力边界</td><td>512 tokens/rank 上限，超出退回 All2All（<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/ops/fused_moe/prepare_finalize.py#L116-L117" target="_blank" rel="noopener">prepare_finalize.py:116-117</a>）</td><td>大批量 prefill 时通算重叠失效——恰好是最需要它的场景</td></tr>
+</tbody></table></div>
+
+<details class="acc">
+<summary>技术债务清单（8 项，按修复杠杆排序，全部带源码锚点）</summary>
+<div class="acc-body">
+<div class="tbl-wrap"><table>
+<thead><tr><th>#</th><th>债务</th><th>证据</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Ascend block_size 决策位置错误（应属 backend 而非 platform）</td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/platform.py#L370-L372" target="_blank" rel="noopener">platform.py:370-372</a> TODO 自承</td></tr>
+<tr><td>2</td><td>capture sizes LCM 对齐 workaround（待上游联合收敛）</td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/worker/model_runner_v1.py#L6190-L6201" target="_blank" rel="noopener">model_runner_v1.py:6190-6201</a></td></tr>
+<tr><td>3</td><td>PP+MTP 下临时关闭 async_scheduling 的 hack</td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/patch/platform/patch_pp_mtp.py#L173-L190" target="_blank" rel="noopener">patch_pp_mtp.py:173-190</a></td></tr>
+<tr><td>4</td><td>MC2 512 tokens/rank 上限，大批量退回 All2All</td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/ops/fused_moe/prepare_finalize.py#L116-L117" target="_blank" rel="noopener">prepare_finalize.py:116-117</a></td></tr>
+<tr><td>5</td><td>draft 模型全压 PP 末 rank（负载不均）</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/worker/gpu_model_runner.py#L600-L603" target="_blank" rel="noopener">gpu_model_runner.py:600-603</a> 注释自承</td></tr>
+<tr><td>6</td><td>DP padding 决策中的 .item() 同步点</td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/worker/model_runner_v1.py#L3448-L3449" target="_blank" rel="noopener">model_runner_v1.py:3448-3449</a></td></tr>
+<tr><td>7</td><td>编译缓存：任一 traced 文件变动即整体失效</td><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/compilation/backends.py#L1044-L1053" target="_blank" rel="noopener">backends.py:1044-1053</a></td></tr>
+<tr><td>8</td><td>Ascend 自研调度器族 4 路分叉（recompute/DyntraLB × Async）</td><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/platform.py#L1473-L1490" target="_blank" rel="noopener">platform.py:1473-1490</a></td></tr>
+</tbody></table></div>
+</div>
+</details>
+</section>
+
+<!-- ================= 第 11 章 ================= -->
+<section class="chapter" id="ch11">
+<h2 class="ch-t"><span class="no">CH.11</span>前沿演进预测：从代码事实出发的外推</h2>
+
+<div class="callout warn">
+<div class="co-t">⚠ 阅读须知</div>
+<p>本章全部内容为<span class="tag-pred">预测</span>标注的前瞻判断，不是代码事实。每条预测先列出其外推所依据的代码事实（带锚点），再给出 1-3 年尺度的演进判断与依据说明。事实与观点的边界是本报告的反幻觉纪律。</p>
+</div>
+
+<h3>11.1 CXL 与内存池化：已有抽象的性能拐点</h3>
+<p><strong>代码事实</strong>：① kv_offload 已把存储抽象为二维矩阵 <code>Medium{CPU, STORAGE} × Locality{LOCAL, REMOTE}</code> + TierMatcher 层级匹配（<a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/kv_offload/base.py#L46-L70" target="_blank" rel="noopener">base.py:46-70</a>），tiering/ 下已有 fs/kvcr/obj/<strong>p2p</strong> 多后端与 ARC/LRU 双策略；② host 注册路径已为超大内存基设计（HiSparse 以 256GiB 为块注册 host memory，hisparse/runtime.py:30）；③ 磁盘后端已做到 GPU DMA 与 pwritev/preadv 双缓冲流水（simple_kv_offload/disk_backend.py:50,294-323）。</p>
+<p><span class="tag-pred">预测</span><strong>（1-2 年）</strong>：Medium 枚举将出现第三态（CXL/池化内存语义），但 vLLM 无需大改——Locality.REMOTE + p2p tier 已完成"远端内存池"的延迟建模，CXL 池只是新后端注册。真正的变化在调度层：KV 分层从 GPU→本地 CPU→磁盘 三级变为"GPU→CXL 近端池→集群池→存储"四级，TierMatcher 二维匹配成为容量-延迟联合调度核心；块大小（10.4 的 128 vs 16 之争）将被重新拉小——CXL 带宽使小块传输成本下降、碎片收益放大。<strong>依据</strong>：抽象维度已预留（事实①）；256GiB 大块 host 注册说明设计者在为"内存池远大于单卡 HBM"的世界做准备（事实②）；DMA 流水证明设备旁路拷贝已产品化（事实③）。CXL 对 vLLM 是"已有抽象的性能拐点"，而非新功能。</p>
+
+<h3>11.2 超大规模 MoE 专家并行与 Ascend 集群</h3>
+<p><strong>代码事实</strong>：① Ascend EPLB 跑在<strong>独立进程</strong>（EplbWorker 基于 Process/Queue，经 shared_dict 收发热度、支持 D2D 权重搬迁，<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/eplb/core/eplb_worker.py#L29-L59" target="_blank" rel="noopener">eplb_worker.py:29-59</a>），策略插件化 5 种；② MoE 通信四路并存可运行期切换，FusedMC2 内含 MegaMoe HCCL 上下文失效/重建逻辑（moe_comm_method.py:295-339），并已处理"EPLB 动态重排 × 未量化权重未按专家拆分"的冲突（routed_experts.py:188）；③ 编码器缓存已引入 cost-aware 淘汰（score = 频率 × 重算成本，<a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/ec_manager/score_ec_manager.py#L13-L39" target="_blank" rel="noopener">score_ec_manager.py:13-39</a>）。</p>
+<p><span class="tag-pred">预测</span><strong>（1-3 年）</strong>：三方向将兑现——(a) <strong>专家放置从周期性 rebalance 走向在线连续迁移</strong>：EPLB 已是独立进程异步决策（事实①），闭环将从步级收敛到层内流水级，flashlb 类策略会与 mc2 的 512-token 上限联动做容量感知路由；(b) <strong>通信库状态管理成为一等公民</strong>：FusedMC2 已在手工维护 HCCL 上下文失效/重绑（事实②），说明 EP 组动态重构（扩缩容、故障切换）是真实负载，将沉淀为类似上游 reconfigure 的正式接口；(c) <strong>EPLB 与 EC/KV 缓存策略合流</strong>：score-based 淘汰（事实③）证明"重算成本感知"已被接受，专家冷热与 KV 冷热将共用一套成本模型联合调度。<strong>依据</strong>：三条事实链都显示 Ascend 已把"动态资源重配置"当常态路径在工程化。</p>
+
+<h3>11.3 零拷贝 token streaming 与全异步流水线</h3>
+<p><strong>代码事实</strong>：① V1 全部进程间消息为 msgspec.Struct（70+ 处，v1/engine/__init__.py:110-302），msgpack 编解码是显式热路径；② 设备侧已实现"token 不出 GPU"：async 模式 sampled token 驻留 GPU、下步直接注入（gpu_model_runner.py:3741-3747），PP 场景直接 GPU 广播绕过 scheduler 回传（scheduler.py:1679-1694）；③ 但 token 流最后一棒仍是 per-request Python list 拼接（gpu_input_batch.py:77-87），detokenizer 经 msgpack 逐 token 搬运。</p>
+<p><span class="tag-pred">预测</span><strong>（1-2 年）</strong>：零拷贝沿"GPU→pinned 环形缓冲→IPC 共享内存"路线推进，分两步：(a) <strong>EngineCore→detokenizer 的 token 流改走共享内存 + 事件通知</strong>，msgpack 只承载控制消息——当前唯一必须序列化的是 token id 数组本体，而 sampled token 在 worker 侧已是连续 device 张量（事实②），落 pinned buffer 后可被同机 consumer 直接 mmap；(b) <strong>调度器"盲调度"范围扩大</strong>——async_scheduling 已让 scheduler 用占位符 <code>[-1]</code> 先行（10.2），下一步 stop 判定也异步化/推测化，CPU 流水线容忍 1-2 步投机深度，调度-执行重叠从"单步"扩为"多步流水线"。<strong>依据</strong>：事实①证明序列化已是被精细管理的显式边界；事实②证明设备侧零拷贝已在关键路径落地；事实③指出剩余瓶颈在 Python 对象模型。风险点：增量 detokenize 需文本边界，纯 id 流将迫使 detokenizer 改为状态机式增量消费。</p>
+
+<h3>11.4 稀疏/线性注意力：从模型支持到一等运行时</h3>
+<p><strong>代码事实</strong>：① 上游已出现专用稀疏 KV 数据面 vllm/v1/hisparse/（"resident, host, and hot-cache data plane"，runtime.py:3），调度侧有 resident/hot/source 三层 page 管理器，已支持 fp8 DS-MLA 行格式（656B/行）；② Ascend 全硬件线（A2/A3/A5）Dockerfile 默认安装 flash-linear-attention-npu（Dockerfile:136-150 等三处）；③ vllm_ascend/attention/ 已有 sfa、dsa（v1 与 v41 两代）、sparse_flash_mla、sfa_kv_offload 五个稀疏后端；csrc/attention 下 30+ 算子目录中稀疏/线性族占多数（lightning_indexer 系、sparse_flash_*、recurrent_gated_delta_rule、chunk_kda_fwd 等）。</p>
+<p><span class="tag-pred">预测</span><strong>（1-3 年）</strong>：(a) <strong>"稀疏注意力 + KV 分层"将合并为一个子系统</strong>——hisparse 已把稀疏 page 的 resident/host 迁移做成数据面（事实①），下一步稀疏 index（lightning indexer 类）将决定 KV 页在 GPU/CXL/磁盘间的驻留策略："注意力稀疏度"成为分层调度的输入信号而非独立特性；(b) <strong>线性注意力（gated delta rule/KDA 族）在 Ascend 上从"模型支持"变为"一等运行时"</strong>——recurrent/chunk 两条 kernel 线并行演进（事实③）且 Dockerfile 全系预装 FLA（事实②），说明在为 hybrid（linear+full 交错）模型常态化备货；mamba 式定长状态缓存会与 KV 管理进一步融合，page 体系需同时容纳"变长 KV 页"与"定长 state 页"；(c) <strong>DSA 双版本并存（dsa_v1/dsa_v41）预示快速迭代期</strong>，接口稳定后将向上游 MLA sparse 路径收敛。<strong>依据</strong>：事实①证明上游已接受"稀疏 KV 需要专用调度/数据面"；事实②③的投入强度超出实验性质；block_size=128（10.4）与稀疏块注意力的天然块粒度一致，更像协同设计而非巧合。</p>
+</section>
+
+<!-- ================= 第 12 章 ================= -->
+<section class="chapter" id="ch12">
+<h2 class="ch-t"><span class="no">CH.12</span>源码索引矩阵与总结论</h2>
+
+<h3>12.1 总结论：十个一句话判断</h3>
+<ol>
+<li><strong>双核解耦成立且优雅</strong>：vLLM 用"契约 + 字符串 qualname + entry_points"把硬件差异完全挡在主干之外，vllm-ascend 以 5 个注入面运行期接管——这是同形态硬件插件（TPU/XPU 之外）最成熟的一个。</li>
+<li><strong>V1 调度器是本代引擎的心脏</strong>："无 prefill/decode 阶段"不变式 + 双预算 + 统一推进游标，把连续批处理、chunked prefill、投机解码、前缀缓存收敛进一个 961 行函数。</li>
+<li><strong>monkeypatch 是被工程化治理的临时契约</strong>：58 项补丁逐条登记上游 PR 与移除计划——补丁密度指示的正是 OOT 接口的缺口地图（调度器/EngineCore/配置 schema）。</li>
+<li><strong>PagedAttention 在 Ascend 上契约不变、实现全换</strong>：块表语义与寻址公式完全一致，消费方从 FlashAttention 换成 FIA；KV 保持 ND 布局，NZ 分形只作用于权重。</li>
+<li><strong>Ascend 算子世界三通道并存、自研为重</strong>：155 处 _C_ascend 调用 + 30+ 目录的 CANN vendor 包，稀疏/线性注意力算子占比已超半数——押注下一代模型结构。</li>
+<li><strong>通信策略分野清晰</strong>：TP 无融合 allreduce（HCCL 一肩挑），通信-计算重叠全部押在 MoE（MC2/FusedMC2 单算子三元融合），但 512 tokens/rank 上限让大批量 prefill 退回 All2All。</li>
+<li><strong>PD 分离生态远超单点实现</strong>：11+ connector 全契约实现，llmdatadist 已被 mooncake/MemFabric 体系取代；kv_offload 四层体系正在为 CXL/池化内存铺路。</li>
+<li><strong>显存管理两条互斥路线</strong>：expandable_segments（常规推理碎片治理）与 CaMemAllocator（RL sleep/wake 让位）硬断言互斥，platform 层自动切换。</li>
+<li><strong>主要技术债务集中在三处</strong>：编译栈双轨（eager 退化 + 自研 aclgraph）、块大小决策错位（128 vs 16 的相反权衡 + 位置错误 TODO）、PP 体系原始（无 interleaved、draft 压末 rank）。</li>
+<li><strong>未来已写在目录名里</strong>：hisparse/kv_offload/kv_hints/v2 runner/稀疏后端五族——稀疏化、分层化、零拷贝化、V2 执行层，是双仓共同的下一站。</li>
+</ol>
+
+<h3>12.2 源码索引矩阵 · vllm（commit <code>d64f277</code>）</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>文件</th><th>关键符号 / 行</th><th>引用章节</th></tr></thead>
+<tbody>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/platforms/__init__.py#L240-L326" target="_blank" rel="noopener">platforms/__init__.py</a></td><td>resolve_current_platform_cls_qualname:240 · 惰性单例:303</td><td>CH.05</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/plugins/__init__.py#L18-L74" target="_blank" rel="noopener">plugins/__init__.py</a></td><td>5 个 entry point 组:18-30 · load_plugins_by_group:36-74</td><td>CH.05</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/core.py#L633-L662" target="_blank" rel="noopener">v1/engine/core.py</a></td><td>EngineCore:111 · step():633-662 · add_request:489 · 握手:1298-1348 · DEAD 哨兵:1697-1708</td><td>CH.02/03/04</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/core_client.py#L155-L170" target="_blank" rel="noopener">v1/engine/core_client.py</a></td><td>EngineCoreClient 五形态 · make_async_mp_client:155-170</td><td>CH.02</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/async_llm.py#L374" target="_blank" rel="noopener">v1/engine/async_llm.py</a></td><td>AsyncLLM:80 · add_request:374 · generate:666 · output_handler:813-874</td><td>CH.02/03</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/input_processor.py#L327" target="_blank" rel="noopener">v1/engine/input_processor.py</a></td><td>InputProcessor:41 · process_inputs:327</td><td>CH.03</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/output_processor.py#L641" target="_blank" rel="noopener">v1/engine/output_processor.py</a></td><td>OutputProcessor:464 · process_outputs:641（唯一全 batch 循环点）</td><td>CH.03</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/engine/coordinator.py#L23" target="_blank" rel="noopener">v1/engine/coordinator.py</a></td><td>DPCoordinator 独立进程:23</td><td>CH.02</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/core/sched/scheduler.py#L557-L1518" target="_blank" rel="noopener">v1/core/sched/scheduler.py</a></td><td>Scheduler:79 · schedule():557-1518 · update_from_output:1967 · add_request:2536 · finish_requests:2564-2626</td><td>CH.02/04</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/core/sched/utils.py#L98-L140" target="_blank" rel="noopener">v1/core/sched/utils.py</a></td><td>check_stop 五判:98-140</td><td>CH.03</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/core/kv_cache_manager.py#L371-L608" target="_blank" rel="noopener">v1/core/kv_cache_manager.py</a></td><td>KVCacheManager:131 · get_computed_blocks:264 · allocate_slots:371-608</td><td>CH.06</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/core/block_pool.py#L776-L807" target="_blank" rel="noopener">v1/core/block_pool.py</a></td><td>BlockPool:135 · 驱逐:668-702 · free queue:776-807 · 事件:314-343</td><td>CH.06/09</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/core/kv_cache_utils.py#L650-L680" target="_blank" rel="noopener">v1/core/kv_cache_utils.py</a></td><td>链式块 hash:650-680 · num_blocks 公式:1760</td><td>CH.06</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/request.py#L60" target="_blank" rel="noopener">v1/request.py</a></td><td>Request:60 · num_tokens_with_spec:299-300 · priority 比较:357-362</td><td>CH.03/04/09</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/worker/gpu_model_runner.py#L4149" target="_blank" rel="noopener">v1/worker/gpu_model_runner.py</a></td><td>GPUModelRunner:479 · execute_model:4149 · _sample:3636 · propose_draft:4957 · draft 压末 rank:600-603</td><td>CH.02/03/09/10</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/worker/gpu_worker.py#L182" target="_blank" rel="noopener">v1/worker/gpu_worker.py</a></td><td>Worker:182 · execute_model:1207 · 显存预算:673-677</td><td>CH.02/06</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/worker/gpu/model_runner.py#L183" target="_blank" rel="noopener">v1/worker/gpu/model_runner.py</a></td><td><strong>V2 GPUModelRunner:183</strong>（新一代执行路径）</td><td>CH.02/10</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/worker/block_table.py#L57" target="_blank" rel="noopener">v1/worker/block_table.py</a></td><td>BlockTable:57 · slot 公式:466-476</td><td>CH.06</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/attention/backend.py#L58" target="_blank" rel="noopener">v1/attention/backend.py</a></td><td>AttentionBackend:58 · Builder:596 · Impl:908 · MLAImpl:1042</td><td>CH.07/09</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/sample/sampler.py#L72" target="_blank" rel="noopener">v1/sample/sampler.py</a></td><td>Sampler.forward:72</td><td>CH.03</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/distributed/kv_transfer/kv_connector/v1/base.py#L178" target="_blank" rel="noopener">distributed/kv_transfer/kv_connector/v1/base.py</a></td><td>KVConnectorBase_V1:178 · 7 抽象方法:304-551 · SupportsHMA:98-126</td><td>CH.08/09</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/distributed/kv_transfer/kv_connector/factory.py#L103-L115" target="_blank" rel="noopener">distributed/kv_transfer/kv_connector/factory.py</a></td><td>register_connector:30-40 · 外部模块优先:103-115</td><td>CH.08/09</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/model_executor/layers/quantization/__init__.py#L15-L50" target="_blank" rel="noopener">model_executor/layers/quantization/__init__.py</a></td><td>QUANTIZATION_METHODS 34 项:15-50 · 装饰器:61-109</td><td>CH.09</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/model_executor/models/registry.py#L1122" target="_blank" rel="noopener">model_executor/models/registry.py</a></td><td>ModelRegistry.register_model:1122</td><td>CH.09</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/config/cache.py#L71" target="_blank" rel="noopener">config/cache.py</a></td><td>block_size=16:71 · prefix_match_unit:91-102 · util=0.92:103 · sha256:144</td><td>CH.06/10</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/kv_offload/base.py#L46-L70" target="_blank" rel="noopener">v1/kv_offload/base.py</a></td><td>Medium×Locality 矩阵:46-70（CXL 预测起点）</td><td>CH.11</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/serial_utils.py#L220-L272" target="_blank" rel="noopener">v1/serial_utils.py</a></td><td>msgspec+零拷贝:236-272 · pickle 安全闸:220-234</td><td>CH.02</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/v1/utils.py#L110-L143" target="_blank" rel="noopener">v1/utils.py</a></td><td>CpuGpuBuffer:110-143（pinned+numpy 视图）</td><td>CH.10</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/compilation/backends.py#L1054-L1075" target="_blank" rel="noopener">compilation/backends.py</a></td><td>编译缓存四因子哈希:1054-1075</td><td>CH.10</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/entrypoints/serve/engine/serving.py#L29" target="_blank" rel="noopener">entrypoints/serve/engine/serving.py</a></td><td>BaseServing:29（重构后服务层基类）</td><td>CH.09</td></tr>
+<tr><td><a class="badge" href="https://github.com/vllm-project/vllm/blob/d64f277c54d444284bdbcd16e7fd1073b0a3b50e/vllm/entrypoints/openai/chat_completion/serving.py#L259" target="_blank" rel="noopener">entrypoints/openai/chat_completion/serving.py</a></td><td>_create_chat_completion:259 · stream_generator:451</td><td>CH.03</td></tr>
+</tbody></table></div>
+
+<h3>12.3 源码索引矩阵 · vllm-ascend（commit <code>4d1412d</code>）</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>文件</th><th>关键符号 / 行</th><th>引用章节</th></tr></thead>
+<tbody>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/setup.py#L506-L517" target="_blank" rel="noopener">setup.py</a></td><td>entry_points 三组声明:506-517</td><td>CH.05</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/__init__.py#L52-L109" target="_blank" rel="noopener">vllm_ascend/__init__.py</a></td><td>register:72-75 · _ensure_global_patch:52-69 · 四个 general 入口</td><td>CH.05</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/platform.py#L80-L99" target="_blank" rel="noopener">vllm_ascend/platform.py</a></td><td>NPUPlatform:80-99 · get_attn_backend_cls:238-279 · pre_register:298-332 · check_and_update_config:458-514 · worker_cls:1253-1301 · expandable_segments:1339-1375</td><td>CH.05/06/07/10</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/worker/worker.py#L121" target="_blank" rel="noopener">vllm_ascend/worker/worker.py</a></td><td>NPUWorker:121 · set_device:432 · 显存水位:556-655 · hccl:1243-1245</td><td>CH.05/06</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/worker/model_runner_v1.py#L351" target="_blank" rel="noopener">vllm_ascend/worker/model_runner_v1.py</a></td><td>NPUModelRunner(GPUModelRunner):351 · LCM 对齐 TODO:6190-6201 · .item() 气泡:3448-3449</td><td>CH.05/10</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/attention/attention_v1.py#L70" target="_blank" rel="noopener">vllm_ascend/attention/attention_v1.py</a></td><td>AscendAttentionBackend:70 · impl:502 · FIA 块表链:812-832→876-1000</td><td>CH.06/07</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/attention/mla_v1.py#L85" target="_blank" rel="noopener">vllm_ascend/attention/mla_v1.py</a></td><td>AscendMLABackend:85 · impl:810</td><td>CH.07</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/attention/sfa_v1.py#L358" target="_blank" rel="noopener">vllm_ascend/attention/sfa_v1.py</a></td><td>AscendSFABackend:358（V3.2 稀疏）</td><td>CH.07</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/attention/dsa_v1.py#L214" target="_blank" rel="noopener">vllm_ascend/attention/dsa_v1.py</a></td><td>AscendDSABackend 5 变体:214-320</td><td>CH.07</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/ops/register_custom_ops.py#L222-L275" target="_blank" rel="noopener">vllm_ascend/ops/register_custom_ops.py</a></td><td>7× direct_register_custom_op:222-275</td><td>CH.07</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/ops/layernorm.py#L99" target="_blank" rel="noopener">vllm_ascend/ops/layernorm.py</a></td><td>npu_rms_norm 调用:99</td><td>CH.07</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/ops/rotary_embedding.py#L242" target="_blank" rel="noopener">vllm_ascend/ops/rotary_embedding.py</a></td><td>npu_mrope:242 · npu_rotary_mul:674</td><td>CH.07</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/csrc/torch_binding.cpp#L2811" target="_blank" rel="noopener">csrc/torch_binding.cpp</a></td><td>TORCH_LIBRARY_EXPAND:2751/2811 · dispatch_ffn_combine:3169 · sparse_flash_attention:3086</td><td>CH.07</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/utils.py#L768-L899" target="_blank" rel="noopener">vllm_ascend/utils.py</a></td><td>register_oot ×28:768-899 · adapt_patch:632-636 · 版本判定:673-694 · block_size=128:1313-1314 · custom_op_env:410-419</td><td>CH.05/07/10</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/distributed/npu_communicator.py#L57" target="_blank" rel="noopener">vllm_ascend/distributed/npu_communicator.py</a></td><td>ca_comm=None:57（无 custom allreduce）</td><td>CH.08</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/distributed/kv_transfer/__init__.py#L45-L135" target="_blank" rel="noopener">vllm_ascend/distributed/kv_transfer/__init__.py</a></td><td>11+ connector 注册:45-135</td><td>CH.08</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/ops/fused_moe/moe_comm_method.py#L553-L569" target="_blank" rel="noopener">vllm_ascend/ops/fused_moe/moe_comm_method.py</a></td><td>FUSED_MC2 单算子:553-569 · HCCL 上下文维护:295-339</td><td>CH.08/11</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/ops/fused_moe/prepare_finalize.py#L116-L117" target="_blank" rel="noopener">vllm_ascend/ops/fused_moe/prepare_finalize.py</a></td><td>MC2 512 tokens/rank 上限:116-117</td><td>CH.08/10</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/compilation/acl_graph.py#L66" target="_blank" rel="noopener">vllm_ascend/compilation/acl_graph.py</a></td><td>ACLGraphWrapper:66 · 无 shape 假设:82-89 · 捕获:210 · replay:300</td><td>CH.07/10</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/compilation/updatable_graph.py#L79" target="_blank" rel="noopener">vllm_ascend/compilation/updatable_graph.py</a></td><td>UpdatableGraph:79-174（CANN task_update 在线改图）</td><td>CH.07</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/device_allocator/camem.py#L113" target="_blank" rel="noopener">vllm_ascend/device_allocator/camem.py</a></td><td>CaMemAllocator:113-310 · 互斥断言:151-157</td><td>CH.06</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/spec_decode/__init__.py#L41-L70" target="_blank" rel="noopener">vllm_ascend/spec_decode/__init__.py</a></td><td>get_spec_decode_method:41-70（11 方法分派）</td><td>CH.09</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/eplb/core/eplb_worker.py#L29" target="_blank" rel="noopener">vllm_ascend/eplb/core/eplb_worker.py</a></td><td>EplbWorker 独立进程:29-59</td><td>CH.09/11</td></tr>
+<tr><td><a class="badge asc" href="https://github.com/vllm-project/vllm-ascend/blob/4d1412d102c16669af3ec73174fc5f8b359b56d9/vllm_ascend/models/__init__.py#L4-L91" target="_blank" rel="noopener">vllm_ascend/models/__init__.py</a></td><td>25 项架构注册:4-91</td><td>CH.05</td></tr>
+</tbody></table></div>
+<p class="idx-note">矩阵收录本报告全部承重引用（60+ 锚点）。凡正文出现而未列入者（如各 patch 模块、量化 scheme 实现），均在对应章节就近标注了完整链接。</p>
+</section>
+
+<!-- @CHAPTERS -->
+
+</div>
+</main>
+</div>
+
+<script>
+/* ============ 交互：目录抽屉 / Scrollspy / 手风琴状态 / 语法高亮 ============ */
+(function(){
+  "use strict";
+  /* 目录抽屉（移动端） */
+  var btn=document.getElementById('tocToggle'),toc=document.getElementById('toc');
+  if(btn&&toc){btn.addEventListener('click',function(){toc.classList.toggle('open');});}
+  if(toc){toc.addEventListener('click',function(e){
+    if(e.target.tagName==='A'&&toc.classList.contains('open')){toc.classList.remove('open');}
+  });}
+
+  /* Scrollspy */
+  var links=Array.prototype.slice.call(document.querySelectorAll('#toc a[href^="#"]'));
+  var map={};
+  links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a;});
+  var secs=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  function spy(){
+    var y=window.scrollY+120,cur=null;
+    for(var i=0;i<secs.length;i++){if(secs[i].offsetTop<=y){cur=secs[i];}else{break;}}
+    links.forEach(function(a){a.classList.remove('on');});
+    if(cur&&map[cur.id]){map[cur.id].classList.add('on');
+      var act=map[cur.id];
+      var nav=document.getElementById('toc');
+      if(nav&&nav.scrollHeight>nav.clientHeight){
+        var r=act.offsetTop-nav.clientHeight/2;
+        if(Math.abs(nav.scrollTop-r)>nav.clientHeight*0.45){nav.scrollTo({top:r,behavior:'smooth'});}
+      }
+    }
+  }
+  var tick=false;
+  window.addEventListener('scroll',function(){if(!tick){tick=true;requestAnimationFrame(function(){spy();tick=false;});}},{passive:true});
+  spy();
+
+  /* 轻量语法高亮：Python / C++ / Bash（对 pre code 逐行正则染色） */
+  var KW_PY=/^(.*?\s|^)(def|class|return|if|elif|else|for|while|in|not|and|or|is|None|True|False|import|from|as|with|try|except|finally|raise|assert|yield|lambda|pass|break|continue|global|nonlocal|async|await|self|cls)(\b)/;
+  function hl(code,lang){
+    var esc=code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    var lines=esc.split('\n');
+    var out=lines.map(function(ln){
+      /* 注释 */
+      var cIdx=-1,cMark=lang==='bash'?'#':'#';
+      if(lang==='cpp'){cMark='//';}
+      var scan=ln,quote=null;
+      for(var i=0;i<scan.length;i++){
+        var ch=scan[i];
+        if(quote){if(ch===quote&&scan[i-1]!=='\\'){quote=null;}}
+        else if(ch==='"'||ch==="'"){quote=ch;}
+        else if(lang==='cpp'?scan.substr(i,2)==='//':ch==='#'){cIdx=i;break;}
+      }
+      var head=cIdx>=0?ln.slice(0,cIdx):ln;
+      var tail=cIdx>=0?ln.slice(cIdx):'';
+      /* 字符串 */
+      head=head.replace(/(&quot;.*?&quot;|".*?"|'.*?')/g,'<span class="s">$1</span>');
+      /* 数字 */
+      head=head.replace(/\b(0x[0-9a-fA-F]+|\d+\.?\d*(?:e[+-]?\d+)?)\b/g,'<span class="n">$1</span>');
+      /* 关键字 */
+      var kws=lang==='cpp'
+        ?['int','float','double','void','bool','auto','const','static','virtual','template','typename','namespace','using','return','if','else','for','while','class','struct','enum','new','delete','this','public','private','protected','inline','constexpr','extern','sizeof','switch','case','break','continue','override','final','noexcept','nullptr','true','false','unsigned','long','short','char']
+        :lang==='bash'
+        ?['if','then','else','fi','for','do','done','while','case','esac','in','function','echo','export','local','return']
+        :['def','class','return','if','elif','else','for','while','in','not','and','or','is','None','True','False','import','from','as','with','try','except','finally','raise','assert','yield','lambda','pass','break','continue','global','nonlocal','async','await','self','cls'];
+      var re=new RegExp('\\b('+kws.join('|')+')\\b','g');
+      head=head.replace(re,'<span class="k">$1</span>');
+      /* 函数调用（名称后跟括号，且未已被包裹） */
+      head=head.replace(/([A-Za-z_][A-Za-z0-9_]*)(?=\()/g,function(m,w,off){
+        var before=head.slice(0,off);
+        var open=(before.match(/<span/g)||[]).length,close=(before.match(/<\/span>/g)||[]).length;
+        if(open>close){return m;}
+        return '<span class="f">'+w+'</span>';
+      });
+      /* 大写类型 */
+      head=head.replace(/\b([A-Z][A-Za-z0-9_]{2,})\b/g,function(m,w,off){
+        var before=head.slice(0,off);
+        var open=(before.match(/<span/g)||[]).length,close=(before.match(/<\/span>/g)||[]).length;
+        if(open>close){return m;}
+        return '<span class="t">'+w+'</span>';
+      });
+      return head+(tail?'<span class="c">'+tail+'</span>':'');
+    });
+    return out.join('\n');
+  }
+  document.querySelectorAll('pre code[data-lang]').forEach(function(el){
+    el.innerHTML=hl(el.textContent,el.getAttribute('data-lang'));
+  });
+
+  /* 代码块行号 */
+  document.querySelectorAll('pre code.ln').forEach(function(el){
+    var html=el.innerHTML.split('\n');
+    var start=parseInt(el.getAttribute('data-start')||'1',10);
+    el.innerHTML=html.map(function(l,i){
+      return '<span style="display:inline-block;min-width:2.6em;color:#3d4b63;text-align:right;margin-right:14px;user-select:none">'+(start+i)+'</span>'+l;
+    }).join('\n');
+  });
+})();
+</script>
+</body>
+</html>
