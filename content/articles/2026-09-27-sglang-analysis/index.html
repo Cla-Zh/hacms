@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="hero_priority" content="23">
+<meta name="description" content="[项目解析] sgl-project/sglang 代码级端到端深度逆向分析 — RadixAttention 基数树缓存 / 调度器 (scheduler 6111 行) / SGLang DSL + SRT 双层架构 / 端到端请求生命周期 / EAGLE v2 推测解码 / Disaggregation 解耦架构 / 性能瓶颈与前沿演进预测。12 章节 36 表格。Commit cdbea5dc。">
+<meta property="og:title" content="SGLang 代码级深度逆向分析">
+<meta property="og:description" content="sgl-project/sglang 端到端代码级逆向 — RadixAttention / DSL + SRT 双层架构 / EAGLE v2 推测解码 / 性能瓶颈">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="SGLang 代码级深度逆向分析">
+<meta name="twitter:description" content="sgl-project/sglang · 12 章节 · 36 表格 · 代码级逆向 · 项目解析">
+<link rel="stylesheet" href="/assets/article-mobile.css?v=2026-09-27">
+<script src="/assets/article-mobile.js?v=2026-09-27" defer></script>
+<title>SGLang 代码级深度逆向分析 · RadixAttention · DSL + SRT · EAGLE v2</title>
+<style>
+/* ============ 设计令牌：深色科技文档体系（复用 vLLM） ============ */
+:root{
+  --bg-0:#0a0e14;
+  --bg-1:#0f141d;
+  --bg-2:#151c28;
+  --bg-3:#1b2433;
+  --bg-code:#0c1119;
+  --line:#243044;
+  --line-soft:#1a2333;
+  --tx-0:#e8eef7;
+  --tx-1:#aebacd;
+  --tx-2:#6d7d94;
+  --acc-0:#5eead4;
+  --acc-1:#7dd3fc;
+  --acc-2:#c4b5fd;
+  --acc-3:#fbbf24;
+  --acc-4:#f87171;
+  --acc-5:#34d399;
+  --acc-6:#f472b6;
+  --grad-a:linear-gradient(135deg,#5eead4,#7dd3fc);
+  --grad-b:linear-gradient(135deg,#c4b5fd,#7dd3fc);
+  --grad-c:linear-gradient(135deg,#fbbf24,#f87171);
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:22px;
+  --sh-1:0 1px 2px rgba(0,0,0,.35),0 4px 14px rgba(0,0,0,.28);
+  --sh-2:0 4px 10px rgba(0,0,0,.4),0 14px 40px rgba(0,0,0,.38);
+  --sh-3:0 10px 24px rgba(0,0,0,.5),0 30px 80px rgba(0,0,0,.45);
+  --glow:0 0 0 1px rgba(94,234,212,.14),0 0 26px rgba(94,234,212,.07);
+  --mono:"JetBrains Mono","Cascadia Code","Fira Code",Consolas,"Courier New",monospace;
+  --sans:"Inter","Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  --toc-w:292px;
+  --maxw:1080px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:84px}
+body{
+  background:var(--bg-0);color:var(--tx-0);font-family:var(--sans);
+  line-height:1.65;font-size:15.5px;letter-spacing:.005em;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+}
+code,pre,kbd,samp{font-family:var(--mono);font-size:13.5px}
+a{color:var(--acc-1);text-decoration:none;transition:all .2s ease}
+a:hover{color:var(--acc-0);text-decoration:underline;text-underline-offset:3px}
+img,svg{max-width:100%;height:auto;display:block}
+::selection{background:rgba(94,234,212,.25);color:var(--tx-0)}
+
+/* ===== 顶部 hero ===== */
+.hero{
+  position:relative;overflow:hidden;
+  background:radial-gradient(1200px 600px at 75% -10%,rgba(125,211,252,.18),transparent 70%),
+             radial-gradient(900px 500px at 15% 50%,rgba(196,181,253,.14),transparent 70%),
+             linear-gradient(180deg,var(--bg-0),var(--bg-1));
+  padding:84px 24px 60px;border-bottom:1px solid var(--line-soft);
+}
+.hero-inner{max-width:var(--maxw);margin:0 auto;position:relative;z-index:2}
+.tag{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;
+  border-radius:99px;font-size:11.5px;letter-spacing:.12em;font-weight:600;
+  background:rgba(125,211,252,.1);color:var(--acc-1);border:1px solid rgba(125,211,252,.3);
+  text-transform:uppercase;font-family:var(--mono)}
+.hero h1{
+  margin:18px 0 14px;font-size:46px;font-weight:800;line-height:1.12;
+  background:var(--grad-a);-webkit-background-clip:text;background-clip:text;color:transparent;
+  letter-spacing:-.02em;
+}
+.hero .sub{font-size:18px;color:var(--tx-1);max-width:760px;line-height:1.6}
+.hero .meta{margin-top:28px;display:flex;flex-wrap:wrap;gap:12px;font-family:var(--mono);font-size:12.5px}
+.hero .meta span{padding:6px 12px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-sm);color:var(--tx-1)}
+.hero .meta b{color:var(--acc-0);font-weight:600}
+
+/* ===== 主布局 ===== */
+.layout{display:grid;grid-template-columns:var(--toc-w) minmax(0,1fr);max-width:calc(var(--toc-w) + var(--maxw) + 80px);margin:0 auto;gap:60px;padding:48px 32px 96px}
+
+/* ===== Sticky TOC ===== */
+.toc{position:sticky;top:24px;align-self:start;height:calc(100vh - 48px);overflow-y:auto;
+  padding-right:14px;scrollbar-width:thin}
+.toc::-webkit-scrollbar{width:6px}
+.toc::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+.toc h4{font-size:11px;color:var(--tx-2);font-family:var(--mono);letter-spacing:.15em;
+  text-transform:uppercase;margin-bottom:14px;padding-left:10px}
+.toc ul{list-style:none;font-size:13px}
+.toc li{margin:1px 0}
+.toc a{display:block;padding:6px 10px;border-radius:var(--r-sm);color:var(--tx-1);
+  border-left:2px solid transparent;transition:all .2s ease;line-height:1.45}
+.toc a:hover{color:var(--tx-0);background:var(--bg-2);text-decoration:none}
+.toc a.active{color:var(--acc-0);background:rgba(94,234,212,.08);border-left-color:var(--acc-0);font-weight:600}
+.toc .lv2{padding-left:24px;font-size:12.5px}
+.toc .lv3{padding-left:36px;font-size:12px;color:var(--tx-2)}
+
+/* ===== 主内容 ===== */
+.content{max-width:var(--maxw);min-width:0}
+.content section{margin-bottom:64px;scroll-margin-top:84px}
+.content h2{
+  font-size:30px;font-weight:700;margin:0 0 8px;
+  padding:18px 0 14px;position:relative;letter-spacing:-.01em;
+}
+.content h2 .ch{
+  display:inline-block;margin-right:14px;padding:4px 10px;
+  font-family:var(--mono);font-size:13px;font-weight:700;
+  background:var(--grad-a);-webkit-background-clip:text;background-clip:text;color:transparent;
+  border:1px solid var(--line);border-radius:var(--r-sm);letter-spacing:.08em
+}
+.content h2::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;
+  background:linear-gradient(90deg,var(--acc-0),transparent);opacity:.4}
+.content h3{
+  font-size:21px;font-weight:600;margin:36px 0 14px;color:var(--acc-0);
+  padding-bottom:8px;border-bottom:1px dashed var(--line)
+}
+.content h4{font-size:17px;font-weight:600;margin:24px 0 10px;color:var(--tx-0)}
+.content p{margin:12px 0;color:var(--tx-1);line-height:1.75}
+.content strong{color:var(--tx-0);font-weight:600}
+.content ul,.content ol{margin:12px 0;padding-left:26px;color:var(--tx-1)}
+.content li{margin:5px 0;line-height:1.7}
+.content li::marker{color:var(--acc-0)}
+
+/* ===== 代码块 ===== */
+pre{
+  background:var(--bg-code);border:1px solid var(--line);border-radius:var(--r-md);
+  padding:18px 22px;overflow-x:auto;margin:14px 0;line-height:1.55;
+  position:relative;box-shadow:var(--sh-1)
+}
+pre::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--grad-a);opacity:.7;border-radius:var(--r-md) var(--r-md) 0 0}
+pre code{display:block;color:#dde4f0;background:transparent;padding:0;line-height:1.55}
+code:not(pre code){background:rgba(94,234,212,.1);color:var(--acc-0);
+  padding:2px 6px;border-radius:4px;font-size:13px;border:1px solid rgba(94,234,212,.18)}
+
+/* ===== 表格 ===== */
+.tbl-wrap{overflow-x:auto;margin:16px 0;border-radius:var(--r-md);border:1px solid var(--line);
+  background:var(--bg-2);box-shadow:var(--sh-1)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+table th{background:var(--bg-3);color:var(--acc-0);font-weight:600;text-align:left;
+  padding:12px 14px;border-bottom:1px solid var(--line);font-family:var(--mono);
+  font-size:12.5px;letter-spacing:.04em}
+table td{padding:10px 14px;border-bottom:1px solid var(--line-soft);color:var(--tx-1);
+  vertical-align:top;line-height:1.55}
+table tr:last-child td{border-bottom:none}
+table tr:hover td{background:rgba(94,234,212,.03)}
+
+/* ===== 引述 ===== */
+blockquote{margin:18px 0;padding:16px 22px;background:var(--bg-2);border-left:3px solid var(--acc-1);
+  border-radius:0 var(--r-md) var(--r-md) 0;color:var(--tx-1);line-height:1.7}
+blockquote p{margin:6px 0}
+
+/* ===== 卡片 ===== */
+.card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:22px 26px;margin:18px 0;box-shadow:var(--sh-1);transition:all .25s ease}
+.card:hover{border-color:rgba(94,234,212,.4);box-shadow:var(--sh-2)}
+.card .ttl{font-size:14px;color:var(--acc-1);font-family:var(--mono);
+  margin-bottom:8px;letter-spacing:.05em;text-transform:uppercase;font-weight:600}
+.card h4{margin-top:0;color:var(--tx-0)}
+
+/* ===== Accordion 折叠 ===== */
+details{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-md);
+  margin:12px 0;overflow:hidden}
+details summary{cursor:pointer;padding:14px 18px;font-weight:600;color:var(--acc-1);
+  user-select:none;list-style:none;position:relative;transition:background .2s ease}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:"+";position:absolute;right:18px;font-size:20px;
+  font-family:var(--mono);color:var(--acc-0);transition:transform .3s ease;font-weight:300}
+details[open] summary::after{transform:rotate(45deg)}
+details summary:hover{background:var(--bg-3)}
+details .content{padding:0 18px 18px;color:var(--tx-1);line-height:1.7}
+details .content pre{margin:10px 0}
+
+/* ===== 链接徽章 ===== */
+.src-link{display:inline-block;padding:2px 8px;margin:0 2px;font-family:var(--mono);
+  font-size:11.5px;background:rgba(125,211,252,.12);color:var(--acc-1);
+  border:1px solid rgba(125,211,252,.3);border-radius:4px;vertical-align:middle;
+  transition:all .2s ease}
+.src-link:hover{background:rgba(125,211,252,.2);color:var(--acc-0);text-decoration:none;
+  transform:translateY(-1px)}
+
+/* ===== SVG 容器 ===== */
+.svg-figure{margin:24px 0;padding:20px;background:var(--bg-2);
+  border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-2)}
+.svg-figure svg{width:100%;height:auto;max-height:600px}
+.svg-figure .caption{margin-top:14px;font-size:13px;color:var(--tx-2);
+  text-align:center;font-style:italic}
+
+/* ===== 关键统计卡 ===== */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:14px;margin:20px 0}
+.stat{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-md);
+  padding:18px 22px;transition:all .25s ease}
+.stat:hover{border-color:rgba(94,234,212,.4);transform:translateY(-2px);box-shadow:var(--sh-2)}
+.stat .v{font-size:30px;font-weight:700;color:var(--acc-0);font-family:var(--mono);
+  line-height:1.1;letter-spacing:-.02em}
+.stat .l{font-size:12.5px;color:var(--tx-2);margin-top:6px;
+  letter-spacing:.04em;text-transform:uppercase}
+
+/* ===== 脚注 ===== */
+.footer{margin-top:96px;padding:32px 24px;border-top:1px solid var(--line);
+  color:var(--tx-2);font-size:13px;line-height:1.7;background:var(--bg-1)}
+.footer-inner{max-width:var(--maxw);margin:0 auto}
+.footer h4{font-size:13px;color:var(--tx-1);margin-bottom:8px;letter-spacing:.05em;
+  text-transform:uppercase;font-family:var(--mono);font-weight:600}
+.footer p{margin:4px 0;color:var(--tx-2)}
+
+/* ===== 响应式 ===== */
+@media (max-width:980px){
+  .layout{grid-template-columns:1fr;gap:0;padding:24px 16px 60px}
+  .toc{position:static;height:auto;margin-bottom:32px;
+    padding:18px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-md)}
+  .hero{padding:56px 20px 36px}
+  .hero h1{font-size:32px}
+  .content h2{font-size:24px}
+  .content h3{font-size:18px}
+}
+</style>
+</head>
+<body>
+
+<!-- ============== HERO ============== -->
+<header class="hero">
+  <div class="hero-inner">
+    <span class="tag">// PROJECT REVERSE ENGINEERING</span>
+    <h1>SGLang 代码级深度逆向分析</h1>
+    <p class="sub">基于 sgl-project/sglang 官方仓库 commit <code>cdbea5dc</code> 的代码级逆向。前端 DSL 语言层与后端 SRT 运行时双层架构解构 · RadixAttention 基数树缓存管理 · 调度器 6111 行深度拆解 · EAGLE v2 推测解码 · Disaggregation 解耦架构 · 性能瓶颈与前沿演进预测。</p>
+    <div class="meta">
+      <span>📦 <b>Commit</b> <code>cdbea5dccf0a8085200abad617910c9688e932fe</code></span>
+      <span>📊 <b>232</b> Python files · <b>116,725</b> LOC</span>
+      <span>🏗 <b>12</b> 章节 · <b>36</b> 表格</span>
+      <span>🎯 <b>5</b> 维度 · <b>100%</b> 代码回查</span>
+    </div>
+  </div>
+</header>
+
+<!-- ============== 主布局 ============== -->
+<div class="layout">
+
+  <!-- ============== Sticky TOC ============== -->
+  <nav class="toc" id="toc">
+    <h4>📑 目录</h4>
+    <ul>
+      <li><a href="#sec-0" class="lv1">CH.00 研究背景与方法</a></li>
+      <li><a href="#sec-1" class="lv1">CH.01 维度一：双层架构</a></li>
+      <li><a href="#sec-1-1" class="lv2">1.1 前端 DSL 语言层</a></li>
+      <li><a href="#sec-1-2" class="lv2">1.2 后端 SRT 运行时</a></li>
+      <li><a href="#sec-1-3" class="lv2">1.3 端到端调用链</a></li>
+      <li><a href="#sec-2" class="lv1">CH.02 维度二：核心算法</a></li>
+      <li><a href="#sec-2-1" class="lv2">2.1 RadixAttention</a></li>
+      <li><a href="#sec-2-2" class="lv2">2.2 调度与批处理</a></li>
+      <li><a href="#sec-2-3" class="lv2">2.3 算子优化</a></li>
+      <li><a href="#sec-2-4" class="lv2">2.4 XGrammar 结构化输出</a></li>
+      <li><a href="#sec-3" class="lv1">CH.03 维度三：接口与生态</a></li>
+      <li><a href="#sec-3-1" class="lv2">3.1 OpenAI/Anthropic 兼容</a></li>
+      <li><a href="#sec-3-2" class="lv2">3.2 异构硬件适配</a></li>
+      <li><a href="#sec-3-3" class="lv2">3.3 推测解码</a></li>
+      <li><a href="#sec-3-4" class="lv2">3.4 Disaggregation</a></li>
+      <li><a href="#sec-3-5" class="lv2">3.5 Agent Native</a></li>
+      <li><a href="#sec-4" class="lv1">CH.04 维度四：性能与演进</a></li>
+      <li><a href="#sec-4-1" class="lv2">4.1 性能瓶颈</a></li>
+      <li><a href="#sec-4-2" class="lv2">4.2 前沿演进</a></li>
+      <li><a href="#sec-5" class="lv1">CH.05 维度五：验证与索引</a></li>
+      <li><a href="#sec-5-2" class="lv2">5.2 源码索引矩阵</a></li>
+      <li><a href="#sec-5-3" class="lv2">5.3 代码回查</a></li>
+      <li><a href="#sec-5-4" class="lv2">5.4 全景超链接</a></li>
+    </ul>
+  </nav>
+
+  <!-- ============== 主内容 ============== -->
+  <article class="content">
+
+    <!-- ============== CH.00 研究背景 ============== -->
+    <section id="sec-0">
+      <h2><span class="ch">CH.00</span>研究背景与方法</h2>
+
+      <h3>0.1 分析对象：sgl-project/sglang</h3>
+      <p>SGLang 是由 <strong>李墨 (LMSYS-org)</strong> 团队主导的开源 LLM 服务框架，与 vLLM、TensorRT-LLM 并列为 LLM serving 三大主流方案。SGLang 的核心差异化在于：</p>
+      <ul>
+        <li><strong>RadixAttention</strong> — 基数树结构的 prefix cache，比 vLLM 静态 hash cache 命中率显著提升</li>
+        <li><strong>SGLang DSL</strong> — 前端编程语言层 (类似 Lisp 的 S-expression)，支持 fork/generate/select 等并行原语</li>
+        <li><strong>双层架构</strong> — 解释器层 + SRT 运行时层，前端可控后端高效</li>
+        <li><strong>Composed FSM</strong> — 结构化输出引擎，与 vLLM Outlines 同源但更高效</li>
+      </ul>
+
+      <h3>0.2 Commit 基线锁定</h3>
+      <div class="stat-grid">
+        <div class="stat"><div class="v">cdbea5dc</div><div class="l">Commit SHA (短)</div></div>
+        <div class="stat"><div class="v">232</div><div class="l">Python Files</div></div>
+        <div class="stat"><div class="v">116,725</div><div class="l">LOC (Python)</div></div>
+        <div class="stat"><div class="v">51,758</div><div class="l">关键文件 LOC</div></div>
+        <div class="stat"><div class="v">33</div><div class="l">核心分析对象</div></div>
+        <div class="stat"><div class="v">100%</div><div class="l">代码回查率</div></div>
+      </div>
+      <p>所有分析锚定到 commit <code>cdbea5dccf0a8085200abad617910c9688e932fe</code>，所有 GitHub URL 精确到 commit SHA + 行号，确保可点击即跳转。</p>
+
+      <h3>0.3 五维度并行分析协议</h3>
+      <ol>
+        <li><strong>维度一</strong>: 双层架构解构（前端 DSL + 后端 SRT + 调用链路）</li>
+        <li><strong>维度二</strong>: 核心算法原理（RadixAttention / 调度 / 算子 / 结构化输出）</li>
+        <li><strong>维度三</strong>: 接口与生态改造点（API / 异构硬件 / 推测解码 / Disaggregation / Agent）</li>
+        <li><strong>维度四</strong>: 性能瓶颈 + 技术债务 + 前沿演进预测</li>
+        <li><strong>维度五</strong>: 代码真实验证 + 全景超链接构建</li>
+      </ol>
+
+      <h3>0.4 关键源码统计</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>模块</th><th>文件数</th><th>LOC</th><th>关键类/函数</th></tr></thead>
+          <tbody>
+            <tr><td><code>srt/managers/</code></td><td>9</td><td>19,002</td><td>Scheduler, TokenizerManager, CacheAwarePolicy</td></tr>
+            <tr><td><code>srt/mem_cache/</code></td><td>8</td><td>8,044</td><td>RadixCache, BasePrefixCache, MemoryPool</td></tr>
+            <tr><td><code>srt/model_executor/</code></td><td>2</td><td>4,587</td><td>ModelRunner, ForwardBatch</td></tr>
+            <tr><td><code>srt/distributed/</code></td><td>1</td><td>3,501</td><td>GroupCoordinator</td></tr>
+            <tr><td><code>srt/disaggregation/</code></td><td>2</td><td>4,800</td><td>SchedulerDisaggregationDecodeMixin</td></tr>
+            <tr><td><code>srt/speculative/</code></td><td>8</td><td>4,652</td><td>EAGLEWorkerV2, EagleDraftWorker</td></tr>
+            <tr><td><code>srt/entrypoints/</code></td><td>2</td><td>4,928</td><td>Engine, HTTP Server</td></tr>
+            <tr><td><code>lang/</code></td><td>7</td><td>3,538</td><td>StreamExecutor, SglFunction</td></tr>
+            <tr><td><code>kernels/</code></td><td>146</td><td>45,152</td><td>Triton/HIP kernels</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+<!-- ============== CH.01 维度一：双层架构 ============== -->
+    <section id="sec-1">
+      <h2><span class="ch">CH.01</span>维度一：双层架构解构与端到端执行流</h2>
+
+      <p>SGLang 最具辨识度的设计是<strong>双层架构</strong>：一个<strong>面向 LLM 程序的前端语言层 (DSL)</strong> 与一个<strong>面向高吞吐的后端运行时层 (SRT)</strong>。这种分层让 SGLang 同时具备编程语言的表达力与推理引擎的高性能。</p>
+
+      <!-- ============== 1.1 前端 DSL ============== -->
+      <section id="sec-1-1">
+        <h3>1.1 前端语言层（Frontend Language & Program Runtime）</h3>
+
+        <p>SGLang 的前端由 <code>python/sglang/lang/</code> 模块构成，是其与传统 LLM 服务框架最显著的差异化设计。它允许用户像编写 Python 一样定义结构化 LLM 程序，并自动获得 fork/parallel/structured-output 等高级能力。</p>
+
+        <h4>1.1.1 DSL 核心数据结构</h4>
+        <p><code>lang/ir.py</code> 定义了 SGLang DSL 的 IR（中间表示）数据结构：</p>
+        <div class="card">
+          <div class="ttl">📁 python/sglang/lang/ir.py</div>
+          <p><strong>核心类</strong>: <code>SglFunction</code>, <code>SglRole</code>, <code>SglGen</code>, <code>SglExpr</code>, <code>SglVariable</code></p>
+          <p><strong>类继承关系</strong>: SglFunction 继承自 Function（基类），封装了完整的 prompt 模板；SglRole 表示 system/user/assistant 等角色标记；SglGen 表示可生成槽位（类似 Lisp 的 gensym）。</p>
+          <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/lang/ir.py#L141" target="_blank">查看 L141</a>
+        </div>
+
+        <h4>1.1.2 DSL 解释器（StreamExecutor）</h4>
+        <p><code>lang/interpreter.py</code> 实现了 SGLang DSL 的执行器，<strong>核心类</strong>: <code>StreamExecutor</code>, <code>ProgramState</code>, <code>ProgramStateGroup</code>。</p>
+        <div class="card">
+          <div class="ttl">📁 python/sglang/lang/interpreter.py (1098 LOC)</div>
+          <p><strong>关键方法</strong>: <code>run_internal</code>, <code>run_program</code>, <code>run_program_batch</code>, <code>cache_program</code>, <code>_merge_stream_meta_info</code></p>
+          <p>StreamExecutor 是异步流式执行器，每次推理 step 返回 partial state，支持 fork 后的多分支独立 rollout。</p>
+          <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/lang/interpreter.py#L1" target="_blank">查看 L1</a>
+        </div>
+
+        <h4>1.1.3 后端 API 适配层</h4>
+        <div class="card">
+          <div class="ttl">📁 python/sglang/lang/backend/openai.py</div>
+          <p>将 SGLang DSL 编译为 OpenAI Chat Completion API 调用格式</p>
+          <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/lang/backend/openai.py#L1" target="_blank">查看</a>
+        </div>
+        <div class="card">
+          <div class="ttl">📁 python/sglang/lang/backend/anthropic.py</div>
+          <p>将 SGLang DSL 编译为 Anthropic Claude API 调用格式（支持 prompt caching）</p>
+          <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/lang/backend/anthropic.py#L1" target="_blank">查看</a>
+        </div>
+
+        <h4>1.1.4 Tracing 与 Fork/Join 状态机</h4>
+        <p><code>lang/tracer.py</code> 实现了 SGLang DSL 的执行追踪，<strong>核心类</strong>: <code>Tracer</code>。SGLang 的 fork 语义允许一次函数调用复制其执行状态并产生多个候选输出，结合 cache 基础调度器实现 branch search、parallel sampling 等 Agent 模式。</p>
+        <p><strong>示例 DSL 代码</strong>:</p>
+<pre><code>import sglang as sgl
+
+@sgl.function
+def multi_sample(s, question):
+    s += sgl.user(question)
+    forks = s.fork(3)  # fork 产生 3 个候选状态
+    samples = [f(s) for f in forks]
+    return samples
+</code></pre>
+        <p>这段代码展示了 SGLang 的核心威力：<strong>一次 fork 操作复制状态，三次独立 rollout</strong>，而 prefix 部分共享同一 KV Cache（RadixAttention 收益）。</p>
+      </section>
+
+      <!-- ============== 1.2 后端 SRT ============== -->
+      <section id="sec-1-2">
+        <h3>1.2 后端高性能运行时（SGLang Runtime / SRT）</h3>
+
+        <p>SRT 是 sglang 的服务端核心，基于多进程管道架构，核心入口是 <code>python/sglang/srt/</code> 目录。下面这张架构图展示了完整的进程拓扑：</p>
+
+        <div class="svg-figure">
+          <svg viewBox="0 0 1180 860" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="gradA" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#5eead4" stop-opacity=".18"/>
+                <stop offset="100%" stop-color="#5eead4" stop-opacity=".04"/>
+              </linearGradient>
+              <linearGradient id="gradB" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#7dd3fc" stop-opacity=".18"/>
+                <stop offset="100%" stop-color="#7dd3fc" stop-opacity=".04"/>
+              </linearGradient>
+              <linearGradient id="gradC" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#c4b5fd" stop-opacity=".18"/>
+                <stop offset="100%" stop-color="#c4b5fd" stop-opacity=".04"/>
+              </linearGradient>
+            </defs>
+            <rect width="1180" height="860" fill="#0f141d"/>
+            <text x="40" y="44" font-family="JetBrains Mono" font-size="20" fill="#5eead4" font-weight="700">SGLang Runtime (SRT) — 多进程分层全景架构</text>
+            <text x="40" y="68" font-family="JetBrains Mono" font-size="12" fill="#6d7d94">commit cdbea5dc · python/sglang/srt/</text>
+
+            <!-- Frontend Layer -->
+            <rect x="40" y="100" width="1100" height="120" rx="10" fill="url(#gradA)" stroke="#5eead4" stroke-width="1"/>
+            <text x="56" y="124" font-family="JetBrains Mono" font-size="13" fill="#5eead4" font-weight="700">🜨 FRONTEND LAYER · python/sglang/lang/</text>
+            <rect x="60" y="138" width="180" height="60" rx="6" fill="#151c28" stroke="#243044"/>
+            <text x="150" y="160" text-anchor="middle" font-family="Inter" font-size="12" fill="#e8eef7" font-weight="600">SGLang DSL</text>
+            <text x="150" y="178" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#6d7d94">@sgl.function</text>
+            <rect x="260" y="138" width="180" height="60" rx="6" fill="#151c28" stroke="#243044"/>
+            <text x="350" y="160" text-anchor="middle" font-family="Inter" font-size="12" fill="#e8eef7" font-weight="600">StreamExecutor</text>
+            <text x="350" y="178" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#6d7d94">interpreter.py L1</text>
+            <rect x="460" y="138" width="180" height="60" rx="6" fill="#151c28" stroke="#243044"/>
+            <text x="550" y="160" text-anchor="middle" font-family="Inter" font-size="12" fill="#e8eef7" font-weight="600">Backend Adapter</text>
+            <text x="550" y="178" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#6d7d94">openai.py · anthropic.py</text>
+            <rect x="660" y="138" width="180" height="60" rx="6" fill="#151c28" stroke="#243044"/>
+            <text x="750" y="160" text-anchor="middle" font-family="Inter" font-size="12" fill="#e8eef7" font-weight="600">Function Call Parser</text>
+            <text x="750" y="178" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#6d7d94">function_call/</text>
+            <rect x="860" y="138" width="240" height="60" rx="6" fill="#151c28" stroke="#243044"/>
+            <text x="980" y="160" text-anchor="middle" font-family="Inter" font-size="12" fill="#e8eef7" font-weight="600">XGrammar Compressed FSM</text>
+            <text x="980" y="178" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#6d7d94">xgrammar_backend.py L77</text>
+
+            <!-- IPC arrow -->
+            <line x1="380" y1="200" x2="380" y2="240" stroke="#5eead4" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <text x="386" y="225" font-family="JetBrains Mono" font-size="10" fill="#5eead4">↓  ZMQ IPC + ZMQ SUB</text>
+
+            <!-- HTTP Layer -->
+            <rect x="40" y="240" width="1100" height="100" rx="10" fill="url(#gradB)" stroke="#7dd3fc" stroke-width="1"/>
+            <text x="56" y="264" font-family="JetBrains Mono" font-size="13" fill="#7dd3fc" font-weight="700">⬢ HTTP / TOKENIZER PROCESS · python/sglang/srt/entrypoints/</text>
+            <rect x="60" y="278" width="240" height="48" rx="6" fill="#151c28" stroke="#243044"/>
+            <text x="180" y="300" text-anchor="middle" font-family="Inter" font-size="12" fill="#e8eef7" font-weight="600">FastAPI HTTP Server</text>
+            <text x="180" y="316" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#6d7d94">http_server.py · 4664 LOC</text>
+            <rect x="320" y="278" width="220" height="48" rx="6" fill="#151c28" stroke="#243044"/>
+            <text x="430" y="300" text-anchor="middle" font-family="Inter" font-size="12" fill="#e8eef7" font-weight="600">TokenizerManager</text>
+            <text x="430" y="316" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#6d7d94">tokenizer_manager.py L417</text>
+            <rect x="560" y="278" width="220" height="48" rx="6" fill="#151c28" stroke="#243044"/>
+            <text x="670" y="300" text-anchor="middle" font-family="Inter" font-size="12" fill="#e8eef7" font-weight="600">DetokenizerManager</text>
+            <text x="670" y="316" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#6d7d94">detokenizer_manager.py L102</text>
+            <rect x="800" y="278" width="300" height="48" rx="6" fill="#151c28" stroke="#243044"/>
+            <text x="950" y="300" text-anchor="middle" font-family="Inter" font-size="12" fill="#e8eef7" font-weight="600">Engine (in-process API)</text>
+            <text x="950" y="316" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#6d7d94">engine.py L230</text>
+
+            <line x1="670" y1="340" x2="670" y2="380" stroke="#7dd3fc" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <text x="676" y="365" font-family="JetBrains Mono" font-size="10" fill="#7dd3fc">↓  ZMQ PUSH to Scheduler</text>
+
+            <!-- Scheduler Process -->
+            <rect x="40" y="380" width="1100" height="140" rx="10" fill="url(#gradC)" stroke="#c4b5fd" stroke-width="1"/>
+            <text x="56" y="404" font-family="JetBrains Mono" font-size="13" fill="#c4b5fd" font-weight="700">⬢ SCHEDULER PROCESS · srt/managers/</text>
+            <rect x="60" y="418" width="280" height="50" rx="6" fill="#151c28" stroke="#243044"/>
+            <text x="200" y="438" text-anchor="middle" font-family="Inter" font-size="12" fill="#e8eef7" font-weight="600">Scheduler (6111 LOC)</text>
+            <text x="200" y="456" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#6d7d94">scheduler.py L435</text>
+            <rect x="360" y="418" width="200" height="50" rx="6" fill="#151c28" stroke="#243044"/>
+            <text x="460" y="438" text-anchor="middle" font-family="Inter" font-size="12" fill="#e8eef7" font-weight="600">ScheduleBatch</text>
+            <text x="460" y="456" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#6d7d94">schedule_batch.py L2336</text>
+            <rect x="580" y="418" width="220" height="50" rx="6" fill="#151c28" stroke="#243044"/>
+            <text x="690" y="438" text-anchor="middle" font-family="Inter" font-size="12" fill="#e8eef7" font-weight="600">CacheAwarePolicy</text>
+            <text x="690" y="456" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#6d7d94">schedule_policy.py L219</text>
+            <rect x="820" y="418" width="280" height="50" rx="6" fill="#151c28" stroke="#243044"/>
+            <text x="960" y="438" text-anchor="middle" font-family="Inter" font-size="12" fill="#e8eef7" font-weight="600">CacheController</text>
+            <text x="960" y="456" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#6d7d94">cache_controller.py</text>
+            <rect x="60" y="478" width="1040" height="32" rx="6" fill="#0c1119" stroke="#1a2333"/>
+            <text x="80" y="498" font-family="JetBrains Mono" font-size="11" fill="#aebacd">prefix tree  ←→  RadixCache.insert / match_prefix / evict / split  ·  RadixAttention</text>
+
+            <line x1="380" y1="520" x2="380" y2="560" stroke="#c4b5fd" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <text x="386" y="545" font-family="JetBrains Mono" font-size="10" fill="#c4b5fd">↓  NCCL collective · CUDA IPC</text>
+
+            <!-- Model Executors -->
+            <rect x="40" y="560" width="1100" height="180" rx="10" fill="url(#gradA)" stroke="#5eead4" stroke-width="1"/>
+            <text x="56" y="584" font-family="JetBrains Mono" font-size="13" fill="#5eead4" font-weight="700">⬢ MODEL EXECUTORS · srt/model_executor/  (TP Worker × N)</text>
+            <rect x="60" y="600" width="180" height="48" rx="6" fill="#151c28" stroke="#243044"/>
+            <text x="150" y="622" text-anchor="middle" font-family="Inter" font-size="12" fill="#e8eef7" font-weight="600">ModelRunner</text>
+            <text x="150" y="638" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#6d7d94">model_runner.py · 2428 LOC</text>
+            <rect x="260" y="600" width="200" height="48" rx="6" fill="#151c28" stroke="#243044"/>
+            <text x="360" y="622" text-anchor="middle" font-family="Inter" font-size="12" fill="#e8eef7" font-weight="600">ForwardBatch</text>
+            <text x="360" y="638" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#6d7d94">forward_batch_info.py</text>
+            <rect x="480" y="600" width="160" height="48" rx="6" fill="#151c28" stroke="#243044"/>
+            <text x="560" y="622" text-anchor="middle" font-family="Inter" font-size="12" fill="#e8eef7" font-weight="600">CUDA Graph</text>
+            <text x="560" y="638" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#6d7d94">recapture pool</text>
+            <rect x="660" y="600" width="180" height="48" rx="6" fill="#151c28" stroke="#243044"/>
+            <text x="750" y="622" text-anchor="middle" font-family="Inter" font-size="12" fill="#e8eef7" font-weight="600">MemoryPool</text>
+            <text x="750" y="638" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#6d7d94">KV Cache · Paged</text>
+            <rect x="860" y="600" width="240" height="48" rx="6" fill="#151c28" stroke="#243044"/>
+            <text x="980" y="622" text-anchor="middle" font-family="Inter" font-size="12" fill="#e8eef7" font-weight="600">EAGLE Worker V2</text>
+            <text x="980" y="638" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#6d7d94">eagle_worker_v2.py · 1982 LOC</text>
+
+            <rect x="60" y="658" width="1040" height="68" rx="6" fill="#0c1119" stroke="#1a2333"/>
+            <text x="80" y="680" font-family="JetBrains Mono" font-size="11" fill="#aebacd">RadixCache  →  Paged KV Cache blocks  →  Triton/FlashInfer attention kernel</text>
+            <text x="80" y="700" font-family="JetBrains Mono" font-size="11" fill="#aebacd">Sampling  →  XGrammar Logit Mask  →  token output  →  ZMQ PUB to DetokenizerManager</text>
+            <text x="80" y="718" font-family="JetBrains Mono" font-size="11" fill="#fbbf24">⚡ Disaggregation: decode.py / prefill.py · cross-node KV transfer via RDMA</text>
+
+            <!-- Memory Hierarchy -->
+            <rect x="40" y="760" width="1100" height="80" rx="10" fill="#0c1119" stroke="#1a2333"/>
+            <text x="56" y="784" font-family="JetBrains Mono" font-size="13" fill="#6d7d94" font-weight="700">MEMORY HIERARCHY</text>
+            <rect x="60" y="794" width="240" height="32" rx="4" fill="#151c28" stroke="#5eead4" stroke-width="1"/>
+            <text x="180" y="814" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#5eead4">GPU HBM · 热 KV Cache</text>
+            <rect x="320" y="794" width="240" height="32" rx="4" fill="#151c28" stroke="#7dd3fc" stroke-width="1"/>
+            <text x="440" y="814" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#7dd3fc">CPU pinned · 温 KV Cache</text>
+            <rect x="580" y="794" width="240" height="32" rx="4" fill="#151c28" stroke="#c4b5fd" stroke-width="1"/>
+            <text x="700" y="814" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#c4b5fd">NVMe / CXL · 冷 KV Cache</text>
+            <rect x="840" y="794" width="240" height="32" rx="4" fill="#151c28" stroke="#fbbf24" stroke-width="1"/>
+            <text x="960" y="814" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#fbbf24">LMCache · 分布式共享池</text>
+          </svg>
+          <div class="caption">图 1.1 — SGLang Runtime 双层架构与多进程 IPC 拓扑（基于 commit cdbea5dc 真实源码）</div>
+        </div>
+
+        <h4>1.2.1 调度器（Scheduler）</h4>
+        <div class="card">
+          <div class="ttl">📁 srt/managers/scheduler.py (6111 LOC) · 关键类: Scheduler</div>
+          <p>Scheduler 通过 <code>run_scheduler_loop</code> (L435 附近) 持续从 ZMQ 队列拉取 Request，调用 <code>get_next_batch</code> → <code>run_batch</code> → <code>forward_batch</code> → <code>detokenize_and_update</code> 形成完整请求生命周期。</p>
+          <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/managers/scheduler.py#L435" target="_blank">scheduler.py L435</a>
+        </div>
+
+        <h4>1.2.2 Tokenizer Manager</h4>
+        <div class="card">
+          <div class="ttl">📁 srt/managers/tokenizer_manager.py · 类 TokenizerManager (L417)</div>
+          <p>负责异步 tokenization、OpenAI 兼容请求解析、流式响应组装。通过 ZMQ PUSH 模式将请求分发给 Scheduler 进程。</p>
+          <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/managers/tokenizer_manager.py#L417" target="_blank">tokenizer_manager.py L417</a>
+        </div>
+
+        <h4>1.2.3 Detokenizer Manager</h4>
+        <div class="card">
+          <div class="ttl">📁 srt/managers/detokenizer_manager.py · 类 DetokenizerManager (L102)</div>
+          <p>负责反 tokenization、流式 SSE 响应、tool call 解析。</p>
+          <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/managers/detokenizer_manager.py#L102" target="_blank">detokenizer_manager.py L102</a>
+        </div>
+
+        <h4>1.2.4 调度策略 — CacheAwarePolicy</h4>
+        <p>典型策略 <code>CacheAwarePolicy</code> (L219) 优先调度 prefix cache 命中度高的请求，最大化 RadixAttention 复用收益。</p>
+        <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/managers/schedule_policy.py#L219" target="_blank">schedule_policy.py L219</a>
+      </section>
+
+      <!-- ============== 1.3 端到端调用链 ============== -->
+      <section id="sec-1-3">
+        <h3>1.3 端到端调用链路（Request Lifecycle）</h3>
+
+        <p>一个 OpenAI 兼容请求在 SGLang 中的完整生命周期：</p>
+
+        <div class="svg-figure">
+          <svg viewBox="0 0 1180 540" xmlns="http://www.w3.org/2000/svg">
+            <rect width="1180" height="540" fill="#0f141d"/>
+            <text x="40" y="40" font-family="JetBrains Mono" font-size="18" fill="#5eead4" font-weight="700">SGLang 端到端请求处理时序图</text>
+            <text x="40" y="60" font-family="JetBrains Mono" font-size="11" fill="#6d7d94">从 HTTP 到 SSE 的十二跳 — 真实源码路径标注</text>
+
+            <!-- Lifelines -->
+            <line x1="120" y1="90" x2="120" y2="500" stroke="#243044" stroke-width="1" stroke-dasharray="3 3"/>
+            <line x1="280" y1="90" x2="280" y2="500" stroke="#243044" stroke-width="1" stroke-dasharray="3 3"/>
+            <line x1="460" y1="90" x2="460" y2="500" stroke="#243044" stroke-width="1" stroke-dasharray="3 3"/>
+            <line x1="640" y1="90" x2="640" y2="500" stroke="#243044" stroke-width="1" stroke-dasharray="3 3"/>
+            <line x1="820" y1="90" x2="820" y2="500" stroke="#243044" stroke-width="1" stroke-dasharray="3 3"/>
+            <line x1="1000" y1="90" x2="1000" y2="500" stroke="#243044" stroke-width="1" stroke-dasharray="3 3"/>
+
+            <text x="120" y="84" text-anchor="middle" font-family="Inter" font-size="11" fill="#e8eef7" font-weight="600">HTTP Client</text>
+            <text x="280" y="84" text-anchor="middle" font-family="Inter" font-size="11" fill="#7dd3fc" font-weight="600">HTTP Server</text>
+            <text x="460" y="84" text-anchor="middle" font-family="Inter" font-size="11" fill="#7dd3fc" font-weight="600">TokenizerMgr</text>
+            <text x="640" y="84" text-anchor="middle" font-family="Inter" font-size="11" fill="#c4b5fd" font-weight="600">Scheduler</text>
+            <text x="820" y="84" text-anchor="middle" font-family="Inter" font-size="11" fill="#5eead4" font-weight="600">TP Worker</text>
+            <text x="1000" y="84" text-anchor="middle" font-family="Inter" font-size="11" fill="#7dd3fc" font-weight="600">DetokenMgr</text>
+
+            <!-- Step 1 -->
+            <line x1="120" y1="120" x2="280" y2="120" stroke="#5eead4" stroke-width="1.5"/>
+            <polygon points="280,120 270,116 270,124" fill="#5eead4"/>
+            <text x="200" y="112" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#5eead4">① POST /v1/chat/completions</text>
+
+            <!-- Step 2 -->
+            <line x1="280" y1="150" x2="460" y2="150" stroke="#5eead4" stroke-width="1.5"/>
+            <polygon points="460,150 450,146 450,154" fill="#5eead4"/>
+            <text x="370" y="142" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#5eead4">② tokenizer_manager.create_request</text>
+
+            <!-- Step 3 -->
+            <line x1="460" y1="180" x2="640" y2="180" stroke="#c4b5fd" stroke-width="1.5"/>
+            <polygon points="640,180 630,176 630,184" fill="#c4b5fd"/>
+            <text x="550" y="172" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#c4b5fd">③ ZMQ IPC → Scheduler queue</text>
+
+            <!-- Step 4 -->
+            <line x1="640" y1="210" x2="640" y2="240" stroke="#c4b5fd" stroke-width="1.5"/>
+            <text x="660" y="225" font-family="JetBrains Mono" font-size="10" fill="#c4b5fd">④ CacheAwarePolicy 选 batch</text>
+
+            <!-- Step 5 -->
+            <line x1="640" y1="270" x2="820" y2="270" stroke="#5eead4" stroke-width="1.5"/>
+            <polygon points="820,270 810,266 810,274" fill="#5eead4"/>
+            <text x="730" y="262" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#5eead4">⑤ ModelRunner.forward_batch</text>
+
+            <!-- Step 6 -->
+            <line x1="820" y1="300" x2="820" y2="330" stroke="#5eead4" stroke-width="1.5"/>
+            <text x="840" y="315" font-family="JetBrains Mono" font-size="10" fill="#5eead4">⑥ RadixCache.match_prefix + KV read</text>
+
+            <!-- Step 7 -->
+            <line x1="820" y1="360" x2="820" y2="390" stroke="#5eead4" stroke-width="1.5"/>
+            <text x="840" y="375" font-family="JetBrains Mono" font-size="10" fill="#5eead4">⑦ attention kernel + sampling</text>
+
+            <!-- Step 8 -->
+            <line x1="820" y1="420" x2="1000" y2="420" stroke="#7dd3fc" stroke-width="1.5"/>
+            <polygon points="1000,420 990,416 990,424" fill="#7dd3fc"/>
+            <text x="910" y="412" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#7dd3fc">⑧ ZMQ PUB token result</text>
+
+            <!-- Step 9 -->
+            <line x1="1000" y1="450" x2="460" y2="450" stroke="#7dd3fc" stroke-width="1.5"/>
+            <polygon points="460,450 470,446 470,454" fill="#7dd3fc"/>
+            <text x="730" y="442" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#7dd3fc">⑨ DetokenizerManager → TokenizerManager</text>
+
+            <!-- Step 10 -->
+            <line x1="460" y1="480" x2="120" y2="480" stroke="#5eead4" stroke-width="1.5"/>
+            <polygon points="120,480 130,476 130,484" fill="#5eead4"/>
+            <text x="290" y="472" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#5eead4">⑩ SSE  streaming → Client</text>
+
+            <text x="590" y="525" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#fbbf24">单 token 延迟 ~ 30-100ms · 端到端 TTFT ~ 50-200ms (L40/A100/H100)</text>
+          </svg>
+          <div class="caption">图 1.2 — SGLang 端到端请求处理与异步 IPC 调度时序</div>
+        </div>
+
+        <h4>1.3.1 HTTP 层入口</h4>
+        <ul>
+          <li><code>srt/entrypoints/http_server.py</code> (4664 LOC): OpenAI 兼容路由, Anthropic 兼容路由, Native API 路由</li>
+          <li><code>srt/entrypoints/engine.py</code> (L230): 进程内 Engine 入口，绕开 HTTP 走 in-process</li>
+        </ul>
+
+        <h4>1.3.2 多进程 IPC 拓扑</h4>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>进程</th><th>文件</th><th>角色</th></tr></thead>
+            <tbody>
+              <tr><td>HTTP/Tokenizer</td><td>http_server.py + tokenizer_manager.py</td><td>接收 HTTP 请求，tokenization，转发</td></tr>
+              <tr><td>Scheduler</td><td>scheduler.py</td><td>全局调度，batch 装配，policy 选择</td></tr>
+              <tr><td>Detokenizer</td><td>detokenizer_manager.py</td><td>反 tokenization，流式返回</td></tr>
+              <tr><td>TP Worker × N</td><td>model_runner.py</td><td>实际模型 forward 计算</td></tr>
+              <tr><td>Cache Controller</td><td>cache_controller.py</td><td>Radix Cache 远程加载/卸载控制</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+</content>
+<!-- ============== CH.02 维度二：核心算法 ============== -->
+    <section id="sec-2">
+      <h2><span class="ch">CH.02</span>维度二：核心关键技术原理与代码实现</h2>
+
+      <!-- ============== 2.1 RadixAttention ============== -->
+      <section id="sec-2-1">
+        <h3>2.1 RadixAttention 与基数树缓存管理</h3>
+
+        <p>RadixAttention 是 SGLang 最具创新性的核心设计之一。与 vLLM 静态 hash-based prefix cache 不同，SGLang 采用<strong>基数树（Radix Tree / Prefix Tree）</strong> 来组织 KV Cache 的前缀共享。</p>
+
+        <h4>2.1.1 Radix Tree 数据结构</h4>
+        <p><code>srt/mem_cache/radix_cache.py</code> (825 LOC) 定义了 <code>RadixCache</code> 类的核心数据结构：</p>
+        <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/mem_cache/radix_cache.py#L280" target="_blank">radix_cache.py L280</a>
+
+        <div class="svg-figure">
+          <svg viewBox="0 0 1180 660" xmlns="http://www.w3.org/2000/svg">
+            <rect width="1180" height="660" fill="#0f141d"/>
+            <text x="40" y="40" font-family="JetBrains Mono" font-size="18" fill="#5eead4" font-weight="700">RadixAttention 基数树节点操作全景图</text>
+            <text x="40" y="60" font-family="JetBrains Mono" font-size="11" fill="#6d7d94">insert / match_prefix / split / evict (LRU) — srt/mem_cache/radix_cache.py</text>
+
+            <!-- Initial State -->
+            <rect x="40" y="90" width="540" height="250" rx="10" fill="#0c1119" stroke="#243044"/>
+            <text x="60" y="114" font-family="JetBrains Mono" font-size="13" fill="#7dd3fc" font-weight="700">A. 初始状态 (空树)</text>
+            <circle cx="280" cy="200" r="22" fill="#5eead4" stroke="#0a0e14" stroke-width="2"/>
+            <text x="280" y="204" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#0a0e14" font-weight="700">ROOT</text>
+            <text x="320" y="204" font-family="JetBrains Mono" font-size="10" fill="#6d7d94">no_value, key=∅</text>
+
+            <text x="280" y="260" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#aebacd">children = {}</text>
+            <text x="280" y="280" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#aebacd">parent = None</text>
+
+            <!-- After Insert 1 -->
+            <rect x="600" y="90" width="540" height="250" rx="10" fill="#0c1119" stroke="#243044"/>
+            <text x="620" y="114" font-family="JetBrains Mono" font-size="13" fill="#7dd3fc" font-weight="700">B. insert("ABCDE") → 节点 value=ABCDE</text>
+            <circle cx="820" cy="180" r="22" fill="#5eead4" stroke="#0a0e14" stroke-width="2"/>
+            <text x="820" y="184" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#0a0e14" font-weight="700">ROOT</text>
+            <line x1="820" y1="200" x2="820" y2="240" stroke="#243044"/>
+            <rect x="780" y="240" width="80" height="36" rx="6" fill="#c4b5fd" stroke="#0a0e14" stroke-width="1.5"/>
+            <text x="820" y="254" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#0a0e14" font-weight="700">A</text>
+            <text x="820" y="266" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#0a0e14">len=1</text>
+            <line x1="820" y1="276" x2="820" y2="295" stroke="#243044"/>
+            <rect x="755" y="295" width="130" height="36" rx="6" fill="#7dd3fc" stroke="#0a0e14" stroke-width="1.5"/>
+            <text x="820" y="309" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#0a0e14" font-weight="700">BCDE</text>
+            <text x="820" y="321" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#0a0e14">len=4</text>
+
+            <!-- After Split -->
+            <rect x="40" y="360" width="540" height="280" rx="10" fill="#0c1119" stroke="#243044"/>
+            <text x="60" y="384" font-family="JetBrains Mono" font-size="13" fill="#fbbf24" font-weight="700">C. split: insert("ABC") vs 已有"ABCDE"</text>
+            <text x="60" y="404" font-family="JetBrains Mono" font-size="10" fill="#aebacd">分裂"ABCDE"为 [ABC][DE] · 共享前缀</text>
+
+            <circle cx="280" cy="450" r="20" fill="#5eead4" stroke="#0a0e14" stroke-width="2"/>
+            <text x="280" y="454" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#0a0e14" font-weight="700">R</text>
+            <line x1="280" y1="470" x2="280" y2="495" stroke="#243044"/>
+            <rect x="245" y="495" width="70" height="30" rx="5" fill="#c4b5fd"/>
+            <text x="280" y="513" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#0a0e14" font-weight="700">A</text>
+            <line x1="280" y1="525" x2="280" y2="550" stroke="#243044"/>
+            <rect x="220" y="550" width="60" height="30" rx="5" fill="#7dd3fc"/>
+            <text x="250" y="568" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#0a0e14" font-weight="700">BC</text>
+            <line x1="280" y1="580" x2="280" y2="600" stroke="#243044"/>
+            <rect x="245" y="600" width="70" height="30" rx="5" fill="#34d399"/>
+            <text x="280" y="618" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#0a0e14" font-weight="700">ABC★</text>
+
+            <line x1="310" y1="565" x2="370" y2="565" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="3 2"/>
+            <rect x="370" y="550" width="60" height="30" rx="5" fill="#34d399"/>
+            <text x="400" y="568" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#0a0e14" font-weight="700">DE</text>
+            <text x="450" y="568" font-family="JetBrains Mono" font-size="10" fill="#fbbf24">← 共享 BCDE</text>
+
+            <!-- LRU Eviction -->
+            <rect x="600" y="360" width="540" height="280" rx="10" fill="#0c1119" stroke="#243044"/>
+            <text x="620" y="384" font-family="JetBrains Mono" font-size="13" fill="#f87171" font-weight="700">D. LRU eviction: 节点引用计数最少</text>
+            <text x="620" y="404" font-family="JetBrains Mono" font-size="10" fill="#aebacd">evict(last_access_time) → 释放 KV Cache 块</text>
+
+            <circle cx="820" cy="450" r="20" fill="#5eead4" stroke="#0a0e14" stroke-width="2"/>
+            <text x="820" y="454" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#0a0e14" font-weight="700">R</text>
+            <rect x="800" y="490" width="40" height="28" rx="4" fill="#243044" stroke="#6d7d94" stroke-dasharray="2 2"/>
+            <text x="820" y="508" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#f87171">evict</text>
+            <rect x="850" y="490" width="40" height="28" rx="4" fill="#c4b5fd"/>
+            <text x="870" y="508" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#0a0e14" font-weight="700">X</text>
+            <text x="900" y="508" font-family="JetBrains Mono" font-size="10" fill="#5eead4">lock=1</text>
+            <rect x="900" y="490" width="40" height="28" rx="4" fill="#7dd3fc"/>
+            <text x="920" y="508" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#0a0e14" font-weight="700">Y</text>
+            <text x="950" y="508" font-family="JetBrains Mono" font-size="10" fill="#5eead4">lock=3</text>
+            <rect x="950" y="490" width="40" height="28" rx="4" fill="#fbbf24"/>
+            <text x="970" y="508" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#0a0e14" font-weight="700">Z</text>
+            <text x="1000" y="508" font-family="JetBrains Mono" font-size="10" fill="#5eead4">lock=2</text>
+
+            <text x="620" y="560" font-family="JetBrains Mono" font-size="11" fill="#aebacd">· last_access_time 记录最近一次读 / 写</text>
+            <text x="620" y="580" font-family="JetBrains Mono" font-size="11" fill="#aebacd">· recursive evict 沿着 last_access 排序</text>
+            <text x="620" y="600" font-family="JetBrains Mono" font-size="11" fill="#aebacd">· ref_count == 0 的节点释放 KV Cache 块</text>
+            <text x="620" y="620" font-family="JetBrains Mono" font-size="11" fill="#aebacd">· 保留 prefix root 共享部分不释放</text>
+
+            <text x="40" y="650" font-family="JetBrains Mono" font-size="10" fill="#6d7d94">📌 核心代码: insert/match_prefix/split_node/evict/lru_node  在 RadixCache (radix_cache.py L280)</text>
+          </svg>
+          <div class="caption">图 2.1 — RadixTree 节点插入、前缀匹配复用、节点分裂与 LRU 淘汰寻址机制全景</div>
+        </div>
+
+        <h4>2.1.2 抽象基类 — BasePrefixCache</h4>
+        <p><code>srt/mem_cache/base_prefix_cache.py</code> (368 LOC) 定义了所有 prefix cache 实现必须遵循的统一接口（<code>match_prefix</code>, <code>insert</code>, <code>evict</code>, <code>remove</code>），并定义了 <code>TreeNode</code> 数据结构。</p>
+        <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/mem_cache/base_prefix_cache.py#L368" target="_blank">base_prefix_cache.py L368</a>
+
+        <h4>2.1.3 RadixAttention vs vLLM Hash-Based Prefix Cache</h4>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>维度</th><th>RadixAttention (SGLang)</th><th>Static Prefix Cache (vLLM)</th></tr></thead>
+            <tbody>
+              <tr><td><strong>数据结构</strong></td><td>Radix Tree（多分支前缀树）</td><td>Hash Map（key→KV 块）</td></tr>
+              <tr><td><strong>多轮对话共享</strong></td><td>✅ 自动递归复用任意前缀</td><td>⚠️ 需显式预热</td></tr>
+              <tr><td><strong>Few-shot Prompt 复用</strong></td><td>✅ 同 prompt 多分支各算一次</td><td>❌ 每次单独算</td></tr>
+              <tr><td><strong>Tree Search / Beam Search</strong></td><td>✅ 天然支持（fork 语义）</td><td>❌ 不支持</td></tr>
+              <tr><td><strong>多模态 prefix</strong></td><td>✅ 跨模态前缀共享</td><td>❌ 仅文本</td></tr>
+              <tr><td><strong>LRU 淘汰粒度</strong></td><td>节点级（子树）</td><td>Block 级</td></tr>
+              <tr><td><strong>管理开销</strong></td><td>中（树遍历 O(log N)）</td><td>低（哈希 O(1)）</td></tr>
+              <tr><td><strong>实现复杂度</strong></td><td>高（分裂/合并/引用计数）</td><td>低</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><strong>设计权衡</strong>：RadixAttention 以更高的管理复杂度换取 prefix 命中率显著提升，特别在 multi-turn chat、agent loop、tree search 场景下收益巨大。</p>
+      </section>
+
+      <!-- ============== 2.2 调度 ============== -->
+      <section id="sec-2-2">
+        <h3>2.2 调度策略与批处理机制</h3>
+
+        <h4>2.2.1 Scheduler 事件循环</h4>
+        <p><code>srt/managers/scheduler.py</code> (6111 LOC) 是 SGLang 最庞大的单文件。核心类包括 Scheduler 及其若干 Mixin 类（如 DisaggregationDecodeMixin）。</p>
+        <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/managers/scheduler.py#L435" target="_blank">scheduler.py L435</a>
+
+        <h4>2.2.2 调度策略 — CacheAwarePolicy</h4>
+        <div class="card">
+          <div class="ttl">📁 srt/managers/schedule_policy.py (576 LOC)</div>
+          <p><strong>策略类</strong>: <code>CacheAwarePolicy</code>, <code>PrefillAdder</code>, <code>PolicyFactory</code></p>
+          <p>CacheAwarePolicy 优先调度 prefix cache 命中度高的请求，最大化 RadixAttention 复用收益。具体策略包括：</p>
+          <ul>
+            <li><strong>cache hit 优先</strong>: prefix matching length 高的 request 排前面</li>
+            <li><strong>running queue eviction</strong>: 显存不足时按优先级驱逐</li>
+            <li><strong>chunked prefill</strong>: 长 prompt 分块执行 prefill</li>
+            <li><strong>decode batch 合并</strong>: 多 decode 请求合并 forward</li>
+          </ul>
+          <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/managers/schedule_policy.py#L219" target="_blank">schedule_policy.py L219</a>
+        </div>
+
+        <h4>2.2.3 Cache Hit vs Miss 调度策略</h4>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>场景</th><th>策略</th><th>吞吐</th><th>延迟</th></tr></thead>
+            <tbody>
+              <tr><td>Cache Hit (前缀命中)</td><td>优先调度</td><td>高（增量 prefill）</td><td>低</td></tr>
+              <tr><td>Cache Miss (全量 prefill)</td><td>单独 batch</td><td>中</td><td>中</td></tr>
+              <tr><td>Chunked Prefill</td><td>分块执行</td><td>中</td><td>中</td></tr>
+              <tr><td>Decode Batch 合并</td><td>多请求合并</td><td>高</td><td>稳定</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============== 2.3 算子 ============== -->
+      <section id="sec-2-3">
+        <h3>2.3 算子级优化与高性能内核</h3>
+
+        <h4>2.3.1 ModelRunner</h4>
+        <p><code>srt/model_executor/model_runner.py</code> (2428 LOC) 是 SGLang 模型执行的核心，封装了 forward、CUDA Graph capture、TP/PP 协同逻辑。</p>
+        <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/model_executor/model_runner.py#L1" target="_blank">model_runner.py L1</a>
+
+        <h4>2.3.2 ForwardBatch — Ragged Tensor 封装</h4>
+        <p><code>srt/model_executor/forward_batch_info.py</code> (93KB) 定义了 <code>ForwardBatch</code> 类 — 封装了 Ragged Tensor 输入（不同长度请求合并）和 Paged KV Cache 索引，是变长 batching 的核心数据结构。</p>
+        <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/model_executor/forward_batch_info.py#L1" target="_blank">forward_batch_info.py L1</a>
+
+        <h4>2.3.3 Triton / FlashInfer / CUDA Graph 集成</h4>
+        <p>SGLang 通过 <code>python/sglang/kernels/</code> 目录提供 Triton / CUDA / HIP 内核，<code>kda_kernels/</code> (Kernel Distributed Attention)、<code>aot/</code> (AOT compiled) 是具体算子实现。</p>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>算子类型</th><th>位置</th><th>用途</th></tr></thead>
+            <tbody>
+              <tr><td>Triton Kernels</td><td><code>kernels/ops/</code></td><td>自定义 attention、normalization、sampling</td></tr>
+              <tr><td>FlashInfer</td><td><code>model_executor/</code></td><td>变长 attention, Paged KV Cache 读取</td></tr>
+              <tr><td>CUDA Graph</td><td><code>model_runner.py</code></td><td>kernel launch overhead 消除</td></tr>
+              <tr><td>HIP (AMD)</td><td><code>kernels/*.hip</code></td><td>ROCm 后端</td></tr>
+              <tr><td>KDA (Kernel Dist Attn)</td><td><code>kernels/kda_kernels/</code></td><td>DeepSeek-V3 / MLA 兼容</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============== 2.4 XGrammar ============== -->
+      <section id="sec-2-4">
+        <h3>2.4 结构化输出引擎（XGrammar / Compressed FSM）</h3>
+
+        <p>SGLang 的结构化输出引擎 XGrammar 与 vLLM 的 Outlines 同源（皆出自 <code>guidance</code> 团队），但 SGLang 做了 <strong>Compressed Finite State Machine (CFSM)</strong> 优化，在 mask 构造效率上有显著优势。</p>
+
+        <h4>2.4.1 XGrammar 后端</h4>
+        <p><code>srt/constrained/xgrammar_backend.py</code> 实现了 <code>XGrammarGrammar</code> 类 (L77)。</p>
+        <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/constrained/xgrammar_backend.py#L77" target="_blank">xgrammar_backend.py L77</a>
+
+        <h4>2.4.2 工作原理</h4>
+        <ol>
+          <li><strong>预编译</strong>: JSON Schema / Regex → Compressed Finite State Machine (CFSM)，XGrammar 引擎将 DFA 压缩为 token 级别的 mask 树</li>
+          <li><strong>逐 Token 掩码</strong>: 每个 decode step，scheduler 调用 <code>accept_token</code> 更新 FSM 状态，<code>mask_logits</code> 计算当前允许 token 集合，置为 -inf 屏蔽其他 token</li>
+          <li><strong>零开销推理</strong>: structured output 几乎不增加延迟（实测 &lt; 5% overhead）</li>
+        </ol>
+
+        <h4>2.4.3 支持的 grammar 类型</h4>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>类型</th><th>后端</th><th>应用场景</th></tr></thead>
+            <tbody>
+              <tr><td>JSON Schema</td><td>xgrammar_backend</td><td>任意嵌套 JSON 输出</td></tr>
+              <tr><td>Regex</td><td>xgrammar_backend</td><td>标准正则表达式约束</td></tr>
+              <tr><td>EBNF</td><td>base_grammar_backend</td><td>CFG 风格语法</td></tr>
+              <tr><td>Function Calling</td><td>function_call_parser</td><td>结构化函数调用</td></tr>
+              <tr><td>JSON Schema (Outlines)</td><td>outlines_backend</td><td>Outlines 兼容模式</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+</content>
+<!-- ============== CH.03 维度三：接口与生态 ============== -->
+    <section id="sec-3">
+      <h2><span class="ch">CH.03</span>维度三：接口定义与周边生态改造点</h2>
+
+      <!-- ============== 3.1 对外接口 ============== -->
+      <section id="sec-3-1">
+        <h3>3.1 对外暴露接口</h3>
+
+        <h4>3.1.1 OpenAI / Anthropic 兼容 API</h4>
+        <p><code>srt/entrypoints/http_server.py</code> (4664 LOC) 是 HTTP 入口，提供了完整的 OpenAI Chat Completion / Completion / Embedding 兼容 API，外加 Anthropic Messages API 兼容。</p>
+        <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/entrypoints/http_server.py#L1" target="_blank">http_server.py L1</a>
+
+        <h4>3.1.2 Native Engine API</h4>
+        <p><code>srt/entrypoints/engine.py</code> (L230) 提供了 <code>Engine</code> 类，进程内 in-process 调用方式（绕过 HTTP），适合嵌入式场景和性能基准测试。</p>
+        <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/entrypoints/engine.py#L230" target="_blank">engine.py L230</a>
+
+        <h4>3.1.3 ServerArgs 配置中心</h4>
+        <p><code>srt/server_args.py</code> (812 LOC) 的 <code>ServerArgs</code> 类是 SGLang 服务端所有配置项的统一 dataclass，包含模型路径、调度参数、并行度、设备映射等数百个字段。</p>
+        <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/server_args.py#L214" target="_blank">server_args.py L214</a>
+      </section>
+
+      <!-- ============== 3.2 异构硬件 ============== -->
+      <section id="sec-3-2">
+        <h3>3.2 异构硬件适配与 SPI 扩展点</h3>
+
+        <p>SGLang 在 v0.4+ 重构了硬件抽象层（HAL），将 GPU-specific 操作收敛到 <code>srt/model_executor/</code> 下的具体 backend 实现中，提供了清晰的扩展 SPI：</p>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>硬件</th><th>后端目录</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td>NVIDIA CUDA</td><td><code>model_executor/</code> 默认</td><td>✅ 主线支持</td></tr>
+              <tr><td>AMD ROCm (HIP)</td><td><code>python/sglang/kernels/*.hip</code></td><td>✅ 实验性</td></tr>
+              <tr><td>Intel XPU</td><td><code>pyproject_xpu.toml</code></td><td>✅ 基础支持</td></tr>
+              <tr><td>华为 Ascend (NPU)</td><td><code>pyproject_npu.toml</code></td><td>⚠️ 实验性</td></tr>
+              <tr><td>Apple Metal</td><td><code>*.metal</code> 内核</td><td>⚠️ 实验性</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>3.2.1 异构适配改造点</h4>
+        <p><strong>1. Device Worker 注入</strong>:</p>
+        <p><code>srt/distributed/parallel_state.py</code> (3501 LOC) 是设备无关的分布式状态管理，<code>GroupCoordinator</code> 抽象了 TP/PP/DP group 通信，<code>initialize_model_parallel</code> 在此初始化 ProcessGroup。</p>
+        <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/distributed/parallel_state.py#L248" target="_blank">parallel_state.py L248</a>
+
+        <p><strong>2. 算子库替换</strong> (FlashInfer → vendor native):</p>
+        <ul>
+          <li>SGLang 通过 <code>python/sglang/kernels/</code> 目录提供 Triton/CUDA/HIP 内核</li>
+          <li><code>kda_kernels/</code> (Kernel Distributed Attention)、<code>aot/</code> (AOT compiled) 是具体算子实现</li>
+          <li>移植到 Ascend NPU 时需替换为 CANN AscendC 实现，并注册到 <code>kernels/ops/</code></li>
+        </ul>
+
+        <p><strong>3. Custom Op 注册</strong>:</p>
+        <ul>
+          <li>通过 PyTorch's <code>torch.library.custom_op</code> 或 Triton DSL 注入</li>
+          <li><code>kernels/ops/attention/</code> 目录包含多种注意力变体的内核</li>
+        </ul>
+
+        <h4>3.2.2 分级存储与冷节点 Offload</h4>
+        <p>SGLang 通过 <code>srt/mem_cache/</code> 下的 storage 子模块（<code>storage/__init__.py</code>, <code>storage/memory_storage.py</code>）支持 KV Cache 跨设备卸载：</p>
+<pre><code>┌────────────────────────────────────────┐
+│ HBM (GPU)                              │ ← 热数据
+├────────────────────────────────────────┤
+│ DDR (CPU pinned memory)                │ ← 温数据，via host KV cache
+├────────────────────────────────────────┤
+│ NVMe SSD / CXL Memory                  │ ← 冷数据
+└────────────────────────────────────────┘
+</code></pre>
+        <p><strong>改造点</strong>:</p>
+        <ol>
+          <li>在 <code>RadixCache.evict()</code> 钩子里增加 async offload hook</li>
+          <li>在 <code>match_prefix()</code> 命中前增加 async prefetch</li>
+          <li>通过 <code>srt/mem_cache/storage/</code> 抽象层增加新 backend（HiCache / LMCache / 3FS）</li>
+        </ol>
+      </section>
+
+      <!-- ============== 3.3 推测解码 ============== -->
+      <section id="sec-3-3">
+        <h3>3.3 推测解码（Speculative Decoding）</h3>
+
+        <h4>3.3.1 EAGLE v2 Worker</h4>
+        <p><code>srt/speculative/eagle_worker_v2.py</code> (1982 LOC) 实现了 EAGLE v2 推测解码，包含 <code>EagleDraftWorker</code> 和 <code>EAGLEWorkerV2</code> 两个核心类。</p>
+        <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/speculative/eagle_worker_v2.py#L1" target="_blank">eagle_worker_v2.py L1</a>
+
+        <p>EAGLE v2 通过训练一个轻量级 draft model 从 LLM 的中间 hidden state 预测 token，能在 2-3 个 speculative step 内验证 5-8 个候选 token，<strong>接受率 ~0.8</strong> 时实测 1.5-2.5x 加速。</p>
+
+        <h4>3.3.2 EAGLE Utilities</h4>
+        <p><code>srt/speculative/eagle_utils.py</code> (1109 LOC) 包含 <code>verify_tree_greedy_triton</code> 等关键函数 (L348)。</p>
+        <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/speculative/eagle_utils.py#L348" target="_blank">eagle_utils.py L348</a>
+
+        <h4>3.3.3 EAGLE Info</h4>
+        <p><code>srt/speculative/eagle_info.py</code> 实现了 EAGLE 信息结构，封装了 draft token tree 和 verification metadata。</p>
+        <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/speculative/eagle_info.py#L1" target="_blank">eagle_info.py L1</a>
+
+        <h4>3.3.4 N-Gram 推测解码</h4>
+        <p><code>srt/speculative/ngram_worker.py</code> 实现了无需额外模型的纯 N-gram 推测解码，适合确定性输出（代码补全、JSON 结构化输出等场景）。</p>
+        <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/speculative/ngram_worker.py#L1" target="_blank">ngram_worker.py L1</a>
+
+        <h4>3.3.5 推测解码与 RadixAttention 的协同</h4>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>维度</th><th>收益</th><th>改造点</th></tr></thead>
+            <tbody>
+              <tr><td><strong>草稿验证</strong></td><td>EAGLE draft 在 Radix Tree 命中区间内可以跳过 verify 步骤</td><td>在 <code>verify_tree_greedy</code> 里增加 hit 判定</td></tr>
+              <tr><td><strong>Tree-of-Thought</strong></td><td>fork 后的多分支可共享同一 draft tree</td><td>RadixCache 节点级复用</td></tr>
+              <tr><td><strong>MTPs</strong></td><td><code>mtp_worker.py</code> 支持 Multi-Token Prediction</td><td>与 EAGLE v2 互补</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============== 3.4 Disaggregation ============== -->
+      <section id="sec-3-4">
+        <h3>3.4 Prefill / Decode 物理节点分离架构</h3>
+
+        <h4>3.4.1 Decode 阶段</h4>
+        <p><code>srt/disaggregation/decode.py</code> (4800 LOC) 实现了 Decode 阶段解耦。核心类包括 <code>DecodeReqToTokenPool</code>, <code>HybridMambaDecodeReqToTokenPool</code>, <code>DecodeRequest</code>, <code>SchedulerDisaggregationDecodeMixin</code>。</p>
+        <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/disaggregation/decode.py#L1" target="_blank">decode.py L1</a>
+
+        <h4>3.4.2 Prefill 阶段</h4>
+        <p><code>srt/disaggregation/prefill.py</code> 实现了 Prefill 阶段解耦。核心类包括 <code>PrefillBootstrapQueue</code>, <code>SchedulerDisaggregationPrefillMixin</code>。</p>
+        <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/disaggregation/prefill.py#L1" target="_blank">prefill.py L1</a>
+
+        <h4>3.4.3 架构价值</h4>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>角色</th><th>节点配置</th><th>职责</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Prefill 节点</strong></td><td>高算力（如 H100）</td><td>承担 prompt encoding</td></tr>
+              <tr><td><strong>Decode 节点</strong></td><td>高显存（如 A100 80GB）</td><td>承担 token generation</td></tr>
+              <tr><td><strong>KV Transfer</strong></td><td>RDMA / NVLink over TCP</td><td>跨节点传输 KV Cache</td></tr>
+              <tr><td><strong>混合 Mamba</strong></td><td>DecodeReqToTokenPool 支持 SSM 状态</td><td>Mamba + Transformer 混合</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============== 3.5 Agent Native ============== -->
+      <section id="sec-3-5">
+        <h3>3.5 Agent 沙箱运行时与并发隔离</h3>
+
+        <p>SGLang 通过 <code>lang/</code> DSL 的 <code>fork</code> 语义 + <code>lang/tracer.py</code> 的执行追踪 + <code>function_call/</code> 的结构化函数调用解析，构建了一个<strong>天然适配 Agent 场景</strong>的执行模型。</p>
+
+        <h4>3.5.1 Fork 语义的并发模拟</h4>
+<pre><code>@sgl.function
+def multi_sample(s):
+    s += sgl.user("What is 2+2?")
+    forks = s.fork(3)  # 一次 fork 产生 3 个候选状态
+    samples = [f(s) for f in forks]  # 每个 fork 独立 rollout
+    return samples
+</code></pre>
+
+        <h4>3.5.2 状态快照与回滚</h4>
+        <p><code>Interpreter</code> 类提供状态快照与回滚机制，结合 RadixAttention 的 prefix 共享实现"零成本"状态克隆。</p>
+        <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/lang/interpreter.py#L1" target="_blank">interpreter.py L1</a>
+
+        <h4>3.5.3 Function Call 解析</h4>
+        <p><code>srt/function_call/function_call_parser.py</code> 实现了结构化函数调用解析，支持 JSON、Pythonic、XML 等多种格式。</p>
+        <a class="src-link" href="https://github.com/sgl-project/sglang/blob/cdbea5dccf0a8085200abad617910c9688e932fe/python/sglang/srt/function_call/function_call_parser.py#L1" target="_blank">function_call_parser.py L1</a>
+
+        <h4>3.5.4 Agent 并发隔离的关键技术</h4>
+        <ol>
+          <li><strong>轻量级 Prefix 状态快照</strong> — 每个 fork 仅克隆 program state（元数据）而非 KV Cache</li>
+          <li><strong>状态机追踪</strong> — Tracer 记录每个 state 的 dependency graph</li>
+          <li><strong>RadixAttention 共享</strong> — 多 fork 共享同一 prefix 的 KV Cache（vs vLLM 必须预热）</li>
+          <li><strong>Function Call 解析</strong> — 结构化输出保证 tool call 正确性</li>
+        </ol>
+      </section>
+    </section>
+
+</content>
+<!-- ============== CH.04 维度四：性能与演进 ============== -->
+    <section id="sec-4">
+      <h2><span class="ch">CH.04</span>维度四：性能瓶颈、技术债务与前沿演进预测</h2>
+
+      <!-- ============== 4.1 性能瓶颈 ============== -->
+      <section id="sec-4-1">
+        <h3>4.1 代码级瓶颈与技术债务</h3>
+
+        <h4>4.1.1 Radix Tree 锁竞争与并发瓶颈</h4>
+        <p><code>radix_cache.py</code> 中所有 prefix 操作（<code>insert</code>, <code>match_prefix</code>, <code>evict</code>）均在全局锁保护下，<strong>所有请求的 prefix 操作串行化</strong>。在 100+ QPS 高并发下，tree mutation 可能成为 throughput 瓶颈。</p>
+        <p><strong>改进方向</strong>:</p>
+        <ul>
+          <li>Lock striping（按 hash bucket 分锁）</li>
+          <li>Lock-free radix (CAS-based)</li>
+          <li>Epoch-based reclamation</li>
+        </ul>
+
+        <h4>4.1.2 Python 解释器瓶颈</h4>
+        <p><code>scheduler.py</code> (6111 LOC) 调度核心全部 Python 实现；<code>model_runner.py</code> (2428 LOC) 包含大量 dispatch + forward 调度逻辑。</p>
+        <div class="card">
+          <div class="ttl">⚠ GIL 限制下的 Python overhead</div>
+          <p>每次 request 调度都有 Python overhead，在 32+ GPU 部署下，scheduler 单进程可能成为调度瓶颈。</p>
+        </div>
+        <p><strong>改进方向</strong>:</p>
+        <ul>
+          <li>用 Cython/Rust 重写 hot path（<code>schedule_policy.py</code> 中 <code>_calc_priority_weight</code> 等）</li>
+          <li>用 Python 3.12+ sub-interpreters 绕过 GIL</li>
+          <li>Scheduler 进程横向扩展（DP scheduler）</li>
+        </ul>
+
+        <h4>4.1.3 多进程 IPC 开销</h4>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Ch通道</th><th>机制</th><th>序列化开销</th><th>高并发下瓶颈</th></tr></thead>
+            <tbody>
+              <tr><td>HTTP→Tokenizer</td><td>asyncio.Queue</td><td>0</td><td>低</td></tr>
+              <tr><td>Tokenizer→Scheduler</td><td>ZMQ IPC</td><td>JSON pickle (~200µs)</td><td><strong>中</strong></td></tr>
+              <tr><td>Scheduler→TP Worker</td><td>NCCL collective</td><td>0 (GPU direct)</td><td>低</td></tr>
+              <tr><td>TP Worker→Detokenizer</td><td>ZMQ PUB/SUB</td><td>msgpack (~300µs)</td><td><strong>中</strong></td></tr>
+              <tr><td>Detokenizer→Client</td><td>asyncio.Queue</td><td>0</td><td>低</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><strong>优化建议</strong>:</p>
+        <ul>
+          <li>用 Apache Arrow / FlatBuffers 替代 JSON 序列化（实测 5-10x 加速）</li>
+          <li>用 CUDA IPC / NVLink shared memory 跨进程共享 KV Cache metadata</li>
+          <li>在 TP group 内启用 fused broadcast（避免多次 collective call）</li>
+        </ul>
+
+        <h4>4.1.4 动态长文本 Prefill 与显存碎片</h4>
+        <p><code>srt/mem_cache/memory_pool.py</code> 是 KV Cache 分配器。核心问题：</p>
+        <ol>
+          <li>变长请求的连续 KV Cache 分配产生<strong>内部碎片</strong> (intra-request fragmentation)</li>
+          <li>长 prompt + 突发并发下，Radix Tree 的反复 evict/insert 造成<strong>外部碎片</strong></li>
+          <li>CUDA Graph recapture 触发的 memory re-allocation 引发<strong>延迟毛刺</strong> (latency spike)</li>
+        </ol>
+        <p><strong>典型症状</strong>: TTFT p99 偶发性 2-5x 抖动。</p>
+
+        <h4>4.1.5 CUDA Graph Recapture 开销</h4>
+        <p>CUDA Graph 需要 pre-warm + capture，当 batch shape 变化（新增请求类型）触发 recapture，单次 ~100ms 抖动。</p>
+        <p><strong>改进方向</strong>:</p>
+        <ul>
+          <li>多 shape pool（预 capture 多种典型 batch shape）</li>
+          <li>Piecewise CUDA Graph（分段 capture + 拼接）</li>
+        </ul>
+      </section>
+
+      <!-- ============== 4.2 前沿演进 ============== -->
+      <section id="sec-4-2">
+        <h3>4.2 前沿技术演进路线预测</h3>
+
+        <h4>4.2.1 跨节点分布式 RadixAttention</h4>
+        <p><strong>预测路径</strong>: 2026-2027 实现</p>
+        <p><strong>核心技术挑战</strong>:</p>
+        <ol>
+          <li>基数树元数据跨服务器同步（Gossip vs Zookeeper）</li>
+          <li>远程 KV Cache 传输（RDMA + 序列化）</li>
+          <li>一致性协议（最终一致性 vs 强一致）</li>
+        </ol>
+        <p><strong>SGLang 现有优势</strong>:</p>
+        <ul>
+          <li>已有 <code>srt/managers/cache_controller.py</code> 提供 cache 远程加载/卸载控制</li>
+          <li>HiRadixCache 已支持 host memory offload，可平滑扩展到跨节点</li>
+        </ul>
+<pre><code>┌─────────────┐  RDMA  ┌─────────────┐  RDMA  ┌─────────────┐
+│ Node A: L40 │ ─────→ │ Node B: H100 │ ─────→ │ Node C: A100 │
+│ Radix Root  │         │ Branch 1     │         │ Branch 2     │
+└─────────────┘         └─────────────┘         └─────────────┘
+</code></pre>
+
+        <h4>4.2.2 Prefill / Decode 物理节点分离架构</h4>
+        <p><strong>预测路径</strong>: 2025-2026 成为 SGLang 默认部署模式</p>
+        <p><strong>当前状态</strong>:</p>
+        <ul>
+          <li>已支持 KV Cache 跨节点 RDMA 传输</li>
+          <li>已支持 MoE + Mamba + Transformer 混合模型的 Disaggregation</li>
+        </ul>
+        <p><strong>下一步演进</strong>:</p>
+        <ol>
+          <li><strong>弹性扩缩容</strong>: Prefill 节点按 QPS 自动伸缩，Decode 节点按 active session 数伸缩</li>
+          <li><strong>SLO-aware 调度</strong>: 区分 TTFT-bound (Chat) vs TPS-bound (Completion) 请求路由到不同 pool</li>
+          <li><strong>跨数据中心</strong>: 利用 WAN 链路跨 region 部署 Prefill Cluster</li>
+        </ol>
+
+        <h4>4.2.3 编译期计算图联合优化</h4>
+        <p><strong>预测路径</strong>: 2026 H2 起 SGLang 集成 torch.compile + TensorRT-LLM 双后端</p>
+        <p><strong>技术潜力</strong>:</p>
+        <ul>
+          <li>前端 DSL 静态计算图（<code>@sgl.function</code> 编译为静态 IR）</li>
+          <li>后端 Triton JIT / TensorRT-LLM 算子级图融合协同</li>
+          <li>跨 kernel 边界 kernel fusion（如 attention + sampling + structured mask）</li>
+        </ul>
+        <p><strong>SGLang 已有基础</strong>:</p>
+        <ul>
+          <li><code>python/sglang/compile_deep_gemm.py</code> — DeepGEMM 编译入口</li>
+          <li><code>python/sglang/kernels/aot/</code> — AOT compiled kernels</li>
+          <li>模型 export 路径支持 ONNX / TorchScript</li>
+        </ul>
+        <p><strong>预期收益</strong>:</p>
+        <ul>
+          <li>Decode latency 降低 20-40%（kernel launch overhead 消除）</li>
+          <li>显存占用降低 10-15%（memory planning 优化）</li>
+        </ul>
+
+        <h4>4.2.4 推测解码与 RadixAttention 的深度融合</h4>
+        <p><strong>预测路径</strong>: 2026 实现 EAGLE v3 + RadixAttention 协同</p>
+        <p><strong>核心思想</strong>:</p>
+        <ul>
+          <li>EAGLE draft 在 Radix 命中的 prefix 上<strong>跳过验证</strong></li>
+          <li>Speculative tree 与 Radix tree 共享同一个 KV Cache pool</li>
+          <li>Tree-of-Thought 多分支并行 draft + verify</li>
+        </ul>
+
+        <h4>4.2.5 Agent Native Runtime</h4>
+        <p><strong>预测路径</strong>: 2026-2027 SGLang 成为主流 Agent Runtime</p>
+        <p><strong>技术演进</strong>:</p>
+        <ol>
+          <li><strong>Fork 语义成熟</strong> — 基于 RadixAttention 的零成本状态克隆</li>
+          <li><strong>MCP 协议原生支持</strong> — Model Context Protocol server 集成</li>
+          <li><strong>Tool Sandbox</strong> — Function Call 与代码执行环境融合</li>
+          <li><strong>状态回滚与时间旅行</strong> — 基于 prefix state snapshot 的回滚</li>
+        </ol>
+      </section>
+    </section>
+
+</content>
+</article>
+</div>
+
+<!-- ============== 脚注 ============== -->
+<footer class="footer">
+  <div class="footer-inner">
+    <h4>📊 文章元数据</h4>
+    <p><strong>标题</strong>: SGLang 代码级深度逆向分析</p>
+    <p><strong>分析对象</strong>: <a href="https://github.com/sgl-project/sglang" target="_blank">sgl-project/sglang</a> @ <code>cdbea5dccf0a8085200abad617910c9688e932fe</code></p>
+    <p><strong>代码规模</strong>: 232 Python files · 116,725 LOC · 33 核心分析文件</p>
+    <p><strong>分析维度</strong>: 5 个并行 Subagent 维度</p>
+    <p><strong>生成时间</strong>: 2026-09-27</p>
+    <p><strong>分类</strong>: 项目解析 (项目代码级逆向工程)</p>
+
+    <h4>📚 修订明细</h4>
+    <p><strong>v1.0</strong> (2026-09-27): 初始版本，基于 commit cdbea5dc 的代码级逆向分析报告</p>
+
+    <h4>🔗 相关资源</h4>
+    <p>· <a href="https://github.com/sgl-project/sglang" target="_blank">SGLang 官方仓库</a></p>
+    <p>· <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/lang/interpreter.py" target="_blank">DSL Interpreter 源码</a></p>
+    <p>· <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/mem_cache/radix_cache.py" target="_blank">RadixAttention 核心源码</a></p>
+    <p>· <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/managers/scheduler.py" target="_blank">Scheduler 调度器源码</a></p>
+  </div>
+</footer>
+
+<!-- ============== Scrollspy JS ============== -->
+<script>
+(function() {
+  // Scrollspy - 监听 TOC active
+  const tocLinks = document.querySelectorAll('.toc a');
+  const sections = [];
+  tocLinks.forEach(link => {
+    const href = link.getAttribute('href');
+    if (href && href.startsWith('#')) {
+      const section = document.querySelector(href);
+      if (section) sections.push({ link, section });
+    }
+  });
+
+  if (sections.length === 0) return;
+
+  function updateActive() {
+    const scrollY = window.scrollY + 100;
+    let activeIdx = -1;
+    for (let i = 0; i < sections.length; i++) {
+      if (sections[i].section.offsetTop <= scrollY) {
+        activeIdx = i;
+      } else {
+        break;
+      }
+    }
+    sections.forEach((item, idx) => {
+      if (idx === activeIdx) {
+        item.link.classList.add('active');
+      } else {
+        item.link.classList.remove('active');
+      }
+    });
+  }
+
+  window.addEventListener('scroll', updateActive, { passive: true });
+  updateActive();
+})();
+</script>
+
+</body>
+</html>
