@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitHub AI Agent 工程 Top 20 · 架构级深度分析</title>
+<link rel="stylesheet" href="/assets/article-mobile.css?v=2026-09-27">
+<script src="/assets/article-mobile.js?v=2026-09-27"></script>
+<meta name="description" content="GitHub AI Agent 工程 Top 20 架构级深度分析 · 47 候选仓实测 · 14 仓代码级深拆 · 数据快照 2026-09-26 · OpenClaw 391k★ 断层榜首 · 四范式 (CLI/框架/自主循环/协议层) 全谱系 · 3 SVG 架构图 · 9 章节源码锚点矩阵">
+<style>
+/* ============ 设计令牌：深色科技文档体系 ============ */
+:root{
+  --bg-0:#0a0e14;          /* 页面底 */
+  --bg-1:#0f141d;          /* 正文底 */
+  --bg-2:#151c28;          /* 卡片底 */
+  --bg-3:#1b2433;          /* 卡片悬停/内嵌 */
+  --bg-code:#0c1119;       /* 代码块底 */
+  --line:#243044;          /* 分隔线 */
+  --line-soft:#1a2333;
+  --tx-0:#e8eef7;          /* 主文字 */
+  --tx-1:#aebacd;          /* 次文字 */
+  --tx-2:#6d7d94;          /* 弱文字 */
+  --acc-0:#5eead4;         /* 主强调 青 */
+  --acc-1:#7dd3fc;         /* 次强调 蓝 */
+  --acc-2:#c4b5fd;         /* 紫 */
+  --acc-3:#fbbf24;         /* 琥珀 警示 */
+  --acc-4:#f87171;         /* 红 */
+  --acc-5:#34d399;         /* 绿 */
+  --acc-6:#f9a8d4;         /* 粉 */
+  --grad-a:linear-gradient(135deg,#5eead4,#7dd3fc);
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:22px;
+  --sh-1:0 1px 2px rgba(0,0,0,.35),0 4px 14px rgba(0,0,0,.28);
+  --sh-2:0 4px 10px rgba(0,0,0,.4),0 14px 40px rgba(0,0,0,.38);
+  --sh-3:0 10px 24px rgba(0,0,0,.5),0 30px 80px rgba(0,0,0,.45);
+  --mono:"JetBrains Mono","Cascadia Code","Fira Code",Consolas,"Courier New",monospace;
+  --sans:"Inter","Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  --toc-w:292px;
+  --maxw:1080px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:84px}
+body{
+  background:var(--bg-0);color:var(--tx-0);font-family:var(--sans);
+  font-size:16px;line-height:1.85;
+  background-image:
+    radial-gradient(1200px 500px at 85% -5%,rgba(125,211,252,.05),transparent 60%),
+    radial-gradient(900px 420px at 8% 0%,rgba(94,234,212,.045),transparent 60%);
+}
+::selection{background:rgba(94,234,212,.28);color:#fff}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:var(--bg-0)}
+::-webkit-scrollbar-thumb{background:#2a3850;border-radius:6px;border:2px solid var(--bg-0)}
+::-webkit-scrollbar-thumb:hover{background:#3a4c6e}
+
+/* ============ 布局骨架 ============ */
+.layout{display:flex;min-height:100vh}
+main{flex:1;min-width:0;padding:0 clamp(18px,4vw,56px) 120px}
+.content{max-width:var(--maxw);margin:0 auto}
+
+/* ============ 顶部通栏 ============ */
+.topbar{
+  position:sticky;top:0;z-index:60;height:60px;
+  display:flex;align-items:center;gap:14px;padding:0 clamp(16px,3vw,32px);
+  background:rgba(10,14,20,.82);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line-soft);
+}
+.topbar .dot{width:9px;height:9px;border-radius:50%;background:var(--acc-0)}
+.topbar .tt{font-weight:700;font-size:15px;letter-spacing:.4px}
+.topbar .tt em{font-style:normal;background:var(--grad-a);-webkit-background-clip:text;background-clip:text;color:transparent}
+.topbar .meta{margin-left:auto;display:flex;gap:10px;align-items:center;font-size:12px;color:var(--tx-2)}
+#tocToggle{display:none;background:var(--bg-2);border:1px solid var(--line);color:var(--tx-1);
+  border-radius:var(--r-sm);padding:6px 11px;font-size:13px;cursor:pointer}
+
+/* ============ 侧边目录 ============ */
+nav#toc{
+  position:sticky;top:60px;height:calc(100vh - 60px);width:var(--toc-w);flex:0 0 var(--toc-w);
+  overflow-y:auto;padding:26px 18px 60px 10px;
+  border-right:1px solid var(--line-soft);background:rgba(15,20,29,.5);
+}
+#toc .toc-h{font-size:11px;letter-spacing:2.5px;color:var(--tx-2);text-transform:uppercase;padding:0 12px 12px}
+#toc a{
+  display:block;padding:7px 12px;margin:1px 0;border-radius:9px;color:var(--tx-1);
+  text-decoration:none;font-size:13.5px;line-height:1.45;border-left:2px solid transparent;
+  transition:all .18s ease;
+}
+#toc a:hover{background:var(--bg-2);color:var(--tx-0)}
+#toc a.lv2{padding-left:28px;font-size:12.5px;color:var(--tx-2)}
+#toc a.on{
+  background:linear-gradient(90deg,rgba(94,234,212,.12),transparent);
+  border-left-color:var(--acc-0);color:var(--acc-0);font-weight:600;
+}
+
+/* ============ 章节卡片 ============ */
+section.chapter{
+  background:var(--bg-1);border:1px solid var(--line-soft);border-radius:var(--r-xl);
+  padding:clamp(22px,3.4vw,44px);margin:34px 0;box-shadow:var(--sh-1);
+}
+h1,h2,h3,h4{line-height:1.4;font-weight:700}
+h2.ch-t{
+  font-size:clamp(22px,2.6vw,30px);padding-bottom:16px;margin-bottom:22px;
+  border-bottom:1px solid var(--line-soft);display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+}
+h2.ch-t .no{
+  font-family:var(--mono);font-size:.62em;color:var(--acc-0);
+  border:1px solid rgba(94,234,212,.35);border-radius:8px;padding:3px 9px;white-space:nowrap;
+}
+h3{font-size:19px;margin:34px 0 12px;color:var(--acc-1);display:flex;gap:9px;align-items:baseline}
+h3::before{content:"▸";color:var(--acc-0);font-size:.8em}
+h4{font-size:16px;margin:22px 0 8px;color:var(--tx-0)}
+p{margin:10px 0;color:var(--tx-1)}
+p strong,li strong{color:var(--tx-0)}
+ul,ol{margin:10px 0 10px 24px;color:var(--tx-1)}
+li{margin:5px 0}
+hr.sep{border:0;border-top:1px dashed var(--line);margin:30px 0}
+
+/* ============ 代码与徽章 ============ */
+code{
+  font-family:var(--mono);font-size:.86em;background:var(--bg-3);color:var(--acc-0);
+  padding:2px 7px;border-radius:6px;border:1px solid var(--line-soft);
+}
+pre{
+  background:var(--bg-code);border:1px solid var(--line);border-radius:var(--r-md);
+  padding:18px 20px;overflow-x:auto;margin:14px 0;box-shadow:inset 0 2px 10px rgba(0,0,0,.4);
+  position:relative;
+}
+pre code{background:none;border:0;padding:0;font-size:13px;line-height:1.75;color:#cdd9ea;display:block}
+pre .k{color:#7dd3fc}
+pre .s{color:#a5d6a7}
+pre .c{color:#5b6b83;font-style:italic}
+pre .f{color:#c4b5fd}
+pre .n{color:#fbbf24}
+pre .t{color:#5eead4}
+pre .o{color:#f8a5c2}
+
+/* 源码徽章（可点击） */
+a.badge,span.badge{
+  display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11.5px;
+  background:rgba(125,211,252,.09);color:var(--acc-1);border:1px solid rgba(125,211,252,.25);
+  border-radius:999px;padding:2px 10px;margin:1px 3px;text-decoration:none;white-space:nowrap;
+  transition:all .16s ease;vertical-align:1px;
+}
+a.badge:hover{background:rgba(125,211,252,.2);border-color:var(--acc-1);box-shadow:0 4px 14px rgba(0,0,0,.45);transform:translateY(-1px)}
+a.badge::before{content:"⌥";font-size:10px;opacity:.7}
+a.badge.deep{background:rgba(94,234,212,.1);color:var(--acc-0);border-color:rgba(94,234,212,.32)}
+a.badge.deep:hover{background:rgba(94,234,212,.2);border-color:var(--acc-0)}
+
+/* ============ 表格 ============ */
+.tbl-wrap{overflow-x:auto;margin:16px 0;border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sh-1)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;background:var(--bg-2)}
+th{
+  background:linear-gradient(180deg,#1c2635,#172030);color:var(--acc-1);text-align:left;
+  padding:11px 14px;font-weight:600;border-bottom:1px solid var(--line);white-space:nowrap;
+}
+td{padding:10px 14px;border-bottom:1px solid var(--line-soft);color:var(--tx-1);vertical-align:top}
+tr:last-child td{border-bottom:0}
+tbody tr{transition:background .15s}
+tbody tr:hover{background:rgba(125,211,252,.045)}
+td code,th code{font-size:12px}
+td.num,th.num{font-family:var(--mono);text-align:right;white-space:nowrap}
+
+/* 范式分类小标签 */
+.cat{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:700;
+  border-radius:6px;padding:1px 8px;letter-spacing:.5px;white-space:nowrap}
+.cat-a{background:rgba(94,234,212,.13);color:var(--acc-0);border:1px solid rgba(94,234,212,.35)}
+.cat-b{background:rgba(125,211,252,.12);color:var(--acc-1);border:1px solid rgba(125,211,252,.35)}
+.cat-c{background:rgba(196,181,253,.12);color:var(--acc-2);border:1px solid rgba(196,181,253,.35)}
+.cat-d{background:rgba(249,168,212,.12);color:var(--acc-6);border:1px solid rgba(249,168,212,.35)}
+
+/* ============ 提示块 ============ */
+.callout{
+  border-radius:var(--r-md);padding:14px 18px;margin:16px 0;border:1px solid var(--line);
+  background:var(--bg-2);box-shadow:var(--sh-1);
+}
+.callout .co-t{font-weight:700;font-size:13px;letter-spacing:1px;margin-bottom:4px;color:var(--acc-1)}
+.callout.warn{background:rgba(251,191,36,.05)}
+.callout.warn .co-t{color:var(--acc-3)}
+.callout.danger{background:rgba(248,113,113,.05)}
+.callout.danger .co-t{color:var(--acc-4)}
+.callout.good{background:rgba(52,211,153,.05)}
+.callout.good .co-t{color:var(--acc-5)}
+.callout p{margin:4px 0;font-size:14px}
+.tag-pred{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:700;
+  background:rgba(251,191,36,.16);color:var(--acc-3);border:1px solid rgba(251,191,36,.4);
+  border-radius:6px;padding:1px 8px;margin-right:8px;vertical-align:2px;letter-spacing:1px}
+
+/* ============ 折叠面板 ============ */
+details.acc{
+  background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-md);
+  margin:14px 0;overflow:hidden;box-shadow:var(--sh-1);
+}
+details.acc>summary{
+  cursor:pointer;list-style:none;padding:14px 18px;font-weight:600;font-size:14.5px;
+  color:var(--tx-0);display:flex;align-items:center;gap:10px;user-select:none;
+  transition:background .15s;
+}
+details.acc>summary::-webkit-details-marker{display:none}
+details.acc>summary::before{
+  content:"+";font-family:var(--mono);font-size:16px;color:var(--acc-0);
+  width:22px;height:22px;flex:0 0 22px;border:1px solid rgba(94,234,212,.35);border-radius:7px;
+  display:flex;align-items:center;justify-content:center;transition:all .2s;
+}
+details.acc[open]>summary::before{content:"–";background:rgba(94,234,212,.14)}
+details.acc>summary:hover{background:var(--bg-3)}
+details.acc .acc-body{padding:4px 18px 18px;border-top:1px solid var(--line-soft)}
+details.acc .acc-body p:first-child{margin-top:12px}
+
+/* ============ SVG 图卡 ============ */
+.fig{
+  background:var(--bg-code);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:22px;margin:20px 0;box-shadow:var(--sh-2);overflow-x:auto;
+}
+.fig svg{display:block;margin:0 auto;max-width:100%;height:auto}
+.fig .cap{
+  text-align:center;font-size:13px;color:var(--tx-2);margin-top:14px;font-style:italic;
+}
+.fig .cap b{color:var(--acc-1);font-style:normal}
+
+/* ============ Hero ============ */
+.hero{
+  margin:34px 0;padding:clamp(30px,4.5vw,58px);border-radius:var(--r-xl);
+  background:
+    radial-gradient(800px 300px at 90% 0%,rgba(125,211,252,.09),transparent 60%),
+    radial-gradient(700px 300px at 5% 100%,rgba(94,234,212,.08),transparent 60%),
+    var(--bg-1);
+  border:1px solid var(--line);box-shadow:var(--sh-2);position:relative;overflow:hidden;
+}
+.hero h1{font-size:clamp(26px,4vw,42px);line-height:1.25;letter-spacing:.5px}
+.hero h1 .g{background:var(--grad-a);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .sub{color:var(--tx-1);font-size:clamp(14px,1.6vw,17px);margin-top:14px;max-width:880px}
+.hero .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.chip{
+  font-family:var(--mono);font-size:12px;padding:5px 13px;border-radius:999px;
+  background:var(--bg-3);border:1px solid var(--line);color:var(--tx-1);
+}
+.chip b{color:var(--acc-0);font-weight:600}
+.chip a{color:var(--acc-1);text-decoration:none}
+.chip a:hover{text-decoration:underline}
+
+/* ============ 项目卡片 ============ */
+.proj{
+  background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:20px 22px;margin:16px 0;box-shadow:var(--sh-1);
+}
+.proj .p-h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.proj .p-h .rank{font-family:var(--mono);font-size:13px;color:var(--acc-0);font-weight:700}
+.proj .p-h .name{font-size:17.5px;font-weight:700;color:var(--tx-0)}
+.proj .p-h .name a{color:var(--acc-1);text-decoration:none}
+.proj .p-h .name a:hover{text-decoration:underline}
+.proj .p-h .p-meta{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--tx-2)}
+.proj p{font-size:14px;margin:6px 0}
+
+.idx-note{font-size:12.5px;color:var(--tx-2);margin-top:8px}
+
+/* ============ 页脚 ============ */
+footer{
+  text-align:center;color:var(--tx-2);font-size:12.5px;padding:40px 0 20px;
+  border-top:1px solid var(--line-soft);margin-top:40px;
+}
+footer code{font-size:11px}
+
+/* ============ 响应式 ============ */
+@media (max-width:1180px){
+  nav#toc{position:fixed;left:0;top:60px;bottom:0;z-index:55;transform:translateX(-102%);
+    transition:transform .25s ease;background:var(--bg-0);box-shadow:var(--sh-3)}
+  nav#toc.open{transform:translateX(0)}
+  #tocToggle{display:inline-block}
+}
+@media (max-width:640px){
+  body{font-size:15px}
+  .topbar .meta span.hide-m{display:none}
+  pre code{font-size:12px}
+  section.chapter{padding:20px 16px}
+  .proj .p-h .p-meta{margin-left:0;width:100%}
+}
+@media (min-width:2200px){
+  :root{--maxw:1280px}
+  body{font-size:17.5px}
+}
+@media print{
+  nav#toc,.topbar #tocToggle{display:none}
+  body{background:#fff;color:#000}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <button id="tocToggle" aria-label="切换目录">☰ 目录</button>
+  <span class="dot"></span>
+  <span class="tt"><em>GitHub AI Agent 工程 Top 20</em> · 架构级深度分析</span>
+  <span class="meta">
+    <span class="hide-m">数据快照 2026-09-26</span>
+    <span>代码锚点版</span>
+  </span>
+</div>
+
+<div class="layout">
+<nav id="toc" aria-label="目录">
+  <div class="toc-h">报告目录</div>
+  <a href="#ch1">01 · 研究方法与评选口径</a>
+  <a href="#ch2">02 · Top 20 总榜与星数全景</a>
+  <a href="#ch3">03 · 架构共性：Agent 通用循环</a>
+  <a href="#ch4">04 · 范式 A · CLI 编程 Agent</a>
+  <a href="#ch5">05 · 范式 B · Agent 框架与 SDK</a>
+  <a href="#ch6">06 · 范式 C · 自主循环与多智能体</a>
+  <a href="#ch7">07 · 关键工程模式横评</a>
+  <a href="#ch8">08 · 演进时间线与趋势预测</a>
+  <a href="#ch9">09 · 源码索引矩阵与结论</a>
+</nav>
+
+<main>
+<div class="content">
+
+<div class="hero">
+  <h1>GitHub <span class="g">AI Agent 工程 Top 20</span><br>从自主循环到 CLI Harness 的架构谱系</h1>
+  <p class="sub">以 OpenClaw、opencode、DeepSeek Harness 这类「Agent 运行时/脚手架」为标尺，对 GitHub 48 个候选仓实测定榜：循环结构、工具系统、沙箱与权限、记忆与子代理，逐项拆到代码锚点。</p>
+  <div class="chips">
+    <span class="chip">候选池 <b>48</b> 仓实测</span>
+    <span class="chip">深拆 <b>14</b> 仓（锁定 SHA）</span>
+    <span class="chip">数据快照 <b>2026-09-26</b></span>
+    <span class="chip">手绘 SVG × <b>3</b></span>
+    <span class="chip">单文件 · 零依赖</span>
+  </div>
+</div>
+
+<!-- ================= 第 1 章 ================= -->
+<section class="chapter" id="ch1">
+<h2 class="ch-t"><span class="no">CH.01</span>研究方法与评选口径</h2>
+
+<h3>1.1 分析对象：什么是"Agent 工程"</h3>
+<p>本报告的分析物种是 <strong>AI Agent 运行时/脚手架（harness）与框架工程</strong>——即给定 LLM，负责"循环驱动、工具调用、沙箱执行、记忆管理、子代理编排"的那层代码。用户给定的参照系（OpenHands / opencode / DeepSeek Harness 等）精确落在这一层。按此口径，候选项目分为四个范式：</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th>范式</th><th>定义</th><th>代表</th></tr></thead>
+<tbody>
+<tr><td><span class="cat cat-a">A · CLI/IDE 编程 Agent</span></td><td>终端或编辑器内的编程助手 harness：对话循环 + 文件/命令工具 + 权限模型</td><td>opencode、codex、gemini-cli、cline、aider、OpenHands、goose、openinterpreter、continue</td></tr>
+<tr><td><span class="cat cat-b">B · Agent 框架与 SDK</span></td><td>供开发者编排 agent 的库：图/角色/工具抽象，自带运行时</td><td>autogen、crewAI、agno、agentscope</td></tr>
+<tr><td><span class="cat cat-c">C · 自主循环与多智能体</span></td><td>目标驱动的自主执行体（plan-act-reflect）或角色化多 agent 组织</td><td>AutoGPT、MetaGPT、OpenManus、AgentGPT、ChatDev、browser-use</td></tr>
+<tr><td><span class="cat cat-d">D · 生态协议层</span></td><td>agent 与工具世界之间的协议骨架（非运行时，但决定 harness 形态）</td><td>modelcontextprotocol/servers</td></tr>
+</tbody></table></div>
+
+<h3>1.2 数据源与定榜规则</h3>
+<ul>
+<li><strong>数据源</strong>：GitHub REST API 两批实采（47 个候选仓，快照时间 2026-09-26/27 UTC）；star/fork/语言/license/创建与最近 push 时间均为 API 返回值，非估计。</li>
+<li><strong>纳入</strong>：Agent 工程本体（范式 A/B/C）+ 其协议骨架（范式 D，仅 1 席）。<strong>排除</strong>：通用 LLM 框架（langchain 147k、llama_index 52k）、低代码/工作流平台（n8n 206k、dify 157k、Flowise 55k）——它们含 agent 能力但不是 harness 本体，列入对照组单列；awesome 列表、提示词合集、纯论文代码不计。</li>
+<li><strong>定榜</strong>：按 star 降序取前 20；21-30 名列为荣誉提名（含 smolagents、crush、openai-agents-python、babyagi、SWE-agent 等）。</li>
+<li><strong>深拆</strong>：Top 20 中选取 14 个代表性仓库（含榜首 OpenClaw），经 codeload 按 <strong>锁定 commit SHA</strong> 下载源码，由并行领域代理逐仓代码级分析（循环结构/工具注册/沙箱/记忆/子代理），全部论断带 <code>文件:行号</code> 与 SHA 锚点链接；其余 6 仓做元数据+README 画像并在文中显式标注证据等级。</li>
+<li><strong>命名口径说明</strong>：用户点名的 <strong>OpenClaw</strong>（openclaw/openclaw，"The AI that really does things"，前身 Clawdbot）经核实为真实项目且以 <strong>391k★</strong> 居本榜第一，已纳入深拆；"DeepSeek Harness"（DSH）为本报告运行宿主，属同一物种，作为参照系参与范式对比但不计入榜单（非 GitHub star 榜项目）。</li>
+</ul>
+
+<h3>1.3 迁移与状态发现（API 重定向揭示的 2026 现状）</h3>
+<div class="callout">
+<div class="co-t">组织迁移已成常态，经典项目状态分化</div>
+<p>API 重定向显示多个头部项目已变更归属：<code>sst/opencode → anomalyco/opencode</code>、<code>block/goose → aaif-goose/goose</code>、<code>All-Hands-AI/OpenHands → OpenHands/OpenHands</code>、<code>geekan/MetaGPT → FoundationAgents/MetaGPT</code>、<code>strands-agents/sdk-python → strands-agents/harness-sdk</code>、<code>princeton-nlp/SWE-agent → SWE-agent/SWE-agent</code>。三个 2023 年经典已进入维护态：<strong>AgentGPT、TaskWeaver、Flowise 已被官方 archive</strong>；aider 最近 push 停在 2026-05，autogen 停在 2026-04。语言层面两个信号：<strong>open-interpreter 已用 Rust 重写</strong>（desc 变为"面向 Kimi K3/GLM 5.3 等开放模型的编码 agent"），OpenHands 主语言标记为 TypeScript。本报告全部以迁移后的规范名引用。</p>
+</div>
+
+<h3>1.4 反幻觉纪律</h3>
+<p>① 所有星数/日期来自 API 实采 JSON（存档于工作区）；② 深拆仓的每个架构论断必须由分析代理用 read 工具实地核实行号，主线抽查承重引用；③ 无法证实的处以【未确认】标注；④ 趋势判断一律以 <span class="tag-pred">预测</span> 标签与代码事实分离；⑤ 徽章链接对深拆仓绑定 SHA，画像仓链接仓库根并注明。</p>
+</section>
+
+<!-- ================= 第 2 章 ================= -->
+<section class="chapter" id="ch2">
+<h2 class="ch-t"><span class="no">CH.02</span>Top 20 总榜与星数全景</h2>
+
+<p>47 个候选仓按 star 降序定榜。条形长度线性正比于 star 数，颜色标识范式；灰色为对照组（平台/通用框架，不计入榜单）。</p>
+
+<div class="fig">
+<svg viewBox="0 0 1180 950" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Top20 星数全景条形图">
+<style>
+  .lb{fill:#aebacd;font:12.5px 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+  .vl{fill:#e8eef7;font:600 12px 'JetBrains Mono',Consolas,monospace}
+  .rk{fill:#6d7d94;font:11.5px 'JetBrains Mono',Consolas,monospace}
+  .hd{fill:#e8eef7;font:600 15px 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+  .lg{fill:#6d7d94;font:12px 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+  .barA{fill:#5eead4;opacity:.85}
+  .barB{fill:#7dd3fc;opacity:.85}
+  .barC{fill:#c4b5fd;opacity:.85}
+  .barD{fill:#f9a8d4;opacity:.85}
+  .barX{fill:#3d4b63;opacity:.7}
+</style>
+<text x="30" y="30" class="hd">GitHub AI Agent 工程 star 全景（2026-09-26 快照 · API/页面实采）</text>
+<rect x="620" y="12" width="12" height="12" class="barA" rx="2"/><text x="638" y="22" class="lg">A · CLI/IDE 编程 Agent</text>
+<rect x="800" y="12" width="12" height="12" class="barB" rx="2"/><text x="818" y="22" class="lg">B · 框架与 SDK</text>
+<rect x="940" y="12" width="12" height="12" class="barC" rx="2"/><text x="958" y="22" class="lg">C · 自主循环/多智能体</text>
+<rect x="620" y="32" width="12" height="12" class="barD" rx="2"/><text x="638" y="42" class="lg">D · 生态协议层</text>
+<rect x="800" y="32" width="12" height="12" class="barX" rx="2"/><text x="818" y="42" class="lg">对照组（不计榜）</text>
+
+<!-- 条形：x=250 起，比例 391k★ → 820px（0.002097px/★） -->
+<text x="30" y="76" class="rk">01</text><text x="60" y="76" class="lb">openclaw/openclaw</text><rect x="250" y="64" width="820" height="16" class="barA" rx="3"/><text x="1078" y="76" class="vl">391k</text>
+<text x="30" y="106" class="rk">02</text><text x="60" y="106" class="lb">anomalyco/opencode</text><rect x="250" y="94" width="441" height="16" class="barA" rx="3"/><text x="699" y="106" class="vl">210,244</text>
+<text x="30" y="136" class="rk">03</text><text x="60" y="136" class="lb">Significant-Gravitas/AutoGPT</text><rect x="250" y="124" width="393" height="16" class="barC" rx="3"/><text x="651" y="136" class="vl">187,582</text>
+<text x="30" y="166" class="rk">04</text><text x="60" y="166" class="lb">openai/codex</text><rect x="250" y="154" width="266" height="16" class="barA" rx="3"/><text x="524" y="166" class="vl">126,626</text>
+<text x="30" y="196" class="rk">05</text><text x="60" y="196" class="lb">browser-use/browser-use</text><rect x="250" y="184" width="244" height="16" class="barC" rx="3"/><text x="502" y="196" class="vl">116,412</text>
+<text x="30" y="226" class="rk">06</text><text x="60" y="226" class="lb">google-gemini/gemini-cli</text><rect x="250" y="214" width="225" height="16" class="barA" rx="3"/><text x="483" y="226" class="vl">107,161</text>
+<text x="30" y="256" class="rk">07</text><text x="60" y="256" class="lb">modelcontextprotocol/servers</text><rect x="250" y="244" width="190" height="16" class="barD" rx="3"/><text x="448" y="256" class="vl">90,611</text>
+<text x="30" y="286" class="rk">08</text><text x="60" y="286" class="lb">OpenHands/OpenHands</text><rect x="250" y="274" width="187" height="16" class="barA" rx="3"/><text x="445" y="286" class="vl">89,235</text>
+<text x="30" y="316" class="rk">09</text><text x="60" y="316" class="lb">FoundationAgents/MetaGPT</text><rect x="250" y="304" width="148" height="16" class="barC" rx="3"/><text x="406" y="316" class="vl">70,637</text>
+<text x="30" y="346" class="rk">10</text><text x="60" y="346" class="lb">cline/cline</text><rect x="250" y="334" width="146" height="16" class="barA" rx="3"/><text x="404" y="346" class="vl">69,399</text>
+<text x="30" y="376" class="rk">11</text><text x="60" y="376" class="lb">openinterpreter/openinterpreter</text><rect x="250" y="364" width="144" height="16" class="barA" rx="3"/><text x="402" y="376" class="vl">68,451</text>
+<text x="30" y="406" class="rk">12</text><text x="60" y="406" class="lb">microsoft/autogen</text><rect x="250" y="394" width="128" height="16" class="barB" rx="3"/><text x="386" y="406" class="vl">61,179</text>
+<text x="30" y="436" class="rk">13</text><text x="60" y="436" class="lb">crewAIInc/crewAI</text><rect x="250" y="424" width="124" height="16" class="barB" rx="3"/><text x="382" y="436" class="vl">59,068</text>
+<text x="30" y="466" class="rk">14</text><text x="60" y="466" class="lb">FoundationAgents/OpenManus</text><rect x="250" y="454" width="123" height="16" class="barC" rx="3"/><text x="381" y="466" class="vl">58,420</text>
+<text x="30" y="496" class="rk">15</text><text x="60" y="496" class="lb">aaif-goose/goose</text><rect x="250" y="484" width="115" height="16" class="barA" rx="3"/><text x="373" y="496" class="vl">54,691</text>
+<text x="30" y="526" class="rk">16</text><text x="60" y="526" class="lb">Aider-AI/aider</text><rect x="250" y="514" width="103" height="16" class="barA" rx="3"/><text x="361" y="526" class="vl">49,206</text>
+<text x="30" y="556" class="rk">17</text><text x="60" y="556" class="lb">agno-agi/agno</text><rect x="250" y="544" width="89" height="16" class="barB" rx="3"/><text x="347" y="556" class="vl">42,351</text>
+<text x="30" y="586" class="rk">18</text><text x="60" y="586" class="lb">reworkd/AgentGPT ⌫archived</text><rect x="250" y="574" width="76" height="16" class="barC" rx="3"/><text x="334" y="586" class="vl">36,296</text>
+<text x="30" y="616" class="rk">19</text><text x="60" y="616" class="lb">continuedev/continue ⌫read-only</text><rect x="250" y="604" width="76" height="16" class="barA" rx="3"/><text x="334" y="616" class="vl">36,036</text>
+<text x="30" y="646" class="rk">20</text><text x="60" y="646" class="lb">OpenBMB/ChatDev</text><rect x="250" y="634" width="72" height="16" class="barC" rx="3"/><text x="330" y="646" class="vl">34,399</text>
+
+<text x="30" y="696" class="lg">对照组（平台/通用框架，star 高但非 harness 本体）：</text>
+<text x="60" y="726" class="lb">n8n-io/n8n</text><rect x="250" y="714" width="432" height="16" class="barX" rx="3"/><text x="690" y="726" class="vl">206,057</text>
+<text x="60" y="756" class="lb">langgenius/dify</text><rect x="250" y="744" width="330" height="16" class="barX" rx="3"/><text x="588" y="756" class="vl">157,288</text>
+<text x="60" y="786" class="lb">langchain-ai/langchain</text><rect x="250" y="774" width="309" height="16" class="barX" rx="3"/><text x="567" y="786" class="vl">147,119</text>
+<text x="60" y="816" class="lb">FlowiseAI/Flowise ⌫archived</text><rect x="250" y="804" width="116" height="16" class="barX" rx="3"/><text x="374" y="816" class="vl">55,485</text>
+<text x="60" y="846" class="lb">run-llama/llama_index</text><rect x="250" y="834" width="110" height="16" class="barX" rx="3"/><text x="368" y="846" class="vl">52,325</text>
+
+<text x="30" y="896" class="lg">观察：OpenClaw（个人 agent harness，前身 Clawdbot）以 391k★ 断层第一——"消费级个人 agent"超越"开发者 CLI"成为最大流量入口；</text>
+<text x="30" y="920" class="lg">A 范式占榜内 10 席；C 范式凭 AutoGPT 历史积累居第 3；D 范式仅 1 席却高居第 7，协议层是最大杠杆点。</text>
+</svg>
+<div class="cap"><b>图 1</b> · 《GitHub AI Agent 工程 Top 20 星数全景与范式分布图》—— 手工绘制，数据为 API 实采</div>
+</div>
+
+<h3>2.1 总榜明细</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>#</th><th>项目</th><th>范式</th><th class="num">Stars</th><th class="num">Forks</th><th>语言</th><th>License</th><th>创建</th><th>最近 push</th><th>一句话定位</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><a class="badge" href="https://github.com/openclaw/openclaw" target="_blank" rel="noopener">openclaw/openclaw</a></td><td><span class="cat cat-a">A</span></td><td class="num">391k</td><td class="num">—</td><td>TypeScript</td><td>MIT</td><td>2025-11【未确认】</td><td>2026-09-26</td><td><strong>断层榜首</strong>：个人 AI 助手 harness（前身 Clawdbot），网关+全渠道消息+自有设备节点</td></tr>
+<tr><td>2</td><td><a class="badge" href="https://github.com/anomalyco/opencode" target="_blank" rel="noopener">anomalyco/opencode</a></td><td><span class="cat cat-a">A</span></td><td class="num">210,244</td><td class="num">27,807</td><td>TypeScript</td><td>MIT</td><td>2025-04</td><td>2026-09-26</td><td>开源终端编码 agent 的现任榜首（原 sst/opencode）</td></tr>
+<tr><td>3</td><td><a class="badge" href="https://github.com/Significant-Gravitas/AutoGPT" target="_blank" rel="noopener">Significant-Gravitas/AutoGPT</a></td><td><span class="cat cat-c">C</span></td><td class="num">187,582</td><td class="num">45,990</td><td>Python</td><td>MIT 系</td><td>2023-03</td><td>2026-09-26</td><td>自主 agent 运动的起点，现为可视化 agent 平台</td></tr>
+<tr><td>4</td><td><a class="badge" href="https://github.com/openai/codex" target="_blank" rel="noopener">openai/codex</a></td><td><span class="cat cat-a">A</span></td><td class="num">126,626</td><td class="num">19,766</td><td>Rust</td><td>Apache-2.0</td><td>2025-04</td><td>2026-09-26</td><td>OpenAI 官方终端编码 agent（Rust 重写后开源）</td></tr>
+<tr><td>5</td><td><a class="badge" href="https://github.com/browser-use/browser-use" target="_blank" rel="noopener">browser-use/browser-use</a></td><td><span class="cat cat-c">C</span></td><td class="num">116,412</td><td class="num">12,823</td><td>Python</td><td>MIT</td><td>2024-10</td><td>2026-09-26</td><td>浏览器操作 agent 运行时（Playwright 驱动）</td></tr>
+<tr><td>6</td><td><a class="badge" href="https://github.com/google-gemini/gemini-cli" target="_blank" rel="noopener">google-gemini/gemini-cli</a></td><td><span class="cat cat-a">A</span></td><td class="num">107,161</td><td class="num">14,627</td><td>TypeScript</td><td>Apache-2.0</td><td>2025-04</td><td>2026-09-26</td><td>Google 官方终端 agent，Gemini 直连 + MCP</td></tr>
+<tr><td>7</td><td><a class="badge" href="https://github.com/modelcontextprotocol/servers" target="_blank" rel="noopener">modelcontextprotocol/servers</a></td><td><span class="cat cat-d">D</span></td><td class="num">90,611</td><td class="num">11,693</td><td>TypeScript</td><td>MIT 系</td><td>2024-11</td><td>2026-09-26</td><td>MCP 参考服务器合集——agent 工具生态的协议骨架</td></tr>
+<tr><td>8</td><td><a class="badge" href="https://github.com/OpenHands/OpenHands" target="_blank" rel="noopener">OpenHands/OpenHands</a></td><td><span class="cat cat-a">A</span></td><td class="num">89,235</td><td class="num">11,757</td><td>TypeScript</td><td>MIT</td><td>2024-03</td><td>2026-09-26</td><td>全能软件工程 agent 平台（原 OpenDevin，原 All-Hands-AI）</td></tr>
+<tr><td>9</td><td><a class="badge" href="https://github.com/FoundationAgents/MetaGPT" target="_blank" rel="noopener">FoundationAgents/MetaGPT</a></td><td><span class="cat cat-c">C</span></td><td class="num">70,637</td><td class="num">8,967</td><td>Python</td><td>MIT</td><td>2023-06</td><td>2026-01-21</td><td>多智能体"软件公司"框架的学术源头（原 geekan）</td></tr>
+<tr><td>10</td><td><a class="badge" href="https://github.com/cline/cline" target="_blank" rel="noopener">cline/cline</a></td><td><span class="cat cat-a">A</span></td><td class="num">69,399</td><td class="num">7,529</td><td>TypeScript</td><td>Apache-2.0</td><td>2024-07</td><td>2026-09-26</td><td>VS Code 自治编码 agent，人审每一步的交互范式</td></tr>
+<tr><td>11</td><td><a class="badge" href="https://github.com/openinterpreter/openinterpreter" target="_blank" rel="noopener">openinterpreter/openinterpreter</a></td><td><span class="cat cat-a">A</span></td><td class="num">68,451</td><td class="num">5,881</td><td>Rust</td><td>Apache-2.0</td><td>2023-07</td><td>2026-09-25</td><td>本地代码执行 agent 鼻祖，已 Rust 重写面向开放模型</td></tr>
+<tr><td>12</td><td><a class="badge" href="https://github.com/microsoft/autogen" target="_blank" rel="noopener">microsoft/autogen</a></td><td><span class="cat cat-b">B</span></td><td class="num">61,179</td><td class="num">9,256</td><td>Python</td><td>CC-BY-4.0</td><td>2023-08</td><td>2026-04-15</td><td>微软多智能体对话框架（v0.4 重写为事件驱动内核）</td></tr>
+<tr><td>13</td><td><a class="badge" href="https://github.com/crewAIInc/crewAI" target="_blank" rel="noopener">crewAIInc/crewAI</a></td><td><span class="cat cat-b">B</span></td><td class="num">59,068</td><td class="num">8,584</td><td>Python</td><td>MIT</td><td>2023-10</td><td>2026-09-26</td><td>角色扮演式多 agent 编排框架（Crew + Flow 双模型）</td></tr>
+<tr><td>14</td><td><a class="badge" href="https://github.com/FoundationAgents/OpenManus" target="_blank" rel="noopener">FoundationAgents/OpenManus</a></td><td><span class="cat cat-c">C</span></td><td class="num">58,420</td><td class="num">10,132</td><td>Python</td><td>MIT</td><td>2025-03</td><td>2026-08-22</td><td>Manus 的开源复刻，Plan-Act 通用 agent 运行时</td></tr>
+<tr><td>15</td><td><a class="badge" href="https://github.com/aaif-goose/goose" target="_blank" rel="noopener">aaif-goose/goose</a></td><td><span class="cat cat-a">A</span></td><td class="num">54,691</td><td class="num">6,319</td><td>Rust</td><td>Apache-2.0</td><td>2024-08</td><td>2026-09-25</td><td>Block 出品可扩展 agent（MCP 原生，原 block/goose）</td></tr>
+<tr><td>16</td><td><a class="badge" href="https://github.com/Aider-AI/aider" target="_blank" rel="noopener">Aider-AI/aider</a></td><td><span class="cat cat-a">A</span></td><td class="num">49,206</td><td class="num">4,999</td><td>Python</td><td>Apache-2.0</td><td>2023-05</td><td>2026-05-22</td><td>终端结对编程先驱，edit-format 工程的开创者</td></tr>
+<tr><td>17</td><td><a class="badge" href="https://github.com/agno-agi/agno" target="_blank" rel="noopener">agno-agi/agno</a></td><td><span class="cat cat-b">B</span></td><td class="num">42,351</td><td class="num">6,014</td><td>Python</td><td>Apache-2.0</td><td>2022-05</td><td>2026-09-25</td><td>高性能 agent 平台框架（原 phidata，主打低延迟）</td></tr>
+<tr><td>18</td><td><a class="badge" href="https://github.com/reworkd/AgentGPT" target="_blank" rel="noopener">reworkd/AgentGPT</a></td><td><span class="cat cat-c">C</span></td><td class="num">36,296</td><td class="num">9,247</td><td>TypeScript</td><td>GPL-3.0</td><td>2023-04</td><td>2025-04-29</td><td>浏览器内组装自主 agent 的早期爆款【已归档】</td></tr>
+<tr><td>19</td><td><a class="badge" href="https://github.com/continuedev/continue" target="_blank" rel="noopener">continuedev/continue</a></td><td><span class="cat cat-a">A</span></td><td class="num">36,036</td><td class="num">5,426</td><td>TypeScript</td><td>Apache-2.0</td><td>2023-05</td><td>2026-09-26</td><td>IDE 开源自动驾驶舱【仓库 read-only，终版 2.0.0】</td></tr>
+<tr><td>20</td><td><a class="badge" href="https://github.com/OpenBMB/ChatDev" target="_blank" rel="noopener">OpenBMB/ChatDev</a></td><td><span class="cat cat-c">C</span></td><td class="num">34,399</td><td class="num">4,306</td><td>Python</td><td>Apache-2.0</td><td>2023-08</td><td>2026-07-24</td><td>聊天驱动虚拟软件公司（2.0 已转零代码编排平台）</td></tr>
+</tbody></table></div>
+
+<details class="acc">
+<summary>荣誉提名（21-34 名，含参照系说明）</summary>
+<div class="acc-body">
+<div class="tbl-wrap"><table>
+<thead><tr><th>#</th><th>项目</th><th class="num">Stars</th><th>定位</th></tr></thead>
+<tbody>
+<tr><td>21</td><td>agentscope-ai/agentscope</td><td class="num">32,413</td><td>阿里 AgentScope 2.0：ReAct 内核 + 八种沙箱后端 + Agent Service 平台（因 OpenClaw 入榜而降居提名首位，画像见 CH.05）</td></tr>
+<tr><td>22</td><td>simstudioai/sim</td><td class="num">29,723</td><td>协作式 agent/工作流画布（低代码，介于平台与框架之间）</td></tr>
+<tr><td>23</td><td>openai/openai-agents-python</td><td class="num">29,710</td><td>OpenAI 官方轻量多 agent SDK（topics 自带 "harness" 标签）</td></tr>
+<tr><td>24</td><td>huggingface/smolagents</td><td class="num">29,505</td><td>"用代码思考"的极简 agent 库（CodeAgent 范式代表）</td></tr>
+<tr><td>25</td><td>charmbracelet/crush</td><td class="num">28,320</td><td>Go 写的华丽终端 agent（TUI 美学路线）</td></tr>
+<tr><td>26</td><td>Fosowl/agenticSeek</td><td class="num">27,340</td><td>全本地 Manus 复刻（DeepSeek-R1 等本地模型驱动）</td></tr>
+<tr><td>27</td><td>modelcontextprotocol/python-sdk</td><td class="num">24,407</td><td>MCP 官方 Python SDK</td></tr>
+<tr><td>28</td><td>yoheinakajima/babyagi</td><td class="num">22,363</td><td>任务队列自主循环鼻祖；现为"自构建 agent"实验框架（functionz 函数库）</td></tr>
+<tr><td>29</td><td>google/adk-python</td><td class="num">21,652</td><td>Google Agent Development Kit 2.0（代码优先工具包）</td></tr>
+<tr><td>30</td><td>SWE-agent/SWE-agent</td><td class="num">20,416</td><td>学术派 SWE-bench 解题 agent（NeurIPS 2024）；官方已建议改用 mini-swe-agent</td></tr>
+<tr><td>31</td><td>kortix-ai/suna</td><td class="num">20,237</td><td>已更名 Kortix："开源 AI 管理系统"，每会话一台隔离云沙箱</td></tr>
+<tr><td>32</td><td>pydantic/pydantic-ai</td><td class="num">20,196</td><td>类型安全的 Python agent 框架（topics 含 harness-engineering）</td></tr>
+<tr><td>33</td><td>elizaOS/eliza</td><td class="num">19,505</td><td>加密社交圈 agent 操作系统（插件化角色运行时）</td></tr>
+<tr><td>34</td><td>camel-ai/camel</td><td class="num">17,779</td><td>最早的多智能体研究框架（agent 社会学）</td></tr>
+<tr><td>35</td><td>TransformerOptimus/SuperAGI</td><td class="num">17,694</td><td>2023 自主框架热潮成员（2025-01 停更）</td></tr>
+</tbody></table></div>
+<p>另有两个类目参照：strands-agents/harness-sdk（8,459，AWS 出品的 harness SDK，名字就叫 harness）与 DeepSeek Harness（本报告宿主，npm 分发 <code>@deepseek-ai/dsh</code>，非 GitHub star 榜项目）——二者印证 "harness" 已成为该物种的正式自称。</p>
+</div>
+</details>
+
+<div class="callout good">
+<div class="co-t">✓ 榜单的三个结构性结论（详拆见后续章节）</div>
+<p>① <strong>终端 CLI agent 已完成对自主循环派的超越</strong>：榜内 9 席 A 范式平均星龄仅 1.4 年，opencode/codex/gemini-cli 三个 2025 年 4 月前后出生的项目合计 44.4 万星；② <strong>语言迁移是性能叙事的风向标</strong>：Rust（codex、goose、openinterpreter）与 Go（crush）入侵 Python/TS 腹地，单二进制分发成为 CLI harness 的硬通货；③ <strong>2023 三大鼻祖命运分化</strong>：AutoGPT 转型平台续命（日更）、AgentGPT 归档、babyagi 冻结为历史标本。</p>
+</div>
+</section>
+
+<!-- ================= 第 3 章 ================= -->
+<section class="chapter" id="ch3">
+<h2 class="ch-t"><span class="no">CH.03</span>架构共性：Agent 通用执行循环</h2>
+
+<p>把 14 个深拆仓的代码摊开看，无论终端 CLI、浏览器自主体还是多智能体平台，骨架都是同一个有状态循环——<strong>感知（组装上下文）→ 推理（LLM）→ 行动（工具调用）→ 观察（结果回灌）</strong>，外加一道权限闸门与一套终止判定。各项目的差异不在这个骨架，而在五个战术选择：① 上下文如何组装与压缩；② 动作的表达方式（function call / 编辑块 / 代码即动作）；③ 沙箱与权限的默认姿态；④ 记忆的持久化策略；⑤ 子代理的编排模型。</p>
+
+<div class="fig">
+<svg viewBox="0 0 1180 830" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Agent 通用执行循环架构图">
+<defs>
+  <marker id="lp1" markerWidth="10" markerHeight="10" refX="7" refY="4.5" orient="auto">
+    <path d="M0,0 L8,4.5 L0,9 Z" fill="#5eead4"/>
+  </marker>
+  <marker id="lp2" markerWidth="10" markerHeight="10" refX="7" refY="4.5" orient="auto">
+    <path d="M0,0 L8,4.5 L0,9 Z" fill="#7dd3fc"/>
+  </marker>
+  <marker id="lp3" markerWidth="10" markerHeight="10" refX="7" refY="4.5" orient="auto">
+    <path d="M0,0 L8,4.5 L0,9 Z" fill="#c4b5fd"/>
+  </marker>
+</defs>
+<style>
+  .bx{fill:#151c28;stroke:#243044;stroke-width:1.4;rx:12}
+  .core{fill:#102a26;stroke:#5eead4;stroke-width:1.8;rx:14}
+  .sat{fill:#152233;stroke:#7dd3fc;stroke-width:1.5;rx:12}
+  .satP{fill:#211a33;stroke:#c4b5fd;stroke-width:1.5;rx:12}
+  .satA{fill:#2a2210;stroke:#fbbf24;stroke-width:1.5;rx:12}
+  .t1{fill:#e8eef7;font:600 14px 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+  .t2{fill:#aebacd;font:12px 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+  .t3{fill:#6d7d94;font:11px 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+  .m1{fill:#5eead4;font:600 12.5px 'JetBrains Mono',Consolas,monospace}
+  .m2{fill:#7dd3fc;font:12px 'JetBrains Mono',Consolas,monospace}
+  .m3{fill:#c4b5fd;font:12px 'JetBrains Mono',Consolas,monospace}
+  .mA{fill:#fbbf24;font:11.5px 'JetBrains Mono',Consolas,monospace}
+  .step{fill:#0a0e14;font:700 13px 'JetBrains Mono',Consolas,monospace}
+  .lnT{stroke:#5eead4;stroke-width:2;fill:none}
+  .lnB{stroke:#7dd3fc;stroke-width:1.6;fill:none}
+  .lnP{stroke:#c4b5fd;stroke-width:1.6;fill:none;stroke-dasharray:7 5}
+  .lnA{stroke:#fbbf24;stroke-width:1.6;fill:none;stroke-dasharray:4 4}
+  .zone{fill:none;stroke:#243044;stroke-width:1.2;stroke-dasharray:8 6;rx:14}
+  .zlab{fill:#6d7d94;font:600 11.5px 'JetBrains Mono',Consolas,monospace;letter-spacing:2px}
+</style>
+
+<text x="30" y="32" class="t1" font-size="17">一切 harness 的公分母：感知 → 推理 → 行动 → 观察 的有状态循环（14 仓深拆归纳）</text>
+
+<rect x="30" y="60" width="190" height="110" class="bx"/>
+<text x="48" y="86" class="t1">宿主环境</text>
+<text x="48" y="108" class="t3">CLI 终端 / IDE 扩展</text>
+<text x="48" y="126" class="t3">IM 机器人 / 浏览器</text>
+<text x="48" y="144" class="t3">CI 流水线 / 定时器</text>
+
+<rect x="300" y="60" width="580" height="330" class="zone"/>
+<text x="320" y="84" class="zlab">AGENT LOOP（每轮一次 LLM 调用）</text>
+
+<rect x="330" y="104" width="240" height="96" class="core"/>
+<circle cx="352" cy="126" r="12" fill="#5eead4"/><text x="347" y="131" class="step">1</text>
+<text x="372" y="131" class="m1">上下文组装</text>
+<text x="346" y="154" class="t3">system prompt + 工具 schema</text>
+<text x="346" y="172" class="t3">+ 记忆 + 历史压缩（compaction）</text>
+
+<rect x="640" y="104" width="210" height="96" class="core"/>
+<circle cx="662" cy="126" r="12" fill="#5eead4"/><text x="657" y="131" class="step">2</text>
+<text x="682" y="131" class="m1">LLM 推理（流式）</text>
+<text x="656" y="154" class="t3">provider 抽象层多模型路由</text>
+<text x="656" y="172" class="t3">tool_use / text 增量解析</text>
+<text x="656" y="190" class="t3">重试/退避/降级模型</text>
+
+<rect x="640" y="246" width="210" height="96" class="core"/>
+<circle cx="662" cy="268" r="12" fill="#5eead4"/><text x="657" y="273" class="step">3</text>
+<text x="682" y="273" class="m1">工具调用解析</text>
+<text x="656" y="296" class="t3">function call / edit 块 /</text>
+<text x="656" y="314" class="t3">代码即动作（CodeAct）</text>
+<text x="656" y="332" class="t3">并行 tool_use 收集</text>
+
+<rect x="330" y="246" width="240" height="96" class="core"/>
+<circle cx="352" cy="268" r="12" fill="#5eead4"/><text x="347" y="273" class="step">4</text>
+<text x="372" y="273" class="m1">权限闸门 → 沙箱执行</text>
+<text x="346" y="296" class="t3">ask/allow/deny 规则引擎</text>
+<text x="346" y="314" class="t3">本地受限 / 容器 / 远程运行时</text>
+
+<rect x="440" y="380" width="300" height="70" class="core"/>
+<circle cx="462" cy="402" r="12" fill="#5eead4"/><text x="457" y="407" class="step">5</text>
+<text x="482" y="407" class="m1">观察回灌 → 终止判定</text>
+<text x="456" y="430" class="t3">结果写入历史 → 未完成则回到 ①；yield/完成/预算耗尽则退出</text>
+
+<path class="lnT" d="M570,152 L638,152" marker-end="url(#lp1)"/>
+<path class="lnT" d="M745,200 L745,244" marker-end="url(#lp1)"/>
+<path class="lnT" d="M640,294 L572,294" marker-end="url(#lp1)"/>
+<path class="lnT" d="M450,342 L450,378" marker-end="url(#lp1)"/>
+<path class="lnT" d="M560,380 C560,340 590,230 400,202" marker-end="url(#lp1)"/>
+<text x="520" y="230" class="m1">未完成 → 下一轮</text>
+
+<path class="lnB" d="M220,110 C260,110 280,140 328,148" marker-end="url(#lp2)"/>
+<text x="232" y="100" class="m2">任务/消息</text>
+<path class="lnB" d="M590,450 C400,480 260,220 222,160" marker-end="url(#lp2)"/>
+<text x="300" y="470" class="m2">流式输出 / 确认请求</text>
+
+<rect x="930" y="60" width="220" height="150" class="sat"/>
+<text x="948" y="86" class="m2">工具层（Tools）</text>
+<text x="948" y="108" class="t3">read/write/edit · shell/bash</text>
+<text x="948" y="126" class="t3">grep/glob · web fetch/search</text>
+<text x="948" y="144" class="t3">浏览器 · LSP · 子代理调用</text>
+<text x="948" y="162" class="t3">MCP 客户端挂载外部服务器</text>
+<text x="948" y="186" class="mA">每家差异=内置工具集 + schema 工艺</text>
+<path class="lnB" d="M850,160 L928,140" marker-end="url(#lp2)"/>
+<path class="lnB" d="M928,180 L850,240" marker-end="url(#lp2)"/>
+
+<rect x="930" y="240" width="220" height="130" class="satA"/>
+<text x="948" y="266" class="mA">沙箱与权限（安全边界）</text>
+<text x="948" y="288" class="t3">批准模式：full-auto → 每步人审</text>
+<text x="948" y="306" class="t3">OS 级：seatbelt/Landlock/seccomp</text>
+<text x="948" y="324" class="t3">容器级：Docker/微 VM/远程运行时</text>
+<text x="948" y="348" class="mA">A 范式分水岭：无人值守能力上限</text>
+<path class="lnA" d="M850,300 L928,300" marker-end="url(#lp3)"/>
+
+<rect x="300" y="510" width="270" height="130" class="satP"/>
+<text x="318" y="536" class="m3">记忆与上下文治理</text>
+<text x="318" y="558" class="t3">短期：会话历史 + 自动压缩（阈值触发）</text>
+<text x="318" y="576" class="t3">长期：AGENTS.md/记忆文件/向量检索</text>
+<text x="318" y="594" class="t3">任务态：todo/plan 结构化追踪</text>
+<text x="318" y="618" class="mA">长任务存活率 = 压缩与召回质量</text>
+<path class="lnP" d="M470,510 L470,452" marker-end="url(#lp3)"/>
+
+<rect x="610" y="510" width="270" height="130" class="satP"/>
+<text x="628" y="536" class="m3">子代理与并行编排</text>
+<text x="628" y="558" class="t3">spawn：隔离上下文的专业分身</text>
+<text x="628" y="576" class="t3">并行 fan-out / pipeline / 后台任务</text>
+<text x="628" y="594" class="t3">B/C 范式主战场：角色·图·黑板</text>
+<text x="628" y="618" class="mA">A 范式亦内化：explore/plan 分身成标配</text>
+<path class="lnP" d="M720,510 L660,452" marker-end="url(#lp3)"/>
+
+<rect x="30" y="690" width="1120" height="110" class="zone"/>
+<text x="48" y="714" class="zlab">横切关注：可观测性与工程化（所有范式共有）</text>
+<text x="48" y="740" class="t2">trace/日志结构化 · token 成本计量 · 崩溃恢复（会话持久化/断点续跑） · 配置分层（全局/项目/运行时） · 扩展机制（插件/hooks/自定义斜杠命令/MCP）</text>
+<text x="48" y="764" class="t2">分发形态：npm 单命令（opencode/gemini-cli/cline）· 单二进制 Rust/Go（codex/goose/crush）· pip 包（aider/smolagents）· 平台全家桶（AutoGPT/OpenHands/suna）</text>
+</svg>
+<div class="cap"><b>图 2</b> · 《Agent Harness 通用执行循环架构图》—— 手工绘制，为第 4-6 章逐仓拆解的总纲</div>
+</div>
+
+<h3>3.1 五个战术分叉点（先给结论，证据在分类章）</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>分叉点</th><th>光谱两端</th><th>典型选择</th></tr></thead>
+<tbody>
+<tr><td>动作表达</td><td>结构化 function call ⟷ 纯文本编辑块 ⟷ 代码即动作</td><td>opencode/codex 用原生 tool_use；aider 独创 edit-format 光谱（whole/diff/udiff/edit-block）；smolagents/OpenHands 让模型直接写可执行代码（CodeAct）</td></tr>
+<tr><td>沙箱默认姿态</td><td>每步人审 ⟷ 全自动驾驶</td><td>cline 人审每一步；codex 三档（read-only/auto/full-access）+ OS 沙箱；OpenHands 默认 Docker 运行时；goose 按扩展分级授权</td></tr>
+<tr><td>上下文治理</td><td>极简无压缩 ⟷ 激进压缩+外部记忆</td><td>aider 靠 repo-map 单文件注入；opencode/gemini-cli 阈值触发 LLM 自压缩；OpenHands 有专门的 Condenser 插件族</td></tr>
+<tr><td>子代理</td><td>无 ⟷ 一等公民</td><td>opencode 内建 primary/sub agent 两级；autogen/crewAI 以多 agent 为存在意义；MetaGPT/ChatDev 把软件公司角色表写进代码</td></tr>
+<tr><td>分发与宿主</td><td>npm/pip 库 ⟷ 单二进制 ⟷ 全家桶平台</td><td>Rust/Go 派（codex/goose/crush/openinterpreter）押注单文件分发；AutoGPT/OpenHands/suna 走"服务端+前端"平台化</td></tr>
+</tbody></table></div>
+<p class="idx-note">注：本表为 14 仓深拆的归纳结论，逐仓代码锚点见 CH.04-06；个别仓的例外路径在对应小节注明。</p>
+</section>
+
+<!-- ================= 第 4 章 ================= -->
+<section class="chapter" id="ch4">
+<h2 class="ch-t"><span class="no">CH.04</span>范式 A · CLI/IDE 编程 Agent：harness 物种的主干</h2>
+
+<p>榜内 10 席、合计超 125 万星——A 范式是 agent 工程的主干物种。本章深拆 9 仓（OpenClaw、opencode、codex、gemini-cli、cline、OpenHands、goose、aider、openinterpreter），画像 2 仓（continue、crush）。深拆揭示的最大真相是：<strong>它们的循环几乎相同，胜负全在四个"非循环"工程层——权限闸门、上下文治理、编辑表达、分发形态</strong>。</p>
+
+<h3>4.1 openclaw/openclaw @ 030a6ec：391k★ 断层榜首——个人 agent harness 的完全体</h3>
+<p>前身 Clawdbot 的 OpenClaw 是本榜第一（391k★，shields 实采），也是用户点名的参照系。它的答案与所有 CLI 同行不同：<strong>harness 的宿主不是终端，而是你的全部消息渠道与自有设备</strong>。架构是"网关+内核+渠道插件+节点"四层：</p>
+<ul>
+<li><strong>Agent loop</strong>：<code>runAgentLoop</code>（<a class="badge deep" href="https://github.com/openclaw/openclaw/blob/030a6eca356ef4a3c760dfffed558bd1879af323/packages/agent-core/src/agent-loop.ts#L68" target="_blank" rel="noopener">packages/agent-core/src/agent-loop.ts:68</a>，改编自 pi-mono）——steering 回灌（:191）→ 流式采样（:252）→ 流内/收尾 tool_use 执行（:259/:292）→ toolResults 回灌（:327）→ hasMoreToolCalls 判定续轮（:317）。教科书式的 tool-use 循环，与 codex/opencode 同构——再次证明循环已商品化。</li>
+<li><strong>Gateway 协议</strong>：独立包 <code>packages/gateway-protocol</code>，<strong>协议 v4</strong>（version.ts:2），TypeBox 帧 schema（frames.ts:40 ConnectParams / :104 HelloOk），req/res/event 三态帧；服务端 upgrade（src/gateway/server-http-upgrades.ts:110），方法注册表（server-methods.ts:43）。会话路由（src/routing/resolve-route.ts:38）按 channel+account+peer 解析到 agentId 绑定——<strong>这是"一个网关托管多 agent 人格"的路由核心</strong>。</li>
+<li><strong>渠道插件体系</strong>：抽象 <code>ChannelPlugin</code>（src/channels/plugins/types.plugin.ts:55），生成清单 <strong>27 个渠道</strong>（bundled-channel-ids.generated.ts:11-148）：WhatsApp/Telegram/Discord/Slack/Signal/iMessage/Matrix/IRC/LINE/MS Teams/Google Chat/飞书/Zalo/Mattermost/Nostr/Twitch/SMS/a2a……CLI 同行只有一个宿主，它有二十七个。</li>
+<li><strong>Skills</strong>：SKILL.md + YAML frontmatter（<strong>与 Claude skills 同构</strong>，frontmatter.ts:22 解析），五层加载（bundled 50 个→托管→插件→workspace→远程节点），以 XML 目录渐进披露注入系统提示；ClawHub 市场（src/plugins/clawhub.ts）做分发。</li>
+<li><strong>权限与信任</strong>：exec 两阶段批准（agent 侧 exec-approval-request ↔ gateway 侧 exec-approval-manager + 持久 allowlist）；<strong>pairing 配对</strong>用 8 位人读码（pairing-store.ts:22-27，TTL 1h/最多 3 待批）+ 设备 ed25519 签名 + /j/ 短码——消费级 agent 的信任建立是"配对"而非"API key"，这是它与开发者 harness 最本质的产品差异；nodes 远程执行走白名单（invoke-system-run-allowlist.ts）+ operator 批准；Docker 沙箱后端可注册（src/agents/sandbox/）。</li>
+<li><strong>记忆与人格</strong>：<code>MEMORY.md</code>（root-memory-files.ts:7）+ <strong>人格五件套 AGENTS/SOUL/TOOLS/IDENTITY/USER.md</strong>（workspace-bootstrap-policy.ts:9-14）——把"system prompt"拆成可读可编辑的人格文件族，是消费级 harness 对上下文工程的独特贡献；会话存 SQLite（worker 线程）；compaction（agent-core/harness/compaction/compaction.ts:322 shouldCompact / :915 compact）。</li>
+<li><strong>子代理与 MCP</strong>：subagents 工具（subagents-tool.ts:429）+ sessions_spawn；MCP 双向（自身可作 server：src/mcp/channel-server.ts:14；亦可作 client）；hooks 体系（src/plugins/hooks.ts:1015-1302，before_tool_call/inbound_claim/before_prompt_build 等）。</li>
+</ul>
+<p>债务：package.json 1275+ 行手工 exports/排除清单；主线程同步 SQLite 存量（仓内 AGENTS.md 自承 legacy）。【未确认】extensions/tencent 的正式渠道注册形态。<strong>形态学定位：OpenClaw 证明了 A 范式的循环内核可以服务消费级宿主——它与 opencode 的差异不在"脑"而在"感官与四肢"（渠道=感官，节点=四肢，配对=信任），这正是 4.0 节"第六个收敛信号"的实证。</strong></p>
+
+<h3>4.2 anomalyco/opencode @ b471c2b：Effect-TS 服务化内核，server/worker 分离</h3>
+<p>榜首开源 CLI（210,244★，原 sst/opencode，Bun + Effect-TS）的进程模型是四者中最"服务端"的：<strong>server/client 分离</strong>，TUI（OpenTUI+SolidJS）跑在 Worker 线程，内核可被任意前端复用。主循环 <code>runLoop</code>（<a class="badge deep" href="https://github.com/anomalyco/opencode/blob/b471c2b4495747353af768fbf2e0790c9d820ce2/packages/opencode/src/session/prompt.ts#L1081" target="_blank" rel="noopener">session/prompt.ts:1081-1341</a>，while(true) 在 :1088），流式执行在 session/processor.ts:641，底层走 AI SDK streamText（session/llm.ts:280）。工具注册表 <a class="badge deep" href="https://github.com/anomalyco/opencode/blob/b471c2b4495747353af768fbf2e0790c9d820ce2/packages/opencode/src/tool/registry.ts#L209" target="_blank" rel="noopener">tool/registry.ts:209-249</a>（内置清单，Tool.define 用 Effect Schema，tool/tool.ts:151）。权限：<a class="badge deep" href="https://github.com/anomalyco/opencode/blob/b471c2b4495747353af768fbf2e0790c9d820ce2/packages/opencode/src/permission/index.ts#L28" target="_blank" rel="noopener">permission/index.ts:28</a> evaluate 默认 ask（ask:67/reply:109），bash 命令用 <strong>tree-sitter bash+powershell 拆子命令</strong>逐段判定（tool/shell.ts:257-291）——这是 A 范式最细的命令粒度审查。压缩：专用 compaction agent 增量摘要（<a class="badge deep" href="https://github.com/anomalyco/opencode/blob/b471c2b4495747353af768fbf2e0790c9d820ce2/packages/opencode/src/session/compaction.ts#L319" target="_blank" rel="noopener">session/compaction.ts:319</a>，阈值 overflow.ts:10-34，触发 prompt.ts:1161）。子代理：<a class="badge deep" href="https://github.com/anomalyco/opencode/blob/b471c2b4495747353af768fbf2e0790c9d820ce2/packages/opencode/src/tool/task.ts#L81" target="_blank" rel="noopener">tool/task.ts:81</a> 创建 parentID 子 session 同进程跑，深度限 1，权限派生（:139-155）；agent 定义（agent/agent.ts:35-55）内置 build/plan=primary、general/explore=subagent 两级体系。provider 走 models.dev+AI SDK 支持 30+。债务：provider/transform.ts 近 2000 行 if/else 巨分发、prompt.ts 1631 行多职责。</p>
+
+<h3>4.3 openai/codex @ 985cf47：111 crate 的工业级安全模型，"app-server 中心"收敛</h3>
+<p>此快照的 codex 已是 <strong>111 个 crate</strong> 的大型工程（cli/tui/exec/app-server/sandboxing/…），进程模型收敛为 <strong>app-server 中心</strong>：TUI、Desktop、exec 全部经 JSON-RPC app-server 协议访问内核（exec 也走 InProcessAppServerClient，<a class="badge deep" href="https://github.com/openai/codex/blob/985cf47a4eb6084b2ff6b30ebdb1216acda85bb4/codex-rs/exec/src/lib.rs#L21" target="_blank" rel="noopener">exec/src/lib.rs:21</a>），exec-server 把进程执行抽象为可远程部署的 RPC 服务（app 与 executor 可异 OS）。主循环 <code>run_turn</code>（<a class="badge deep" href="https://github.com/openai/codex/blob/985cf47a4eb6084b2ff6b30ebdb1216acda85bb4/codex-rs/core/src/session/turn.rs#L163" target="_blank" rel="noopener">core/src/session/turn.rs:163</a>）：前置 guardian 检查 → <strong>pre-sampling compaction</strong>（:183）→ 采样循环（loop {} :424；drain 用户 steer → 组装 history → 流式请求）→ function call 用 <code>FuturesOrdered</code> 并发派发（:2556）→ 结果回灌续轮，纯文本即 turn 结束。工具体系：<code>ToolSpec</code>（tools/src/tool_spec.rs:22）+ 每轮 <code>build_tool_router</code>（spec_plan.rs:123，core+MCP+extension+dynamic+hosted 五源）+ exposure 三态（Direct/Deferred/CodeModeOnly）。<strong>安全模型是全榜最完整实现</strong>：审批四档 <code>AskForApproval</code>（<a class="badge deep" href="https://github.com/openai/codex/blob/985cf47a4eb6084b2ff6b30ebdb1216acda85bb4/codex-rs/protocol/src/protocol.rs#L986" target="_blank" rel="noopener">protocol.rs:986</a>，granular 再细分五开关）× 沙箱四态 <code>SandboxPolicy</code>（:1072）× OS 三平台隔离——macOS Seatbelt profile 生成（sandboxing/src/seatbelt.rs）、Linux <strong>bubblewrap 文件系统视图 + no_new_privs + seccomp 网络过滤两阶段</strong>（<a class="badge deep" href="https://github.com/openai/codex/blob/985cf47a4eb6084b2ff6b30ebdb1216acda85bb4/codex-rs/linux-sandbox/src/lib.rs#L4" target="_blank" rel="noopener">linux-sandbox/src/lib.rs:4</a>，纯 Landlock 已 deprecated）、Windows 专用 sandbox service——外加 execpolicy 声明式命令策略与 network-proxy。上下文：本地 compact（compact.rs:141）+ provider 侧 remote compaction V2；rollout JSONL + SQLite 持久化（codex resume/fork）。<strong>LLM 协议立场激进：全仓零 <code>/chat/completions</code> 调用</strong>——core 只讲 Responses API，其他后端经 responses-api-proxy 或专用 crate（ollama/lmstudio）适配。子代理是内建完整子系统：core/src/agent/ + spawn/wait/message 工具族 v1/v2 并存（multi_agents_spec.rs:65/:185）。债务：session/mod.rs 5183 行、turn.rs 3167 行、protocol.rs 6451 行——仓内 AGENTS.md 自订"模块 &lt;500 行、resist adding code to codex-core"，现状与自身规范差距是全榜最大的言行分裂。</p>
+
+<h3>4.4 google-gemini/gemini-cli @ 2fe7c2d：单进程 Google 系纵深，策略引擎+双层安全</h3>
+<p>Node 单进程（UI=Ink fork），架构取向与 opencode 相反：<strong>core 不直接执行工具</strong>，只抛 ToolCallRequest 事件给 CLI 侧调度器。主循环 <code>processTurn</code>（<a class="badge deep" href="https://github.com/google-gemini/gemini-cli/blob/2fe7c2d3f065dc40ad573d50b2091116f8a4aa18/packages/core/src/core/client.ts#L628" target="_blank" rel="noopener">core/client.ts:628-922</a>，递归 async generator，sendMessageStream:924 进入，MAX_TURNS=100 在 :79；Turn 在 core/turn.ts:254；工具经 scheduler/scheduler.ts:211 执行后回灌）。工具注册表 <a class="badge deep" href="https://github.com/google-gemini/gemini-cli/blob/2fe7c2d3f065dc40ad573d50b2091116f8a4aa18/packages/core/src/tools/tool-registry.ts#L247" target="_blank" rel="noopener">tools/tool-registry.ts:247</a>，内置注册点 config/config.ts:4008-4124（read_file/edit/write_file/shell/grep/glob/web_fetch/web_search/ask_user/agent 等）。权限是 A 范式最工程化的实现：<a class="badge deep" href="https://github.com/google-gemini/gemini-cli/blob/2fe7c2d3f065dc40ad573d50b2091116f8a4aa18/packages/core/src/policy/policy-engine.ts#L242" target="_blank" rel="noopener">policy/policy-engine.ts:242</a> 三态（ALLOW/ASK_USER/DENY）+ TOML 规则分层 priority（10-999），非交互模式降级 DENY（:921）；闸门在 scheduler.ts:672-739；bash 同样 tree-sitter 拆根命令（tools/shell.ts:439）；另有 <strong>seatbelt/docker/LXC 进程沙箱</strong>（cli/src/utils/sandbox.ts）构成"策略+隔离"双层。压缩：chatCompressionService.ts:466（0.5×tokenLimit 阈值 :45，旧 70% 摘要留近 30%，触发 client.ts:703）。子代理：agents/registry.ts:50（内置 codebase_investigator 等，项目级 .gemini/agents 带 hash acknowledge 防伪）+ local-executor.ts:131（独立 GeminiChat 子循环 :685），远程走 A2A 协议。债务：config.ts 4249 行上帝类（gemini.tsx:692 有 TODO 自证）。</p>
+
+<h3>4.5 cline/cline @ 29896ec：从 VS Code 扩展到"hub 守护进程 + 全宿主瘦身"</h3>
+<p>此快照的 cline 已完成 monorepo 重构，<strong>经典 <code>Task.presentAssistantMessage</code> 递归循环已不存在</strong>：循环下沉为无状态包 <code>@cline/agents</code> 的 <code>AgentRuntime</code>——<a class="badge deep" href="https://github.com/cline/cline/blob/29896ec7fa8e2dd98805b56c2dae987d59fc9baa/sdk/packages/agents/src/agent-runtime.ts#L811" target="_blank" rel="noopener">agent-runtime.ts:811-961</a>（execute while 迭代；工具执行 :926；terminal 工具收尾 :943）；VS Code 扩展/CLI/Desktop 全部瘦身成 client，共享本机单例 <strong>cline-hub 守护进程</strong>（WebSocket ws://127.0.0.1:25463/hub）。工具定义在 sdk/packages/core/src/extensions/tools/definitions.ts（read_files:272 / search_codebase:369 / run_commands:514 / apply_patch:654 / editor:703 / skills:773 / ask_question:819 / submit_and_exit:843），另有 team 工具族（spawn_agent spawn-agent-tool.ts:121 + 19 个 team_* team-tools.ts:303-850）与 MCP client。批准模型仍是 cline 的立身之本：ToolPolicy{enabled,autoApprove}（shared/src/llms/tools.ts:7-18），执行点 agent-runtime.ts:2390 → 宿主回调 requestToolApproval；UI 侧 ClineAsk 枚举（ExtensionMessage.ts:209-227）+ AutoApprovalSettings（:1-44）。压缩：ContextPipelinePrepareTurn 钩子（extensions/context/compaction.ts:72）双实现——确定性截断 basic-compaction.ts + LLM 摘要 agentic-compaction.ts:116；阈值 0.9 触发/目标 0.7/保留 20k；溢出硬恢复 agent-runtime.ts:1283。沙箱姿态与 codex 相反：<strong>无 OS 级沙箱</strong>（executors/bash.ts:7 直接 node spawn），保障靠 editor cwd 限制（:42-64）+ <strong>git shadow checkpoint</strong>（checkpoint-hooks.ts:497，每次改动可回滚）+ VS Code diff 视图。LLM 层统一走 Vercel AI SDK streamText（providers/ai-sdk.ts:2315）。债务：agent-runtime.ts 2,825 行巨类 + 新旧双协议兼容层。</p>
+
+<h3>4.6 OpenHands/OpenHands @ 47a1080：前后端分家后的"契约优先"形态</h3>
+<div class="callout">
+<div class="co-t">又一个 2026 结构事实：OpenHands 主仓已只是前端</div>
+<p>该 commit 全仓仅 9 个 .py（CI 脚本/mock）——它现在是 <code>@openhands/agent-canvas</code> 前端仓；Python 后端（AgentController、EventStream、Condenser 族、Docker runtime）已拆到 <code>OpenHands/software-agent-sdk</code>（不在本检出内），以 PyPI <code>openhands-agent-server</code> 1.49.6 / ghcr 镜像分发。以下按前端依赖的线上契约精确刻画，Python 侧实现行号标注【未确认】。</p>
+</div>
+<p>契约面：启动 payload（agent-server-adapter.ts:1259-1306）<strong>max_iterations 默认 500</strong>（:150）、stuck_detection:true；状态机 ExecutionStatus 7 态（types/agent-server/core/base/common.ts:67-75）；事件流经 WS 订阅（use-event-store.ts:153），事件 union 定义（openhands-event.ts:25-46）。动作体系：<strong>Action 26 种 / Observation 16 种</strong>（action.ts:343-369 / observation.ts:364-380）——这是全榜最完备的动作类型学；服务端工具集 terminal/file_editor/task_tracker + browser_tool_set。批准模型三态 confirmation_policy（NeverConfirm/AlwaysConfirm/ConfirmRisky{HIGH,confirm_unknown}，adapter.ts:701-713）+ <strong>三种安全分析器</strong>（LLMSecurityAnalyzer/PatternSecurityAnalyzer/PolicyRailSecurityAnalyzer，:715-726）——唯一把"是否放行一次工具调用"做成可插拔分析器市场的实现。压缩：LLMSummarizingCondenser{max_size:100,keep_first:6}（:1457）+ 手动 condense API；Condenser 实现族【未确认】（SDK 仓）。运行时：LocalWorkspace vs DockerExecutionWorkspace{"/workspace"}（:1089）；委派两级——TaskAction 进程内子代理 + LaunchChildConversationAction 子会话（:332）。债务：浏览器直连 runtime 的鉴权面、1,701 行 god-adapter。</p>
+
+<h3>4.7 aaif-goose/goose @ 04ed836：万物皆 MCP extension，ACP 作为唯一服务端协议</h3>
+<p>上游 block/goose 的 fork（本快照 15 个 crate + Electron UI）。最大取向差异：<strong>移除独立 goose-server，服务端统一为 ACP（Agent Client Protocol）</strong>——stdio 与 HTTP+WS 双形态（cli.rs:839/:865），CLI/Desktop/roam(p2p) 三前端共享同一 goose 库。<strong>Agent loop 正处于 legacy→state machine 迁移中（双轨并存）</strong>：legacy <code>Agent::reply</code>（<a class="badge deep" href="https://github.com/aaif-goose/goose/blob/04ed836c8cde23e540cc77d256992e00be99298b/crates/goose/src/agents/agent.rs#L2044" target="_blank" rel="noopener">agent.rs:2044</a>）→ reply_internal（:2416，主循环 :2586；权限检查 :2864；select_all 并发工具 :2927）；state machine 路径（GOOSE_STATE_MACHINE=1，state_machine/mod.rs:72）是有序 Operation 管线，每步产出 GooseEffect 由 SessionManager 落库——effect 即增量写库，天然可重入恢复。工具体系即 MCP：<code>ExtensionConfig</code> 四形态（Stdio/Builtin/Platform/StreamableHttp，<a class="badge deep" href="https://github.com/aaif-goose/goose/blob/04ed836c8cde23e540cc77d256992e00be99298b/crates/goose/src/agents/extension.rs#L156" target="_blank" rel="noopener">extension.rs:156</a>），ExtensionManager（2,782 行）统一加 <code>extension__tool</code> 前缀聚合派发；内置 developer 扩展（shell/text_editor/tree/image，developer/mod.rs:108）；toolshim 为不支持原生 tool calling 的模型做文本协议模拟（reply_parts.rs:526）——与 openinterpreter 的 harness 整形层异曲同工。<strong>无 OS 级沙箱</strong>（全仓 0 seatbelt/landlock/seccomp）：安全完全靠 GooseMode 四档（Auto/Approve/SmartApprove/Chat，goose_mode.rs:22-32）× per-tool PermissionLevel 三档（permission.rs:21）× SmartApprove LLM judge（permission_judge.rs:189）+ extension 恶意扫描。压缩是独立 crate goose-context-management（阈值 0.8，lib.rs:32）+ auto/recovery/tool-pair 三路触发。子代理=独立 session（orchestrator.rs:106 五工具），委派树隔离边界有测试固化（:863-1035）；Recipe 声明式任务模板 + schedule 定时。债务：agents/agent.rs 6161 行双 loop 巨石；子代理体系重构残留空壳。</p>
+
+<h3>4.8 Aider-AI/aider @ 5dc9490：不用 tool-use 的反思链与 edit-format 工程学</h3>
+<p>aider 是 A 范式里的"异端"：<strong>它不让 LLM 调工具</strong>。主循环 <code>run()</code>（<a class="badge deep" href="https://github.com/Aider-AI/aider/blob/5dc9490bb35f9729ef2c95d00a19ccd30c26339c/aider/coders/base_coder.py#L876" target="_blank" rel="noopener">base_coder.py:876</a>）→ <code>run_one</code>（:924）是单轮多消息<strong>反思链</strong>（L932-944）：模型直接输出编辑文本，harness 解析、落盘、跑 lint/test，失败则把错误作为 reflected_message 续轮——"工具调用"被退化成了"文本协议 + harness 解释执行"。这把循环的复杂度从模型侧搬到了格式侧，于是有了 aider 最著名的工程资产：<strong>edit-format 光谱</strong>——<a class="badge deep" href="https://github.com/Aider-AI/aider/blob/5dc9490bb35f9729ef2c95d00a19ccd30c26339c/aider/coders/__init__.py#L1" target="_blank" rel="noopener">coders/__init__.py:1-34</a> 注册 <strong>14 个 Coder 类</strong>（whole / diff / diff-fenced / udiff / udiff-simple / patch / editor-* / architect / ask / help / context），<code>Coder.create</code>（base_coder.py:190）按字符串分发，models.py:439-596 的模型能力表决定每个模型默认用哪种格式。上下文治理靠 <strong>repo-map</strong>：<a class="badge deep" href="https://github.com/Aider-AI/aider/blob/5dc9490bb35f9729ef2c95d00a19ccd30c26339c/aider/repomap.py#L42" target="_blank" rel="noopener">repomap.py:42</a>——tree-sitter 抽标签（:279）→ networkx PageRank 排序（:525）→ token 预算装填（:103，默认 1024），用一份"仓库地图"替代全文注入。权限：统一确认点 <code>confirm_ask</code>（io.py:807，yes/no/all/skip/don't-ask-again 五态）+ dirty-repo 保护（base_coder.py:2175）。工具体系是反射式 40 个斜杠命令（commands.py:36）。高级模式：architect/editor 双模型串行（architect_coder.py:6）、watch 模式监听文件注释触发（watch.py:65）。债务：base_coder.py 2485 行 god class。</p>
+
+<h3>4.9 openinterpreter/openinterpreter @ 89e7a86：68k 星仓库的惊天一跃——它现在是 OpenAI Codex 的分发 fork</h3>
+<div class="callout bad">
+<div class="co-t">✗ 本报告最意外发现：open-interpreter 的 Python 时代已经结束</div>
+<p>该 commit 整仓无任何 Python <code>interpreter/</code> 包（OSWorld 关键词 0 命中）：<code>FORK_BRANDING.md</code>（L1-24）明示本仓是 <strong>OpenAI Codex 的 Rust 分发 fork</strong>（159 个 crate 的 codex-rs 工作区），发行前缀 <code>rust-v</code>，desc 已改为"面向 Kimi K3、GLM 5.3 等开放模型的编码 agent"。68,451 颗星挂在一个 fork 上——这是 2026 年 agent 工程收编潮中最具戏剧性的一幕。</p>
+</div>
+<p>作为 codex 血统，其骨架与 codex 同源：主循环 <code>run_turn</code>（<a class="badge deep" href="https://github.com/openinterpreter/openinterpreter/blob/89e7a862435645cfe0209ab4e18199c832629261/codex-rs/core/src/session/turn.rs#L163" target="_blank" rel="noopener">turn.rs:163</a>，教科书 tool-use 循环，L335 循环体，L2408 FunctionCall 分派），Op 驱动 submission_loop（session/handlers.rs:530）；编辑收敛为单一 <code>apply_patch</code> 方言（tools/handlers/apply_patch.rs:78，连 shell 形式调用都会被拦截改写，L499）；权限三层模型 <code>AskForApproval</code>（protocol.rs:984，UnlessTrusted/OnRequest/Granular/Never 四档）× <code>SandboxPolicy</code>（:1070）× execpolicy 规则引擎（exec_policy.rs:316，Allow/Prompt/Forbidden），加 OS 沙箱（Seatbelt/Landlock/Windows token）与 guardian 复审子系统。<strong>fork 的差异化价值在 harness 整形层</strong>：<a class="badge deep" href="https://github.com/openinterpreter/openinterpreter/blob/89e7a862435645cfe0209ab4e18199c832629261/codex-rs/core/src/harness/mod.rs#L1" target="_blank" rel="noopener">core/src/harness/mod.rs:1-18</a> 定义 12 种 harness 方言（claude_code/deepseek_tui/kimi_cli/qwen_code…），按 wire_api×harness 把工具表面整形成目标模型最熟悉的样子（routing.rs:38）——<strong>"harness 作为模型适配层"这一概念的字面实现</strong>。压缩：compact.rs:121/153，无 repo-map（上下文靠 AGENTS.md + fragment 注入）；子代理：multi_agents v1/v2 工具族（multi_agents_spec.rs:65-344）。债务：session/mod.rs 4600+ 行、v1/v2 双轨并存、kimi_* 厂商耦合硬塞进 codex-core。</p>
+
+<h3>4.10 continue 与 crush：IDE 派的谢幕与 Go 派的美学（画像级）</h3>
+<ul>
+<li><strong>continuedev/continue</strong>（36,036★，仓库 read-only）：先驱开源 IDE 自动驾驶舱，Agent/Chat/Autocomplete/Edit 四模式；一切走 <code>config.yaml</code>（model roles 分工、rules、prompts、MCP servers）；终版 2.0.0 移除遥测与认证体面谢幕，官方建议改用其 CLI。它的退场与 cline 的日更，标志 IDE 扩展形态让位于"IDE 内嵌终端 + CLI harness"组合。</li>
+<li><strong>charmbracelet/crush</strong>（28,320★，Go）：Charm 出品的终端 coding agent TUI：会话中换模型保上下文、LSP 补上下文、MCP（stdio/http/sse）三传输扩工具；权限默认逐次询问、<code>--yolo</code> 全放行——Go 单二进制 + Bubble Tea 美学的路线证明：harness 的体验差异可以纯靠前端工艺拉开。</li>
+</ul>
+<p class="idx-note">证据等级：画像级（README/docs 阅读）。</p>
+
+<div class="callout good">
+<div class="co-t">✓ A 范式小结：harness 主干物种的五个收敛信号</div>
+<p>① 循环收敛为 tool-use 循环（aider 的反思链是唯一幸存异端，且已 2026-05 停更）；② 权限收敛为"批准模式 × 沙箱策略 × 规则引擎"三层（codex 系最完整，opencode/gemini-cli 不约而同用 tree-sitter 拆 bash 子命令）；③ 上下文收敛为"AGENTS.md 注入 + 阈值触发 LLM 自压缩"（aider 的 repo-map 是另一条技术路线，暂未扩散）；④ 工具收敛为"内置十余个 + MCP 挂载外部"；⑤ 分发收敛为单命令安装，Rust/Go 派与 npm 派分庭抗礼。OpenClaw 的登顶提示第六个信号：<strong>harness 的宿主正在从 IDE/终端溢出到消息渠道与自有设备</strong>。</p>
+</div>
+</section>
+
+<!-- ================= 第 5 章 ================= -->
+<section class="chapter" id="ch5">
+<h2 class="ch-t"><span class="no">CH.05</span>范式 B · Agent 框架与 SDK：编排原语的两种世界观</h2>
+
+<p>B 范式回答的问题是"<strong>开发者如何用代码组装 agent</strong>"。本章深拆两仓（autogen、crewAI，锁 SHA 逐行核实），画像两仓（agno、agentscope），并给出框架组荣誉提名。一句话先给对照：<strong>AutoGen 把多智能体建模为事件驱动 actor 系统（协议优先、可分布式），CrewAI 是"角色扮演 Crew + 声明式 Flow"的同步流水线（落地速度优先）</strong>。</p>
+
+<h3>5.1 microsoft/autogen @ 027ecf0：事件驱动 actor 内核</h3>
+<p>v0.4+ 的 AutoGen 已是全部分层的重写版：内核 <code>SingleThreadedAgentRuntime</code>（<a class="badge deep" href="https://github.com/microsoft/autogen/blob/027ecf0a379bcc1d09956d46d12d44a3ad9cee14/python/packages/autogen-core/src/autogen_core/_single_threaded_agent_runtime.py#L149" target="_blank" rel="noopener">_single_threaded_agent_runtime.py:149</a>）——三类信封队列 + topic 订阅路由（TypeSubscription）；分布式形态 <code>GrpcWorkerAgentRuntime</code>（autogen-ext runtimes/grpc/_worker_runtime.py:215）把同一套协议搬到多进程/多机。单 agent 循环在 <code>AssistantAgent.on_messages_stream</code>（<a class="badge deep" href="https://github.com/microsoft/autogen/blob/027ecf0a379bcc1d09956d46d12d44a3ad9cee14/python/packages/autogen-agentchat/src/autogen_agentchat/agents/_assistant_agent.py#L901" target="_blank" rel="noopener">_assistant_agent.py:901</a>），工具循环 <code>_process_model_result</code>（:1118）用 <code>asyncio.gather</code> 并行执行工具调用、支持 handoff 与反思。</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th>编排类（agentchat teams）</th><th>模型</th><th>锚点</th></tr></thead>
+<tbody>
+<tr><td>RoundRobinGroupChat</td><td>固定序轮转发言</td><td><a class="badge" href="https://github.com/microsoft/autogen/blob/027ecf0a379bcc1d09956d46d12d44a3ad9cee14/python/packages/autogen-agentchat/src/autogen_agentchat/teams/_group_chat/_round_robin_group_chat.py#L96" target="_blank" rel="noopener">_round_robin_group_chat.py:96</a></td></tr>
+<tr><td>SelectorGroupChat</td><td>模型选下一个发言者</td><td>_selector_group_chat.py:362</td></tr>
+<tr><td>MagenticOneGroupChat</td><td>Orchestrator 用 ledger 记账式规划分派</td><td>_magentic_one_group_chat.py:36</td></tr>
+<tr><td>Swarm</td><td>handoff 链式接力</td><td>_swarm_group_chat.py:126</td></tr>
+<tr><td>GraphFlow</td><td>有向图执行</td><td>_digraph_group_chat.py:551</td></tr>
+</tbody></table></div>
+<p>工具抽象 <code>BaseTool</code>（autogen-core tools/_base.py:96）+ <code>Workbench</code>（_workbench.py:78），MCP 经 ext 包三传输（stdio/sse/streamable_http）接入；记忆 <code>Memory</code> ABC（memory/_base_memory.py:60，ext 实现 mem0/chromadb/redis）外加四种 <code>ChatCompletionContext</code> 上下文裁剪策略（Unbounded/Buffered/HeadAndTail/TokenLimited）；代码执行器全梯度 local/docker/jupyter/azure。技术债务：Magentic-One 新旧两套实现并存、pyautogen 纯代理包的 v0.2→v0.4 断代包袱；license 拆为代码 MIT + 文档 CC-BY-4.0 双轨；2026-04 后停更（API 实采最近 push）。</p>
+
+<h3>5.2 crewAIInc/crewAI @ 4ed2abc：角色扮演 + 声明式 Flow</h3>
+<p>CrewAI（本快照为 v2-edge 世代，源码在 lib/crewai/src/crewai/）运行时保持同步过程式：<code>Crew.kickoff</code>（<a class="badge deep" href="https://github.com/crewAIInc/crewAI/blob/4ed2abc7bbf504a634d3b733f2a97e0fbe8d44ec/lib/crewai/src/crewai/crew.py#L995" target="_blank" rel="noopener">crew.py:995</a>）→ <code>_execute_tasks</code>（:1571，任务级 async 走线程池）；横切通信走单例事件总线（events/event_bus.py:95）。单 agent 循环：</p>
+<pre><code data-lang="python">Agent.execute_task              # agent/core.py:956
+ → CrewAgentExecutor.invoke     # agents/crew_agent_executor.py:230
+ → _invoke_loop(:331) 分流两引擎:
+     _invoke_loop_react(:352)          # 文本 ReAct：while not AgentFinish(:363) → 解析(:419) → 执行工具(:436)
+     _invoke_loop_native_tools(:505)   # 原生 function calling
+   （异步镜像：_ainvoke_loop_react:1169 / _ainvoke_loop_native_tools:1305）</code></pre>
+<p>编排双模型：<code>Process</code> 枚举（sequential/hierarchical，hierarchical 自动合成 manager agent，crew.py:1531）+ 声明式 <code>Flow</code>（flow/flow.py:33，<code>@start/@listen/@router</code> DSL）。<strong>本快照捕获到两次进行中的破坏性重写</strong>：① 记忆整体重写为统一 <code>Memory</code>（<a class="badge deep" href="https://github.com/crewAIInc/crewAI/blob/4ed2abc7bbf504a634d3b733f2a97e0fbe8d44ec/lib/crewai/src/crewai/memory/unified_memory.py#L76" target="_blank" rel="noopener">unified_memory.py:76</a>）——写入/召回本身用 Flow 实现（EncodingFlow/RecallFlow），存储后端 LanceDB/Qdrant，旧短期/长期/实体记忆已删；② <strong>代码执行主动退场</strong>：<code>allow_code_execution</code> 弃用（agent/core.py:293，"Use dedicated sandbox services instead"）——与 AutoGen 的全梯度执行器形成鲜明姿态对照：框架越来越不愿意替你的沙箱负责。债务：crew.py 2559 行 / agent core.py 2263 行巨兽类、ReAct×native×sync×async 四份循环并存、llm.py 2700+ 行 litellm 与原生 provider 双路径纠缠。</p>
+
+<h3>5.3 agno 与 agentscope：平台化的框架（画像级）</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th></th><th>agno-agi/agno（42,351★）</th><th>agentscope-ai/agentscope（32,413★，荣誉提名 #21）</th></tr></thead>
+<tbody>
+<tr><td>形态</td><td>SDK + AgentOS 运行时 + 控制面三件套；八云部署模板（Railway/Docker/AWS/GCP/Azure/Fly/Render/Helm）</td><td>PyPI SDK + Agent Service（FastAPI + 预建 Web UI，多租户多会话）</td></tr>
+<tr><td>循环/内核</td><td>run 经 SSE/WS 流式（50+ 端点）、可被人审暂停、cron 与后台任务</td><td><strong>ReAct 内核 + 事件总线</strong>；Middleware 在 reply/reasoning/acting/permission/context compression 各环节挂钩子</td></tr>
+<tr><td>工具/MCP</td><td>100+ 预建 toolkits；docs 可挂为文档 MCP</td><td>Toolkit 统一管理 Python 工具 + MCP servers + skills；MCP & Skill Hub 可浏览 GitHub MCP Registry/ClawHub 安装</td></tr>
+<tr><td>沙箱/权限</td><td>JWT RBAC、多租户隔离、审计日志、OTel tracing 开箱</td><td><strong>八种沙箱后端</strong>：local/Docker/Apple Container/Bubblewrap/E2B/OpenSandbox/Daytona/K8s；细粒度权限 + HITL</td></tr>
+<tr><td>记忆</td><td>sessions/memory/knowledge/traces 四类一等存储</td><td>agentic memory（ReMe/Mem0 后端可换）+ 上下文自动压缩中间件</td></tr>
+<tr><td>多 agent</td><td>README 未披露具体编排模型</td><td>Agent Team（leader-worker）/ Pipeline / Channels（飞书/Discord/钉钉）+ A2A 协议</td></tr>
+</tbody></table></div>
+<p class="idx-note">证据等级：画像级（官方 README/docs 阅读，未逐行核码）。</p>
+
+<details class="acc">
+<summary>框架组荣誉提名：openai-agents-python / smolagents / adk-python / pydantic-ai / langroid</summary>
+<div class="acc-body">
+<ul>
+<li><strong>openai/openai-agents-python</strong>（29,710★）：OpenAI 官方轻量 SDK——Agent(instructions+tools+guardrails+handoffs) 四要素 + Sessions/Tracing；provider-agnostic 支持 100+ LLM；新设 SandboxAgent（容器内长时任务）与 Realtime/Voice 形态。topics 自带 "harness" 标签。</li>
+<li><strong>huggingface/smolagents</strong>（29,505★）："agents that think in code" 的极简库（核心 agents.py 约千行）：CodeAgent 以 Python 代码片段为动作的 ReAct 循环；沙箱可选 E2B/Blaxel/Modal/Docker，并明示内置 LocalPythonExecutor <strong>不是安全边界</strong>。</li>
+<li><strong>google/adk-python</strong>（21,652★）：ADK 2.0 code-first 套件：Agent 类定义行为、Workflow 图引擎做路由/fan-out/循环/重试/HITL 确定性编排；CLI 内置 <code>adk web</code> 开发 UI 与 <code>adk eval</code> 评估；一键部署 Cloud Run/Vertex AI。</li>
+<li><strong>pydantic/pydantic-ai</strong>（20,196★）：类型安全优先的 agent 框架，topics 含 "harness-engineering"。</li>
+<li><strong>langroid/langroid</strong>（4,104★）：名字即自我定位——"Harness LLMs with Multi-Agent Programming"（2023 年的 harness 自称先驱）。</li>
+</ul>
+</div>
+</details>
+
+<div class="callout">
+<div class="co-t">B 范式小结：框架层的两股力量在拉扯</div>
+<p>一股是<strong>收编</strong>：工具接入向 MCP 收敛（autogen/crewAI/agentscope/agno 全部内置 MCP 客户端）、代码执行向专用沙箱服务退场（crewAI 弃用、smolagents 外接 E2B）；另一股是<strong>平台化</strong>：框架把运行时、控制面、RBAC、审计做成发行物的一部分（agno AgentOS、agentscope Agent Service、ADK 一键上云）。纯编排原语本身已不再是卖点——2026-04 autogen 停更是这一判断的最硬注脚。</p>
+</div>
+</section>
+
+<!-- ================= 第 6 章 ================= -->
+<section class="chapter" id="ch6">
+<h2 class="ch-t"><span class="no">CH.06</span>范式 C/D · 自主循环、多智能体与协议层</h2>
+
+<p>C 范式是 2023 年那场运动的嫡系：目标驱动、自主循环、角色化组织。本章深拆三仓（AutoGPT、MetaGPT、browser-use），画像三仓（OpenManus、AgentGPT、ChatDev），外加 D 协议层（modelcontextprotocol/servers）。深拆给出的最硬事实是：<strong>古典自主循环没有死，它被博物馆化了——AutoGPT 把它整体封存进 <code>classic/</code> 目录（占仓 5.1%），官方定性"unsupported、含已知漏洞、仅历史保留"</strong>。</p>
+
+<h3>6.1 Significant-Gravitas/AutoGPT @ 5e84f06：从自主循环到块编排平台</h3>
+<p>今日 AutoGPT 的主体是 autogpt_platform：执行引擎 <code>ExecutionManager</code>（<a class="badge deep" href="https://github.com/Significant-Gravitas/AutoGPT/blob/5e84f064d3779acc49c86c51e2167ba8f660c93d/autogpt_platform/backend/backend/executor/manager.py#L1564" target="_blank" rel="noopener">manager.py:1564</a>，ThreadPoolExecutor + RabbitMQ 双队列），节点执行 <code>execute_node</code>（:223），数据沿边流动靠 <code>_enqueue_next_nodes</code>（:547，DB 原子 upsert 汇聚输入 + 分布式锁）。块体系：<code>Block</code> 基类（<a class="badge deep" href="https://github.com/Significant-Gravitas/AutoGPT/blob/5e84f064d3779acc49c86c51e2167ba8f660c93d/autogpt_platform/backend/backend/blocks/_base.py#L572" target="_blank" rel="noopener">_base.py:572</a>，强制 Pydantic input/output schema + UUID + 自带测试契约），<code>load_all_blocks</code> 动态导入注册（blocks/__init__.py:17）——<strong>全库实测 619 个块类</strong>。触发器：webhook 入站路由（integrations/router.py:1101，验签 :1149，扇出触发 :1184）+ 块侧 <code>BlockWebhookConfig</code> 声明 + APScheduler 定时调度（scheduler.py:1883）。沙箱用 E2B 云沙箱（blocks/code_executor.py:3）；凭证走 IntegrationCredentialsManager + SecretStr。前端 Next.js + @xyflow/react，契约是 Pydantic graph → OpenAPI → 生成 hooks。古典循环遗存：<code>classic/original_autogpt/autogpt/app/main.py:611</code> 的 <code>run_interaction_loop</code>（while cycles_remaining，propose_action :694 → execute :742）。债务：manager.py 2243 行 / scheduler.py 3116 行违反自家 ~300 行规约。</p>
+
+<h3>6.2 FoundationAgents/MetaGPT @ 11cdf46：角色化反应循环与"软件公司"SOP</h3>
+<p>单 role 循环：<code>Role.run</code>（<a class="badge deep" href="https://github.com/FoundationAgents/MetaGPT/blob/11cdf466d042aece04fc6cfd13b28e1a70341b1f/metagpt/roles/role.py#L530" target="_blank" rel="noopener">role.py:530</a>）→ <code>_observe</code>（:399，按 cause_by/send_to 过滤订阅消息）→ <code>react</code>（:512）→ <code>_think</code>（:340）→ <code>_act</code>（:381，max_react_loop 限次）。多 role 组织：<code>Team.run</code>（team.py:123）按 n_round 驱动，<code>Environment.run</code>（base_env.py:197）对非空闲 role <code>asyncio.gather</code> 并发；现行默认是 <strong>MGXEnv 星型路由</strong>（mgx_env.py:24——普通消息先发 TeamLeader，由 TL 分派，team_leader.py:75）。动作即职业行为：Action 基类（actions/action.py:29）+ WritePRD/WriteDesign/WriteTasks/WriteCode/WriteCodeReview/WriteTest 族；软件公司编制写死在 <code>software_company.py:44-54</code>（TeamLeader+ProductManager+Architect+Engineer×2+DataAnalyst，Engineer/QA 已被注释）。记忆：<code>Memory</code>（memory.py:20，按 cause_by 索引）+ 长期记忆（Chroma，role_zero.py:183）。<strong>停更已双重确认</strong>：API 最近 push 2026-01-21，且该 SHA 经 atom feed 核实至今仍是 main HEAD——约 8 个月无提交。</p>
+
+<h3>6.3 browser-use/browser-use @ 4cbe921：把浏览器序列化成 LLM 可操作的界面</h3>
+<p>主循环 <code>Agent.step</code>（<a class="badge deep" href="https://github.com/browser-use/browser-use/blob/4cbe921673b48a488f5415d9159249afd12a625b/browser_use/agent/service.py#L1035" target="_blank" rel="noopener">service.py:1035</a>）四阶段：_prepare_context 感知（:1087）→ _get_next_action（:1176）→ _execute_actions（:1211）→ _post_process（:1219）；外循环 run（:2503，while n_steps ≤ max_steps）；多动作批处理 multi_act（:2730，URL/focus 变化双保险防 stale DOM）。<strong>真正的技术核心在感知层</strong>：<code>DomService.get_dom_tree</code>（dom/service.py:703，CDP DOMSnapshot）→ <code>DOMTreeSerializer</code>（dom/serializer/serializer.py:42）——只保留可交互元素并分配 <code>[N]</code> 索引（:660，渲染 :1030），selector_map 写入 :755；LLM 看到的不是 HTML 而是编号清单，动作按索引回指。动作注册表 <code>Registry</code>（tools/registry/service.py:33，@action 装饰器 :291，函数名即动作名）+ <code>Tools</code>（tools/service.py:441）内置 <strong>24 个默认动作</strong>（search/click/input/scroll/evaluate/done…）。记忆：MessageManager（message_manager/service.py:104，截断 :154 + LLM 压缩 :216）；沙箱：BrowserProfile 三形态（本地/CDP/云）+ SecurityWatchdog 强制 allowed_domains。单 agent 架构——"并行"是一任务一云浏览器。债务：双 Agent 实现并存（service.py 4163 行 vs beta 重写版 6700+ 行）。</p>
+
+<h3>6.4 OpenManus / AgentGPT / ChatDev：三条截然不同的续命路线（画像级）</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th></th><th>FoundationAgents/OpenManus（58,420★）</th><th>reworkd/AgentGPT（36,296★，已归档）</th><th>OpenBMB/ChatDev（34,399★）</th></tr></thead>
+<tbody>
+<tr><td>续命路线</td><td><strong>复杂度外包</strong>：极简循环 + 把 browser-use 封装为默认 MCP server（uvx browser-use --cli-mcp），浏览器能力整个外购</td><td><strong>体面谢幕</strong>：T3 全栈产品化自主循环（Next.js+FastAPI+MySQL），2025-04 归档冻结</td><td><strong>转型零代码平台</strong>：2.0 DevAll（2026-01）YAML 声明式工作流 + Vue 画布；1.0 ChatChain 角色研讨会迁 chatdev1.0 分支</td></tr>
+<tr><td>循环形态</td><td>main.py 单 agent / run_mcp.py MCP 版 / run_flow.py 多 agent（自标 unstable）</td><td>目标→生成任务→执行→学习→再规划（LangChain 工具层）</td><td>1.0：ChatChain 阶段链（设计→编码→测试→文档）；2.0：画布节点图执行 + human-in-the-loop</td></tr>
+<tr><td>值得注意的</td><td>配套 OpenManus-RL 研究 GRPO agent 强化学习——自主循环转向训练侧的例证</td><td>GPL-3.0；归档时 Serper/Replicate 为可选工具 key</td><td>研究分支 MacNet（DAG 千级 agent）与 Puppeteer（RL 中央编排器，NeurIPS 2025）；可被 OpenClaw 以 skill 形式调起</td></tr>
+</tbody></table></div>
+<p class="idx-note">证据等级：画像级（官方 README 阅读）。</p>
+
+<h3>6.5 D 协议层 · modelcontextprotocol/servers（90,611★）</h3>
+<p>不是 agent，是 agent 工具生态的"协议骨架"：MCP 指导小组维护的参考服务器合集（Everything/Fetch/Filesystem/Git/Memory/Sequential Thinking/Time），自我设限为"教学示例非生产就绪"，十余个旧参考实现已迁 servers-archived 或移交厂商。对本报告的参考价值在于三点：① <strong>Memory 服务器</strong>把持久记忆做成知识图谱型工具服务——记忆外置为协议原语而非循环内脏；② Filesystem 服务器的"启动参数限定允许目录"是 MCP 侧安全边界的最小范式；③ 官方 SDK 覆盖 C#/Go/Java/Kotlin/PHP/Python/Ruby/Rust/Swift/TS 十语言——协议层的胜负手从来不是规范文本而是 SDK 广度。本报告深拆的 14 仓中，opencode/gemini-cli/cline/goose/agentscope/agno/browser-use/autogen/crewAI 均已内置 MCP 客户端或服务器能力（逐仓锚点见 CH.04-06 与索引矩阵）。</p>
+
+<div class="callout">
+<div class="co-t">C/D 范式小结：自主循环的三次转世</div>
+<p>第一次转世为<strong>平台</strong>（AutoGPT 块编排、ChatDev 2.0 画布）；第二次转世为<strong>垂直运行时</strong>（browser-use 把"自主"收窄到浏览器一域反而做成 116k★）；第三次转世为<strong>训练环境</strong>（OpenManus-RL、SWE-bench 系）。留在原地做通用自主产品的，只剩归档。协议层（D）则是这场运动唯一的全员赢家——所有范式都在向 MCP 交工具税。</p>
+</div>
+</section>
+
+<!-- ================= 第 7 章 ================= -->
+<section class="chapter" id="ch7">
+<h2 class="ch-t"><span class="no">CH.07</span>关键工程模式横评：六张矩阵看清 14 仓</h2>
+
+<p>把 14 个深拆仓按六个工程维度横切（OpenClaw 行待补，其余全部经代码核实）。每张矩阵只收代码里看得见的事实。</p>
+
+<h3>7.1 循环形态谱系</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>仓</th><th>主循环锚点</th><th>循环形态</th></tr></thead>
+<tbody>
+<tr><td>OpenClaw</td><td><a class="badge" href="https://github.com/openclaw/openclaw/blob/030a6eca356ef4a3c760dfffed558bd1879af323/packages/agent-core/src/agent-loop.ts#L68" target="_blank" rel="noopener">agent-loop.ts:68</a></td><td>runAgentLoop tool-use 循环（pi-mono 改编），网关托管多 agent 路由</td></tr>
+<tr><td>opencode</td><td><a class="badge" href="https://github.com/anomalyco/opencode/blob/b471c2b4495747353af768fbf2e0790c9d820ce2/packages/opencode/src/session/prompt.ts#L1081" target="_blank" rel="noopener">session/prompt.ts:1081</a></td><td>while(true) tool-use 循环 + processor 流式消费</td></tr>
+<tr><td>codex</td><td><a class="badge" href="https://github.com/openai/codex/blob/985cf47a4eb6084b2ff6b30ebdb1216acda85bb4/codex-rs/core/src/session/turn.rs#L163" target="_blank" rel="noopener">turn.rs:163</a></td><td>run_turn 采样循环，FuturesOrdered 并发工具</td></tr>
+<tr><td>gemini-cli</td><td><a class="badge" href="https://github.com/google-gemini/gemini-cli/blob/2fe7c2d3f065dc40ad573d50b2091116f8a4aa18/packages/core/src/core/client.ts#L628" target="_blank" rel="noopener">client.ts:628</a></td><td>递归 async generator，core 抛事件、CLI 执行</td></tr>
+<tr><td>cline</td><td><a class="badge" href="https://github.com/cline/cline/blob/29896ec7fa8e2dd98805b56c2dae987d59fc9baa/sdk/packages/agents/src/agent-runtime.ts#L811" target="_blank" rel="noopener">agent-runtime.ts:811</a></td><td>无状态 AgentRuntime while 迭代，hub 守护进程托管</td></tr>
+<tr><td>goose</td><td><a class="badge" href="https://github.com/aaif-goose/goose/blob/04ed836c8cde23e540cc77d256992e00be99298b/crates/goose/src/agents/agent.rs#L2416" target="_blank" rel="noopener">agent.rs:2416</a></td><td>legacy reply_internal + state machine 双轨（迁移中）</td></tr>
+<tr><td>aider</td><td><a class="badge" href="https://github.com/Aider-AI/aider/blob/5dc9490bb35f9729ef2c95d00a19ccd30c26339c/aider/coders/base_coder.py#L876" target="_blank" rel="noopener">base_coder.py:876</a></td><td><strong>反思链</strong>（无 tool-use；编辑文本+harness 解释）</td></tr>
+<tr><td>open-interpreter</td><td><a class="badge" href="https://github.com/openinterpreter/openinterpreter/blob/89e7a862435645cfe0209ab4e18199c832629261/codex-rs/core/src/session/turn.rs#L163" target="_blank" rel="noopener">turn.rs:163</a></td><td>codex fork 同源 run_turn</td></tr>
+<tr><td>OpenHands</td><td>契约面：状态机 7 态</td><td>Python 后端 AgentController【未确认】+ 前端契约</td></tr>
+<tr><td>AutoGPT</td><td><a class="badge" href="https://github.com/Significant-Gravitas/AutoGPT/blob/5e84f064d3779acc49c86c51e2167ba8f660c93d/autogpt_platform/backend/backend/executor/manager.py#L223" target="_blank" rel="noopener">manager.py:223</a></td><td>图执行（节点+边），古典循环封存 classic/</td></tr>
+<tr><td>MetaGPT</td><td><a class="badge" href="https://github.com/FoundationAgents/MetaGPT/blob/11cdf466d042aece04fc6cfd13b28e1a70341b1f/metagpt/roles/role.py#L530" target="_blank" rel="noopener">role.py:530</a></td><td>Role _observe→_think→_act 反应式 + Team n_round</td></tr>
+<tr><td>browser-use</td><td><a class="badge" href="https://github.com/browser-use/browser-use/blob/4cbe921673b48a488f5415d9159249afd12a625b/browser_use/agent/service.py#L1035" target="_blank" rel="noopener">service.py:1035</a></td><td>step 四阶段（感知→决策→执行→后处理）</td></tr>
+<tr><td>autogen</td><td><a class="badge" href="https://github.com/microsoft/autogen/blob/027ecf0a379bcc1d09956d46d12d44a3ad9cee14/python/packages/autogen-agentchat/src/autogen_agentchat/agents/_assistant_agent.py#L901" target="_blank" rel="noopener">_assistant_agent.py:901</a></td><td>事件驱动 actor；on_messages_stream + 工具循环</td></tr>
+<tr><td>crewAI</td><td><a class="badge" href="https://github.com/crewAIInc/crewAI/blob/4ed2abc7bbf504a634d3b733f2a97e0fbe8d44ec/lib/crewai/src/crewai/agents/crew_agent_executor.py#L230" target="_blank" rel="noopener">crew_agent_executor.py:230</a></td><td>CrewAgentExecutor 双引擎（ReAct 文本/原生函数调用）</td></tr>
+</tbody></table></div>
+
+<h3>7.2 权限与沙箱矩阵</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>仓</th><th>批准模型</th><th>OS 级沙箱</th><th>命令/规则审查</th></tr></thead>
+<tbody>
+<tr><td>OpenClaw</td><td>exec 两阶段批准 + 持久 allowlist；pairing 8 位人读码 + ed25519 设备签名</td><td>Docker 沙箱后端可注册；nodes 白名单远程执行</td><td>before_tool_call 钩子准入 + operator 批准</td></tr>
+<tr><td>codex</td><td>AskForApproval 四档（granular 五开关）</td><td><strong>Seatbelt / bwrap+seccomp / Windows service</strong></td><td>execpolicy 声明式规则引擎 + network-proxy</td></tr>
+<tr><td>gemini-cli</td><td>PolicyEngine 三态 + TOML 分层 priority</td><td>seatbelt/docker/LXC</td><td>tree-sitter 拆 bash 根命令</td></tr>
+<tr><td>opencode</td><td>evaluate 默认 ask，规则集 findLast 匹配</td><td>无（进程内）</td><td>tree-sitter 拆 bash+powershell 子命令</td></tr>
+<tr><td>cline</td><td>ToolPolicy autoApprove + ClineAsk UI 枚举</td><td>无</td><td>git shadow checkpoint 可回滚兜底</td></tr>
+<tr><td>goose</td><td>GooseMode 四档 × per-tool 三档 × LLM judge</td><td><strong>无（0 命中 seatbelt/landlock/seccomp）</strong></td><td>extension 恶意扫描 + 环境变量黑名单</td></tr>
+<tr><td>aider</td><td>confirm_ask 五态 + --yes-always</td><td>无</td><td>dirty-repo 保护 + auto-commits 留痕</td></tr>
+<tr><td>open-interpreter</td><td>同 codex 三层 + guardian 复审</td><td>同 codex（Seatbelt/Landlock/Windows）</td><td>execpolicy + apply_patch 拦截改写</td></tr>
+<tr><td>OpenHands</td><td>confirmation_policy 三态 + 三种安全分析器</td><td>DockerExecutionWorkspace 容器隔离</td><td>分析器市场（LLM/Pattern/PolicyRail）</td></tr>
+<tr><td>browser-use</td><td>—（自主运行）</td><td>BrowserProfile 本地/CDP/云三形态</td><td>SecurityWatchdog 强制 allowed_domains</td></tr>
+<tr><td>AutoGPT</td><td>—（平台自动执行）</td><td>E2B 云沙箱</td><td>凭证 IntegrationCredentialsManager + SecretStr</td></tr>
+<tr><td>agentscope（画像）</td><td>细粒度权限 + HITL bypass</td><td><strong>八种后端</strong>（Docker/Bubblewrap/E2B/K8s…）</td><td>README 未披露</td></tr>
+<tr><td>crewAI</td><td>HITL 可配</td><td><strong>代码执行退场</strong>（弃用，引导外接沙箱）</td><td>—</td></tr>
+<tr><td>autogen</td><td>—（框架不管）</td><td>CodeExecutor 全梯度（local/docker/jupyter/azure）</td><td>—</td></tr>
+<tr><td>MetaGPT</td><td>—</td><td>代码执行环境（nb 执行）</td><td>—</td></tr>
+</tbody></table></div>
+<div class="callout warn">
+<div class="co-t">⚠ 横评发现：沙箱两极分化是全榜最大的安全鸿沟</div>
+<p>光谱一端是 codex 的"三平台 OS 原语 + 声明式策略"（工业级），另一端是 goose/cline/aider 的"裸 spawn + 确认流兜底"。中间态是 gemini-cli 的进程沙箱与 OpenHands 的容器运行时。<strong>CLI agent 的无人值守上限不取决于模型能力，取决于这张表的第二列</strong>——这也是 cline 选择"人审每一步"作为产品定位的工程必然。</p>
+</div>
+
+<h3>7.3 上下文治理矩阵</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>仓</th><th>压缩策略</th><th>阈值/参数</th><th>持久记忆</th></tr></thead>
+<tbody>
+<tr><td>OpenClaw</td><td>agent-core compaction（shouldCompact/compact）</td><td>compaction.ts:322/:915</td><td><strong>MEMORY.md + 人格五件套</strong>；会话 SQLite</td></tr>
+<tr><td>opencode</td><td>专用 compaction agent 增量摘要</td><td>overflow.ts:10-34</td><td>AGENTS.md 项目文件</td></tr>
+<tr><td>codex</td><td>pre-sampling 本地 compact + remote compaction V2</td><td>token 预算 crate</td><td>rollout JSONL + SQLite；AGENTS.md 逐层拼接</td></tr>
+<tr><td>gemini-cli</td><td>chatCompressionService 摘要（旧 70%→留近 30%）</td><td>0.5×tokenLimit</td><td>.gemini 项目配置</td></tr>
+<tr><td>cline</td><td>双策略：确定性截断 + LLM 摘要</td><td>0.9 触发 / 0.7 目标 / 留 20k</td><td>checkpoint（git shadow）</td></tr>
+<tr><td>goose</td><td>独立 crate：auto/recovery/tool-pair 三路</td><td>0.8 阈值</td><td>SQLite（WAL）+ Recipe</td></tr>
+<tr><td>aider</td><td><strong>不压缩</strong>，repo-map（PageRank 1024 token）替代</td><td>map 预算默认 1024</td><td>.aider 历史 + git</td></tr>
+<tr><td>OpenHands</td><td>LLMSummarizingCondenser</td><td>max_size:100, keep_first:6</td><td>会话持久化【未确认】</td></tr>
+<tr><td>browser-use</td><td>截断（首条+省略+最近 N-1）+ LLM 压缩</td><td>max_history_items</td><td>—</td></tr>
+<tr><td>autogen</td><td>四种 ChatCompletionContext 裁剪策略</td><td>Unbounded/Buffered/HeadAndTail/TokenLimited</td><td>Memory ABC（mem0/chromadb/redis）</td></tr>
+<tr><td>crewAI</td><td>统一 Memory 重写（Encoding/Recall 用 Flow）</td><td>—</td><td>LanceDB/Qdrant 后端</td></tr>
+<tr><td>MetaGPT</td><td>—</td><td>—</td><td>Memory(cause_by 索引) + Chroma 长期</td></tr>
+<tr><td>agentscope（画像）</td><td>Context 中间件自动压缩 + tool-result offload</td><td>—</td><td>ReMe/Mem0 可换后端</td></tr>
+</tbody></table></div>
+
+<h3>7.4 编辑/动作表达光谱</h3>
+<p>模型"如何表达一次修改"是 harness 与模型之间最深的接口设计：<strong>结构化 function call</strong>（opencode/gemini-cli/cline/codex 的 tool_use）→ <strong>单一补丁方言</strong>（codex 系 apply_patch，拦截一切 shell 形式改写）→ <strong>格式光谱按模型能力分发</strong>（aider 14 种 Coder）→ <strong>代码即动作</strong>（smolagents CodeAgent、MetaGPT ExecuteNbCode、OpenHands CodeAct 血统）→ <strong>DOM 索引回指</strong>（browser-use 的 [N] 编号清单，感知层创新替代动作层创新）→ <strong>消息即动作</strong>（MetaGPT WritePRD 类职业 Action、autogen/crewAI 的 agent 对话）。两个 2026 信号：① <strong>toolshim/harness 整形层的兴起</strong>（goose 文本协议模拟、openinterpreter 12 种方言）——当目标模型是开放模型全家桶时，动作表达必须按模型方言适配，"harness 作为模型适配层"从隐喻变成代码；② MCP 把"自定义工具"外部化后，内置动作集反而收敛到十几个原语。</p>
+
+<h3>7.5 子代理与编排矩阵</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>仓</th><th>子代理机制</th><th>隔离边界</th></tr></thead>
+<tbody>
+<tr><td>OpenClaw</td><td>subagents 工具 + sessions_spawn；按渠道绑定多 agent</td><td>gateway 路由（channel+account+peer→agentId）</td></tr>
+<tr><td>opencode</td><td>task 工具创建 parentID 子 session（深度限 1）</td><td>权限派生（task.ts:139-155）</td></tr>
+<tr><td>codex</td><td>内建多代理子系统（spawn/wait/message v1+v2）</td><td>agent-roles/graph-store crate</td></tr>
+<tr><td>gemini-cli</td><td>AgentTool + 独立 GeminiChat 子循环；A2A 远程</td><td>项目级 .gemini/agents 带 hash acknowledge</td></tr>
+<tr><td>cline</td><td>spawn_agent + 19 个 team_* 工具族</td><td>hub 会话隔离</td></tr>
+<tr><td>goose</td><td>orchestrator 五工具，子代理=独立 session</td><td>委派树隔离（测试固化 :863-1035）</td></tr>
+<tr><td>OpenHands</td><td>TaskAction 进程内 + LaunchChildConversationAction 子会话</td><td>sub_conversation_ids 服务端派生</td></tr>
+<tr><td>aider</td><td>无（architect/editor 双模型串行代替）</td><td>—</td></tr>
+<tr><td>autogen</td><td>Team 族 5 种 + SocietyOfMind</td><td>actor 消息边界，可分布式（gRPC）</td></tr>
+<tr><td>crewAI</td><td>Crew 角色 + Flow 声明式编排</td><td>任务级 async 线程池</td></tr>
+<tr><td>MetaGPT</td><td>MGXEnv 星型路由（TeamLeader 分派）</td><td>消息订阅 member_addrs</td></tr>
+<tr><td>browser-use</td><td>无（并行=一任务一云浏览器）</td><td>浏览器实例即边界</td></tr>
+<tr><td>AutoGPT</td><td>图编排（619 块）</td><td>节点执行分布式锁</td></tr>
+</tbody></table></div>
+
+<h3>7.6 分发与宿主形态</h3>
+<p><strong>npm/brew 单命令</strong>：opencode（Bun 编译）、gemini-cli、cline CLI、continue CLI；<strong>Rust/Go 单二进制</strong>：codex、goose、open-interpreter、crush；<strong>pip/uv 包</strong>：aider、smolagents、browser-use、agentscope、crewAI、autogen；<strong>平台全家桶</strong>：AutoGPT（Next.js+FastAPI+RabbitMQ）、OpenHands（前端仓+agent-server 镜像）、suna/Kortix、agno AgentOS；<strong>IDE 扩展</strong>：cline（已瘦身为 hub client）、continue（谢幕）。协议化分发是 2026 新现象：goose 的 ACP、codex 的 app-server JSON-RPC、cline 的 hub WebSocket——<strong>harness 内核与宿主前端正在沿 RPC 边界解体</strong>，三家独立做出同一决策，这不是巧合是趋势。</p>
+
+<h3>7.7 工程债务名人堂（全部代码实测）</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>仓</th><th>债务实证</th><th>讽刺指数</th></tr></thead>
+<tbody>
+<tr><td>codex</td><td>session/mod.rs 5183 行 / turn.rs 3167 行 / protocol.rs 6451 行；仓内 AGENTS.md 自订"模块 &lt;500 行、resist adding code to codex-core"</td><td>★★★★★（自家 agent 都不听自家规矩）</td></tr>
+<tr><td>goose</td><td>agent.rs 6161 行双 loop 巨石 + session_manager.rs 5025 行手写 SQL；子代理重构残留空壳</td><td>★★★★</td></tr>
+<tr><td>OpenHands</td><td>god-adapter 1,701 行；前端仓自认 schema 缓存/SDK 两坑</td><td>★★★</td></tr>
+<tr><td>cline</td><td>agent-runtime.ts 2,825 行 + 新旧双协议兼容层</td><td>★★★</td></tr>
+<tr><td>opencode</td><td>provider/transform.ts 近 2000 行 if/else 巨分发；prompt.ts 1631 行</td><td>★★★</td></tr>
+<tr><td>gemini-cli</td><td>config.ts 4249 行上帝类（代码内 TODO 自证）</td><td>★★★★</td></tr>
+<tr><td>aider</td><td>base_coder.py 2485 行 god class + 模型能力表硬编码</td><td>★★★</td></tr>
+<tr><td>AutoGPT</td><td>manager.py 2243 行 / scheduler.py 3116 行，违反自家 ~300 行规约；classic/ 自认含已知漏洞仍整树保留</td><td>★★★★</td></tr>
+<tr><td>browser-use</td><td>双 Agent 实现并存（4163 行 vs beta 重写版 6700+ 行）</td><td>★★★</td></tr>
+<tr><td>crewAI</td><td>crew.py 2559 行 / agent core.py 2263 行 / llm.py 2700+ 行；ReAct×native×sync×async 四份循环</td><td>★★★★</td></tr>
+<tr><td>autogen</td><td>Magentic-One 新旧两套实现并存；pyautogen 代理包的版本断代包袱</td><td>★★★</td></tr>
+</tbody></table></div>
+<div class="callout">
+<div class="co-t">债务横评的元结论</div>
+<p>14 仓无一幸免的<strong>巨型核心文件</strong>（1.6k-6.5k 行）不是懒惰，是 agent loop 的"循环体天然高耦合"与"快速迭代期不敢重构"的合谋；而 codex/AutoGPT 双双违反自家 AGENTS.md/规约，是对"agent 自动生成代码是否遵守工程纪律"最诚实的反向证据——<strong>当前 harness 写得出功能，还管不住自己的复杂度</strong>。</p>
+</div>
+</section>
+
+<!-- ================= 第 8 章 ================= -->
+<section class="chapter" id="ch8">
+<h2 class="ch-t"><span class="no">CH.08</span>演进时间线与趋势预测</h2>
+
+<p>47 个候选仓的创建日期（API 实采）拼在一起，就是一部 agent 工程的断代史。四个时代的交替不是渐进演化，而是三次范式更替。</p>
+
+<div class="fig">
+<svg viewBox="0 0 1180 960" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="演进时间线图">
+<style>
+  .era{fill:rgba(21,28,40,.4);stroke:#243044;stroke-width:1.2;rx:14}
+  .eraT{fill:#e8eef7;font:600 14.5px 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+  .eraD{fill:#6d7d94;font:11.5px 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+  .ev{fill:#aebacd;font:12.5px 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+  .dt{fill:#5eead4;font:600 11.5px 'JetBrains Mono',Consolas,monospace}
+  .st{fill:#e8eef7;font:600 11.5px 'JetBrains Mono',Consolas,monospace}
+  .axis{stroke:#3d4b63;stroke-width:2}
+  .dotA{fill:#5eead4}.dotB{fill:#7dd3fc}.dotC{fill:#c4b5fd}.dotD{fill:#f9a8d4}.dotX{fill:#3d4b63}
+  .nt{fill:#6d7d94;font:11px 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+  .mA{fill:#fbbf24;font:11.5px 'JetBrains Mono',Consolas,monospace}
+</style>
+
+<text x="30" y="32" class="eraT" font-size="17">四个时代：自主循环狂热 → 工程化落地 → CLI 大爆发 → 收敛与平台化</text>
+<circle cx="640" cy="18" r="5" class="dotA"/><text x="652" y="22" class="nt">A CLI/IDE</text>
+<circle cx="740" cy="18" r="5" class="dotB"/><text x="752" y="22" class="nt">B 框架/SDK</text>
+<circle cx="850" cy="18" r="5" class="dotC"/><text x="862" y="22" class="nt">C 自主/多智能体</text>
+<circle cx="990" cy="18" r="5" class="dotD"/><text x="1002" y="22" class="nt">D 协议</text>
+<circle cx="1060" cy="18" r="5" class="dotX"/><text x="1072" y="22" class="nt">对照/事件</text>
+
+<line x1="120" y1="56" x2="120" y2="930" class="axis"/>
+
+<rect x="150" y="52" width="1000" height="268" class="era"/>
+<text x="170" y="80" class="eraT">时代 ① 自主循环狂热（2023.03 – 2023.10）</text>
+<text x="170" y="100" class="eraD">GPT-4 发布点燃"给模型一个目标让它自己跑"的想象；三大鼻祖一年内封神，harness 概念尚未成型，循环即全部</text>
+<circle cx="120" cy="130" r="6" class="dotX"/><text x="140" y="134" class="dt">2022-10/11</text><text x="250" y="134" class="ev">langchain / llama_index 创立（对照：通用框架先于事态）</text>
+<circle cx="120" cy="160" r="6" class="dotC"/><text x="140" y="164" class="dt">2023-03-16</text><text x="250" y="164" class="ev"><tspan class="st">AutoGPT</tspan> 创立 → 一个月登顶 GitHub 趋势榜，自主 agent 运动起点</text>
+<circle cx="120" cy="190" r="6" class="dotC"/><text x="140" y="194" class="dt">2023-03/04</text><text x="250" y="194" class="ev">camel · babyagi · AgentGPT（2025 归档）· dify（对照）密集诞生</text>
+<circle cx="120" cy="220" r="6" class="dotA"/><text x="140" y="224" class="dt">2023-05</text><text x="250" y="224" class="ev"><tspan class="st">aider</tspan>（05-09）· <tspan class="st">continue</tspan>（05-24）：终端/IDE 编程 agent 悄然起步</text>
+<circle cx="120" cy="250" r="6" class="dotC"/><text x="140" y="254" class="dt">2023-06/08</text><text x="250" y="254" class="ev"><tspan class="st">MetaGPT</tspan>（06-30）· <tspan class="st">openinterpreter</tspan>（07-14）· <tspan class="st">autogen</tspan>（08-18）· <tspan class="st">ChatDev</tspan>（08-28）</text>
+<circle cx="120" cy="280" r="6" class="dotB"/><text x="140" y="284" class="dt">2023-10-27</text><text x="250" y="284" class="ev"><tspan class="st">crewAI</tspan>：角色扮演编排框架，C 范式向 B 范式输血的标志</text>
+<text x="170" y="310" class="nt">注：AutoGPT 187k★ 的历史积累全部来自此时代；C 范式 6 席中 5 席生于 2023。</text>
+
+<rect x="150" y="336" width="1000" height="228" class="era"/>
+<text x="170" y="364" class="eraT">时代 ② 工程化落地（2024.01 – 2024.11）</text>
+<text x="170" y="384" class="eraD">热潮退去后活下来的项目补工程课：沙箱、权限、评测、人审交互；SWE-bench 成为度量衡；年底 MCP 一统工具协议</text>
+<circle cx="120" cy="414" r="6" class="dotB"/><text x="140" y="418" class="dt">2024-01-12</text><text x="250" y="418" class="ev"><tspan class="st">agentscope</tspan>（阿里）· 2024-03-13 <tspan class="st">OpenHands</tspan>（原 OpenDevin）全能工程 agent 平台</text>
+<circle cx="120" cy="444" r="6" class="dotX"/><text x="140" y="448" class="dt">2024-04-02</text><text x="250" y="448" class="ev">SWE-agent 发布（NeurIPS'24）：SWE-bench 把"会修 bug"变成可比较指标</text>
+<circle cx="120" cy="474" r="6" class="dotA"/><text x="140" y="478" class="dt">2024-07-06</text><text x="250" y="478" class="ev"><tspan class="st">cline</tspan>：VS Code 内"人审每一步"的交互范式确立；eliza（07-09）加密社交 agent OS</text>
+<circle cx="120" cy="504" r="6" class="dotA"/><text x="140" y="508" class="dt">2024-08/10</text><text x="250" y="508" class="ev"><tspan class="st">goose</tspan>（08-23，Block，Rust）· <tspan class="st">browser-use</tspan>（10-31）：浏览器成为 agent 第一公民界面</text>
+<circle cx="120" cy="534" r="6" class="dotD"/><text x="140" y="538" class="dt">2024-11-19</text><text x="250" y="538" class="ev"><tspan class="st">MCP servers</tspan>：Anthropic 发布 Model Context Protocol——工具接入从此有标准协议</text>
+
+<rect x="150" y="580" width="1000" height="218" class="era"/>
+<text x="170" y="608" class="eraT">时代 ③ CLI 大爆发（2025.01 – 2025.05）</text>
+<text x="170" y="628" class="eraD">巨头亲自下场 + 开源平替同日跟进；五个月诞生 44 万星；Rust/Go 单二进制分发成为硬通货</text>
+<circle cx="120" cy="658" r="6" class="dotC"/><text x="140" y="662" class="dt">2025-03</text><text x="250" y="662" class="ev">Manus 爆红 → <tspan class="st">OpenManus</tspan>（03-06）当周复刻；openai-agents-python（03-11）官方 SDK</text>
+<circle cx="120" cy="688" r="6" class="dotA"/><text x="140" y="692" class="dt">2025-04</text><text x="250" y="692" class="ev"><tspan class="st">adk-python</tspan>（04-01）· <tspan class="st">codex</tspan>（04-13）· <tspan class="st">gemini-cli</tspan>（04-17）· <tspan class="st">opencode</tspan>（04-30）——四巨头同月会战</text>
+<circle cx="120" cy="718" r="6" class="dotA"/><text x="140" y="722" class="dt">2025-05</text><text x="250" y="722" class="ev">strands/harness-sdk（05-14，AWS）· crush（05-21，Go）——"harness"成为正式自称</text>
+<circle cx="120" cy="748" r="6" class="dotX"/><text x="140" y="752" class="dt">2025 全年</text><text x="250" y="752" class="ev">suna/Kortix、agenticSeek（全本地 Manus 复刻）等"全家桶"补位；OpenHands 商业化</text>
+<text x="170" y="786" class="nt">注：opencode/codex/gemini-cli 合计 444,031★，等于 B+C+D 三范式总和的 2.1 倍。</text>
+
+<rect x="150" y="814" width="1000" height="128" class="era"/>
+<text x="170" y="842" class="eraT">时代 ④ 收敛与平台化（2025.06 – 2026.09）</text>
+<text x="170" y="862" class="eraD">组织迁移与归档并存；平台化续命、Rust 重写求生、"agents 即基础设施"成为共识</text>
+<circle cx="120" cy="892" r="6" class="dotX"/><text x="140" y="896" class="dt">迁移</text><text x="250" y="896" class="ev">OpenHands→OpenHands org · MetaGPT/OpenManus→FoundationAgents · goose→aaif-goose · opencode→anomalyco</text>
+<circle cx="120" cy="922" r="6" class="dotX"/><text x="140" y="926" class="mA">归档/停更</text><text x="250" y="926" class="ev">AgentGPT · TaskWeaver · Flowise 归档；autogen(2026-04)/aider(2026-05)/MetaGPT(2026-01) 停更；openinterpreter Rust 重写；ChatDev 2.0 转零代码平台；continue 仓库 read-only</text>
+</svg>
+<div class="cap"><b>图 3</b> · 《AI Agent 工程演进时间线与四时代断代图（2022-2026）》—— 手工绘制，日期为 API 实采</div>
+</div>
+
+<h3>8.1 断代逻辑：三次范式更替的驱动力</h3>
+<ol>
+<li><strong>第一次更替（2024）：从"自主神话"到"工程现实"</strong>。时代①的项目假设模型足够聪明、循环足够简单；时代②的幸存者（OpenHands/cline/browser-use）共同动作是把沙箱、权限闸门、人审交互、可观测性补进内核。死掉的是把循环当产品的（AgentGPT），活下来的是把循环当内核、把工程当产品的。</li>
+<li><strong>第二次更替（2025）：从"框架供给"到"终端分发"</strong>。时代③的 44 万星几乎全部来自"npm/brew 一行命令装好"的 CLI harness。框架（B 范式）没有死，但变成了 CLI 的内部依赖——用户要的不是编排原语，是开箱即用的数字员工。</li>
+<li><strong>第三次更替（2026）：从"项目"到"基础设施"</strong>。时代④的迁移潮（OpenHands/MetaGPT/goose/opencode 集体换组织）与归档潮（AgentGPT/TaskWeaver/Flowise）说明：agent harness 正在经历数据库、编辑器当年经历过的洗牌——头部收编、腰部出清、协议统一（MCP）。</li>
+</ol>
+
+<h3>8.2 趋势预测（逐条标注依据）</h3>
+<div class="callout warn">
+<div class="co-t">⚠ 以下为预测，非代码事实</div>
+<p>每条预测先列依据（本报告已证实的事实），再给判断。</p>
+</div>
+
+<p><span class="tag-pred">预测</span><strong>① CLI harness 的下一战场是"无人值守时长"，而非交互体验</strong>（1-2 年）。依据：opencode/codex/gemini-cli 的交互形态已高度趋同（TUI+斜杠命令+MCP），差异只剩沙箱默认姿态与后台任务能力；时代④ OpenHands 平台化、continue 转 read-only 说明纯交互层已无增量。判断：竞争焦点转向后台长任务的存活率——崩溃恢复、上下文压缩质量、跨会话记忆，即 CH.03 图 2 的⑤与记忆卫星。</p>
+<p><span class="tag-pred">预测</span><strong>② 协议层继续吞噬框架层：MCP 之后将出现"agent 间协议"的事实标准</strong>（1-3 年）。依据：MCP servers 单仓 90k★ 且时代③所有 CLI 均已内置 MCP 客户端；B 范式的多 agent 编排（autogen 停更、crewAI 独存）正在向"单 agent + MCP 工具生态"收缩。判断：A2A（agent-to-agent）类协议将复刻 MCP 的收编路径，多智能体框架的剩余价值沉淀为协议实现与参考编排。</p>
+<p><span class="tag-pred">预测</span><strong>③ Rust/Go 重写潮扩散到 B/C 范式，Python 退守编排与算法验证</strong>（1-2 年）。依据：codex/goose/openinterpreter 三个 Rust 实现合计 24.9 万星；openinterpreter 从 Python 整体迁 Rust 且 star 未受损。判断：对延迟与分发敏感的 agent 运行时（浏览器控制、桌面自动化、移动端 agent）将优先重写；框架层因生态粘性（LangChain 依赖链）迁移更慢。</p>
+<p><span class="tag-pred">预测</span><strong>④ "古典自主循环"将以 RL 训练环境形态复活，而非产品形态</strong>（2-3 年）。依据：OpenManus 配套 OpenManus-RL（GRPO agent 强化学习）；AutoGPT 平台化后古典 loop 在代码库中的占比持续萎缩（CH.06 详拆）；SWE-bench 系评测已成为 agent 能力的定价单位。判断：目标驱动的长程自主循环的主战场转向训练侧（环境即数据集），产品侧则收敛为"人在回路的长任务监督台"。</p>
+<p><span class="tag-pred">预测</span><strong>⑤ 榜单将再洗牌：平台对照组（n8n/dify 类）与 agent 榜合流</strong>（2-3 年）。依据：ChatDev 2.0 已转零代码编排平台；AutoGPT 平台化；suna/sim 全家桶化；dify/n8n 均已内建 MCP 与 agent 节点。判断："工作流平台 + agent 节点"与"agent harness + 可视化编排"双向奔赴，2027 年的榜单将难以区分两类项目——分水岭不再是形态，而是循环驱动权在谁手里（人编排的图，还是模型自驱的环）。</p>
+</section>
+
+<!-- ================= 第 9 章 ================= -->
+<section class="chapter" id="ch9">
+<h2 class="ch-t"><span class="no">CH.09</span>源码索引矩阵与总结论</h2>
+
+<h3>9.1 深拆 14 仓源码索引矩阵（锁 SHA · 点击直达代码行）</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>仓（范式）</th><th>锁定 SHA</th><th>主循环</th><th>权限/沙箱</th><th>上下文压缩</th><th>子代理</th></tr></thead>
+<tbody>
+<tr><td><a class="badge" href="https://github.com/openclaw/openclaw" target="_blank" rel="noopener">OpenClaw</a> A</td><td><code>030a6ec</code></td><td><a class="badge deep" href="https://github.com/openclaw/openclaw/blob/030a6eca356ef4a3c760dfffed558bd1879af323/packages/agent-core/src/agent-loop.ts#L68" target="_blank" rel="noopener">agent-loop.ts:68</a></td><td><a class="badge deep" href="https://github.com/openclaw/openclaw/blob/030a6eca356ef4a3c760dfffed558bd1879af323/src/pairing/pairing-store.ts#L22" target="_blank" rel="noopener">pairing-store.ts:22</a></td><td><a class="badge deep" href="https://github.com/openclaw/openclaw/blob/030a6eca356ef4a3c760dfffed558bd1879af323/packages/agent-core/src/harness/compaction/compaction.ts#L322" target="_blank" rel="noopener">compaction.ts:322</a></td><td><a class="badge deep" href="https://github.com/openclaw/openclaw/blob/030a6eca356ef4a3c760dfffed558bd1879af323/src/agents/tools/subagents-tool.ts#L429" target="_blank" rel="noopener">subagents-tool.ts:429</a></td></tr>
+<tr><td><a class="badge" href="https://github.com/anomalyco/opencode" target="_blank" rel="noopener">opencode</a> A</td><td><code>b471c2b</code></td><td><a class="badge deep" href="https://github.com/anomalyco/opencode/blob/b471c2b4495747353af768fbf2e0790c9d820ce2/packages/opencode/src/session/prompt.ts#L1081" target="_blank" rel="noopener">prompt.ts:1081</a></td><td><a class="badge deep" href="https://github.com/anomalyco/opencode/blob/b471c2b4495747353af768fbf2e0790c9d820ce2/packages/opencode/src/permission/index.ts#L28" target="_blank" rel="noopener">permission/index.ts:28</a></td><td><a class="badge deep" href="https://github.com/anomalyco/opencode/blob/b471c2b4495747353af768fbf2e0790c9d820ce2/packages/opencode/src/session/compaction.ts#L319" target="_blank" rel="noopener">compaction.ts:319</a></td><td><a class="badge deep" href="https://github.com/anomalyco/opencode/blob/b471c2b4495747353af768fbf2e0790c9d820ce2/packages/opencode/src/tool/task.ts#L81" target="_blank" rel="noopener">task.ts:81</a></td></tr>
+<tr><td><a class="badge" href="https://github.com/openai/codex" target="_blank" rel="noopener">codex</a> A</td><td><code>985cf47</code></td><td><a class="badge deep" href="https://github.com/openai/codex/blob/985cf47a4eb6084b2ff6b30ebdb1216acda85bb4/codex-rs/core/src/session/turn.rs#L163" target="_blank" rel="noopener">turn.rs:163</a></td><td><a class="badge deep" href="https://github.com/openai/codex/blob/985cf47a4eb6084b2ff6b30ebdb1216acda85bb4/codex-rs/protocol/src/protocol.rs#L986" target="_blank" rel="noopener">protocol.rs:986</a></td><td><a class="badge deep" href="https://github.com/openai/codex/blob/985cf47a4eb6084b2ff6b30ebdb1216acda85bb4/codex-rs/core/src/compact.rs#L141" target="_blank" rel="noopener">compact.rs:141</a></td><td><a class="badge deep" href="https://github.com/openai/codex/blob/985cf47a4eb6084b2ff6b30ebdb1216acda85bb4/codex-rs/core/src/tools/handlers/multi_agents_spec.rs#L65" target="_blank" rel="noopener">multi_agents_spec.rs:65</a></td></tr>
+<tr><td><a class="badge" href="https://github.com/google-gemini/gemini-cli" target="_blank" rel="noopener">gemini-cli</a> A</td><td><code>2fe7c2d</code></td><td><a class="badge deep" href="https://github.com/google-gemini/gemini-cli/blob/2fe7c2d3f065dc40ad573d50b2091116f8a4aa18/packages/core/src/core/client.ts#L628" target="_blank" rel="noopener">client.ts:628</a></td><td><a class="badge deep" href="https://github.com/google-gemini/gemini-cli/blob/2fe7c2d3f065dc40ad573d50b2091116f8a4aa18/packages/core/src/policy/policy-engine.ts#L242" target="_blank" rel="noopener">policy-engine.ts:242</a></td><td><a class="badge deep" href="https://github.com/google-gemini/gemini-cli/blob/2fe7c2d3f065dc40ad573d50b2091116f8a4aa18/packages/core/src/context/chatCompressionService.ts#L466" target="_blank" rel="noopener">chatCompressionService.ts:466</a></td><td><a class="badge deep" href="https://github.com/google-gemini/gemini-cli/blob/2fe7c2d3f065dc40ad573d50b2091116f8a4aa18/packages/core/src/agents/registry.ts#L50" target="_blank" rel="noopener">agents/registry.ts:50</a></td></tr>
+<tr><td><a class="badge" href="https://github.com/cline/cline" target="_blank" rel="noopener">cline</a> A</td><td><code>29896ec</code></td><td><a class="badge deep" href="https://github.com/cline/cline/blob/29896ec7fa8e2dd98805b56c2dae987d59fc9baa/sdk/packages/agents/src/agent-runtime.ts#L811" target="_blank" rel="noopener">agent-runtime.ts:811</a></td><td><a class="badge deep" href="https://github.com/cline/cline/blob/29896ec7fa8e2dd98805b56c2dae987d59fc9baa/sdk/packages/agents/src/agent-runtime.ts#L2390" target="_blank" rel="noopener">agent-runtime.ts:2390</a></td><td><a class="badge deep" href="https://github.com/cline/cline/blob/29896ec7fa8e2dd98805b56c2dae987d59fc9baa/sdk/packages/core/src/extensions/context/compaction.ts#L72" target="_blank" rel="noopener">compaction.ts:72</a></td><td><a class="badge deep" href="https://github.com/cline/cline/blob/29896ec7fa8e2dd98805b56c2dae987d59fc9baa/sdk/packages/core/src/extensions/tools/team-tools.ts#L303" target="_blank" rel="noopener">team-tools.ts:303</a></td></tr>
+<tr><td><a class="badge" href="https://github.com/aaif-goose/goose" target="_blank" rel="noopener">goose</a> A</td><td><code>04ed836</code></td><td><a class="badge deep" href="https://github.com/aaif-goose/goose/blob/04ed836c8cde23e540cc77d256992e00be99298b/crates/goose/src/agents/agent.rs#L2416" target="_blank" rel="noopener">agent.rs:2416</a></td><td><a class="badge deep" href="https://github.com/aaif-goose/goose/blob/04ed836c8cde23e540cc77d256992e00be99298b/crates/goose/src/config/permission.rs#L21" target="_blank" rel="noopener">permission.rs:21</a></td><td><a class="badge deep" href="https://github.com/aaif-goose/goose/blob/04ed836c8cde23e540cc77d256992e00be99298b/crates/goose-context-management/src/lib.rs#L49" target="_blank" rel="noopener">context-management/lib.rs:49</a></td><td><a class="badge deep" href="https://github.com/aaif-goose/goose/blob/04ed836c8cde23e540cc77d256992e00be99298b/crates/goose/src/agents/platform_extensions/orchestrator.rs#L106" target="_blank" rel="noopener">orchestrator.rs:106</a></td></tr>
+<tr><td><a class="badge" href="https://github.com/Aider-AI/aider" target="_blank" rel="noopener">aider</a> A</td><td><code>5dc9490</code></td><td><a class="badge deep" href="https://github.com/Aider-AI/aider/blob/5dc9490bb35f9729ef2c95d00a19ccd30c26339c/aider/coders/base_coder.py#L876" target="_blank" rel="noopener">base_coder.py:876</a></td><td><a class="badge deep" href="https://github.com/Aider-AI/aider/blob/5dc9490bb35f9729ef2c95d00a19ccd30c26339c/aider/io.py#L807" target="_blank" rel="noopener">io.py:807</a></td><td><a class="badge deep" href="https://github.com/Aider-AI/aider/blob/5dc9490bb35f9729ef2c95d00a19ccd30c26339c/aider/repomap.py#L42" target="_blank" rel="noopener">repomap.py:42</a></td><td><a class="badge deep" href="https://github.com/Aider-AI/aider/blob/5dc9490bb35f9729ef2c95d00a19ccd30c26339c/aider/coders/architect_coder.py#L6" target="_blank" rel="noopener">architect_coder.py:6</a></td></tr>
+<tr><td><a class="badge" href="https://github.com/openinterpreter/openinterpreter" target="_blank" rel="noopener">open-interpreter</a> A</td><td><code>89e7a86</code></td><td><a class="badge deep" href="https://github.com/openinterpreter/openinterpreter/blob/89e7a862435645cfe0209ab4e18199c832629261/codex-rs/core/src/session/turn.rs#L163" target="_blank" rel="noopener">turn.rs:163</a></td><td><a class="badge deep" href="https://github.com/openinterpreter/openinterpreter/blob/89e7a862435645cfe0209ab4e18199c832629261/codex-rs/protocol/src/protocol.rs#L984" target="_blank" rel="noopener">protocol.rs:984</a></td><td><a class="badge deep" href="https://github.com/openinterpreter/openinterpreter/blob/89e7a862435645cfe0209ab4e18199c832629261/codex-rs/core/src/compact.rs#L121" target="_blank" rel="noopener">compact.rs:121</a></td><td><a class="badge deep" href="https://github.com/openinterpreter/openinterpreter/blob/89e7a862435645cfe0209ab4e18199c832629261/codex-rs/core/src/tools/handlers/multi_agents_spec.rs#L65" target="_blank" rel="noopener">multi_agents_spec.rs:65</a></td></tr>
+<tr><td><a class="badge" href="https://github.com/OpenHands/OpenHands" target="_blank" rel="noopener">OpenHands</a> A</td><td><code>47a1080</code></td><td><a class="badge deep" href="https://github.com/OpenHands/OpenHands/blob/47a10808d78561546a02555d0d2c7fa96fa96300/src/types/agent-server/core/base/common.ts#L67" target="_blank" rel="noopener">状态机 common.ts:67</a></td><td><a class="badge deep" href="https://github.com/OpenHands/OpenHands/blob/47a10808d78561546a02555d0d2c7fa96fa96300/src/services/agent-server-adapter.ts#L701" target="_blank" rel="noopener">adapter.ts:701</a></td><td><a class="badge deep" href="https://github.com/OpenHands/OpenHands/blob/47a10808d78561546a02555d0d2c7fa96fa96300/src/services/agent-server-adapter.ts#L1457" target="_blank" rel="noopener">adapter.ts:1457</a></td><td><a class="badge deep" href="https://github.com/OpenHands/OpenHands/blob/47a10808d78561546a02555d0d2c7fa96fa96300/src/types/agent-server/core/base/action.ts#L332" target="_blank" rel="noopener">action.ts:332</a></td></tr>
+<tr><td><a class="badge" href="https://github.com/microsoft/autogen" target="_blank" rel="noopener">autogen</a> B</td><td><code>027ecf0</code></td><td><a class="badge deep" href="https://github.com/microsoft/autogen/blob/027ecf0a379bcc1d09956d46d12d44a3ad9cee14/python/packages/autogen-agentchat/src/autogen_agentchat/agents/_assistant_agent.py#L901" target="_blank" rel="noopener">_assistant_agent.py:901</a></td><td><a class="badge deep" href="https://github.com/microsoft/autogen/blob/027ecf0a379bcc1d09956d46d12d44a3ad9cee14/python/packages/autogen-core/src/autogen_core/code_executor/_base.py#L34" target="_blank" rel="noopener">code_executor/_base.py:34</a></td><td><a class="badge deep" href="https://github.com/microsoft/autogen/blob/027ecf0a379bcc1d09956d46d12d44a3ad9cee14/python/packages/autogen-core/src/autogen_core/model_context/_chat_completion_context.py#L10" target="_blank" rel="noopener">_chat_completion_context.py:10</a></td><td><a class="badge deep" href="https://github.com/microsoft/autogen/blob/027ecf0a379bcc1d09956d46d12d44a3ad9cee14/python/packages/autogen-agentchat/src/autogen_agentchat/teams/_group_chat/_base_group_chat.py#L40" target="_blank" rel="noopener">_base_group_chat.py:40</a></td></tr>
+<tr><td><a class="badge" href="https://github.com/crewAIInc/crewAI" target="_blank" rel="noopener">crewAI</a> B</td><td><code>4ed2abc</code></td><td><a class="badge deep" href="https://github.com/crewAIInc/crewAI/blob/4ed2abc7bbf504a634d3b733f2a97e0fbe8d44ec/lib/crewai/src/crewai/agents/crew_agent_executor.py#L230" target="_blank" rel="noopener">crew_agent_executor.py:230</a></td><td><a class="badge deep" href="https://github.com/crewAIInc/crewAI/blob/4ed2abc7bbf504a634d3b733f2a97e0fbe8d44ec/lib/crewai/src/crewai/agent/core.py#L293" target="_blank" rel="noopener">core.py:293（执行退场）</a></td><td><a class="badge deep" href="https://github.com/crewAIInc/crewAI/blob/4ed2abc7bbf504a634d3b733f2a97e0fbe8d44ec/lib/crewai/src/crewai/memory/unified_memory.py#L76" target="_blank" rel="noopener">unified_memory.py:76</a></td><td><a class="badge deep" href="https://github.com/crewAIInc/crewAI/blob/4ed2abc7bbf504a634d3b733f2a97e0fbe8d44ec/lib/crewai/src/crewai/crew.py#L995" target="_blank" rel="noopener">crew.py:995</a></td></tr>
+<tr><td><a class="badge" href="https://github.com/Significant-Gravitas/AutoGPT" target="_blank" rel="noopener">AutoGPT</a> C</td><td><code>5e84f06</code></td><td><a class="badge deep" href="https://github.com/Significant-Gravitas/AutoGPT/blob/5e84f064d3779acc49c86c51e2167ba8f660c93d/autogpt_platform/backend/backend/executor/manager.py#L223" target="_blank" rel="noopener">manager.py:223</a></td><td><a class="badge deep" href="https://github.com/Significant-Gravitas/AutoGPT/blob/5e84f064d3779acc49c86c51e2167ba8f660c93d/autogpt_platform/backend/backend/blocks/code_executor.py#L3" target="_blank" rel="noopener">code_executor.py:3（E2B）</a></td><td>—</td><td><a class="badge deep" href="https://github.com/Significant-Gravitas/AutoGPT/blob/5e84f064d3779acc49c86c51e2167ba8f660c93d/autogpt_platform/backend/backend/blocks/_base.py#L572" target="_blank" rel="noopener">blocks/_base.py:572</a></td></tr>
+<tr><td><a class="badge" href="https://github.com/FoundationAgents/MetaGPT" target="_blank" rel="noopener">MetaGPT</a> C</td><td><code>11cdf46</code></td><td><a class="badge deep" href="https://github.com/FoundationAgents/MetaGPT/blob/11cdf466d042aece04fc6cfd13b28e1a70341b1f/metagpt/roles/role.py#L530" target="_blank" rel="noopener">role.py:530</a></td><td>—</td><td>—</td><td><a class="badge deep" href="https://github.com/FoundationAgents/MetaGPT/blob/11cdf466d042aece04fc6cfd13b28e1a70341b1f/metagpt/environment/mgx/mgx_env.py#L24" target="_blank" rel="noopener">mgx_env.py:24</a></td></tr>
+<tr><td><a class="badge" href="https://github.com/browser-use/browser-use" target="_blank" rel="noopener">browser-use</a> C</td><td><code>4cbe921</code></td><td><a class="badge deep" href="https://github.com/browser-use/browser-use/blob/4cbe921673b48a488f5415d9159249afd12a625b/browser_use/agent/service.py#L1035" target="_blank" rel="noopener">service.py:1035</a></td><td><a class="badge deep" href="https://github.com/browser-use/browser-use/blob/4cbe921673b48a488f5415d9159249afd12a625b/browser_use/browser/profile.py#L585" target="_blank" rel="noopener">profile.py:585</a></td><td><a class="badge deep" href="https://github.com/browser-use/browser-use/blob/4cbe921673b48a488f5415d9159249afd12a625b/browser_use/agent/message_manager/service.py#L104" target="_blank" rel="noopener">message_manager:104</a></td><td>—（单 agent）</td></tr>
+</tbody></table></div>
+
+<h3>9.2 画像级仓索引（README/docs 证据，未逐行核码）</h3>
+<p><a class="badge" href="https://github.com/modelcontextprotocol/servers" target="_blank" rel="noopener">modelcontextprotocol/servers</a>（D，90,611★）· <a class="badge" href="https://github.com/FoundationAgents/OpenManus" target="_blank" rel="noopener">FoundationAgents/OpenManus</a>（C，58,420★）· <a class="badge" href="https://github.com/agno-agi/agno" target="_blank" rel="noopener">agno-agi/agno</a>（B，42,351★）· <a class="badge" href="https://github.com/reworkd/AgentGPT" target="_blank" rel="noopener">reworkd/AgentGPT</a>（C，36,296★，已归档）· <a class="badge" href="https://github.com/continuedev/continue" target="_blank" rel="noopener">continuedev/continue</a>（A，36,036★，read-only）· <a class="badge" href="https://github.com/OpenBMB/ChatDev" target="_blank" rel="noopener">OpenBMB/ChatDev</a>（C，34,399★）· <a class="badge" href="https://github.com/agentscope-ai/agentscope" target="_blank" rel="noopener">agentscope-ai/agentscope</a>（B，32,413★，荣誉提名 #21）· 提名组：<a class="badge" href="https://github.com/openai/openai-agents-python" target="_blank" rel="noopener">openai-agents-python</a> · <a class="badge" href="https://github.com/huggingface/smolagents" target="_blank" rel="noopener">smolagents</a> · <a class="badge" href="https://github.com/charmbracelet/crush" target="_blank" rel="noopener">crush</a> · <a class="badge" href="https://github.com/yoheinakajima/babyagi" target="_blank" rel="noopener">babyagi</a> · <a class="badge" href="https://github.com/google/adk-python" target="_blank" rel="noopener">adk-python</a> · <a class="badge" href="https://github.com/SWE-agent/SWE-agent" target="_blank" rel="noopener">SWE-agent</a> · <a class="badge" href="https://github.com/kortix-ai/suna" target="_blank" rel="noopener">suna/Kortix</a> · <a class="badge" href="https://github.com/elizaOS/eliza" target="_blank" rel="noopener">eliza</a></p>
+
+<h3>9.3 总结论：harness 物种的 2026 形态学</h3>
+<ol>
+<li><strong>循环已商品化，工程分层定胜负</strong>。14 仓的 agent loop 结构差异已小到可以互相转写（codex fork 直接继承）；竞争发生在权限闸门（codex 三层 vs goose 裸 spawn）、上下文治理（压缩工艺谱系）、动作表达（tool_use/补丁方言/代码即动作/DOM 索引）、编排边界（子代理隔离模型）四个非循环层。</li>
+<li><strong>harness 正沿 RPC 边界解体为"内核+多宿主"</strong>。codex app-server、goose ACP、cline hub、OpenHands agent-server 四家独立收敛到同一形态——这与 LSP 当年把编辑器与语言服务解耦是同构事件；<span class="tag-pred">预测</span>harness 的"LSP 时刻"将在 1-2 年内以某家协议（ACP 或 MCP 扩展）事实标准化收场。</li>
+<li><strong>2026 是收编年</strong>：open-interpreter 变成 codex fork、OpenHands 前后端分家、四个头部项目迁移组织、三个经典归档——物种数量在减少，单物种体量在膨胀，协议层（MCP）收一切工具税。</li>
+<li><strong>消费级入口超越开发者入口</strong>：OpenClaw 391k★ vs 开发者 CLI 榜首 210k★——"个人 agent harness（消息渠道+自有设备）"已被验证为比"编程 agent"更大的流量形态，而它的内核与本报告所有 A 范式项目是同一物种（详见 4.1）。</li>
+<li><strong>对自建 harness（如 DSH 类工程）的可移植清单</strong>：循环照抄 codex turn 语义即可；真正要自研的是——权限规则引擎（参考 gemini-cli 分层 TOML）、压缩触发器（参考 cline 双策略）、子代理隔离边界测试（参考 goose 委派树固化用例）、以及 AGENTS.md 工程纪律——并警惕本报告 7.7 节所有巨型文件的下场。</li>
+</ol>
+</section>
+
+
+</div>
+</main>
+</div>
+
+<script>
+/* ============ 交互：目录抽屉 / Scrollspy / 语法高亮 / 行号 ============ */
+(function(){
+  "use strict";
+  var btn=document.getElementById('tocToggle'),toc=document.getElementById('toc');
+  if(btn&&toc){btn.addEventListener('click',function(){toc.classList.toggle('open');});}
+  if(toc){toc.addEventListener('click',function(e){
+    if(e.target.tagName==='A'&&toc.classList.contains('open')){toc.classList.remove('open');}
+  });}
+
+  var links=Array.prototype.slice.call(document.querySelectorAll('#toc a[href^="#"]'));
+  var map={};
+  links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a;});
+  var secs=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  function spy(){
+    var y=window.scrollY+120,cur=null;
+    for(var i=0;i<secs.length;i++){if(secs[i].offsetTop<=y){cur=secs[i];}else{break;}}
+    links.forEach(function(a){a.classList.remove('on');});
+    if(cur&&map[cur.id]){map[cur.id].classList.add('on');
+      var act=map[cur.id];
+      var nav=document.getElementById('toc');
+      if(nav&&nav.scrollHeight>nav.clientHeight){
+        var r=act.offsetTop-nav.clientHeight/2;
+        if(Math.abs(nav.scrollTop-r)>nav.clientHeight*0.45){nav.scrollTo({top:r,behavior:'smooth'});}
+      }
+    }
+  }
+  var tick=false;
+  window.addEventListener('scroll',function(){if(!tick){tick=true;requestAnimationFrame(function(){spy();tick=false;});}},{passive:true});
+  spy();
+
+  function hl(code,lang){
+    var esc=code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    var lines=esc.split('\n');
+    var out=lines.map(function(ln){
+      var cIdx=-1;
+      var scan=ln,quote=null;
+      for(var i=0;i<scan.length;i++){
+        var ch=scan[i];
+        if(quote){if(ch===quote&&scan[i-1]!=='\\'){quote=null;}}
+        else if(ch==='"'||ch==="'"){quote=ch;}
+        else if((lang==='cpp'||lang==='ts')?scan.substr(i,2)==='//':ch==='#'){cIdx=i;break;}
+      }
+      var head=cIdx>=0?ln.slice(0,cIdx):ln;
+      var tail=cIdx>=0?ln.slice(cIdx):'';
+      head=head.replace(/(&quot;.*?&quot;|".*?"|'.*?'|`.*?`)/g,'<span class="s">$1</span>');
+      head=head.replace(/\b(0x[0-9a-fA-F]+|\d+\.?\d*(?:e[+-]?\d+)?)\b/g,'<span class="n">$1</span>');
+      var kws=(lang==='ts'||lang==='cpp')
+        ?['const','let','var','function','return','if','else','for','while','class','interface','type','enum','new','delete','this','import','from','export','async','await','try','catch','finally','throw','extends','implements','public','private','protected','readonly','static','switch','case','break','continue','of','in','typeof','instanceof','void','null','undefined','true','false','yield','as','satisfies','namespace','declare','abstract']
+        :lang==='bash'
+        ?['if','then','else','fi','for','do','done','while','case','esac','in','function','echo','export','local','return']
+        :['def','class','return','if','elif','else','for','while','in','not','and','or','is','None','True','False','import','from','as','with','try','except','finally','raise','assert','yield','lambda','pass','break','continue','global','nonlocal','async','await','self','cls'];
+      var re=new RegExp('\\b('+kws.join('|')+')\\b','g');
+      head=head.replace(re,'<span class="k">$1</span>');
+      head=head.replace(/([A-Za-z_][A-Za-z0-9_]*)(?=\()/g,function(m,w,off){
+        var before=head.slice(0,off);
+        var open=(before.match(/<span/g)||[]).length,close=(before.match(/<\/span>/g)||[]).length;
+        if(open>close){return m;}
+        return '<span class="f">'+w+'</span>';
+      });
+      head=head.replace(/\b([A-Z][A-Za-z0-9_]{2,})\b/g,function(m,w,off){
+        var before=head.slice(0,off);
+        var open=(before.match(/<span/g)||[]).length,close=(before.match(/<\/span>/g)||[]).length;
+        if(open>close){return m;}
+        return '<span class="t">'+w+'</span>';
+      });
+      return head+(tail?'<span class="c">'+tail+'</span>':'');
+    });
+    return out.join('\n');
+  }
+  document.querySelectorAll('pre code[data-lang]').forEach(function(el){
+    el.innerHTML=hl(el.textContent,el.getAttribute('data-lang'));
+  });
+
+  document.querySelectorAll('pre code.ln').forEach(function(el){
+    var html=el.innerHTML.split('\n');
+    var start=parseInt(el.getAttribute('data-start')||'1',10);
+    el.innerHTML=html.map(function(l,i){
+      return '<span style="display:inline-block;min-width:2.6em;color:#3d4b63;text-align:right;margin-right:14px;user-select:none">'+(start+i)+'</span>'+l;
+    }).join('\n');
+  });
+})();
+</script>
+</body>
+</html>
