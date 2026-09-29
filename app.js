@@ -53,9 +53,13 @@
     '安全':         '#F3B3CC',  // 樱花粉
     '技术调研':     '#EC719F',  // 桃粉
     '项目解析':     '#F3B3CC',  // 樱花粉 (项目代码级技术拆解)
+    '设计文档':     '#7C8DA8',  // 灰蓝 (内部技术设计稿,主页默认隐藏)
     '其他':         '#9A9AA6',  // 中性灰
   };
   const DEFAULT_CATEGORY_COLOR = '#9A9AA6';
+  // 默认从"全部分类"视图隐藏的分类 (仅主页 hero + 全量卡片不显示)
+  // 但选中该分类标签时仍可见
+  const HIDDEN_FROM_HOME = ['设计文档'];
 
   function getCategoryColor(category) {
     return CATEGORY_COLORS[category] || DEFAULT_CATEGORY_COLOR;
@@ -293,7 +297,7 @@
       const c = a.category || '其他';
       catCount[c] = (catCount[c] || 0) + 1;
     });
-    const ORDER = ['友商调研', '洞察', '战略洞察', 'AI应用', 'AI基础设施', '安全', '技术调研', '项目解析', '其他'];
+    const ORDER = ['友商调研', '洞察', '战略洞察', 'AI应用', 'AI基础设施', '安全', '技术调研', '项目解析', '设计文档', '其他'];
     const cats = Object.keys(catCount).sort((a, b) => {
       const ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
       if (ia >= 0 && ib >= 0) return ia - ib;
@@ -344,7 +348,7 @@
       const c = a.category || '其他';
       catCount[c] = (catCount[c] || 0) + 1;
     });
-    const ORDER = ['友商调研', '洞察', '战略洞察', 'AI应用', 'AI基础设施', '安全', '技术调研', '项目解析', '其他'];
+    const ORDER = ['友商调研', '洞察', '战略洞察', 'AI应用', 'AI基础设施', '安全', '技术调研', '项目解析', '设计文档', '其他'];
     const cats = Object.keys(catCount).sort((a, b) => {
       const ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
       if (ia >= 0 && ib >= 0) return ia - ib;
@@ -724,7 +728,13 @@
     STATE.filtered = STATE.articles.filter(a => {
       if (a.series === '智慧问答' || a.type === 'qa') return false;
       const isAllView = !STATE.activeCategory;
-      const catMatch = isAllView ? a.category !== '其他' : a.category === STATE.activeCategory;
+      // AllView: 排除 '其他' + HIDDEN_FROM_HOME (如'设计文档')
+      // 指定 category: 仍可见
+      if (isAllView) {
+        if (a.category === '其他') return false;
+        if (HIDDEN_FROM_HOME.includes(a.category)) return false;
+      }
+      const catMatch = isAllView ? true : a.category === STATE.activeCategory;
       const tagMatch = STATE.activeTags.length === 0 || STATE.activeTags.every(t => (a.tags || []).includes(t));
       const searchOK = searchMatch(a, STATE.searchQuery);
       return catMatch && tagMatch && searchOK;
