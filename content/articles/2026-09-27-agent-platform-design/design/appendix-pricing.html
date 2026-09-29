@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="/assets/article-mobile.css?v=2026-09-29">
+<script src="/assets/article-mobile.js?v=2026-09-29"></script>
+<meta name="description" content="炼金工厂 Agent Platform v0.1 价格模型附录 — 4 档订阅 + TCO 5 年模型 + 自托管 vs 云端 + 与竞品定价对比 + LLM 成本传导">
+<title>附录 D · 价格模型 · 炼金工厂 Agent Platform v0.1</title>
+<style>
+:root{--bg-0:#0a0e14;--bg-1:#0f141d;--bg-2:#151c28;--bg-3:#1b2433;--bg-code:#0c1119;--line:#243044;--line-soft:#1a2333;--tx-0:#e8eef7;--tx-1:#aebacd;--tx-2:#6d7d94;--acc-0:#5eead4;--acc-1:#7dd3fc;--acc-2:#c4b5fd;--acc-3:#fbbf24;--acc-4:#f87171;--acc-5:#34d399;--grad-a:linear-gradient(135deg,#5eead4,#7dd3fc);--r-md:12px;--r-lg:16px;--r-xl:22px;--sh-1:0 1px 2px rgba(0,0,0,.35),0 4px 14px rgba(0,0,0,.28);--sh-2:0 4px 10px rgba(0,0,0,.4);--mono:"JetBrains Mono","Cascadia Code","Fira Code",Consolas,monospace;--sans:"Inter","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;--toc-w:280px;--maxw:1100px}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:84px}
+body{background:var(--bg-0);color:var(--tx-0);font-family:var(--sans);font-size:16px;line-height:1.85;background-image:radial-gradient(1200px 500px at 85% -5%,rgba(125,211,252,.05),transparent 60%),radial-gradient(900px 420px at 8% 0%,rgba(94,234,212,.045),transparent 60%)}
+.layout{display:flex;min-height:100vh}
+main{flex:1;min-width:0;padding:0 clamp(18px,4vw,56px) 120px}
+.content{max-width:var(--maxw);margin:0 auto}
+.topbar{position:sticky;top:0;z-index:60;height:60px;display:flex;align-items:center;gap:14px;padding:0 clamp(16px,3vw,32px);background:rgba(10,14,20,.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--line-soft)}
+.topbar .dot{width:9px;height:9px;border-radius:50%;background:var(--acc-0)}
+.topbar .tt{font-weight:700;font-size:15px;letter-spacing:.4px}
+.topbar .tt em{font-style:normal;background:var(--grad-a);-webkit-background-clip:text;background-clip:text;color:transparent}
+.topbar .meta{margin-left:auto;display:flex;gap:10px;align-items:center;font-size:12px;color:var(--tx-2)}
+.topbar .ver{font-family:var(--mono);background:var(--bg-3);border:1px solid var(--line);border-radius:6px;padding:2px 8px;color:var(--acc-0)}
+#tocToggle{display:none;background:var(--bg-2);border:1px solid var(--line);color:var(--tx-1);border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer}
+nav#toc{position:sticky;top:60px;height:calc(100vh - 60px);width:var(--toc-w);flex:0 0 var(--toc-w);overflow-y:auto;padding:26px 18px 60px 10px;border-right:1px solid var(--line-soft);background:rgba(15,20,29,.5)}
+#toc .toc-h{font-size:11px;letter-spacing:2.5px;color:var(--tx-2);text-transform:uppercase;padding:0 12px 12px}
+#toc a{display:block;padding:7px 12px;margin:1px 0;border-radius:9px;color:var(--tx-1);text-decoration:none;font-size:13.5px;border-left:2px solid transparent}
+#toc a:hover{background:var(--bg-2);color:var(--tx-0)}
+#toc a.on{background:linear-gradient(90deg,rgba(94,234,212,.12),transparent);border-left-color:var(--acc-0);color:var(--acc-0);font-weight:600}
+section.chapter{background:var(--bg-1);border:1px solid var(--line-soft);border-radius:var(--r-xl);padding:clamp(22px,3.4vw,44px);margin:34px 0;box-shadow:var(--sh-1)}
+h2.ch-t{font-size:clamp(22px,2.6vw,30px);padding-bottom:16px;margin-bottom:22px;border-bottom:1px solid var(--line-soft);display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+h2.ch-t .no{font-family:var(--mono);font-size:.62em;color:var(--acc-0);border:1px solid rgba(94,234,212,.35);border-radius:8px;padding:3px 9px;white-space:nowrap}
+h3{font-size:19px;margin:34px 0 12px;color:var(--acc-1);display:flex;gap:9px;align-items:baseline}
+h3::before{content:"▸";color:var(--acc-0);font-size:.8em}
+p{margin:10px 0;color:var(--tx-1)}p strong,li strong{color:var(--tx-0)}
+ul,ol{margin:10px 0 10px 24px;color:var(--tx-1)}li{margin:5px 0}
+code{font-family:var(--mono);font-size:.86em;background:var(--bg-3);color:var(--acc-0);padding:2px 7px;border-radius:6px;border:1px solid var(--line-soft)}
+pre{background:var(--bg-code);border:1px solid var(--line);border-radius:var(--r-md);padding:18px 20px;overflow-x:auto;margin:14px 0;box-shadow:inset 0 2px 10px rgba(0,0,0,.4)}
+pre code{background:none;border:0;padding:0;font-size:13px;line-height:1.75;color:#cdd9ea;display:block;white-space:pre}
+.tbl-wrap{overflow-x:auto;margin:16px 0;border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sh-1)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;background:var(--bg-2)}
+th{background:linear-gradient(180deg,#1c2635,#172030);color:var(--acc-1);text-align:left;padding:11px 14px;font-weight:600;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid var(--line-soft);color:var(--tx-1);vertical-align:top}
+tr:last-child td{border-bottom:0}tbody tr:hover{background:rgba(125,211,252,.045)}
+.hero{margin:34px 0;padding:clamp(30px,4.5vw,58px);border-radius:var(--r-xl);background:radial-gradient(800px 300px at 90% 0%,rgba(125,211,252,.09),transparent 60%),radial-gradient(700px 300px at 5% 100%,rgba(94,234,212,.08),transparent 60%),var(--bg-1);border:1px solid var(--line);box-shadow:var(--sh-2)}
+.hero h1{font-size:clamp(26px,4vw,42px);line-height:1.25}
+.hero h1 .g{background:var(--grad-a);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .sub{color:var(--tx-1);font-size:clamp(14px,1.6vw,17px);margin-top:14px;max-width:880px}
+.hero .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.chip{font-family:var(--mono);font-size:12px;padding:5px 13px;border-radius:999px;background:var(--bg-3);border:1px solid var(--line);color:var(--tx-1)}
+.chip b{color:var(--acc-0);font-weight:600}
+a.badge{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11.5px;background:rgba(125,211,252,.09);color:var(--acc-1);border:1px solid rgba(125,211,252,.25);border-radius:999px;padding:2px 10px;margin:1px 3px;text-decoration:none;white-space:nowrap}
+a.badge.deep{background:rgba(94,234,212,.1);color:var(--acc-0);border-color:rgba(94,234,212,.32)}
+.callout{border-radius:var(--r-md);padding:14px 18px;margin:16px 0;border:1px solid var(--line);background:var(--bg-2)}
+.callout .co-t{font-weight:700;font-size:13px;letter-spacing:1px;margin-bottom:4px;color:var(--acc-1)}
+.callout.good{background:rgba(52,211,153,.05)}.callout.good .co-t{color:var(--acc-5)}
+.price-tier{background:linear-gradient(180deg,var(--bg-2),var(--bg-1));border:1px solid var(--line);border-radius:var(--r-lg);padding:18px;margin:12px 0;box-shadow:var(--sh-1)}
+.price-tier .pt-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.price-tier .pt-h .name{font-size:17px;font-weight:700;color:var(--tx-0)}
+.price-tier .pt-h .badge-tag{margin-left:auto;font-family:var(--mono);font-size:11px;font-weight:700;border-radius:6px;padding:2px 10px;letter-spacing:1px}
+.price-tier.free .pt-h .badge-tag{background:rgba(94,234,212,.15);color:var(--acc-0);border:1px solid rgba(94,234,212,.4)}
+.price-tier.team .pt-h .badge-tag{background:rgba(125,211,252,.15);color:var(--acc-1);border:1px solid rgba(125,211,252,.4)}
+.price-tier.pro .pt-h .badge-tag{background:rgba(196,181,253,.15);color:var(--acc-2);border:1px solid rgba(196,181,253,.4)}
+.price-tier.ent .pt-h .badge-tag{background:rgba(251,191,36,.15);color:var(--acc-3);border:1px solid rgba(251,191,36,.4)}
+.price-tier .price{font-family:var(--mono);font-size:24px;color:var(--tx-0);font-weight:700;margin:6px 0 12px}
+.price-tier .price small{font-size:13px;color:var(--tx-2);font-weight:400}
+.price-tier ul{font-size:13.5px;margin:8px 0}
+.fig{background:var(--bg-code);border:1px solid var(--line);border-radius:var(--r-lg);padding:22px;margin:20px 0;box-shadow:var(--sh-2);overflow-x:auto}
+.fig svg{display:block;margin:0 auto;max-width:100%;height:auto}
+.fig .cap{text-align:center;font-size:13px;color:var(--tx-2);margin-top:14px;font-style:italic}
+.fig .cap b{color:var(--acc-1);font-style:normal}
+footer{text-align:center;color:var(--tx-2);font-size:12.5px;padding:40px 0 20px;border-top:1px solid var(--line-soft);margin-top:40px}
+@media (max-width:1180px){nav#toc{position:fixed;left:0;top:60px;bottom:0;z-index:55;transform:translateX(-102%);transition:transform .25s ease;background:var(--bg-0)}nav#toc.open{transform:translateX(0)}#tocToggle{display:inline-block}}
+@media (max-width:640px){body{font-size:15px}.topbar .meta span.hide-m{display:none}pre code{font-size:12px}section.chapter{padding:20px 16px}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <button id="tocToggle">☰ 目录</button>
+  <span class="dot"></span>
+  <span class="tt"><em>炼金工厂 · Agent Platform</em> · 附录 D · 价格模型</span>
+  <span class="meta">
+    <span class="ver">v0.1</span>
+    <span class="hide-m">订阅 + TCO</span>
+    <span class="hide-m">2026-09-29</span>
+  </span>
+</div>
+
+<div class="layout">
+<nav id="toc">
+  <div class="toc-h">附录 D 目录</div>
+  <a href="#d1">D.1 定价哲学</a>
+  <a href="#d2">D.2 4 档订阅</a>
+  <a href="#d3">D.3 自托管 vs 云端</a>
+  <a href="#d4">D.4 TCO 5 年模型</a>
+  <a href="#d5">D.5 与竞品对比</a>
+  <a href="#d6">D.6 LLM 成本传导</a>
+  <a class="badge deep" href="./index.html">← 返回主文档</a>
+</nav>
+
+<main>
+<div class="content">
+
+<div class="hero">
+  <h1>附录 D · <span class="g">价格模型</span><br>订阅 · TCO · 竞品对比</h1>
+  <p class="sub">v0.1 起采用"自托管永久免费 + 云端订阅"双轨。4 档订阅 ¥0 - ¥299/月,5 年 TCO 模型清晰可见,与 E2B/Modal/Daytona/OpenHands Cloud 全维度对比。</p>
+  <div class="chips">
+    <span class="chip">订阅 <b>4 档</b></span>
+    <span class="chip">自托管 <b>永久免费</b></span>
+    <span class="chip">TCO <b>5 年</b></span>
+    <span class="chip">起价 <b>¥0</b></span>
+    <span class="chip">顶价 <b>¥299/月</b></span>
+  </div>
+</div>
+
+
+<!-- D.1 定价哲学 -->
+<section class="chapter" id="d1">
+<h2 class="ch-t"><span class="no">D.1</span>定价哲学</h2>
+
+<h3>三条原则</h3>
+<ol>
+<li><strong>自托管永久免费</strong>:核心代码 AGPL-3.0 公开,用户可自由部署在自己的服务器上,零软件费用。这与商业 Agent 平台 (E2B $0.05/session) 形成根本差异。</li>
+<li><strong>云端订阅制</strong>:不想自己运维的用户,可以订阅托管版。定价按"VM 小时数 + Token 用量"双维度,不收数据 egress 费 (与 AWS 差异)。</li>
+<li><strong>不卖数据</strong>:用户 LLM API keys 自带,平台不收 LLM 调用差价;用户上传的 runtime 不被平台二次分发。</li>
+</ol>
+
+<h3>价值锚点</h3>
+<ul>
+<li><strong>开发者友好</strong>:个人免费档够用 (1 VM + 5 GB 挂载),小团队 ¥99/月就能上 5 VM</li>
+<li><strong>团队友好</strong>:Team 档 ¥299/月比一个全职 SRE 工程师 (¥15k/月) 便宜 50 倍</li>
+<li><strong>企业友好</strong>:Enterprise 按合同,通常 ¥30k+/年起,含 SLA 99.9% + 私有部署</li>
+</ul>
+</section>
+
+<!-- D.2 4 档订阅 -->
+<section class="chapter" id="d2">
+<h2 class="ch-t"><span class="no">D.2</span>4 档订阅</h2>
+
+<div class="price-tier free">
+<div class="pt-h"><span class="name">Free / 个人版</span><span class="badge-tag">FREE</span></div>
+<div class="price">¥0 <small>/ 月 · 永久免费</small></div>
+<ul>
+<li>1 个活跃 VM (同时只能跑 1 个)</li>
+<li>5 GB 单挂载配额</li>
+<li>OpenClaw / Hermes 2 个预置框架</li>
+<li>1 GB 镜像缓存 (全国 CDN)</li>
+<li>社区支持 (GitHub Issues / Discord)</li>
+<li><strong>适合</strong>:个人开发者、Agent 学习者</li>
+</ul>
+</div>
+
+<div class="price-tier team">
+<div class="pt-h"><span class="name">Hobby / 兴趣版</span><span class="badge-tag">¥19 / 月</span></div>
+<div class="price">¥19 <small>/ 月 · 或 ¥190 / 年</small></div>
+<ul>
+<li>3 个活跃 VM</li>
+<li>20 GB 单挂载配额</li>
+<li>用户上传 Runtime (最多 10 个)</li>
+<li>10 GB 镜像缓存</li>
+<li>邮件支持 (1 工作日响应)</li>
+<li>用量统计 + 简单 dashboard</li>
+<li><strong>适合</strong>:独立开发者、博主</li>
+</ul>
+</div>
+
+<div class="price-tier pro">
+<div class="pt-h"><span class="name">Pro / 专业版</span><span class="badge-tag">¥99 / 月</span></div>
+<div class="price">¥99 <small>/ 月 · 或 ¥990 / 年 (省 17%)</small></div>
+<ul>
+<li>10 个活跃 VM</li>
+<li>100 GB 单挂载配额</li>
+<li>用户上传 Runtime (不限数量)</li>
+<li>50 GB 镜像缓存 + 优先拉取</li>
+<li>Web Terminal (v0.2)</li>
+<li>团队 3 个席位 (v0.3)</li>
+<li>Trace + 完整审计</li>
+<li>邮件支持 (4 小时响应)</li>
+<li><strong>适合</strong>:小团队、咨询公司、独立工作室</li>
+</ul>
+</div>
+
+<div class="price-tier ent">
+<div class="pt-h"><span class="name">Team / 团队版</span><span class="badge-tag">¥299 / 月</span></div>
+<div class="price">¥299 <small>/ 月 · 或 ¥2,990 / 年</small></div>
+<ul>
+<li>30 个活跃 VM</li>
+<li>500 GB 单挂载配额</li>
+<li>完整 API + Webhook 集成</li>
+<li>200 GB 镜像缓存</li>
+<li>团队 10 个席位 + RBAC</li>
+<li>SSO (Google Workspace / 飞书)</li>
+<li>SLA 99.5% (4 小时故障响应)</li>
+<li>专属 Slack 频道</li>
+<li><strong>适合</strong>:10-50 人企业研发团队</li>
+</ul>
+</div>
+
+<div class="callout good">
+<div class="co-t">Enterprise / 企业版 (按合同定价)</div>
+<p>通常 ¥30,000+/年起,包含:私有部署 (客户机房或私有云)、不限 VM 数量、SLA 99.9% (含 7×24 on-call)、专属客户经理、定制功能开发、合规支持 (等保三级 / SOC 2 / GDPR)、数据不出场 (本地化部署)。报价请联系商务:bd@your-domain.com (占位)。</p>
+</div>
+</section>
+
+<!-- D.3 自托管 vs 云端 -->
+<section class="chapter" id="d3">
+<h2 class="ch-t"><span class="no">D.3</span>自托管 vs 云端 — 决策表</h2>
+
+<div class="tbl-wrap"><table>
+<thead><tr><th>维度</th><th>自托管</th><th>云端订阅</th></tr></thead>
+<tbody>
+<tr><td>软件费用</td><td>¥0 (AGPL-3.0)</td><td>¥19 - ¥299/月</td></tr>
+<tr><td>硬件</td><td>自购 / 自租</td><td>含在订阅费</td></tr>
+<tr><td>运维</td><td>自己 (含升级/备份/监控)</td><td>平台承担</td></tr>
+<tr><td>数据位置</td><td>自己的机房</td><td>平台机房 (国内多 AZ)</td></tr>
+<tr><td>升级</td><td>手动升级 (蓝绿)</td><td>自动</td></tr>
+<tr><td>SLA</td><td>用户自管</td><td>99.5 - 99.9%</td></tr>
+<tr><td>扩展性</td><td>取决于硬件</td><td>弹性扩缩</td></tr>
+<tr><td>合规</td><td>用户自证</td><td>平台提供 SOC 2 / 等保</td></tr>
+<tr><td>适合</td><td>数据敏感 / 大规模 / 内部研发</td><td>中小企业 / 不想运维</td></tr>
+</tbody></table></div>
+
+<h3>何时选自托管?</h3>
+<ul>
+<li>月活 VM ≥ 30 (云端 Team 档已经 ¥299/月,自己买服务器更划算)</li>
+<li>数据敏感 (金融 / 医疗 / 政府),数据不能出客户机房</li>
+<li>需要深度定制 (改源码、接内部系统)</li>
+<li>已有 K8s 运维团队</li>
+</ul>
+
+<h3>何时选云端?</h3>
+<ul>
+<li>月活 VM &lt; 10,只是个人或小团队</li>
+<li>无 Linux 运维经验</li>
+<li>想 5 分钟跑起来</li>
+<li>需要弹性扩缩 (业务有潮汐)</li>
+</ul>
+</section>
+
+
+
+<!-- D.4 TCO 5 年 -->
+<section class="chapter" id="d4">
+<h2 class="ch-t"><span class="no">D.4</span>TCO (5 年总拥有成本) 模型</h2>
+
+<h3>D.4.1 自托管 TCO</h3>
+<p>假设中型团队 5 人,月均 8 个 VM (并发),每天使用 6 小时:</p>
+
+<div class="tbl-wrap"><table>
+<thead><tr><th>项</th><th>单价</th><th>数量 / 周期</th><th>5 年小计 (¥)</th></tr></thead>
+<tbody>
+<tr><td>服务器 (Dell R350, 16C64G, 1TB NVMe)</td><td>¥20,000</td><td>1 台 / 5 年</td><td>¥20,000 (假设 5 年不换)</td></tr>
+<tr><td>机柜 / 机房托管</td><td>¥500/月</td><td>60 月</td><td>¥30,000</td></tr>
+<tr><td>公网 IP + 带宽 (100 Mbps)</td><td>¥200/月</td><td>60 月</td><td>¥12,000</td></tr>
+<tr><td>SSL 证书 (Let's Encrypt)</td><td>¥0</td><td>—</td><td>¥0</td></tr>
+<tr><td>运维人力 (0.3 FTE)</td><td>¥25,000/月</td><td>60 月 × 30%</td><td>¥450,000</td></tr>
+<tr><td>PG / Redis 备份存储</td><td>¥100/月</td><td>60 月</td><td>¥6,000</td></tr>
+<tr><td>电费</td><td>¥150/月</td><td>60 月</td><td>¥9,000</td></tr>
+<tr><td><strong>5 年 TCO</strong></td><td>—</td><td>—</td><td><strong>¥527,000</strong></td></tr>
+<tr><td><strong>月均</strong></td><td>—</td><td>—</td><td><strong>¥8,783</strong></td></tr>
+</tbody></table></div>
+
+<h3>D.4.2 云端订阅 TCO (同样规模)</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>档</th><th>月费</th><th>5 年 (¥)</th><th>vs 自托管</th></tr></thead>
+<tbody>
+<tr><td>Team ¥299 × 5 年</td><td>¥299</td><td>¥17,940</td><td>便宜 96.6%</td></tr>
+<tr><td>Enterprise 估算 ¥3,000/月</td><td>¥3,000</td><td>¥180,000</td><td>便宜 65.8%</td></tr>
+<tr><td>8 VM × 24h (Hobby)</td><td>需要 2 个 Hobby 档</td><td>¥2,280</td><td>便宜 99.6% (但限 6 VM)</td></tr>
+</tbody></table></div>
+
+<div class="callout good">
+<div class="co-t">✓ TCO 决策树</div>
+<p>① 团队 ≤ 10 人 + 月均 VM ≤ 10 个 → <strong>云端 Pro/Team 档</strong> (TCO 最低,运维负担最小)</p>
+<p>② 团队 10-50 人 + 月均 VM 10-30 → <strong>云端 Enterprise</strong> 或 <strong>自托管 + 0.3 FTE 运维</strong>,二者 TCO 接近 (¥18k vs ¥9k/月,但云端省去运维人力风险)</p>
+<p>③ 团队 50+ 人 + 月均 VM 30+ → <strong>自托管</strong> (TCO 最低,且数据不出场)</p>
+<p>④ 数据敏感型 (金融/医疗/政府) → <strong>自托管</strong> 无条件</p>
+</div>
+</section>
+
+<!-- D.5 竞品对比 -->
+<section class="chapter" id="d5">
+<h2 class="ch-t"><span class="no">D.5</span>与市场竞品定价对比</h2>
+
+<div class="tbl-wrap"><table>
+<thead><tr><th>产品</th><th>起价</th><th>VM 小时单价</th><th>Token 是否加价</th><th>数据 egress</th><th>5 年 TCO (中规模)</th></tr></thead>
+<tbody>
+<tr><td><strong>本平台 Pro</strong></td><td>¥99/月</td><td>含</td><td>否 (用户自带)</td><td>¥0</td><td>¥5,940</td></tr>
+<tr><td>E2B</td><td>$0.05/session</td><td>$0.05/session</td><td>用户自带</td><td>—</td><td>~$30k+ (取决于会话量)</td></tr>
+<tr><td>Modal</td><td>$0.05/小时 + 数据费</td><td>$0.05/小时</td><td>用户自带</td><td>—</td><td>~$25k+</td></tr>
+<tr><td>Daytona</td><td>$0.05/小时起</td><td>$0.05/小时</td><td>用户自带</td><td>—</td><td>~$25k+</td></tr>
+<tr><td>OpenHands Cloud</td><td>$20/月起</td><td>$0.10/小时</td><td>用户自带</td><td>—</td><td>~$15k (大量使用后)</td></tr>
+<tr><td>CodeSandbox</td><td>$0.04/小时</td><td>$0.04/小时</td><td>—</td><td>—</td><td>~$12k</td></tr>
+</tbody></table></div>
+
+<h3>本平台定价的核心优势</h3>
+<ul>
+<li><strong>¥99/月 (Pro)</strong> vs <strong>$0.05/小时</strong>:8 VM × 24h × 30 天 = 5,760 VM·h × $0.05 = <strong>$288/月 (≈¥2,060)</strong>,贵 20 倍</li>
+<li><strong>无数据 egress 费</strong>:AWS/GCP 类似服务对出站流量收 $0.09/GB,本平台免费</li>
+<li><strong>无最小消费</strong>:Pro 档可以订阅 1 个月取消,云端 VM 类产品通常预付费</li>
+<li><strong>用户自带 LLM key</strong>:平台不赚 Token 差价 (E2B 早期会加价 30%,已弃)</li>
+</ul>
+</section>
+
+<!-- D.6 LLM 成本传导 -->
+<section class="chapter" id="d6">
+<h2 class="ch-t"><span class="no">D.6</span>LLM 调用成本传导</h2>
+
+<h3>D.6.1 用户视角</h3>
+<p>Agent 跑起来主要开销是 LLM 调用,平台本身几乎免费:</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th>模型</th><th>输入 ($/1M tokens)</th><th>输出 ($/1M tokens)</th><th>典型 Agent 月用量</th><th>月成本</th></tr></thead>
+<tbody>
+<tr><td>GPT-4o</td><td>$2.50</td><td>$10.00</td><td>5M input + 1M output</td><td>$22.50 (~¥160)</td></tr>
+<tr><td>Claude Sonnet 4.5</td><td>$3.00</td><td>$15.00</td><td>5M + 1M</td><td>$30.00 (~¥215)</td></tr>
+<tr><td>DeepSeek V3</td><td>$0.14</td><td>$0.28</td><td>5M + 1M</td><td>$0.98 (~¥7) ★</td></tr>
+<tr><td>本地 Ollama (Qwen 2.5 7B)</td><td>¥0 (电费)</td><td>¥0</td><td>—</td><td>¥30 (电费)</td></tr>
+</tbody></table></div>
+
+<h3>D.6.2 平台不赚 Token 差价</h3>
+<p>用户 LLM API keys 自己管理,平台仅做 <strong>转发</strong>,不在中间收任何费用:</p>
+<ul>
+<li>用户在平台设置页填入自己的 OpenAI/Anthropic key</li>
+<li>VM 内 Agent 通过 <code>OPENAI_API_KEY</code> 环境变量直接调 LLM</li>
+<li>S 端不做任何缓存、加价、二次封装</li>
+<li>成本完全透明 — 跟用户直接调 LLM 一样</li>
+</ul>
+
+<h3>D.6.3 缓存与省钱 (v0.3)</h3>
+<p>v0.3 引入 prompt cache + response cache,可在用户授权下减少 LLM 调用:</p>
+<ul>
+<li>Prompt 缓存:相同 prefix 的请求复用 KV cache,降本 30-50%</li>
+<li>Response 缓存:相同输入直接返缓存,降本 100% (适用工具调用类)</li>
+<li>缓存策略:Redis + TTL,用户可关</li>
+<li>缓存节省的部分 <strong>100% 归用户</strong>,平台不抽成</li>
+</ul>
+
+<h3>D.6.4 ROI 案例</h3>
+<div class="callout">
+<div class="co-t">案例:5 人小团队 (¥8k/月)</div>
+<p>原有流程:3 个开发者每天花 2 小时处理重复任务 (数据清洗 / 报表生成 / 文档改写),5 × 2 × 22 = 220 小时/月</p>
+<p>使用本平台后:Agent 自动处理 70% 重复任务 = 154 小时/月节省</p>
+<p>按 ¥150/小时 开发成本 = <strong>¥23,100/月 价值</strong></p>
+<p>平台 + LLM 成本:¥99/月 (Pro) + ¥1,200/月 (LLM) = ¥1,299/月</p>
+<p><strong>ROI = 23,100 / 1,299 = 17.8 倍</strong>,一个月回本</p>
+</div>
+</section>
+
+<footer>
+<p>附录 D · 价格模型 · 炼金工厂 Agent Platform v0.1</p>
+<p style="margin-top:14px"><a class="badge deep" href="./index.html">← 返回主文档</a></p>
+<p style="margin-top:8px">附录完 · 2026-09-29</p>
+</footer>
+
+</div>
+</main>
+</div>
+
+<script>
+(function(){
+  var btn=document.getElementById('tocToggle'),toc=document.getElementById('toc');
+  if(btn&&toc){btn.addEventListener('click',function(){toc.classList.toggle('open');});}
+  if(toc){toc.addEventListener('click',function(e){if(e.target.tagName==='A'&&toc.classList.contains('open'))toc.classList.remove('open');});}
+  var links=Array.prototype.slice.call(document.querySelectorAll('#toc a[href^="#"]'));
+  var map={};
+  links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a;});
+  var secs=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  function spy(){var y=window.scrollY+120,cur=null;for(var i=0;i<secs.length;i++){if(secs[i].offsetTop<=y)cur=secs[i];else break;}links.forEach(function(a){a.classList.remove('on');});if(cur&&map[cur.id])map[cur.id].classList.add('on');}
+  var tick=false;
+  window.addEventListener('scroll',function(){if(!tick){tick=true;requestAnimationFrame(function(){spy();tick=false;});}},{passive:true});
+  spy();
+})();
+</script>
+</body>
+</html>

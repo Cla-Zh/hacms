@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="/assets/article-mobile.css?v=2026-09-29">
+<script src="/assets/article-mobile.js?v=2026-09-29"></script>
+<meta name="description" content="炼金工厂 Agent Platform v0.1 部署拓扑附录 — S 端硬件选型 + 软件依赖 + Docker Compose + KVM 验证 + 网络拓扑 + 监控告警">
+<title>附录 C · 部署拓扑 · 炼金工厂 Agent Platform v0.1</title>
+<style>
+:root{--bg-0:#0a0e14;--bg-1:#0f141d;--bg-2:#151c28;--bg-3:#1b2433;--bg-code:#0c1119;--line:#243044;--line-soft:#1a2333;--tx-0:#e8eef7;--tx-1:#aebacd;--tx-2:#6d7d94;--acc-0:#5eead4;--acc-1:#7dd3fc;--acc-2:#c4b5fd;--acc-3:#fbbf24;--acc-4:#f87171;--grad-a:linear-gradient(135deg,#5eead4,#7dd3fc);--r-md:12px;--r-lg:16px;--r-xl:22px;--sh-1:0 1px 2px rgba(0,0,0,.35),0 4px 14px rgba(0,0,0,.28);--sh-2:0 4px 10px rgba(0,0,0,.4);--mono:"JetBrains Mono","Cascadia Code","Fira Code",Consolas,monospace;--sans:"Inter","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;--toc-w:280px;--maxw:1100px}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:84px}
+body{background:var(--bg-0);color:var(--tx-0);font-family:var(--sans);font-size:16px;line-height:1.85;background-image:radial-gradient(1200px 500px at 85% -5%,rgba(125,211,252,.05),transparent 60%),radial-gradient(900px 420px at 8% 0%,rgba(94,234,212,.045),transparent 60%)}
+.layout{display:flex;min-height:100vh}
+main{flex:1;min-width:0;padding:0 clamp(18px,4vw,56px) 120px}
+.content{max-width:var(--maxw);margin:0 auto}
+.topbar{position:sticky;top:0;z-index:60;height:60px;display:flex;align-items:center;gap:14px;padding:0 clamp(16px,3vw,32px);background:rgba(10,14,20,.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--line-soft)}
+.topbar .dot{width:9px;height:9px;border-radius:50%;background:var(--acc-0)}
+.topbar .tt{font-weight:700;font-size:15px;letter-spacing:.4px}
+.topbar .tt em{font-style:normal;background:var(--grad-a);-webkit-background-clip:text;background-clip:text;color:transparent}
+.topbar .meta{margin-left:auto;display:flex;gap:10px;align-items:center;font-size:12px;color:var(--tx-2)}
+.topbar .ver{font-family:var(--mono);background:var(--bg-3);border:1px solid var(--line);border-radius:6px;padding:2px 8px;color:var(--acc-0)}
+#tocToggle{display:none;background:var(--bg-2);border:1px solid var(--line);color:var(--tx-1);border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer}
+nav#toc{position:sticky;top:60px;height:calc(100vh - 60px);width:var(--toc-w);flex:0 0 var(--toc-w);overflow-y:auto;padding:26px 18px 60px 10px;border-right:1px solid var(--line-soft);background:rgba(15,20,29,.5)}
+#toc .toc-h{font-size:11px;letter-spacing:2.5px;color:var(--tx-2);text-transform:uppercase;padding:0 12px 12px}
+#toc a{display:block;padding:7px 12px;margin:1px 0;border-radius:9px;color:var(--tx-1);text-decoration:none;font-size:13.5px;border-left:2px solid transparent}
+#toc a:hover{background:var(--bg-2);color:var(--tx-0)}
+#toc a.on{background:linear-gradient(90deg,rgba(94,234,212,.12),transparent);border-left-color:var(--acc-0);color:var(--acc-0);font-weight:600}
+section.chapter{background:var(--bg-1);border:1px solid var(--line-soft);border-radius:var(--r-xl);padding:clamp(22px,3.4vw,44px);margin:34px 0;box-shadow:var(--sh-1)}
+h2.ch-t{font-size:clamp(22px,2.6vw,30px);padding-bottom:16px;margin-bottom:22px;border-bottom:1px solid var(--line-soft);display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+h2.ch-t .no{font-family:var(--mono);font-size:.62em;color:var(--acc-0);border:1px solid rgba(94,234,212,.35);border-radius:8px;padding:3px 9px;white-space:nowrap}
+h3{font-size:19px;margin:34px 0 12px;color:var(--acc-1);display:flex;gap:9px;align-items:baseline}
+h3::before{content:"▸";color:var(--acc-0);font-size:.8em}
+p{margin:10px 0;color:var(--tx-1)}p strong,li strong{color:var(--tx-0)}
+ul,ol{margin:10px 0 10px 24px;color:var(--tx-1)}li{margin:5px 0}
+code{font-family:var(--mono);font-size:.86em;background:var(--bg-3);color:var(--acc-0);padding:2px 7px;border-radius:6px;border:1px solid var(--line-soft)}
+pre{background:var(--bg-code);border:1px solid var(--line);border-radius:var(--r-md);padding:18px 20px;overflow-x:auto;margin:14px 0;box-shadow:inset 0 2px 10px rgba(0,0,0,.4)}
+pre code{background:none;border:0;padding:0;font-size:13px;line-height:1.75;color:#cdd9ea;display:block;white-space:pre}
+.tbl-wrap{overflow-x:auto;margin:16px 0;border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sh-1)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;background:var(--bg-2)}
+th{background:linear-gradient(180deg,#1c2635,#172030);color:var(--acc-1);text-align:left;padding:11px 14px;font-weight:600;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid var(--line-soft);color:var(--tx-1);vertical-align:top}
+tr:last-child td{border-bottom:0}tbody tr:hover{background:rgba(125,211,252,.045)}
+.hero{margin:34px 0;padding:clamp(30px,4.5vw,58px);border-radius:var(--r-xl);background:radial-gradient(800px 300px at 90% 0%,rgba(125,211,252,.09),transparent 60%),radial-gradient(700px 300px at 5% 100%,rgba(94,234,212,.08),transparent 60%),var(--bg-1);border:1px solid var(--line);box-shadow:var(--sh-2)}
+.hero h1{font-size:clamp(26px,4vw,42px);line-height:1.25}
+.hero h1 .g{background:var(--grad-a);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .sub{color:var(--tx-1);font-size:clamp(14px,1.6vw,17px);margin-top:14px;max-width:880px}
+.hero .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.chip{font-family:var(--mono);font-size:12px;padding:5px 13px;border-radius:999px;background:var(--bg-3);border:1px solid var(--line);color:var(--tx-1)}
+.chip b{color:var(--acc-0);font-weight:600}
+a.badge{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11.5px;background:rgba(125,211,252,.09);color:var(--acc-1);border:1px solid rgba(125,211,252,.25);border-radius:999px;padding:2px 10px;margin:1px 3px;text-decoration:none;white-space:nowrap}
+a.badge.deep{background:rgba(94,234,212,.1);color:var(--acc-0);border-color:rgba(94,234,212,.32)}
+.callout{border-radius:var(--r-md);padding:14px 18px;margin:16px 0;border:1px solid var(--line);background:var(--bg-2)}
+.callout .co-t{font-weight:700;font-size:13px;letter-spacing:1px;margin-bottom:4px;color:var(--acc-1)}
+.callout.warn{background:rgba(251,191,36,.05)}.callout.warn .co-t{color:var(--acc-3)}
+.fig{background:var(--bg-code);border:1px solid var(--line);border-radius:var(--r-lg);padding:22px;margin:20px 0;box-shadow:var(--sh-2);overflow-x:auto}
+.fig svg{display:block;margin:0 auto;max-width:100%;height:auto}
+.fig .cap{text-align:center;font-size:13px;color:var(--tx-2);margin-top:14px;font-style:italic}
+.fig .cap b{color:var(--acc-1);font-style:normal}
+.module-card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px 20px;margin:14px 0;box-shadow:var(--sh-1)}
+.module-card .m-h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.module-card .m-h .name{font-size:16px;font-weight:700;color:var(--acc-0)}
+.module-card .m-h .tag{margin-left:auto;font-family:var(--mono);font-size:11px;background:var(--bg-3);border:1px solid var(--line);padding:2px 8px;border-radius:6px;color:var(--tx-2)}
+footer{text-align:center;color:var(--tx-2);font-size:12.5px;padding:40px 0 20px;border-top:1px solid var(--line-soft);margin-top:40px}
+@media (max-width:1180px){nav#toc{position:fixed;left:0;top:60px;bottom:0;z-index:55;transform:translateX(-102%);transition:transform .25s ease;background:var(--bg-0)}nav#toc.open{transform:translateX(0)}#tocToggle{display:inline-block}}
+@media (max-width:640px){body{font-size:15px}.topbar .meta span.hide-m{display:none}pre code{font-size:12px}section.chapter{padding:20px 16px}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <button id="tocToggle">☰ 目录</button>
+  <span class="dot"></span>
+  <span class="tt"><em>炼金工厂 · Agent Platform</em> · 附录 C · 部署拓扑</span>
+  <span class="meta">
+    <span class="ver">v0.1</span>
+    <span class="hide-m">单机自托管</span>
+    <span class="hide-m">2026-09-29</span>
+  </span>
+</div>
+
+<div class="layout">
+<nav id="toc">
+  <div class="toc-h">附录 C 目录</div>
+  <a href="#c1">C.1 三种部署形态</a>
+  <a href="#c2">C.2 单机自托管 · 硬件</a>
+  <a href="#c3">C.3 软件依赖</a>
+  <a href="#c4">C.4 KVM 验证清单</a>
+  <a href="#c5">C.5 网络拓扑</a>
+  <a href="#c6">C.6 Docker Compose</a>
+  <a href="#c7">C.7 高可用 [v1.0]</a>
+  <a class="badge deep" href="./index.html">← 返回主文档</a>
+</nav>
+
+<main>
+<div class="content">
+
+<div class="hero">
+  <h1>附录 C · <span class="g">部署拓扑</span><br>硬件 · 软件 · KVM · 网络</h1>
+  <p class="sub">v0.1 单机自托管形态的完整部署方案。从硬件选型、内核配置、Docker Compose、端口规划到监控告警端到端可执行。后续 v0.3 引入多机 K8s,v1.0 引入多区域 HA。</p>
+  <div class="chips">
+    <span class="chip">单机 <b>1 台 Linux</b></span>
+    <span class="chip">KVM <b>硬件虚拟化</b></span>
+    <span class="chip">Compose <b>5 服务</b></span>
+    <span class="chip">端口 <b>4 个对外</b></span>
+    <span class="chip">监控 <b>Prometheus</b></span>
+  </div>
+</div>
+
+<!-- C.1 -->
+<section class="chapter" id="c1">
+<h2 class="ch-t"><span class="no">C.1</span>三种部署形态</h2>
+<div class="tbl-wrap"><table>
+<thead><tr><th>形态</th><th>目标用户</th><th>硬件</th><th>SLA</th><th>版本</th></tr></thead>
+<tbody>
+<tr><td><strong>单机自托管</strong></td><td>个人 / 5 人内团队</td><td>1 台 Linux 服务器</td><td>用户自管 (99%)</td><td>v0.1 ✅</td></tr>
+<tr><td><strong>多机 K8s</strong></td><td>50+ VM 中型企业</td><td>3+ KVM 宿主机</td><td>99.5%</td><td>[v0.3]</td></tr>
+<tr><td><strong>多区域 SaaS</strong></td><td>云端订阅用户</td><td>多 AZ 多区域</td><td>99.9%</td><td>[v1.0]</td></tr>
+</tbody></table></div>
+<p>v0.1 文档聚焦单机自托管,其他形态作为扩展说明。</p>
+</section>
+
+<!-- C.2 硬件 -->
+<section class="chapter" id="c2">
+<h2 class="ch-t"><span class="no">C.2</span>单机自托管 · 硬件选型</h2>
+
+<h3>C.2.1 最低配置 (1-3 VM)</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>组件</th><th>规格</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>CPU</td><td>4 核 8 线程 (Intel/AMD x86-64)</td><td>需支持 VT-x / AMD-V</td></tr>
+<tr><td>内存</td><td>16 GB DDR4</td><td>S 端 4GB + VM 4×3GB</td></tr>
+<tr><td>磁盘</td><td>256 GB NVMe SSD</td><td>OS 20GB + Docker 50GB + VM 镜像 100GB + 缓冲</td></tr>
+<tr><td>网络</td><td>100 Mbps 出口</td><td>上传 C 端流量 + VM 拉镜像</td></tr>
+<tr><td>操作系统</td><td>Ubuntu 22.04 LTS</td><td>Kernel 6.8 (主线支持)</td></tr>
+</tbody></table></div>
+
+<h3>C.2.2 推荐配置 (10-20 VM)</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>组件</th><th>规格</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>CPU</td><td>16 核 32 线程 (Xeon / EPYC)</td><td>单核 3.5 GHz+</td></tr>
+<tr><td>内存</td><td>64 GB DDR4 ECC</td><td>S 端 8GB + VM 16×3GB</td></tr>
+<tr><td>磁盘</td><td>1 TB NVMe SSD (RAID 1)</td><td>推荐 2 块做镜像</td></tr>
+<tr><td>网络</td><td>1 Gbps</td><td>—</td></tr>
+<tr><td>操作系统</td><td>Ubuntu 22.04 LTS</td><td>—</td></tr>
+</tbody></table></div>
+
+<h3>C.2.3 成本估算 (公有云)</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>云厂商</th><th>实例类型</th><th>月成本 (USD)</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td>AWS</td><td>m6i.2xlarge + 100GB gp3</td><td>~$280</td><td>预留 1 年 ~$190</td></tr>
+<tr><td>阿里云</td><td>ecs.g7.2xlarge + 200GB ESSD</td><td>~¥1600 (~US$220)</td><td>预留 1 年 ~¥1400</td></tr>
+<tr><td>腾讯云</td><td>S5.2XLARGE16 + 200GB SSD</td><td>~¥1500 (~$210)</td><td>—</td></tr>
+</tbody></table></div>
+
+<div class="callout warn">
+<div class="co-t">⚠ 物理服务器自托管 vs 公有云对比</div>
+<p>物理服务器一次性投入 ~$3000 (Dell R350),3 年摊销 ~$85/月,远低于公有云。<strong>推荐:</strong>数据敏感型企业选物理自托管,初创团队选公有云按需付费。</p>
+</div>
+</section>
+
+<!-- C.3 -->
+<section class="chapter" id="c3">
+<h2 class="ch-t"><span class="no">C.3</span>软件依赖清单</h2>
+
+<h3>C.3.1 OS 层依赖</h3>
+<pre><code data-lang="text">apt install -y   qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils   virtiofsd   linux-image-virtual-hwe-22.04   cgroup-tools   apparmor-utils   iptables-persistent   net-tools curl wget git jq   python3.12 python3.12-venv python3-pip
+</code></pre>
+
+<h3>C.3.2 内核模块要求</h3>
+<pre><code data-lang="text"># 必须启用
+kvm, kvm_intel (或 kvm_amd)
+vhost_net
+virtio_fs
+vsock
+landlock
+
+# 验证
+lsmod | grep -E "kvm|landlock|vsock|virtio"
+</code></pre>
+
+<h3>C.3.3 系统参数 (sysctl)</h3>
+<pre><code data-lang="text"># /etc/sysctl.d/99-agent-platform.conf
+
+# 允许大量 VM (默认 4096 不够)
+fs.file-max = 1048576
+fs.nr_open = 1048576
+fs.inotify.max_user_watches = 524288
+fs.inotify.max_user_instances = 8192
+
+# VM 进程数 (每个 VM 100+ 进程, 200 VM = 20000+)
+kernel.pid_max = 65536
+kernel.threads-max = 200000
+
+# 网络: 允许更多连接 (WS 长连接)
+net.core.somaxconn = 4096
+net.ipv4.tcp_max_syn_backlog = 4096
+net.ipv4.tcp_tw_reuse = 1
+
+# BBR (提升跨境 LLM API 速度)
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = bbr
+</code></pre>
+
+<h3>C.3.4 Python 依赖 (S 端)</h3>
+<pre><code data-lang="text"># pyproject.toml
+[project]
+name = "agent-platform"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "pydantic>=2.8",
+  "sqlalchemy>=2.0",
+  "alembic>=1.13",
+  "asyncpg>=0.29",
+  "redis>=5.0",
+  "structlog>=24.1",
+  "httpx>=0.27",
+  "websockets>=13.0",
+  "pyjwt>=2.9",
+  "cryptography>=42.0",
+  "prometheus-client>=0.20",
+  "opentelemetry-api>=1.27",
+  "opentelemetry-sdk>=1.27",
+  "structlog>=24.1",
+  "pyyaml>=6.0",
+  "sentry-sdk>=2.10",
+]
+</code></pre>
+
+<h3>C.3.5 Docker / Compose (PG + Redis + OCI Registry)</h3>
+<pre><code data-lang="text">Docker Engine 25+
+docker-compose v2 (内置 docker compose 命令)
+
+镜像:
+  postgres:16-alpine
+  redis:7-alpine
+  zot:2.1            # 本地 OCI registry
+  prometheus:latest  # [可选]
+  grafana:latest     # [可选]
+</code></pre>
+</section>
+
+<!-- C.4 KVM -->
+<section class="chapter" id="c4">
+<h2 class="ch-t"><span class="no">C.4</span>KVM 验证清单 (Pre-flight)</h2>
+<p>部署前必须执行的检查清单 (脚本):</p>
+<pre><code data-lang="bash">#!/bin/bash
+# /opt/agent-platform/scripts/preflight.sh
+# 部署前 KVM 验证
+
+set -e
+FAIL=0
+
+echo "=== KVM 硬件支持 ==="
+if grep -E "vmx|svm" /proc/cpuinfo > /dev/null; then
+  echo "✓ CPU 支持硬件虚拟化"
+else
+  echo "✗ CPU 不支持 VT-x/AMD-V"; FAIL=1
+fi
+
+echo
+echo "=== KVM 内核模块 ==="
+for mod in kvm kvm_intel kvm_amd vhost_net vsock virtio_fs; do
+  if lsmod | grep -q "^$mod"; then
+    echo "✓ $mod 已加载"
+  else
+    echo "✗ $mod 未加载 (尝试: modprobe $mod)"
+    FAIL=1
+  fi
+done
+
+echo
+echo "=== /dev/kvm 设备 ==="
+if [ -e /dev/kvm ]; then
+  if [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
+    echo "✓ /dev/kvm 可读写"
+  else
+    echo "✗ /dev/kvm 存在但无权限"; FAIL=1
+  fi
+else
+  echo "✗ /dev/kvm 不存在"; FAIL=1
+fi
+
+echo
+echo "=== cgroups v2 ==="
+if mount | grep -q "cgroup2.* /sys/fs/cgroup"; then
+  echo "✓ cgroups v2 已挂载"
+else
+  echo "✗ 未使用 cgroups v2 (内核启动参数需 systemd.unified_cgroup_hierarchy=1)"; FAIL=1
+fi
+
+echo
+echo "=== Landlock 内核支持 ==="
+if [ -e /sys/kernel/security/landlock ]; then
+  echo "✓ Landlock 已启用"
+else
+  echo "⚠ Landlock 未启用 (Kernel >= 5.13 可启用 CONFIG_SECURITY_LANDLOCK=y)"; FAIL=1
+fi
+
+echo
+echo "=== 系统资源 ==="
+TOTAL_MEM=$(free -g | awk '/^Mem:/ {print $2}')
+if [ "$TOTAL_MEM" -ge 8 ]; then
+  echo "✓ 内存 $TOTAL_MEM GB (>= 8 GB)"
+else
+  echo "✗ 内存 $TOTAL_MEM GB (< 8 GB 不推荐)"; FAIL=1
+fi
+
+DISK_FREE=$(df -BG / | awk 'NR==2 {print $4}' | tr -d 'G')
+if [ "$DISK_FREE" -ge 50 ]; then
+  echo "✓ 根分区剩余 $DISK_FREE GB (>= 50 GB)"
+else
+  echo "✗ 根分区剩余 $DISK_FREE GB (< 50 GB)"; FAIL=1
+fi
+
+echo
+if [ $FAIL -eq 0 ]; then
+  echo "=== 所有检查通过,可以部署 ==="
+  exit 0
+else
+  echo "=== 存在 $FAIL 个问题,请修复后重试 ==="
+  exit 1
+fi
+</code></pre>
+</section>
+
+<!-- C.5 网络拓扑 -->
+<section class="chapter" id="c5">
+<h2 class="ch-t"><span class="no">C.5</span>网络拓扑</h2>
+
+<h3>C.5.1 端口规划</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>端口</th><th>协议</th><th>绑定</th><th>用途</th><th>对外</th></tr></thead>
+<tbody>
+<tr><td>443</td><td>HTTPS</td><td>Nginx (或 Caddy)</td><td>C 端访问 + WSS</td><td>✅</td></tr>
+<tr><td>80</td><td>HTTP</td><td>Nginx</td><td>Let's Encrypt ACME + 重定向到 443</td><td>✅</td></tr>
+<tr><td>25 (out)</td><td>SMTP</td><td>S 端 outbound</td><td>Magic Link 邮件发送</td><td>out</td></tr>
+<tr><td>5432</td><td>PostgreSQL</td><td>localhost only</td><td>DB</td><td>❌</td></tr>
+<tr><td>6379</td><td>Redis</td><td>localhost only</td><td>缓存 / 事件</td><td>❌</td></tr>
+<tr><td>5000</td><td>OCI registry (Zot)</td><td>localhost only</td><td>VM 镜像本地 registry</td><td>❌</td></tr>
+<tr><td>9090</td><td>Prometheus</td><td>internal</td><td>S 端 metrics</td><td>❌</td></tr>
+<tr><td>7777</td><td>VM Agent</td><td>VM 内</td><td>Agent :7777 监听</td><td>❌ (vsock)</td></tr>
+<tr><td>vsock :3</td><td>virtio-sock</td><td>VM ↔ S</td><td>VM 内 ↔ S 端 Stream Hub</td><td>❌</td></tr>
+</tbody></table></div>
+
+<h3>C.5.2 拓扑图</h3>
+<div class="fig">
+<svg viewBox="0 0 1180 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="网络拓扑图">
+<style>
+.zoneE{fill:rgba(125,211,252,.05);stroke:#7dd3fc;stroke-width:1.2;stroke-dasharray:5 3;rx:10}
+.zoneS{fill:rgba(94,234,212,.05);stroke:#5eead4;stroke-width:1.2;stroke-dasharray:5 3;rx:10}
+.zoneVM{fill:rgba(196,181,253,.05);stroke:#c4b5fd;stroke-width:1.2;stroke-dasharray:5 3;rx:10}
+.bx{fill:#151c28;stroke:#243044;stroke-width:1.2;rx:8}
+.t1{fill:#e8eef7;font:600 12.5px 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+.t2{fill:#aebacd;font:11px 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+.t3{fill:#6d7d94;font:10.5px 'JetBrains Mono',Consolas,monospace}
+.m1{fill:#5eead4;font:600 11px 'JetBrains Mono',Consolas,monospace}
+.m2{fill:#7dd3fc;font:600 11px 'JetBrains Mono',Consolas,monospace}
+.zlab{fill:#6d7d94;font:600 11px 'JetBrains Mono',Consolas,monospace;letter-spacing:2px}
+.ln{stroke:#5eead4;stroke-width:1.4;fill:none}
+.lnB{stroke:#7dd3fc;stroke-width:1.4;fill:none}
+.lnP{stroke:#c4b5fd;stroke-width:1.4;fill:none;stroke-dasharray:4 3}
+</style>
+<defs>
+<marker id="ar1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#5eead4"/></marker>
+<marker id="ar2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#7dd3fc"/></marker>
+<marker id="ar3" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#c4b5fd"/></marker>
+</defs>
+
+<text x="30" y="22" class="t1" font-size="14">网络拓扑 — C 端 / S 端 / VM 内部三区通信</text>
+
+<rect x="20" y="50" width="280" height="380" class="zoneE" rx="12"/>
+<text x="34" y="72" class="zlab">EXTERNAL · C 端 + LLM API</text>
+
+<rect x="40" y="90" width="240" height="50" class="bx"/>
+<text x="56" y="112" class="m2">用户浏览器</text>
+<text x="56" y="130" class="t2">HTTPS → 443 (S 端)</text>
+
+<rect x="40" y="160" width="240" height="50" class="bx"/>
+<text x="56" y="182" class="m2">api.openai.com</text>
+<text x="56" y="200" class="t2">HTTPS → 443 (VM 通过 slirp)</text>
+
+<rect x="40" y="230" width="240" height="50" class="bx"/>
+<text x="56" y="252" class="m2">api.anthropic.com</text>
+<text x="56" y="270" class="t2">HTTPS → 443</text>
+
+<rect x="40" y="300" width="240" height="50" class="bx"/>
+<text x="56" y="322" class="m2">ghcr.io / cdn.jsdelivr</text>
+<text x="56" y="340" class="t2">VM 镜像 / OCI 拉取</text>
+
+<rect x="40" y="370" width="240" height="50" class="bx"/>
+<text x="56" y="392" class="m2">SMTP (Gmail / SES)</text>
+<text x="56" y="410" class="t2">out:25/465 → 邮件发送</text>
+
+<rect x="340" y="50" width="500" height="380" class="zoneS" rx="12"/>
+<text x="354" y="72" class="zlab">S · LINUX SERVER (1 台)</text>
+
+<rect x="360" y="90" width="220" height="50" class="bx"/>
+<text x="376" y="112" class="m1">Nginx / Caddy :443</text>
+<text x="376" y="130" class="t2">TLS 终止 + WSS 转发</text>
+
+<rect x="600" y="90" width="220" height="50" class="bx"/>
+<text x="616" y="112" class="m1">FastAPI :8000</text>
+<text x="616" y="130" class="t2">localhost only (Nginx upstream)</text>
+
+<rect x="360" y="160" width="220" height="50" class="bx"/>
+<text x="376" y="182" class="m1">Stream Hub :8765</text>
+<text x="376" y="200" class="t2">WS 桥接 (vsock ↔ WSS)</text>
+
+<rect x="600" y="160" width="220" height="50" class="bx"/>
+<text x="616" y="182" class="m1">VM Manager</text>
+<text x="616" y="200" class="t2">libkrun fork + 编排</text>
+
+<rect x="360" y="230" width="220" height="50" class="bx"/>
+<text x="376" y="252" class="m1">PostgreSQL :5432</text>
+<text x="376" y="270" class="t2">localhost only</text>
+
+<rect x="600" y="230" width="220" height="50" class="bx"/>
+<text x="616" y="252" class="m1">Redis :6379</text>
+<text x="616" y="270" class="t2">localhost only</text>
+
+<rect x="360" y="300" width="220" height="50" class="bx"/>
+<text x="376" y="322" class="m1">Zot (OCI) :5000</text>
+<text x="376" y="340" class="t2">VM 镜像本地缓存</text>
+
+<rect x="600" y="300" width="220" height="50" class="bx"/>
+<text x="616" y="322" class="m1">virtiofsd (per VM)</text>
+<text x="616" y="340" class="t2">绑定到 VM 进程</text>
+
+<rect x="360" y="370" width="220" height="50" class="bx"/>
+<text x="376" y="392" class="m1">Prometheus :9090</text>
+<text x="376" y="410" class="t2">internal / VPN only</text>
+
+<rect x="600" y="370" width="220" height="50" class="bx"/>
+<text x="616" y="392" class="m1">Grafana :3000</text>
+<text x="616" y="410" class="t2">internal / VPN only</text>
+
+<rect x="880" y="50" width="280" height="380" class="zoneVM" rx="12"/>
+<text x="894" y="72" class="zlab">VM (microVM × N)</text>
+
+<rect x="900" y="90" width="240" height="50" class="bx"/>
+<text x="916" y="112" class="m1" fill="#c4b5fd">krun-agent (PID 2)</text>
+<text x="916" y="130" class="t2">vsock listener</text>
+
+<rect x="900" y="160" width="240" height="50" class="bx"/>
+<text x="916" y="182" class="m1" fill="#c4b5fd">Agent :7777</text>
+<text x="916" y="200" class="t2">OpenClaw / Hermes</text>
+
+<rect x="900" y="230" width="240" height="50" class="bx"/>
+<text x="916" y="252" class="m1" fill="#c4b5fd">/workspace/foo</text>
+<text x="916" y="270" class="t2">virtiofs mount (RW)</text>
+
+<rect x="900" y="300" width="240" height="50" class="bx"/>
+<text x="916" y="322" class="m1" fill="#c4b5fd">10.0.2.15 (slirp)</text>
+<text x="916" y="340" class="t2">VM 内 IP (NAT 出口)</text>
+
+<rect x="900" y="370" width="240" height="50" class="bx"/>
+<text x="916" y="392" class="m1" fill="#c4b5fd">landlock rules</text>
+<text x="916" y="410" class="t2">FS 白名单</text>
+
+<path class="lnB" d="M280 115 L358 115" marker-end="url(#ar2)"/>
+<text x="290" y="106" class="t3">HTTPS</text>
+
+<path class="lnP" d="M820 130 L900 115" marker-end="url(#ar3)"/>
+<text x="830" y="125" class="t3">vsock</text>
+
+<path class="lnP" d="M820 290 L900 265" marker-end="url(#ar3)"/>
+<text x="830" y="280" class="t3">virtio-fs</text>
+
+<path class="ln" d="M280 190 L600 200" marker-end="url(#ar1)"/>
+<text x="290" y="180" class="t3">slirp NAT</text>
+
+</svg>
+<div class="cap"><b>图 C-1</b> · 网络拓扑 — 3 区 + 11 个核心组件 + 4 类通信链路</div>
+</div>
+</section>
+
+<!-- C.6 -->
+<section class="chapter" id="c6">
+<h2 class="ch-t"><span class="no">C.6</span>Docker Compose (S 端基础设施)</h2>
+<p>PG / Redis / Zot 用 Docker Compose 部署,S 端 API 以 systemd 服务运行:</p>
+<pre><code data-lang="yaml"># /opt/agent-platform/deploy/docker-compose.yml
+version: "3.9"
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: agent-platform-pg
+    restart: unless-stopped
+    user: "70:70"  # postgres UID
+    environment:
+      POSTGRES_DB: agent_platform
+      POSTGRES_USER: agent_platform
+      POSTGRES_PASSWORD: ${PG_PASSWORD}     # 从 .env 读
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+    command:
+      - "postgres"
+      - "-c"
+      - "config_file=/etc/postgresql/postgresql.conf"
+    ports: !reset []   # 不暴露
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 4G
+
+  redis:
+    image: redis:7-alpine
+    container_name: agent-platform-redis
+    restart: unless-stopped
+    command:
+      - "redis-server"
+      - "--save"
+      - "60"
+      - "1000"
+      - "--maxmemory"
+      - "1gb"
+      - "--maxmemory-policy"
+      - "allkeys-lru"
+      - "--appendonly"
+      - "yes"
+    volumes:
+      - redis_data:/data
+    ports: !reset []
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+
+  zot:
+    image: ghcr.io/project-zot/zot-linux-amd64:v2.1
+    container_name: agent-platform-zot
+    restart: unless-stopped
+    volumes:
+      - zot_data:/var/lib/zot
+      - ./zot/config.json:/etc/zot/config.json:ro
+    ports: !reset []
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:5000/v2/_catalog"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *default-logging
+
+volumes:
+  pg_data:
+  redis_data:
+  zot_data:
+</code></pre>
+
+<h3>S 端 API systemd 单元</h3>
+<pre><code data-lang="ini"># /etc/systemd/system/agent-platform-api.service
+[Unit]
+Description=Agent Platform API
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=agent-platform
+Group=agent-platform
+WorkingDirectory=/opt/agent-platform
+EnvironmentFile=/etc/agent-platform/api.env
+ExecStart=/opt/agent-platform/.venv/bin/uvicorn api.main:app   --host 127.0.0.1 --port 8000   --workers 4   --log-level info
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# 资源限制 (避免 API 自己耗光)
+CPUQuota=400%
+MemoryMax=4G
+
+# 安全: 限制 capability
+AmbientCapabilities=CAP_KILL CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+</code></pre>
+</section>
+
+<!-- C.7 HA -->
+<section class="chapter" id="c7">
+<h2 class="ch-t"><span class="no">C.7</span>高可用 [v1.0]</h2>
+
+<h3>C.7.1 单点故障分析</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>组件</th><th>单点?</th><th>影响</th><th>v1.0 方案</th></tr></thead>
+<tbody>
+<tr><td>S 端服务器整机</td><td>是</td><td>全平台停机</td><td>K8s 多副本 + 反亲和</td></tr>
+<tr><td>PostgreSQL</td><td>是</td><td>数据丢失风险</td><td>Patroni + 流复制 + S3 WAL 归档</td></tr>
+<tr><td>Redis</td><td>是</td><td>会话 / 速率限制失效</td><td>Sentinel 哨兵 + 自动 failover</td></tr>
+<tr><td>KVM 宿主机</td><td>是</td><td>该节点 VM 全停</td><td>KubeVirt + VM live migration</td></tr>
+<tr><td>Nginx</td><td>是</td><td>C 端无法访问</td><td>Ingress 副本 + LB</td></tr>
+</tbody></table></div>
+
+<h3>C.7.2 v1.0 架构目标</h3>
+<div class="module-card">
+<div class="m-h"><span class="name">3 副本 S 端 API + LB</span><span class="tag">K8s Deployment</span></div>
+<ul>
+<li>K8s Deployment 3 副本 + HPA (按 CPU 自动扩缩)</li>
+<li>Ingress (Nginx / Envoy) 前置 LB</li>
+<li>WebSocket sticky session (cookie affinity)</li>
+</ul>
+</div>
+<div class="module-card">
+<div class="m-h"><span class="name">PG 主从 + Patroni</span><span class="tag">HA</span></div>
+<ul>
+<li>1 主 2 从,同步流复制 (synchronous_commit = on)</li>
+<li>Patroni 自动 failover, RPO &lt; 5s</li>
+<li>WAL 持续归档到 S3</li>
+</ul>
+</div>
+<div class="module-card">
+<div class="m-h"><span class="name">VM 自动漂移</span><span class="tag">KubeVirt</span></div>
+<ul>
+<li>VM 调度到多个 KVM 宿主机</li>
+<li>节点失效时,VM 在 30s 内漂移到健康节点</li>
+<li>挂载点 (virtiofs) 跟随 VM 迁移</li>
+</ul>
+</div>
+</section>
+
+<footer>
+<p>附录 C · 部署拓扑 · 炼金工厂 Agent Platform v0.1</p>
+<p style="margin-top:14px"><a class="badge deep" href="./index.html">← 返回主文档</a></p>
+<p style="margin-top:8px">附录完 · 2026-09-29</p>
+</footer>
+
+</div>
+</main>
+</div>
+
+<script>
+(function(){
+  var btn=document.getElementById('tocToggle'),toc=document.getElementById('toc');
+  if(btn&&toc){btn.addEventListener('click',function(){toc.classList.toggle('open');});}
+  if(toc){toc.addEventListener('click',function(e){if(e.target.tagName==='A'&&toc.classList.contains('open'))toc.classList.remove('open');});}
+  var links=Array.prototype.slice.call(document.querySelectorAll('#toc a[href^="#"]'));
+  var map={};
+  links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a;});
+  var secs=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  function spy(){var y=window.scrollY+120,cur=null;for(var i=0;i<secs.length;i++){if(secs[i].offsetTop<=y)cur=secs[i];else break;}links.forEach(function(a){a.classList.remove('on');});if(cur&&map[cur.id])map[cur.id].classList.add('on');}
+  var tick=false;
+  window.addEventListener('scroll',function(){if(!tick){tick=true;requestAnimationFrame(function(){spy();tick=false;});}},{passive:true});
+  spy();
+})();
+</script>
+</body>
+</html>
