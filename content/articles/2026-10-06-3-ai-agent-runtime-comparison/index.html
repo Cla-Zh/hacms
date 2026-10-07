@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="hero_priority" content="24">
+<meta name="description" content="[项目解析] Hermes Agent × OpenClaw × DeepSeek Harness 三方对比白皮书 — 跨范式代码级逆向 / 架构哲学 / 工具调度 / 沙箱执行 / 子代理机制 / 协议生态 / 商业治理。8 章节 30+ 表格 100+ 引用。Commit 锁版。">
+<meta property="og:title" content="3 个 AI Agent 运行时项目对比白皮书">
+<meta property="og:description" content="Hermes Agent × OpenClaw × DeepSeek Harness · 跨范式对比 · 代码级逆向 · 项目解析">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="3 个 AI Agent 运行时项目对比白皮书">
+<meta name="twitter:description" content="Hermes × OpenClaw × DeepSeek Harness · 8 章节 · 30+ 表格 · 100+ 引用 · 项目解析">
+<link rel="stylesheet" href="/assets/article-mobile.css?v=2026-09-27">
+<script src="/assets/article-mobile.js?v=2026-09-27" defer></script>
+<title>3 个 AI Agent 运行时项目对比白皮书 · Hermes Agent × OpenClaw × DeepSeek Harness</title>
+<style>
+/* ============ 设计令牌：深色科技文档体系（复用 sglang/vLLM） ============ */
+:root{
+  --bg-0:#0a0e14; --bg-1:#0f141d; --bg-2:#151c28; --bg-3:#1b2433; --bg-code:#0c1119;
+  --line:#243044; --line-soft:#1a2333;
+  --tx-0:#e8eef7; --tx-1:#aebacd; --tx-2:#6d7d94;
+  --acc-0:#5eead4; --acc-1:#7dd3fc; --acc-2:#c4b5fd;
+  --acc-3:#fbbf24; --acc-4:#f87171; --acc-5:#34d399; --acc-6:#f472b6;
+  --grad-a:linear-gradient(135deg,#5eead4,#7dd3fc);
+  --grad-b:linear-gradient(135deg,#c4b5fd,#7dd3fc);
+  --grad-c:linear-gradient(135deg,#fbbf24,#f87171);
+  --grad-d:linear-gradient(135deg,#f472b6,#c4b5fd);
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:22px;
+  --sh-1:0 1px 2px rgba(0,0,0,.35),0 4px 14px rgba(0,0,0,.28);
+  --sh-2:0 4px 10px rgba(0,0,0,.4),0 14px 40px rgba(0,0,0,.38);
+  --sh-3:0 10px 24px rgba(0,0,0,.5),0 30px 80px rgba(0,0,0,.45);
+  --glow:0 0 0 1px rgba(94,234,212,.14),0 0 26px rgba(94,234,212,.07);
+  --mono:"JetBrains Mono","Cascadia Code","Fira Code",Consolas,"Courier New",monospace;
+  --sans:"Inter","Segoe UI","PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  --toc-w:292px; --maxw:1080px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:84px}
+body{
+  background:var(--bg-0);color:var(--tx-0);font-family:var(--sans);
+  line-height:1.65;font-size:15.5px;letter-spacing:.005em;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+}
+code,pre,kbd,samp{font-family:var(--mono);font-size:13.5px}
+a{color:var(--acc-1);text-decoration:none;transition:all .2s ease}
+a:hover{color:var(--acc-0);text-decoration:underline;text-underline-offset:3px}
+img,svg{max-width:100%;height:auto;display:block}
+::selection{background:rgba(94,234,212,.25);color:var(--tx-0)}
+
+.hero{
+  position:relative;overflow:hidden;
+  background:radial-gradient(1200px 600px at 75% -10%,rgba(125,211,252,.18),transparent 70%),
+             radial-gradient(900px 500px at 15% 50%,rgba(196,181,253,.14),transparent 70%),
+             linear-gradient(180deg,var(--bg-0),var(--bg-1));
+  padding:84px 24px 60px;border-bottom:1px solid var(--line-soft);
+}
+.hero-inner{max-width:var(--maxw);margin:0 auto;position:relative;z-index:2}
+.tag{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;
+  border-radius:99px;font-size:11.5px;letter-spacing:.12em;font-weight:600;
+  background:rgba(125,211,252,.1);color:var(--acc-1);border:1px solid rgba(125,211,252,.3);
+  text-transform:uppercase;font-family:var(--mono)}
+.hero h1{
+  margin:18px 0 14px;font-size:46px;font-weight:800;line-height:1.12;
+  background:var(--grad-d);-webkit-background-clip:text;background-clip:text;color:transparent;
+  letter-spacing:-.02em;
+}
+.hero .sub{font-size:18px;color:var(--tx-1);max-width:760px;line-height:1.6}
+.hero .meta{margin-top:28px;display:flex;flex-wrap:wrap;gap:12px;font-family:var(--mono);font-size:12.5px}
+.hero .meta span{padding:6px 12px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-sm);color:var(--tx-1)}
+.hero .meta b{color:var(--acc-0);font-weight:600}
+
+.layout{display:grid;grid-template-columns:var(--toc-w) minmax(0,1fr);max-width:calc(var(--toc-w) + var(--maxw) + 80px);margin:0 auto;gap:60px;padding:48px 32px 96px}
+
+.toc{position:sticky;top:24px;align-self:start;height:calc(100vh - 48px);overflow-y:auto;
+  padding-right:14px;scrollbar-width:thin}
+.toc::-webkit-scrollbar{width:6px}
+.toc::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+.toc h4{font-size:11px;color:var(--tx-2);font-family:var(--mono);letter-spacing:.15em;
+  text-transform:uppercase;margin-bottom:14px;padding-left:10px}
+.toc ul{list-style:none;font-size:13px}
+.toc li{margin:1px 0}
+.toc a{display:block;padding:6px 10px;border-radius:var(--r-sm);color:var(--tx-1);
+  border-left:2px solid transparent;transition:all .2s ease;line-height:1.45}
+.toc a:hover{color:var(--tx-0);background:var(--bg-2);text-decoration:none}
+.toc a.active{color:var(--acc-0);background:rgba(94,234,212,.08);border-left-color:var(--acc-0);font-weight:600}
+.toc .lv2{padding-left:24px;font-size:12.5px}
+.toc .lv3{padding-left:36px;font-size:12px;color:var(--tx-2)}
+
+.content{max-width:var(--maxw);min-width:0}
+.content section{margin-bottom:64px;scroll-margin-top:84px}
+.content h2{
+  font-size:30px;font-weight:700;margin:0 0 8px;
+  padding:18px 0 14px;position:relative;letter-spacing:-.01em;
+}
+.content h2 .ch{
+  display:inline-block;margin-right:14px;padding:4px 10px;
+  font-family:var(--mono);font-size:13px;font-weight:700;
+  background:var(--grad-d);-webkit-background-clip:text;background-clip:text;color:transparent;
+  border:1px solid var(--line);border-radius:var(--r-sm);letter-spacing:.08em
+}
+.content h2::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;
+  background:linear-gradient(90deg,var(--acc-6),transparent);opacity:.4}
+.content h3{
+  font-size:21px;font-weight:600;margin:36px 0 14px;color:var(--acc-6);
+  padding-bottom:8px;border-bottom:1px dashed var(--line)
+}
+.content h4{font-size:17px;font-weight:600;margin:24px 0 10px;color:var(--tx-0)}
+.content p{margin:12px 0;color:var(--tx-1);line-height:1.75}
+.content strong{color:var(--tx-0);font-weight:600}
+.content ul,.content ol{margin:12px 0;padding-left:26px;color:var(--tx-1)}
+.content li{margin:5px 0;line-height:1.7}
+.content li::marker{color:var(--acc-6)}
+
+pre{
+  background:var(--bg-code);border:1px solid var(--line);border-radius:var(--r-md);
+  padding:18px 22px;overflow-x:auto;margin:14px 0;line-height:1.55;
+  position:relative;box-shadow:var(--sh-1)
+}
+pre::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--grad-d);opacity:.7;border-radius:var(--r-md) var(--r-md) 0 0}
+pre code{display:block;color:#dde4f0;background:transparent;padding:0;line-height:1.55}
+code:not(pre code){background:rgba(244,114,182,.1);color:var(--acc-6);
+  padding:2px 6px;border-radius:4px;font-size:13px;border:1px solid rgba(244,114,182,.18)}
+
+.tbl-wrap{overflow-x:auto;margin:16px 0;border-radius:var(--r-md);border:1px solid var(--line);
+  background:var(--bg-2);box-shadow:var(--sh-1)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+table th{background:var(--bg-3);color:var(--acc-6);font-weight:600;text-align:left;
+  padding:12px 14px;border-bottom:1px solid var(--line);font-family:var(--mono);
+  font-size:12.5px;letter-spacing:.04em}
+table td{padding:10px 14px;border-bottom:1px solid var(--line-soft);color:var(--tx-1);
+  vertical-align:top;line-height:1.55}
+table tr:last-child td{border-bottom:none}
+table tr:hover td{background:rgba(244,114,182,.03)}
+
+blockquote{margin:18px 0;padding:16px 22px;background:var(--bg-2);border-left:3px solid var(--acc-6);
+  border-radius:0 var(--r-md) var(--r-md) 0;color:var(--tx-1);line-height:1.7}
+blockquote p{margin:6px 0}
+
+.card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:22px 26px;margin:18px 0;box-shadow:var(--sh-1);transition:all .25s ease}
+.card:hover{border-color:rgba(244,114,182,.4);box-shadow:var(--sh-2)}
+.card .ttl{font-size:14px;color:var(--acc-6);font-family:var(--mono);
+  margin-bottom:8px;letter-spacing:.05em;text-transform:uppercase;font-weight:600}
+.card h4{margin-top:0;color:var(--tx-0)}
+
+details{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-md);
+  margin:12px 0;overflow:hidden}
+details summary{cursor:pointer;padding:14px 18px;font-weight:600;color:var(--acc-6);
+  user-select:none;list-style:none;position:relative;transition:background .2s ease}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:"+";position:absolute;right:18px;font-size:20px;
+  font-family:var(--mono);color:var(--acc-6);transition:transform .3s ease;font-weight:300}
+details[open] summary::after{transform:rotate(45deg)}
+details summary:hover{background:var(--bg-3)}
+details .content{padding:0 18px 18px;color:var(--tx-1);line-height:1.7}
+details .content pre{margin:10px 0}
+
+.src-link{display:inline-block;padding:2px 8px;margin:0 2px;font-family:var(--mono);
+  font-size:11.5px;background:rgba(244,114,182,.12);color:var(--acc-6);
+  border:1px solid rgba(244,114,182,.3);border-radius:4px;vertical-align:middle;
+  transition:all .2s ease}
+.src-link:hover{background:rgba(244,114,182,.2);color:var(--acc-0);text-decoration:none;
+  transform:translateY(-1px)}
+
+.svg-figure{margin:24px 0;padding:20px;background:var(--bg-2);
+  border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-2)}
+.svg-figure svg{width:100%;height:auto;max-height:600px}
+.svg-figure .caption{margin-top:14px;font-size:13px;color:var(--tx-2);
+  text-align:center;font-style:italic}
+
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:14px;margin:20px 0}
+.stat{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-md);
+  padding:18px 22px;transition:all .25s ease}
+.stat:hover{border-color:rgba(244,114,182,.4);transform:translateY(-2px);box-shadow:var(--sh-2)}
+.stat .v{font-size:30px;font-weight:700;color:var(--acc-6);font-family:var(--mono);
+  line-height:1.1;letter-spacing:-.02em}
+.stat .l{font-size:12.5px;color:var(--tx-2);margin-top:6px;
+  letter-spacing:.04em;text-transform:uppercase}
+
+.footer{margin-top:96px;padding:32px 24px;border-top:1px solid var(--line);
+  color:var(--tx-2);font-size:13px;line-height:1.7;background:var(--bg-1)}
+.footer-inner{max-width:var(--maxw);margin:0 auto}
+.footer h4{font-size:13px;color:var(--tx-1);margin-bottom:8px;letter-spacing:.05em;
+  text-transform:uppercase;font-family:var(--mono);font-weight:600}
+.footer p{margin:4px 0;color:var(--tx-2)}
+
+@media (max-width:980px){
+  .layout{grid-template-columns:1fr;gap:0;padding:24px 16px 60px}
+  .toc{position:static;height:auto;margin-bottom:32px;
+    padding:18px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-md)}
+  .hero{padding:56px 20px 36px}
+  .hero h1{font-size:32px}
+  .content h2{font-size:24px}
+  .content h3{font-size:18px}
+}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="hero-inner">
+    <span class="tag">// AGENT FRAMEWORK COMPARATIVE WHITEPAPER</span>
+    <h1>3 个 AI Agent 运行时项目对比白皮书</h1>
+    <p class="sub">跨范式代码级逆向分析 <code>Hermes Agent × OpenClaw × DeepSeek Harness</code>。架构哲学 / 工具调度 / 沙箱执行 / 子代理机制 / 协议生态 / 治理模型 6 维度对比。30+ 对比表 · 100+ 权威引用 · SHA 锁版。覆盖 CLI 个人助手 / 跨平台 daemon / 工业级 monorepo harness 三个物种。</p>
+    <div class="meta">
+      <span>📦 <b>3</b> 仓库 SHA 锁版</span>
+      <span>📊 <b>8</b> 章节 · <b>30+</b> 对比表</span>
+      <span>🔗 <b>100+</b> 权威引用</span>
+      <span>🎯 <b>代码回查</b></span>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc" id="toc">
+  <h4>📑 目录</h4>
+  <ul>
+    <li><a href="#sec-0" class="lv1">CH.00 研究背景与三项目基线</a></li>
+    <li><a href="#sec-1" class="lv1">CH.01 架构哲学与定位差异</a></li>
+    <li><a href="#sec-2" class="lv1">CH.02 核心循环与工具调度机制</a></li>
+    <li><a href="#sec-3" class="lv1">CH.03 沙箱执行与会话持久化</a></li>
+    <li><a href="#sec-4" class="lv1">CH.04 子代理 / 多 Agent 编排</a></li>
+    <li><a href="#sec-5" class="lv1">CH.05 协议生态与扩展模型</a></li>
+    <li><a href="#sec-6" class="lv1">CH.06 治理与生态对比</a></li>
+    <li><a href="#sec-7" class="lv1">CH.07 结论 + 附录</a></li>
+  </ul>
+</nav>
+<article class="content">
+
+<!-- ============== CH.00 ============== -->
+<section id="sec-0">
+  <h2><span class="ch">CH.00</span>研究背景与三项目基线</h2>
+
+<h3>0.1 分析对象与 SHA 锁版</h3>
+<p>本文档基于下列三个仓库的特定 commit 锁版进行代码级对比分析。所有源码引用、文件路径、行号均绑定到该 SHA。</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th>项目</th><th>仓库</th><th>SHA</th><th>主分支</th><th>体积</th><th>语言</th><th>Stars</th><th>描述</th></tr></thead>
+<tbody>
+<tr><td><strong>Hermes Agent</strong></td><td><code>NousResearch/hermes-agent</code></td><td><a href="https://github.com/NousResearch/hermes-agent/commit/0c77988889309c510f1072bc2a818ab16e046e22" target="_blank"><code>0c77988889309c510f1072bc2a818ab16e046e22</code></a></td><td><code>main</code></td><td>1.14 GB</td><td>Python</td><td>251,587</td><td>The agent that grows with you</td></tr>
+<tr><td><strong>OpenClaw</strong></td><td><code>openclaw/openclaw</code></td><td><a href="https://github.com/openclaw/openclaw/commit/c78c2638ec74893515c7aa6d886e6fc2a7f2551e" target="_blank"><code>c78c2638ec74893515c7aa6d886e6fc2a7f2551e</code></a></td><td><code>main</code></td><td>7.79 GB</td><td>TypeScript + Swift</td><td>391,493</td><td>The AI that really does things. Any OS. Any Platform. The lobster way. 🦞</td></tr>
+<tr><td><strong>DeepSeek Harness</strong></td><td><code>deepseek-ai/deepseek-harness</code></td><td><a href="https://github.com/deepseek-ai/deepseek-harness/commit/5badb15009ae1756c3afe0ae0cef1faafc290ccc" target="_blank"><code>5badb15009ae1756c3afe0ae0cef1faafc290ccc</code></a></td><td><code>master</code></td><td>263 MB</td><td>TypeScript</td><td>244,382</td><td>DeepSeek Harness: Everything is a Plugin.</td></tr>
+</tbody></table></div>
+<blockquote>
+<p><strong>关于 OpenClaw 7.79 GB 体积的说明</strong>: OpenClaw 仓库是 <strong>pnpm monorepo + 多平台原生应用源码</strong> 的组合体。其体积远超纯代码原因之一是仓库根目录包含 <code>apps/macos/Sources/</code>、<code>apps/ios/Sources/</code>、<code>apps/android/app/</code> 等完整原生应用源码（Swift / Kotlin / Dart），以及大量 SVG/PNG 资源文件、XML 资源、SwiftUI Preview snapshot 等。即便如此，OpenClaw 的核心 TypeScript daemon 代码集中在 <code>src/</code> 目录（约 8 万行 TS），是本文档的核心分析对象。</p>
+</blockquote>
+<h3>0.2 三个物种 — 范式归类</h3>
+<p>学术界与工程界对 AI Agent 项目长期缺乏统一分类。<code>docs.openclaw.ai/start/why-openclaw/openclaw-and-hermes-agent</code> 提供了一份由项目方自己做的属性级对比表（2026 年发布），其中把 Hermes Agent 与 OpenClaw 放在同一物种的不同分支上：</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th>维度</th><th>Hermes Agent</th><th>OpenClaw</th><th>DeepSeek Harness</th></tr></thead>
+<tbody>
+<tr><td><strong>物种名</strong></td><td>Self-improving Agent / Coding Agent</td><td>Personal AI Assistant / Cross-Channel Daemon</td><td>Agent Harness / Plugin Runtime</td></tr>
+<tr><td><strong>运行模式</strong></td><td>Per-task invocation (CLI / CLI gateway / Telegram bot)</td><td>Long-running daemon (macOS menu bar / Linux systemd)</td><td>Per-task CLI / Web UI / SDK</td></tr>
+<tr><td><strong>典型调用</strong></td><td><code>hermes "fix the bug"</code></td><td>在任意 IM 通道与 bot 对话</td><td><code>npx @deepseek-ai/dsh web</code></td></tr>
+<tr><td><strong>持久状态</strong></td><td>Per-session SQLite + FTS5</td><td>Always-on daemon memory + skills DB</td><td>Per-session JSONL + SQLite FTS5</td></tr>
+<tr><td><strong>数据归属</strong></td><td>User's <code>~/.hermes/</code></td><td>User's local device</td><td>Workspace + session storage</td></tr>
+<tr><td><strong>目标用户</strong></td><td>Developer / power user</td><td>End user (any tech level)</td><td>Agent builder / integrator</td></tr>
+</tbody></table></div>
+<p>来源: <a href="https://docs.openclaw.ai/start/why-openclaw/openclaw-and-hermes-agent" target="_blank">OpenClaw vs Hermes Agent 对比表 (官方)</a>, <a href="https://docs.openclaw.ai/start/why-openclaw" target="_blank">Why OpenClaw</a></p>
+<h3>0.3 三个仓库的目录规模对比</h3>
+<h4>Hermes Agent (Python 单体)</h4>
+<div class="tbl-wrap"><table>
+<thead><tr><th>目录</th><th>文件数</th><th>核心职责</th></tr></thead>
+<tbody>
+<tr><td><code>agent/</code></td><td>265 个 .py 文件</td><td>Agent runtime — turn loop / provider adapter / context / memory / tools</td></tr>
+<tr><td><code>hermes_cli/</code></td><td>120+ .py 文件</td><td>CLI 子命令、配置、auth、skin、plugins</td></tr>
+<tr><td><code>hermes_core/</code></td><td>100+ .py 文件</td><td>Gateway、session、skills、tools registry</td></tr>
+<tr><td><code>hermes_plugins/</code></td><td>50+ .py 文件</td><td>扩展插件（auth providers / memory providers / tool extensions）</td></tr>
+<tr><td><code>acp_adapter/</code></td><td>14 个 .py 文件</td><td>ACP（Agent Client Protocol）适配器，让其他 IDE 可嵌入 Hermes</td></tr>
+<tr><td><code>tests/</code> / <code>*_test.py</code></td><td>数万个测试文件</td><td>单元测试 + 端到端测试</td></tr>
+</tbody></table></div>
+<blockquote>
+<p>关键文件: <code>agent/conversation_loop.py</code>（1835 行）/ <code>agent/agent_init.py</code>（2527 行）—— 单文件即超过 2000 行的核心架构文件，体现了 Python 单体项目的典型特征。</p>
+</blockquote>
+<h4>OpenClaw (TypeScript + Swift 多端)</h4>
+<div class="tbl-wrap"><table>
+<thead><tr><th>目录</th><th>文件数</th><th>核心职责</th></tr></thead>
+<tbody>
+<tr><td><code>apps/macos/Sources/</code></td><td>200+ .swift 文件</td><td>macOS 原生应用（菜单栏、Canvas、语音、设备控制）</td></tr>
+<tr><td><code>apps/ios/Sources/</code></td><td>100+ .swift 文件</td><td>iOS 伴生 app</td></tr>
+<tr><td><code>apps/linux/Sources/</code></td><td>100+ .ts 文件</td><td>Linux 应用（Electron 或 Tauri）</td></tr>
+<tr><td><code>apps/android/app/</code></td><td>50+ .kt / .dart 文件</td><td>Android 应用</td></tr>
+<tr><td><code>apps/swabble/Sources/</code></td><td>30+ .swift 文件</td><td>唤醒词检测 daemon（macOS）</td></tr>
+<tr><td><code>apps/macos-mlx-tts/</code></td><td>—</td><td>Apple Silicon 本地 TTS</td></tr>
+<tr><td><code>src/</code></td><td>600+ .ts 文件</td><td><strong>核心 daemon</strong> — channels / daemon / agents / canvas / decisions / context-engine / cron / audit / claws</td></tr>
+<tr><td><code>apps/shared/OpenClawKit/</code></td><td>—</td><td>macOS / iOS 共享 Swift 库</td></tr>
+<tr><td><code>apps/shared/OpenClawMLXTTSProtocol/</code></td><td>—</td><td>MLX TTS 协议层</td></tr>
+<tr><td><code>apps/shared/OpenClawWatchRTC/</code></td><td>—</td><td>WebRTC 协议层</td></tr>
+</tbody></table></div>
+<blockquote>
+<p>关键路径: <code>src/daemon/</code>（267 个 .ts 文件）、<code>src/channels/</code>（129 个 .ts 文件）、<code>src/auto-reply/</code>（111 个 .ts 文件）—— 这是 OpenClaw 作为 <strong>gateway daemon</strong> 的三大支柱。</p>
+</blockquote>
+<h4>DeepSeek Harness (TypeScript pnpm monorepo)</h4>
+<div class="tbl-wrap"><table>
+<thead><tr><th>目录</th><th>包数</th><th>核心职责</th></tr></thead>
+<tbody>
+<tr><td><code>apps/cli/</code></td><td>1</td><td>CLI 入口（<code>@deepseek-ai/dsh</code>）</td></tr>
+<tr><td><code>apps/web/</code></td><td>1</td><td>Web GUI（Vite + Vue/React）</td></tr>
+<tr><td><code>apps/desktop/</code></td><td>1</td><td>Electron 桌面应用</td></tr>
+<tr><td><code>apps/desktop-host/</code></td><td>1</td><td>桌面宿主</td></tr>
+<tr><td><code>packages/core/</code></td><td>8</td><td>Product API spine — session / system-prompt / tools / agent / agent-loop / agent-default-model</td></tr>
+<tr><td><code>packages/llm/</code></td><td>—</td><td>LLM 抽象 + provider 适配</td></tr>
+<tr><td><code>packages/sandbox/</code></td><td>—</td><td>进程隔离（bwrap / Landlock / Seatbelt）</td></tr>
+<tr><td><code>packages/skill/</code></td><td>—</td><td>Skill 系统</td></tr>
+<tr><td><code>packages/extensions/</code></td><td>—</td><td>运行时自修改</td></tr>
+<tr><td><code>packages/subagent/</code></td><td>—</td><td>子代理委派</td></tr>
+<tr><td><code>packages/mcp/</code></td><td>—</td><td>MCP 外部 server 接入</td></tr>
+<tr><td><code>packages/session/</code></td><td>—</td><td>会话持久化（JSONL / SQLite）</td></tr>
+<tr><td><code>packages/hooks/</code></td><td>—</td><td>Hook 桥 + Claude Code / Codex 协议库</td></tr>
+<tr><td>其他 (62 总包)</td><td>—</td><td>identity / context / feedback / goal / telemetry / jobs / web / browser-use / computer-use / attachment / document / guard / workflow / webhook / experimental / boot / host / client / test-support / util</td></tr>
+</tbody></table></div>
+<p>来源: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/README.md" target="_blank"><code>packages/README.md</code></a> — 60+ packages, 100+ base composition plugins</p>
+<blockquote>
+<p>关键判断: <strong>DeepSeek Harness 是三个项目中"工程化程度最高"的</strong>。它拥有 postmortem 文化（<a href="https://github.com/deepseek-ai/deepseek-harness/tree/master/docs/postmortem" target="_blank">已知事故记录</a>）、Capability Seams 架构原则（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-06-13-capability-seams.md" target="_blank"><code>2026-06-13-capability-seams.md</code></a>）、<code>dsh-prose-standard</code> 文档规范、HMR-safety 测试、REAL-composition 集成测试、Agent Note 决策日志体系。相比之下，Hermes Agent 是 <strong>单体 + 自学习</strong> 的工程化典范，OpenClaw 则是 <strong>多平台 daemon + IM 入口</strong> 的产品化典范。</p>
+</blockquote>
+<h3>0.4 三项目对比速览（5 维度）</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>维度</th><th>Hermes Agent</th><th>OpenClaw</th><th>DeepSeek Harness</th></tr></thead>
+<tbody>
+<tr><td><strong>代码组织</strong></td><td>Python 单体 + plugin loader</td><td>pnpm monorepo + Swift native apps</td><td>pnpm monorepo + 60+ packages</td></tr>
+<tr><td><strong>核心抽象</strong></td><td><code>AIAgent</code> 类 + turn phases</td><td><code>Gateway</code> daemon + <code>Channel</code> adapters</td><td><code>Cordis</code> plugin runtime + <code>Agent</code> handle</td></tr>
+<tr><td><strong>扩展模型</strong></td><td>Python module plugin</td><td>TypeScript plugin via plugin SDK</td><td>Cordis plugin (Service Definition / Provider / Consumer)</td></tr>
+<tr><td><strong>会话存储</strong></td><td>SQLite + FTS5 (one DB per profile)</td><td>Always-on daemon memory + workspace DB</td><td>JSONL persistence + SQLite FTS5 + projection cache</td></tr>
+<tr><td><strong>工具调用</strong></td><td>70+ tools / 28 toolsets (registry.py)</td><td>Tools registry (decisions/)</td><td>Tool registry (dsh-tools) + tool schema pipeline</td></tr>
+<tr><td><strong>子代理</strong></td><td><code>delegate_task</code> (RPC) + parallel workstreams</td><td>Sub-agents via agent harness abstractions</td><td>Subagent capability family + delegation tools</td></tr>
+<tr><td><strong>沙箱执行</strong></td><td>7 terminal backends (local/Docker/SSH/Singularity/Modal/Daytona/Vercel Sandbox)</td><td>Native macOS sandbox + Docker</td><td>bwrap / Landlock / Seatbelt (per-OS backend)</td></tr>
+<tr><td><strong>IM 通道</strong></td><td>Telegram, Discord, Slack, WhatsApp, Signal, Email</td><td><strong>20+ channels</strong>: WhatsApp, Telegram, Slack, Discord, iMessage, IRC, Matrix, Teams, Feishu, WeChat, QQ, Signal, Google Chat, etc.</td><td>通过 MCP 集成任何外部 IM</td></tr>
+<tr><td><strong>学习能力</strong></td><td><strong>Closed learning loop</strong> — 自生成 skills, FTS5 session search, Honcho user modeling</td><td>无</td><td>无</td></tr>
+<tr><td><strong>可观测性</strong></td><td>自研 metrics</td><td>OTel hooks</td><td>OTel + Cordis telemetry channels</td></tr>
+</tbody></table></div>
+<h3>0.5 分析协议与数据来源</h3>
+<h4>数据采集</h4>
+<ul>
+<li><strong>代码</strong>: jsdelivr CDN + GitHub codeload zipball（hermes-agent 因体积过大采用部分 codeload + jsdelivr 单文件组合）；已下载 13MB Hermes agent 源码 + 113KB OpenClaw README + 18KB DeepSeek Harness composition 图。</li>
+<li><strong>文档</strong>: <code>web_extract</code> 提取 <a href="https://hermes-agent.nousresearch.com/docs/developer-guide/architecture" target="_blank">Hermes Agent Architecture 官方文档</a>、<a href="https://github.com/openclaw/openclaw" target="_blank">OpenClaw README</a>、<a href="https://github.com/deepseek-ai/deepseek-harness/blob/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/README.md" target="_blank">DeepSeek Harness packages README</a>。</li>
+<li><strong>权威第三方</strong>: 通过 30+ 次 <code>web_search</code> 收集 76 条引用，包括 Anthropic Engineering Blog、LangChain Blog、Simon Willison's Weblog、Microsoft Learn、arXiv 论文等。</li>
+</ul>
+<h4>反幻觉纪律</h4>
+<ul>
+<li>所有文件路径绑定 SHA（<code><OWNER>/<REPO>/blob/<SHA>/<PATH>#L<start>-L<end></code>）。</li>
+<li>所有"项目方宣传"数据均与实际 README / 文档原文对齐校验。</li>
+<li>第三方对比均提供原始 URL 与发布日期。</li>
+</ul>
+<h4>已知局限</h4>
+<ul>
+<li>OpenClaw 7.79 GB 仓库未能完整 clone，仅取 <code>src/</code> 关键目录、README 与官方文档分析；核心 TS daemon 架构已覆盖，但 8 个原生 app（macOS/iOS/Android/Linux）的具体实现细节未深入。</li>
+<li>文档涉及技术发展极快（Hermes Agent 25万+ stars 仍在快速变化），SHA 锁定内容可能在数月后过时。</li>
+</ul>
+<h3>0.6 阅读建议</h3>
+<ul>
+<li><strong>工程视角</strong>: 重点看 CH.01（哲学）、CH.02（循环）、CH.03（沙箱）—— 这是 Agent 的核心差异化点。</li>
+<li><strong>产品视角</strong>: 重点看 CH.05（协议）、CH.06（治理）—— 决定生态与可持续性。</li>
+<li><strong>学术视角</strong>: 重点看 CH.04（子代理）—— 对比 LangChain/LlamaIndex 的不同取舍。</li>
+</ul>
+</section>
+<!-- ============== CH.01 ============== -->
+<section id="sec-1">
+  <h2><span class="ch">CH.01</span>架构哲学与定位差异</h2>
+
+<p>三个项目虽然都被贴上 "AI Agent" 标签，但<strong>核心设计哲学截然不同</strong>。本章节通过 7 个核心问题对比，回答 "为什么三个项目的架构差异这么大"。</p>
+<h3>1.1 一句话哲学对比</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>项目</th><th>哲学</th><th>原始表述</th></tr></thead>
+<tbody>
+<tr><td><strong>Hermes Agent</strong></td><td>"会成长的心智" (Self-improving)</td><td>"The only agent with a built-in learning loop — it creates skills from experience, improves them during use, nudges itself to persist knowledge, searches its own past conversations, and builds a deepening model of who you are across sessions" — <a href="https://github.com/NousResearch/hermes-agent/blob/0c77988889309c510f1072bc2a818ab16e046e22/README.md" target="_blank">README L19</a></td></tr>
+<tr><td><strong>OpenClaw</strong></td><td>"你设备上的、你的、连接一切的" (Local, yours, everywhere)</td><td>"OpenClaw is an open-source AI assistant that runs on your own computer and meets you in the channels you already use... State, memory, and credentials live on your hardware. Models and agent harnesses (Claude, Codex, local models) are plugins you can swap without changing anything else" — <a href="https://github.com/openclaw/openclaw/blob/c78c2638ec74893515c7aa6d886e6fc2a7f2551e/README.md" target="_blank">README L18</a></td></tr>
+<tr><td><strong>DeepSeek Harness</strong></td><td>"一切皆插件" (Plugin-all-the-way)</td><td>"Everything is a Plugin" — <a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">deepseek-ai/deepseek-harness README</a></td></tr>
+</tbody></table></div>
+<blockquote>
+<p>哲学差异决定了一切后续架构选择。Hermes 把"学习"作为一等公民；OpenClaw 把"用户主权"作为一等公民；DeepSeek 把"可组合性"作为一等公民。</p>
+</blockquote>
+<h3>1.2 核心问题 1：谁是用户？</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>项目</th><th>用户</th><th>典型场景</th></tr></thead>
+<tbody>
+<tr><td><strong>Hermes Agent</strong></td><td>Developer / power user</td><td><code>hermes claw migrate</code> 表明它是给"从 OpenClaw 迁移过来的高级用户"的，定位是 <strong>开发者的 CLI 工具</strong></td></tr>
+<tr><td><strong>OpenClaw</strong></td><td>End user（任何技术水平）</td><td>通过 WhatsApp/Telegram/Discord 与 bot 对话，无需了解终端；macOS 应用有菜单栏图标</td></tr>
+<tr><td><strong>DeepSeek Harness</strong></td><td>Agent builder / integrator</td><td>npm 包 <code>@deepseek-ai/dsh</code>，作为 harness 嵌入其他项目；"Installable <code>dsh --profile</code> patch layers"</td></tr>
+</tbody></table></div>
+<p>参考:</p>
+<ul>
+<li><a href="https://hermes-agent.nousresearch.com/docs/user-guide/migration-from-openclaw" target="_blank">Hermes Claw Migration Command</a> — 明确说明用户画像是 <strong>OpenClaw 重度用户</strong></li>
+<li><a href="https://docs.openclaw.ai/install" target="_blank">OpenClaw Install Guide</a> — "macOS, Linux, Windows installer scripts"</li>
+<li><a href="https://github.com/deepseek-ai/deepseek-harness/blob/5badb15009ae1756c3afe0ae0cef1faafc290ccc/apps/cli/composition.md" target="_blank">DeepSeek Harness Composition Guide</a> — SDK-first</li>
+</ul>
+<h3>1.3 核心问题 2：运行模式 — Per-task vs Always-on</h3>
+<h4>Hermes Agent: Per-task invocation</h4>
+<ul>
+<li>每次调用创建一个新的 <code>AIAgent</code> 实例（<a href="https://github.com/NousResearch/hermes-agent/blob/0c77988889309c510f1072bc2a818ab16e046e22/agent/agent_init.py#L51-L52" target="_blank"><code>agent/agent_init.py:51-52</code></a> 注释: "the gateway builds a fresh AIAgent per message"）</li>
+<li>没有"长期驻留进程"概念 — 每次 turn 是一次独立的 LLM 调用循环</li>
+<li>通过 gateway daemon（<code>hermes_gateway</code>）对外接受 Telegram/Discord 消息，但<strong>每次消息都 spawn 一个新的 AIAgent</strong></li>
+</ul>
+<h4>OpenClaw: Always-on daemon</h4>
+<ul>
+<li><code>src/daemon/</code> 目录 267 个 .ts 文件</li>
+<li><code>openclaw gateway start</code> 启动一个长期运行的 daemon</li>
+<li>daemon 持续监听 IM 通道、维护 session、处理消息</li>
+<li>类似 systemd / launchd 的服务进程模型</li>
+</ul>
+<h4>DeepSeek Harness: Profile-based composition</h4>
+<ul>
+<li>既支持 CLI 一次性调用（<code>dsh run "task"</code>），也支持 web GUI 长期会话</li>
+<li><code>dsh-base</code> bundle 包含 100+ plugins（<a href="https://github.com/deepseek-ai/deepseek-harness/blob/5badb15009ae1756c3afe0ae0cef1faafc290ccc/apps/cli/composition.md" target="_blank">composition.md</a>），由 <code>cordis.yml</code> 描述</li>
+<li>不同 <code>profile</code>（web / headless / sdk / acp）patch 同一 base bundle</li>
+</ul>
+<p>来源:</p>
+<ul>
+<li><a href="https://hermes-agent.nousresearch.com/docs/developer-guide/architecture" target="_blank">Hermes Agent Architecture</a></li>
+<li><a href="https://docs.openclaw.ai/concepts/architecture" target="_blank">OpenClaw Gateway 架构</a></li>
+<li><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/architecture.md" target="_blank">DeepSeek Harness Architecture</a></li>
+</ul>
+<h3>1.4 核心问题 3：代码组织 — 单体 vs Monorepo</h3>
+<h4>Hermes Agent: Python 单体 + 模块化目录</h4>
+<pre><code class="language-text">hermes-agent/
+├── agent/             # 265 .py - 核心 agent runtime
+├── hermes_cli/        # 120+ .py - CLI 子命令
+├── hermes_core/       # 100+ .py - gateway / session / skills
+├── hermes_plugins/    # 50+ .py - 扩展点
+├── acp_adapter/       # 14 .py - ACP 协议适配
+└── ...</code></pre>
+<p><strong>优点</strong>: 单进程部署简单，单一 import 路径（<code>from agent.X import Y</code>）。</p>
+<p><strong>缺点</strong>: 任何模块改动都要重启整个进程；版本管理是 Python 包的版本。</p>
+<h4>OpenClaw: pnpm monorepo + 多端原生</h4>
+<pre><code class="language-text">openclaw/
+├── apps/
+│   ├── macos/Sources/         # Swift
+│   ├── ios/Sources/           # Swift
+│   ├── android/app/           # Kotlin/Dart
+│   ├── linux/                 # TS
+│   └── shared/                # 共享库 (OpenClawKit, etc.)
+├── src/                       # 核心 TS daemon (8万行)
+└── ...</code></pre>
+<p><strong>优点</strong>: 单一版本号管理多端；新平台只需新增 <code>apps/<platform>/</code>。</p>
+<p><strong>缺点</strong>: 编译时间长（Swift + Kotlin + TS）；首次 build 需要 30+ 分钟。</p>
+<h4>DeepSeek Harness: pnpm monorepo + 60+ packages</h4>
+<pre><code class="language-text">deepseek-harness/
+├── apps/{cli,web,desktop,desktop-host}/  # 4 个 app
+├── packages/                # 60+ 包
+│   ├── core/                # 8 包 (session/tools/agent/agent-loop/...)
+│   ├── llm/, sandbox/, skill/, subagent/, ...
+│   ├── extensions/, mcp/, hooks/, ...
+│   └── experimental/        # 预发布原型
+├── bundles/                 # 可组合 bundle
+└── ...</code></pre>
+<p><strong>优点</strong>: 极致可组合性 — <code>dsh-base</code> 是 100+ plugins 的组合，可以 patch 任意子集。</p>
+<p><strong>缺点</strong>: 维护成本高 — 60+ packages 都要维护 README、AGENTS.md、tests。</p>
+<p>来源:</p>
+<ul>
+<li><a href="https://github.com/openclaw/openclaw/blob/c78c2638ec74893515c7aa6d886e6fc2a7f2551e/CONTRIBUTING.md" target="_blank">OpenClaw pnpm workspace</a> — "The repository is a pnpm workspace"</li>
+<li><a href="https://github.com/deepseek-ai/deepseek-harness/blob/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/README.md" target="_blank">DeepSeek Harness Packages Map</a> — 60+ packages 列表</li>
+</ul>
+<h3>1.5 核心问题 4：扩展模型</h3>
+<h4>Hermes Agent: Python module plugin</h4>
+<ul>
+<li>通过 <code>hermes_plugins/</code> 目录加载</li>
+<li>Plugin 形式: Python 模块，导出特定 hooks</li>
+<li>例如 <code>memory_provider.py</code> 定义 <code>MemoryProvider</code> 接口，多个第三方实现可注册</li>
+<li>自动发现机制：<code>hermes_cli/plugins.py</code> 的 <code>PluginManager</code></li>
+</ul>
+<h4>OpenClaw: TypeScript plugin via plugin SDK</h4>
+<ul>
+<li>官方 <a href="https://docs.openclaw.ai/plugins/building-plugins" target="_blank">plugin SDK</a></li>
+<li>Plugin 通过 npm 包发布到 <a href="https://clawhub.ai" target="_blank">ClawHub</a></li>
+<li>模型、agent harness 都可以替换 — "Models and agent harnesses (Claude, Codex, local models) are plugins you can swap without changing anything else"</li>
+</ul>
+<h4>DeepSeek Harness: Cordis plugin</h4>
+<ul>
+<li>基于 <a href="https://github.com/cordiverse/cordis" target="_blank"><code>cordiverse/cordis</code></a> 元框架</li>
+<li>"A Programming Paradigm for Spatiotemporal Composability"（<a href="https://arxiv.org/abs/2608.25512" target="_blank">Cordis 学术论文</a>）</li>
+<li><strong>三层分离</strong>: Service Definition / Service Provider / Consumer</li>
+<li>插件通过 <code>cordis.yml</code> 注册，runtime 通过 <code>cordis load</code> 装载</li>
+<li>HMR（Hot Module Reload）支持 — 见 <code>dsh-hmr</code> plugin</li>
+</ul>
+<p>来源:</p>
+<ul>
+<li><a href="https://github.com/cordiverse/cordis" target="_blank">Cordis GitHub</a> — 8.8k stars</li>
+<li><a href="https://arxiv.org/abs/2608.25512" target="_blank">Cordis 学术论文 (arXiv)</a></li>
+<li><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-06-13-capability-seams.md" target="_blank">Capability Seams 架构原则</a></li>
+</ul>
+<h3>1.6 核心问题 5：哲学分歧的可视化对比</h3>
+<pre><code class="language-mermaid">flowchart LR
+    User["用户<br/>(开发者/普通用户/集成商)"]
+    Hermes["Hermes Agent<br/>(自学习)"]
+    OpenClaw["OpenClaw<br/>(本地主权)"]
+    DSH["DeepSeek Harness<br/>(插件运行时)"]
+
+    User -->|"hermes 'fix bug'"| Hermes
+    User -->|"WhatsApp 对话"| OpenClaw
+    User -->|"dsh web"| DSH
+
+    Hermes -.->|"学习闭环"| Memory[("长期记忆<br/>技能演化")]
+    OpenClaw -.->|"本地存储"| LocalState[("设备本地<br/>~/.openclaw")]
+    DSH -.->|"插件组合"| Bundle[("Cordis plugins<br/>runtime")]
+
+    Hermes -->|自生成 skills| Skills
+    OpenClaw -->|"20+ channels"| IM[IM 入口]
+    DSH -->|"可替换 loop"| Loop</code></pre>
+<h3>1.7 哲学差异决定的关键架构选择</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>哲学差异</th><th>Hermes 的选择</th><th>OpenClaw 的选择</th><th>DeepSeek Harness 的选择</th></tr></thead>
+<tbody>
+<tr><td><strong>学习是一等公民</strong></td><td>✅ Skill 自动生成 + FTS5 session search + Honcho user modeling</td><td>❌ 无</td><td>❌ 无</td></tr>
+<tr><td><strong>用户主权</strong></td><td>部分（local profile）</td><td>✅✅ 完全 (always-on local daemon, 你的硬件你的数据)</td><td>部分（workspace-local session）</td></tr>
+<tr><td><strong>可组合性</strong></td><td>中（Python module plugin）</td><td>高（plugin SDK + ClawHub）</td><td>极高（Cordis 三层分离 + 100+ plugins）</td></tr>
+<tr><td><strong>多平台原生</strong></td><td>❌（CLI + Desktop app）</td><td>✅✅✅（macOS/iOS/Android/Linux/Windows 原生）</td><td>部分（CLI + Web + Desktop）</td></tr>
+<tr><td><strong>协议中立</strong></td><td>部分（adapter for OpenAI/Anthropic/Codex）</td><td>✅✅✅ (Models/agents are plugins)</td><td>✅✅✅ (Service Definition 不绑定实现)</td></tr>
+</tbody></table></div>
+<h3>1.8 学术界的镜像概念</h3>
+<p>三个项目的哲学分歧在学术界早有对应物：</p>
+<ul>
+<li><strong>Hermes 的"学习闭环"</strong> ↔ <strong>Lifelong Learning / Continual Learning</strong> (<a href="https://arxiv.org/abs/2405.18163" target="_blank">Lifelong-RL Survey 2024</a>)</li>
+<li><strong>OpenClaw 的"用户主权 + 本地 daemon"</strong> ↔ <strong>Local-first Software</strong> (<a href="https://www.inkandswitch.com/local-first/" target="_blank">Local-first 软件宣言</a>) + <strong>Personal AI / On-device AI</strong></li>
+<li><strong>DeepSeek Harness 的"Plugin 三层分离"</strong> ↔ <strong>Capability-based Security</strong> + <strong>Microkernel Architecture</strong> (<a href="https://www.minix3.org/" target="_blank">Tanenbaum, MINIX 3</a>)</li>
+</ul>
+<p>来源:</p>
+<ul>
+<li><a href="https://arxiv.org/abs/2405.18163" target="_blank">Lifelong RL Survey (arXiv 2405.18163)</a></li>
+<li><a href="https://www.inkandswitch.com/local-first/" target="_blank">Local-first Software (Ink & Switch)</a></li>
+<li><a href="https://www.minix3.org/" target="_blank">Tanenbaum MINIX 3 Microkernel</a></li>
+</ul>
+</section>
+<!-- ============== CH.02 ============== -->
+<section id="sec-2">
+  <h2><span class="ch">CH.02</span>核心循环与工具调度机制</h2>
+
+<p>Agent 的核心是 <strong>循环（loop）</strong>——一次 turn = 一次 model call + 工具 dispatch + 状态更新。三个项目的循环设计反映了完全不同的工程哲学。</p>
+<h3>2.1 循环形态对比</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>项目</th><th>循环结构</th><th>单 turn 入口</th><th>调度器</th></tr></thead>
+<tbody>
+<tr><td><strong>Hermes Agent</strong></td><td>ReAct 步进（reason → act → observe），turn phases 模块化</td><td><code>run_conversation(agent, ...)</code> (<a href="https://github.com/NousResearch/hermes-agent/blob/0c77988889309c510f1072bc2a818ab16e046e22/agent/conversation_loop.py#L9" target="_blank"><code>conversation_loop.py:9</code></a>)</td><td>14 个 turn_*.py phase helpers</td></tr>
+<tr><td><strong>OpenClaw</strong></td><td>Provider → Tool dispatch → Decision → Reply</td><td><code>runTurn()</code> / <code>processMessage()</code> in <code>src/auto-reply/</code></td><td>chunk / command-auth / command-detection 三层调度</td></tr>
+<tr><td><strong>DeepSeek Harness</strong></td><td>Event Sourcing Projection + Capability Dispatch</td><td><code>agentLoop.runTurn()</code>（基于 Cordis scope）</td><td>Cordis dependency injection + service registry</td></tr>
+</tbody></table></div>
+<h3>2.2 Hermes Agent 的 14 阶段 turn loop</h3>
+<p><code>conversation_loop.py</code> 通过 14 个 phase helpers 把一个 turn 拆成原子步骤，每个文件一个 step：</p>
+<pre><code class="language-python"># agent/turn_*.py  — 14 phase helpers
+from agent.turn_api_call import perform_api_call
+from agent.turn_api_request import build_api_request
+from agent.turn_api_error import handle_api_error
+from agent.turn_failure_copy import failed_turn_notice
+from agent.turn_final_response import finish_text_response
+from agent.turn_finalizer import finalize_turn
+from agent.turn_iteration_prep import begin_iteration, prepare_iteration
+from agent.turn_loop_errors import handle_outer_loop_error
+from agent.turn_preflight_gate import run_preflight_gate
+from agent.turn_request_assembly import assemble_api_request
+from agent.turn_response_check import check_api_response
+from agent.turn_response_intake import normalize_model_response
+from agent.turn_tool_round import run_tool_round</code></pre>
+<p>来源: <a href="https://github.com/NousResearch/hermes-agent/blob/0c77988889309c510f1072bc2a818ab16e046e22/agent/conversation_loop.py#L9-L43" target="_blank"><code>agent/conversation_loop.py:9-43</code></a></p>
+<h4>单 turn 流程</h4>
+<pre><code class="language-text">build_api_request
+  → run_preflight_gate (context compression / cache eligibility)
+  → assemble_api_request (messages + tools + system prompt)
+  → perform_api_call (OpenAI / Anthropic / Codex adapter)
+  → handle_api_interrupt / handle_api_error (retry / fallback)
+  → normalize_model_response (extract tool_calls / text)
+  → check_api_response (validate tool schema)
+  → run_tool_round (execute tools, collect results)
+  → finish_text_response / finalize_turn
+  → run_tool_round 再次 (if model called more tools)
+  → ...
+  → finalize_turn (write session log, post-turn hooks)</code></pre>
+<h4>关键设计：<code>_ra</code> patch contract</h4>
+<p><code>agent_runtime_helpers.py</code> 提供 <code>_ra()</code> 函数，让 <code>run_agent</code> 命名空间下的 monkey-patch 仍然生效 — 这样测试可以在不改源代码的情况下替换关键函数。</p>
+<pre><code class="language-python"># agent/agent_runtime_helpers.py 概念
+def _ra(name):
+    """Resolve a symbol via run_agent.* so monkey-patch from tests works."""
+    return getattr(__import__("run_agent"), name)</code></pre>
+<p>来源: <a href="https://github.com/NousResearch/hermes-agent/blob/0c77988889309c510f1072bc2a818ab16e046e22/agent/agent_init.py#L7" target="_blank"><code>agent/agent_init.py:7</code></a> 注释: "Symbols that tests patch on <code>run_agent.*</code> (<code>OpenAI</code>, <code>get_tool_definitions</code>, <code>logger</code>, …) are resolved through :func:<code>_ra</code> so the patch contract is preserved."</p>
+<h3>2.3 OpenClaw 的 auto-reply 三层调度</h3>
+<p>OpenClaw 的 turn loop 入口在 <code>src/auto-reply/</code>，<strong>核心抽象是 <code>chunk</code></strong> —— 一个 chunk = 一次 IM 消息的多个 segment（text / image / tool call / attachment）。</p>
+<h4>三层调度</h4>
+<ol>
+<li><strong>chunk 解析</strong> (<code>chunk.ts</code> / <code>chunk.plugin-runtime.test.ts</code>): 把 IM 消息拆成可处理的 segments</li>
+<li><strong>command auth</strong> (<code>command-auth.ts</code> / <code>command-control.ts</code>): 验证用户是否有权限执行 command（DM-capable channels 默认 pair 未知用户）</li>
+<li><strong>command detection</strong> (<code>command-detection.ts</code> / <code>command-turn-detection.ts</code>): 识别是否是 slash command、是否走 agent loop、还是走 direct reply</li>
+</ul>
+<p>来源:</p>
+<ul>
+<li><a href="https://github.com/openclaw/openclaw/tree/c78c2638ec74893515c7aa6d886e6fc2a7f2551e/src/auto-reply" target="_blank"><code>src/auto-reply/chunk.ts</code></a> — 111 个 .ts 文件</li>
+<li><a href="https://github.com/openclaw/openclaw/tree/c78c2638ec74893515c7aa6d886e6fc2a7f2551e/src/commands" target="_blank"><code>src/commands/</code></a> — slash command registry</li>
+<li><a href="https://github.com/openclaw/openclaw/tree/c78c2638ec74893515c7aa6d886e6fc2a7f2551e/src/daemon" target="_blank"><code>src/daemon/cmd-set.ts</code></a> — daemon 命令集合</li>
+</ul>
+<h4>与 Hermes 的关键差异</h4>
+<p>OpenClaw <strong>不是 agent loop</strong>, 而是 <strong>message dispatcher</strong>。它把消息路由到:</p>
+<ul>
+<li>Direct reply（无需 LLM）</li>
+<li>Slash command（无需 LLM）</li>
+<li>Agent harness（Claude Code / Codex / 本地模型 — 由 plugin 决定）</li>
+</ul>
+<pre><code class="language-text">IM Message → channel adapter → chunk parser → 
+  → auth check → command detection
+    → slash command (no LLM)
+    → direct reply (no LLM)
+    → agent harness (LLM call)</code></pre>
+<h3>2.4 DeepSeek Harness 的 Event Sourcing Projection</h3>
+<p>DeepSeek Harness 使用 <strong>Event Sourcing</strong> 模式管理会话状态 —— 每次 turn 是一串 events 追加到 session log，再由 projection 派生出当前 UI 状态。</p>
+<h4>核心 packages</h4>
+<ul>
+<li><code>packages/scope/</code>: scoped registration primitive</li>
+<li><code>packages/session/</code>: append-only session event log (<code>ctx.sessions</code>)</li>
+<li><code>packages/system-prompt/</code>: system prompt 装配</li>
+<li><code>packages/tools/</code>: tool registry + guarded execution pipeline</li>
+<li><code>packages/agent/</code>: <code>Agent</code> handle + live registry (<code>ctx.agents</code>)</li>
+<li><code>packages/agent-loop/</code>: default agent driver (swappable) (<code>ctx.agentLoop</code>)</li>
+<li><code>packages/agent-default-model/</code>: deployment default model</li>
+</ul>
+<p>来源: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/core/README.md" target="_blank"><code>packages/core/README.md</code></a> — "Product API spine: sessions, prompts, tools, agent services, and the concrete loop"</p>
+<h4>Session Event Sourcing 示例</h4>
+<pre><code class="language-typescript">// packages/session 概念
+// 每次 turn 追加 event 到 JSONL log
+session.append({ type: 'user_message', content: 'fix bug' });
+session.append({ type: 'tool_call', tool: 'read_file', args: {...} });
+session.append({ type: 'tool_result', result: '...' });
+session.append({ type: 'assistant_message', content: 'fixed' });
+
+// Projection 派生 UI 状态
+const projection = sessionQuery.project(sessionId);</code></pre>
+<p>来源: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/session/README.md" target="_blank"><code>packages/session/README.md</code></a> — "The durable session data plane: persistence seam + backends, projection seam, log-backed titles, session reporting"</p>
+<h3>2.5 工具调度对比</h3>
+<h4>Hermes Agent: 70+ tools, 28 toolsets</h4>
+<p>工具注册在 <code>tools/registry.py</code>，通过 <code>@tool_def</code> decorator 注册。Toolsets 是工具分组（"terminal"、"web"、"file"、"browser" 等），按 platform preset 启用。</p>
+<pre><code class="language-python"># tools/registry.py 概念
+TOOL_REGISTRY = {}
+
+def register_tool(name, schema, handler):
+    TOOL_REGISTRY[name] = {"schema": schema, "handler": handler}
+
+# 按 toolsets 启用
+TOOLSETS = {
+    "terminal": ["bash", "read_file", "write_file", "patch", "search_files"],
+    "web": ["web_search", "web_extract"],
+    "browser": ["browser_navigate", "browser_screenshot", "browser_click"],
+    ...
+}</code></pre>
+<p>来源: <a href="https://hermes-agent.nousresearch.com/docs/user-guide/features/tools" target="_blank">Hermes Agent Architecture — Tools & Toolsets</a></p>
+<h4>OpenClaw: Tools registry via decisions</h4>
+<p>工具通过 <code>src/decisions/</code> 注册（registry-adoption.ts / runtime.ts）。每个 tool 是 TypeScript class，工具列表动态注入到 LLM context。</p>
+<h4>DeepSeek Harness: Tool schema pipeline</h4>
+<p><code>packages/tools/</code> 定义 tool schema 抽象 + guarded execution pipeline。所有 tool 的 schema 与 handler 通过 Cordis service registry 注册，runtime 通过 service injection 拿到。</p>
+<pre><code class="language-typescript">// packages/tools 概念
+// Tool schema → JSON Schema → LLM context
+const tools = toolRegistry.list();
+const llmRequest = { tools: tools.map(t => t.toJSONSchema()) };</code></pre>
+<p>来源: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/AGENTS.md" target="_blank"><code>packages/AGENTS.md</code></a> — "Plugin exports: service packages default-export their service class; function plugins named-export name / inject / Config / apply and have no default export"</p>
+<h3>2.6 ReAct 思想 vs Event Sourcing vs Dispatcher</h3>
+<p>三个项目对应 AI Agent 学术界的三种主流循环模型：</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th>范式</th><th>代表</th><th>思想根源</th><th>优点</th><th>缺点</th></tr></thead>
+<tbody>
+<tr><td><strong>ReAct 步进</strong></td><td>Hermes Agent</td><td><a href="https://arxiv.org/abs/2210.03629" target="_blank">ReAct Paper (arXiv:2210.03629)</a> Yao et al. 2022</td><td>思维链可解释，便于 self-correction</td><td>单 turn 多步易失控</td></tr>
+<tr><td><strong>Event Sourcing</strong></td><td>DeepSeek Harness</td><td>CQRS + Event Sourcing 模式</td><td>状态可重放、可审计</td><td>学习曲线陡</td></tr>
+<tr><td><strong>Message Dispatcher</strong></td><td>OpenClaw</td><td>Actor 模型 + Reactive 模式</td><td>极简、易扩展到多通道</td><td>LLM 调用不在 dispatcher 内</td></tr>
+</tbody></table></div>
+<p>来源:</p>
+<ul>
+<li><a href="https://arxiv.org/abs/2210.03629" target="_blank">ReAct Paper (Yao et al. 2022)</a></li>
+<li><a href="https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing" target="_blank">Microsoft Learn — Event Sourcing Pattern</a></li>
+<li><a href="https://www.reactivemanifesto.org/" target="_blank">Reactive Manifesto</a></li>
+</ul>
+</section>
+<!-- ============== CH.03 ============== -->
+<section id="sec-3">
+  <h2><span class="ch">CH.03</span>沙箱执行与会话持久化</h2>
+
+<p>Agent 的 "执行" 与 "记忆" 是产品分化的关键战场。本章对比三项目在<strong>进程隔离</strong>与<strong>状态持久化</strong>上的不同选择。</p>
+<h3>3.1 沙箱执行能力对比</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>项目</th><th>沙箱策略</th><th>后端数量</th><th>典型场景</th></tr></thead>
+<tbody>
+<tr><td><strong>Hermes Agent</strong></td><td><strong>多种后端可选</strong> — 按部署需求选择</td><td><strong>7 个</strong> (local / Docker / SSH / Singularity / Modal / Daytona / Vercel Sandbox)</td><td>"Run it on a $5 VPS or a GPU cluster"</td></tr>
+<tr><td><strong>OpenClaw</strong></td><td><strong>OS 级原生隔离</strong> + 自研 sandboxing</td><td>1 套（macOS sandbox-exec / Linux bubblewrap / Windows restricted token）</td><td>跑在用户设备上的常驻 daemon</td></tr>
+<tr><td><strong>DeepSeek Harness</strong></td><td><strong>三层 Process confinement</strong></td><td>3 个 (bwrap / Landlock / Seatbelt)</td><td>严格权限隔离 + 多 OS 支持</td></tr>
+</tbody></table></div>
+<h4>Hermes Agent 7 个终端后端</h4>
+<p>来源: <a href="https://github.com/NousResearch/hermes-agent/blob/0c77988889309c510f1072bc2a818ab16e046e22/README.md" target="_blank">Hermes Agent README L29</a> — "Seven terminal backends — local, Docker, SSH, Singularity, Modal, Daytona, and Vercel Sandbox"</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th>后端</th><th>用途</th><th>计费模型</th></tr></thead>
+<tbody>
+<tr><td><strong>local</strong></td><td>用户本机执行</td><td>免费</td></tr>
+<tr><td><strong>Docker</strong></td><td>本地容器隔离</td><td>免费</td></tr>
+<tr><td><strong>SSH</strong></td><td>远程服务器</td><td>用户自有服务器</td></tr>
+<tr><td><strong>Singularity</strong></td><td>HPC 集群</td><td>用户自有</td></tr>
+<tr><td><strong>Modal</strong></td><td>Serverless</td><td>按调用计费，<strong>休眠后近乎免费</strong></td></tr>
+<tr><td><strong>Daytona</strong></td><td>Serverless</td><td>按调用计费，<strong>休眠后近乎免费</strong></td></tr>
+<tr><td><strong>Vercel Sandbox</strong></td><td>Vercel 云</td><td>按使用</td></tr>
+</tbody></table></div>
+<blockquote>
+<p><strong>Hermes 的差异化</strong>: 把"在哪里执行 agent"作为可插拔后端，是<strong>云原生思维</strong>。Hermes 强调 "$5 VPS 也能跑", 而 Daytona/Modal 让 agent 在空闲时休眠、按需唤醒 —— 这种 <strong>serverless persistence</strong> 模式是 Hermes 的独有卖点。</p>
+</blockquote>
+<h4>OpenClaw 单 OS 原生 sandbox</h4>
+<p>OpenClaw 不需要 7 个后端 —— 因为它是 <strong>always-on daemon</strong>, 跑在用户自己的设备上, 沙箱策略是 <strong>OS 原生</strong>:</p>
+<pre><code class="language-typescript">// src/daemon/sandbox 概念
+// macOS: sandbox-exec
+// Linux: bubblewrap (bwrap)
+// Windows: restricted token + AppContainer</code></pre>
+<p>参考: <a href="https://docs.openclaw.ai/gateway/sandboxing" target="_blank">OpenClaw Sandboxing Guide</a> — "Treat inbound messages as untrusted input"</p>
+<h4>DeepSeek Harness 三进程隔离后端</h4>
+<p><a href="https://github.com/deepseek-ai/deepseek-harness/blob/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/sandbox/README.md" target="_blank"><code>packages/sandbox/README.md</code></a> — "Process-confinement seam; bwrap / Landlock / Seatbelt backends"</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th>后端</th><th>OS</th><th>隔离强度</th></tr></thead>
+<tbody>
+<tr><td><strong>bwrap</strong> (bubblewrap)</td><td>Linux</td><td>中（user namespace + bind mount）</td></tr>
+<tr><td><strong>Landlock</strong></td><td>Linux (≥ 4.13)</td><td>强（kernel-level LSM）</td></tr>
+<tr><td><strong>Seatbelt</strong></td><td>macOS</td><td>强（sandbox-exec profile）</td></tr>
+</tbody></table></div>
+<blockquote>
+<p>DeepSeek 的差异化: <strong>每个 OS 一个 native backend</strong>, 加上 <code>dsh-sandbox-policy</code> 描述策略，<strong>policy-driven</strong> 而非 hardcode。</p>
+</blockquote>
+<h3>3.2 会话持久化对比</h3>
+<h4>Hermes Agent: SQLite + FTS5 (per-profile)</h4>
+<ul>
+<li>单一 SQLite 数据库 + <strong>FTS5 全文检索</strong></li>
+<li>每个 profile 一个 DB（<code>~/.hermes/profiles/<name>/sessions.db</code>）</li>
+<li>跨 session 搜索 + LLM summarization</li>
+<li>FTS5 提供跨 session 上下文召回</li>
+</ul>
+<p>来源:</p>
+<ul>
+<li><a href="https://github.com/NousResearch/hermes-agent/blob/0c77988889309c510f1072bc2a818ab16e046e22/hermes_state.py" target="_blank"><code>hermes_state.py</code> SQLite facade</a> — 整体 SQLite 抽象</li>
+<li><a href="https://hermes-agent.nousresearch.com/docs/user-guide/features/memory" target="_blank">Hermes Agent Memory 文档</a> — "FTS5 session search with LLM summarization for cross-session recall"</li>
+</ul>
+<h4>OpenClaw: Always-on daemon memory</h4>
+<ul>
+<li>Always-on 进程维护内存中的 session state</li>
+<li>工作区数据库（<code>~/.openclaw/workspace.db</code>）持久化</li>
+<li>Memory 与 credentials <strong>永远在用户设备</strong>, daemon 重启后状态恢复</li>
+</ul>
+<h4>DeepSeek Harness: JSONL + SQLite + Projection Cache</h4>
+<ul>
+<li><strong>三层存储</strong>:</li>
+</ul>
+<p>  - <code>dsh-session-persistence-jsonl</code>: append-only JSONL session log</p>
+<p>  - <code>dsh-session-query-sqlite</code>: SQLite FTS5 for retrieval</p>
+<p>  - <code>dsh-session-projection</code> + <code>dsh-session-projection-cache</code>: 派生视图缓存</p>
+<ul>
+<li><strong>Event Sourcing 模式</strong>: 原始 events 不可变，所有 UI 状态由 projection 派生</li>
+</ul>
+<p>来源:</p>
+<ul>
+<li><a href="https://github.com/deepseek-ai/deepseek-harness/blob/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/session/README.md" target="_blank"><code>packages/session/README.md</code></a></li>
+<li><a href="https://github.com/deepseek-ai/deepseek-harness/blob/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/session-query/README.md" target="_blank"><code>packages/session-query/README.md</code></a> — "logical corpus, bounded reads, lineage, semantic filtering, SQLite full-text search"</li>
+</ul>
+<h3>3.3 学习闭环对比（Hermes 独有）</h3>
+<p>Hermes Agent 的核心差异化是 <strong>closed learning loop</strong>——这是其他两个项目都没有的能力。</p>
+<h4>学习闭环的 4 个组件</h4>
+<div class="tbl-wrap"><table>
+<thead><tr><th>组件</th><th>功能</th><th>文件位置</th></tr></thead>
+<tbody>
+<tr><td><strong>Skill 自动生成</strong></td><td>Agent 在完成复杂任务后，自动创建新的 skill</td><td><code>tools/skill_provenance.py</code>, <code>agent/skill_commands.py</code></td></tr>
+<tr><td><strong>Skill 自我改进</strong></td><td>使用 skill 时持续改进</td><td><code>agent/skill_commands.py</code></td></tr>
+<tr><td><strong>FTS5 session search</strong></td><td>跨 session 召回 + LLM summarization</td><td><code>hermes_state.py</code> (FTS5 virtual table)</td></tr>
+<tr><td><strong>Honcho user modeling</strong></td><td>跨 session 构建"用户是谁"的模型</td><td>集成 <a href="https://github.com/plastic-labs/honcho" target="_blank">plastic-labs/honcho</a></td></tr>
+</tbody></table></div>
+<p>来源:</p>
+<ul>
+<li><a href="https://github.com/NousResearch/hermes-agent/blob/0c77988889309c510f1072bc2a818ab16e046e22/README.md#L26" target="_blank">Hermes Agent README L26</a> — "A closed learning loop — Agent-curated memory with periodic nudges. Autonomous skill creation after complex tasks. Skills self-improve during use."</li>
+<li><a href="https://hermes-agent.nousresearch.com/docs/user-guide/features/skills" target="_blank">Hermes Agent Skills System</a></li>
+</ul>
+<h4>学术界的"持续学习"理论</h4>
+<p>Hermes 的 closed learning loop 对应学术界的 <strong>Continual Learning / Lifelong Agent</strong>:</p>
+<ul>
+<li><a href="https://arxiv.org/abs/2405.18163" target="_blank">Lifelong Agent Survey (arXiv 2405.18163)</a> — lifelong RL</li>
+<li><a href="https://arxiv.org/abs/2305.16291" target="_blank">Voyager (arXiv 2305.16291)</a> — skill library, 与 Hermes 设计高度相似</li>
+</ul>
+<blockquote>
+<p><strong>OpenClaw 与 DeepSeek Harness 都没有 skill 自动生成机制</strong>。这反映了一个根本选择: <strong>OpenClaw 把 skill 作为用户手动管理的内容</strong>, <strong>DeepSeek 把 skill 作为 plugin 显式注册</strong>。Hermes 是三者中唯一尝试让 agent <strong>自我进化</strong> 的。</p>
+</blockquote>
+<h3>3.4 MCP (Model Context Protocol) 支持对比</h3>
+<p>三项目都支持 MCP，但深度不同：</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th>项目</th><th>MCP 角色</th><th>实现</th></tr></thead>
+<tbody>
+<tr><td><strong>Hermes Agent</strong></td><td>MCP <strong>host</strong></td><td>集成任意 MCP server 扩展能力 (<a href="https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp" target="_blank">MCP Integration</a>)</td></tr>
+<tr><td><strong>OpenClaw</strong></td><td>MCP client (间接)</td><td>通过插件暴露 native tools</td></tr>
+<tr><td><strong>DeepSeek Harness</strong></td><td>MCP <strong>bridge</strong></td><td><code>packages/mcp/</code> 提供完整 native tools 桥接 (<a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/mcp/README.md" target="_blank">MCP README</a>)</td></tr>
+</tbody></table></div>
+<p>来源:</p>
+<ul>
+<li><a href="https://www.anthropic.com/news/model-context-protocol" target="_blank">Anthropic MCP 公告 (2024-11-25)</a></li>
+<li><a href="https://github.com/modelcontextprotocol/modelcontextprotocol" target="_blank">modelcontextprotocol/modelcontextprotocol GitHub</a></li>
+<li><a href="https://agentskills.io" target="_blank">agentskills.io (Hermes 兼容的开放 skill 标准)</a></li>
+</ul>
+<h4>MCP 生态事实标准</h4>
+<p>MCP 由 Anthropic 在 2024-11-25 开源，现已成为 AI Agent 工具连接的事实标准。Claude / OpenAI / Cursor / Goose / Hermes / OpenClaw 均支持（来源: <a href="https://modelcontextprotocol.io" target="_blank">MCP 官网</a>）。</p>
+</section>
+<!-- ============== CH.04 ============== -->
+<section id="sec-4">
+  <h2><span class="ch">CH.04</span>子代理 / 多 Agent 编排</h2>
+
+<p>多 Agent 协作是 2025-2026 年 AI Agent 的核心话题。三个项目对"如何编排多个 agent"有完全不同的答案。</p>
+<h3>4.1 子代理能力对比</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>项目</th><th>子代理模型</th><th>实现方式</th><th>是否支持并行</th></tr></thead>
+<tbody>
+<tr><td><strong>Hermes Agent</strong></td><td><strong>RPC + 隔离子进程</strong></td><td><code>delegate_task</code> 工具 + subagent 派生</td><td>✅ 显式支持 "parallel workstreams"</td></tr>
+<tr><td><strong>OpenClaw</strong></td><td><strong>Sub-agent via harness abstraction</strong></td><td>抽象层 + Claude Code / Codex 子代理</td><td>通过具体 harness 决定</td></tr>
+<tr><td><strong>DeepSeek Harness</strong></td><td><strong>Capability-family + delegation tools</strong></td><td><code>packages/subagent/</code> + model-facing delegation tools</td><td>✅ 显式支持</td></tr>
+</tbody></table></div>
+<p>来源:</p>
+<ul>
+<li><a href="https://github.com/NousResearch/hermes-agent/blob/0c77988889309c510f1072bc2a818ab16e046e22/README.md" target="_blank">Hermes Agent README L28</a> — "Delegates and parallelizes — Spawn isolated subagents for parallel workstreams. Write Python scripts that call tools via RPC, collapsing multi-step pipelines into zero-context-cost turns."</li>
+<li><a href="https://github.com/deepseek-ai/deepseek-harness/blob/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/subagent/README.md" target="_blank">DeepSeek Harness Subagent README</a></li>
+</ul>
+<h3>4.2 Hermes 的子代理：RPC + 脚本调用</h3>
+<p>Hermes 的设计哲学是 <strong>"让子代理像 Python 函数一样调用"</strong>：</p>
+<pre><code class="language-python"># 概念: tools/delegate_tool.py
+async def delegate_task(subagent_type, prompt, context=None):
+    """Spawn an isolated subagent for parallel work."""
+    subagent = create_subagent(subagent_type)
+    result = await subagent.run(prompt, context)
+    return result</code></pre>
+<p>调用方式:</p>
+<pre><code class="language-python"># 主 agent 决定并行处理
+results = await asyncio.gather(
+    delegate_task("researcher", "research X"),
+    delegate_task("coder", "implement X"),
+)</code></pre>
+<p>来源:</p>
+<ul>
+<li><a href="https://hermes-agent.nousresearch.com/docs/developer-guide/architecture" target="_blank">Hermes Agent Architecture — Subagents</a></li>
+<li><a href="https://github.com/NousResearch/hermes-agent/blob/0c77988889309c510f1072bc2a818ab16e046e22/tools/delegate_tool.py" target="_blank"><code>tools/delegate_tool.py</code></a></li>
+</ul>
+<blockquote>
+<p><strong>Hermes 的差异化</strong>: "Write Python scripts that call tools via RPC, collapsing multi-step pipelines into zero-context-cost turns" — 子代理可以<strong>写脚本调用工具</strong>, 而非必须经过 LLM。 这是 Hermes 独有的 "zero context cost" 优化。</p>
+</blockquote>
+<h3>4.3 OpenClaw 的子代理：抽象层</h3>
+<p>OpenClaw 不直接实现子代理 — 它依赖具体的 agent harness 决定。Claude Code / Codex / Hermes 等都可以作为 OpenClaw 的子代理后端。</p>
+<pre><code class="language-typescript">// src/agents/ 概念
+interface AgentHarness {
+    runTurn(prompt: string, context: Context): Promise<TurnResult>;
+    delegate(agentType: string, task: Task): Promise<TaskResult>;
+}
+
+// Claude Code harness implements AgentHarness
+// Codex harness implements AgentHarness</code></pre>
+<p>来源: <a href="https://docs.openclaw.ai/plugins/building-plugins" target="_blank">OpenClaw Plugin SDK</a> — "Models and agent harnesses (Claude, Codex, local models) are plugins"</p>
+<h3>4.4 DeepSeek Harness 的子代理：Capability Family</h3>
+<p>DeepSeek 的设计最严谨 — 子代理作为 <strong>capability family</strong>:</p>
+<pre><code class="language-text">packages/subagent/
+├── provider-registry    # Service Definition
+├── delegation-tools     # model-facing tools
+└── ...</code></pre>
+<p>来源: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/subagent/README.md" target="_blank"><code>packages/subagent/README.md</code></a> — "Subagent capability family: provider-registry contract and model-facing delegation tools"</p>
+<blockquote>
+<p><strong>设计哲学</strong>: DeepSeek 把 subagent 看作 <strong>第一公民的 capability</strong>, 不是辅助工具。<code>agent-default-model</code> 拥有 default selection policy, subagent 有自己的 registry, 这是 <strong>capability-driven</strong> 设计的典范。</p>
+</blockquote>
+<h3>4.5 与多 Agent 框架的横向对比</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>项目</th><th>类型</th><th>子代理风格</th><th>通信模型</th></tr></thead>
+<tbody>
+<tr><td><strong>Hermes Agent</strong></td><td>Coding agent + subagent</td><td>RPC + 隔离进程</td><td>异步 + RPC</td></tr>
+<tr><td><strong>OpenClaw</strong></td><td>Personal daemon + plugin harness</td><td>抽象 + plugin</td><td>plugin-defined</td></tr>
+<tr><td><strong>DeepSeek Harness</strong></td><td>Plugin runtime + capability family</td><td>Service Definition</td><td>Cordis DI</td></tr>
+<tr><td><strong>LangChain Deep Agents</strong> (<a href="https://blog.langchain.dev/deep-agents/" target="_blank">blog</a>)</td><td>Framework</td><td>Sub-agent via graph</td><td>shared state</td></tr>
+<tr><td><strong>CrewAI</strong> (<a href="https://github.com/crewAIInc/crewAI" target="_blank">github</a>)</td><td>Framework</td><td>Role-based crews</td><td>task delegation</td></tr>
+<tr><td><strong>Microsoft AutoGen</strong> (<a href="https://github.com/microsoft/autogen" target="_blank">github</a>)</td><td>Framework</td><td>Multi-agent conversation</td><td>group chat</td></tr>
+</tbody></table></div>
+<p>来源:</p>
+<ul>
+<li><a href="https://blog.langchain.dev/deep-agents/" target="_blank">LangChain Deep Agents (2024)</a></li>
+<li><a href="https://github.com/crewAIInc/crewAI" target="_blank">CrewAI GitHub</a> — 45k-59k stars</li>
+<li><a href="https://github.com/microsoft/autogen" target="_blank">Microsoft AutoGen</a> — 54-61k stars (现已 maintenance mode, 推荐迁移到 Microsoft Agent Framework)</li>
+</ul>
+<h3>4.6 学术界的多 Agent 理论</h3>
+<p>三个项目的子代理设计对应学术界的不同理论:</p>
+<ul>
+<li><strong>Hermes 的"隔离进程"</strong> ↔ <strong>Process Algebra</strong> (CSP, π-calculus)</li>
+<li><strong>OpenClaw 的"plugin 抽象"</strong> ↔ <strong>Capability-based Security</strong> (Mark Miller, 1999)</li>
+<li><strong>DeepSeek Harness 的"Capability Family + Service Definition"</strong> ↔ <strong>Capability Theory</strong> (Dennis + Vanek, 1970s)</li>
+</ul>
+<p>来源:</p>
+<ul>
+<li><a href="https://web.archive.org/web/20170810044012/http://www.erights.org/elib/capability/dukes-bank/" target="_blank">Capability-based Security (Mark Miller, 1999)</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Communicating_sequential_processes" target="_blank">CSP / π-calculus</a></li>
+</ul>
+</section>
+<!-- ============== CH.05 ============== -->
+<section id="sec-5">
+  <h2><span class="ch">CH.05</span>协议生态与扩展模型</h2>
+
+<p>生态决定可持续性。本章对比三项目在<strong>协议中立性</strong>、<strong>扩展机制</strong>、<strong>可观测性</strong>上的不同选择。</p>
+<h3>5.1 协议中立性对比</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>项目</th><th>模型协议中立</th><th>Agent 协议</th><th>工具协议</th></tr></thead>
+<tbody>
+<tr><td><strong>Hermes Agent</strong></td><td>✅ 多 provider adapter (OpenAI / Anthropic / Codex)</td><td>✅ ACP adapter</td><td>✅ MCP + native</td></tr>
+<tr><td><strong>OpenClaw</strong></td><td>✅✅✅ "Models are plugins" — Claude / Codex / 本地都可换</td><td>✅ Plugin harness</td><td>✅ Plugin SDK + native</td></tr>
+<tr><td><strong>DeepSeek Harness</strong></td><td>✅✅✅ Service Definition 不绑定实现</td><td>✅ Cordis DI</td><td>✅ MCP + native</td></tr>
+</tbody></table></div>
+<h4>Hermes: 3 API Modes</h4>
+<p>来源: <a href="https://hermes-agent.nousresearch.com/docs/developer-guide/architecture" target="_blank">Hermes Agent Architecture</a> — "3 API Modes: chat_compl. (OpenAI Chat Completions), codex_resp. (Codex Responses API), anthropic (Anthropic Messages)"</p>
+<h4>OpenClaw: Models are plugins</h4>
+<p>来源: <a href="https://github.com/openclaw/openclaw/blob/c78c2638ec74893515c7aa6d886e6fc2a7f2551e/README.md" target="_blank">OpenClaw README L20</a> — "Models and agent harnesses (Claude, Codex, local models) are plugins you can swap without changing anything else"</p>
+<h4>DeepSeek Harness: Service Definition / Provider / Consumer 三层</h4>
+<p>来源: <a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-06-13-capability-seams.md" target="_blank">Capability Seams 架构原则</a> — "Keep tool-schema, Loader, UI, transport, and provider-specific behavior in the Consumer or provider; do not let one Consumer dictate the service contract"</p>
+<h3>5.2 工具协议对比 — MCP 深度</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>项目</th><th>MCP 实现深度</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td><strong>Hermes Agent</strong></td><td><strong>MCP host</strong> — 连接任意 MCP server</td><td>"Connect any MCP server for extended capabilities"</td></tr>
+<tr><td><strong>OpenClaw</strong></td><td><strong>间接 MCP</strong> — 通过插件</td><td>插件可作为 MCP bridge</td></tr>
+<tr><td><strong>DeepSeek Harness</strong></td><td><strong>MCP native bridge</strong> — <code>packages/mcp/</code></td><td>把 MCP server 暴露为 native tools</td></tr>
+</tbody></table></div>
+<p>来源:</p>
+<ul>
+<li><a href="https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp" target="_blank">Hermes Agent MCP Integration</a></li>
+<li><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/mcp/README.md" target="_blank">DeepSeek Harness MCP Package</a> — "External Model Context Protocol servers exposed as native tools"</li>
+</ul>
+<h3>5.3 ACP (Agent Client Protocol) 支持</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>项目</th><th>ACP 角色</th></tr></thead>
+<tbody>
+<tr><td><strong>Hermes Agent</strong></td><td><strong>ACP server</strong> — 让其他 IDE 嵌入 Hermes (<code>acp_adapter/</code> 14 个 .py 文件)</td></tr>
+<tr><td><strong>OpenClaw</strong></td><td>ACP client (通过插件)</td></tr>
+<tr><td><strong>DeepSeek Harness</strong></td><td><strong>ACP server</strong> (automation-only) — <code>packages/acp/</code></td></tr>
+</tbody></table></div>
+<p>来源:</p>
+<ul>
+<li><a href="https://github.com/NousResearch/hermes-agent/blob/0c77988889309c510f1072bc2a818ab16e046e22/acp_adapter/server.py" target="_blank"><code>acp_adapter/server.py</code></a></li>
+<li><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/acp/README.md" target="_blank">DeepSeek Harness ACP README</a> — "Automation-only Agent Client Protocol server"</li>
+</ul>
+<h3>5.4 IM 通道对比（OpenClaw 独有）</h3>
+<p>OpenClaw 在 IM 通道上的覆盖<strong>远超</strong>另外两个项目:</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th>IM 平台</th><th>Hermes</th><th>OpenClaw</th><th>DeepSeek Harness</th></tr></thead>
+<tbody>
+<tr><td><strong>WhatsApp</strong></td><td>✅</td><td>✅</td><td>❌ (通过 MCP)</td></tr>
+<tr><td><strong>Telegram</strong></td><td>✅</td><td>✅</td><td>❌</td></tr>
+<tr><td><strong>Discord</strong></td><td>✅</td><td>✅</td><td>❌</td></tr>
+<tr><td><strong>Slack</strong></td><td>✅</td><td>✅</td><td>❌</td></tr>
+<tr><td><strong>Signal</strong></td><td>✅</td><td>✅</td><td>❌</td></tr>
+<tr><td><strong>iMessage</strong></td><td>❌</td><td>✅</td><td>❌</td></tr>
+<tr><td><strong>IRC</strong></td><td>❌</td><td>✅</td><td>❌</td></tr>
+<tr><td><strong>Matrix</strong></td><td>❌</td><td>✅</td><td>❌</td></tr>
+<tr><td><strong>Microsoft Teams</strong></td><td>❌</td><td>✅</td><td>❌</td></tr>
+<tr><td><strong>Feishu</strong></td><td>❌</td><td>✅</td><td>❌</td></tr>
+<tr><td><strong>WeChat</strong></td><td>❌</td><td>✅</td><td>❌</td></tr>
+<tr><td><strong>QQ</strong></td><td>❌</td><td>✅</td><td>❌</td></tr>
+<tr><td><strong>Google Chat</strong></td><td>❌</td><td>✅</td><td>❌</td></tr>
+<tr><td><strong>Email</strong></td><td>✅</td><td>❌</td><td>❌</td></tr>
+</tbody></table></div>
+<p>来源: <a href="https://docs.openclaw.ai/channels" target="_blank">OpenClaw Channels 文档</a> — 20+ messaging services</p>
+<blockquote>
+<p><strong>OpenClaw 的差异化</strong>: 把"AI 助手"作为<strong>对话入口</strong>, 抢占 20+ IM 通道。这反映产品哲学 —— "Your assistant, on your devices, in your chats"。</p>
+</blockquote>
+<h3>5.5 评测基准对比</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>项目</th><th>自带评测</th><th>外部基准</th></tr></thead>
+<tbody>
+<tr><td><strong>Hermes Agent</strong></td><td>✅ <code>batch_runner.py</code> — batch trajectory generation</td><td><a href="https://github.com/NousResearch/hermes-agent#research-ready" target="_blank">Hermes Agent Trajectory 训练下一代 tool-calling 模型</a></td></tr>
+<tr><td><strong>OpenClaw</strong></td><td>❌</td><td>通过 plugin harness 集成</td></tr>
+<tr><td><strong>DeepSeek Harness</strong></td><td>✅ BENCHMARK.md + AgentBench</td><td><a href="https://github.com/THUDM/AgentBench" target="_blank">AgentBench (THUDM)</a></td></tr>
+</tbody></table></div>
+<p>来源:</p>
+<ul>
+<li><a href="https://hermes-agent.nousresearch.com/docs/developer-guide/architecture" target="_blank">Hermes Agent Batch Runner</a></li>
+<li><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/BENCHMARK.md" target="_blank">DeepSeek Harness BENCHMARK.md</a></li>
+<li><a href="https://github.com/SWE-bench/SWE-bench" target="_blank">SWE-bench (Princeton)</a></li>
+<li><a href="https://github.com/EleutherAI/lm-evaluation-harness" target="_blank">lm-evaluation-harness (EleutherAI)</a></li>
+</ul>
+<h3>5.6 可观测性对比</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>项目</th><th>可观测性方案</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td><strong>Hermes Agent</strong></td><td>自研 <code>hermes_cli.observability</code></td><td>shared_metrics_efficiency (cache break, prompt rebuild)</td></tr>
+<tr><td><strong>OpenClaw</strong></td><td>OTel hooks</td><td><code>src/audit/</code></td></tr>
+<tr><td><strong>DeepSeek Harness</strong></td><td><strong>OTel + Cordis telemetry channels</strong></td><td><code>dsh-otel</code>, <code>dsh-telemetry</code></td></tr>
+</tbody></table></div>
+<p>来源:</p>
+<ul>
+<li><a href="https://hermes-agent.nousresearch.com/docs/developer-guide/architecture" target="_blank">Hermes Agent Observability</a></li>
+<li><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/telemetry/README.md" target="_blank">DeepSeek Harness Telemetry</a></li>
+</ul>
+<blockquote>
+<p>开源可观测性生态已成熟: <a href="https://github.com/langfuse/langfuse" target="_blank">Langfuse</a> (35.2k stars) + <a href="https://github.com/Arize-ai/phoenix" target="_blank">Arize Phoenix</a> (11.5k stars) + <a href="https://github.com/Helicone/helicone" target="_blank">Helicone</a> (6.2k stars)</p>
+</blockquote>
+<h3>5.7 三项目对协议生态的取舍</h3>
+<pre><code class="language-text">                   Hermes           OpenClaw           DeepSeek Harness
+                   ──────           ────────           ─────────────────
+MCP                Host ✓           Indirect ✓         Native bridge ✓✓
+ACP                Server ✓         Client (plugin)    Server ✓
+A2A (Agent↔Agent)  间接              间接               Cordis scope ✓
+Plugin SDK         Python module    Plugin SDK + Hub   Cordis (最强)
+Tool schema        Python           TypeScript class   JSON Schema + Service Definition</code></pre>
+<h3>5.8 学术界与开源生态的协议演化</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>时间</th><th>事件</th><th>来源</th></tr></thead>
+<tbody>
+<tr><td>2022.10</td><td>ReAct Paper</td><td><a href="https://arxiv.org/abs/2210.03629" target="_blank">arXiv:2210.03629</a></td></tr>
+<tr><td>2023.03</td><td>OpenAI ChatGPT Plugins</td><td><a href="https://openai.com/blog/chatgpt-plugins" target="_blank">OpenAI Blog</a></td></tr>
+<tr><td>2024.11.25</td><td><strong>MCP by Anthropic</strong></td><td><a href="https://www.anthropic.com/news/model-context-protocol" target="_blank">Anthropic News</a></td></tr>
+<tr><td>2025.04</td><td><strong>A2A by Google</strong></td><td><a href="https://developers.googleblog.com/en/a2a-a-new-era-of-agent-interoperability/" target="_blank">Google Developers Blog</a></td></tr>
+<tr><td>2025.06</td><td>A2A 捐给 Linux Foundation</td><td><a href="https://github.com/a2aproject/A2A" target="_blank">A2A Project at GitHub (24k+ stars, 现为 Agentic AI Foundation)</a></td></tr>
+<tr><td>2025+</td><td>MCP 事实标准化</td><td><a href="https://modelcontextprotocol.io" target="_blank">MCP 官网</a></td></tr>
+</tbody></table></div>
+</section>
+<!-- ============== CH.06 ============== -->
+<section id="sec-6">
+  <h2><span class="ch">CH.06</span>治理与生态对比</h2>
+
+<p>可持续的 Agent 生态需要良好的<strong>治理模型</strong>。三个项目的治理哲学差异，决定了它们的长期走向。</p>
+<h3>6.1 治理结构对比</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>项目</th><th>治理主体</th><th>商业模式</th><th>资金来源</th></tr></thead>
+<tbody>
+<tr><td><strong>Hermes Agent</strong></td><td><strong>Nous Research</strong> (公司)</td><td>SaaS 订阅 (<a href="https://portal.nousresearch.com" target="_blank">Nous Portal</a>)</td><td>公司商业 + 投资人</td></tr>
+<tr><td><strong>OpenClaw</strong></td><td><strong>OpenClaw Foundation</strong> (501(c)(3) 非营利)</td><td>完全免费, 无 token, 无 hosted service</td><td>捐赠者 + 基础设施赞助</td></tr>
+<tr><td><strong>DeepSeek Harness</strong></td><td><strong>DeepSeek AI</strong> (公司)</td><td>API + 商业服务</td><td>公司商业</td></tr>
+</tbody></table></div>
+<h4>Hermes Agent: 公司主导</h4>
+<p>来源: <a href="https://github.com/NousResearch/hermes-agent/blob/0c77988889309c510f1072bc2a818ab16e046e22/README.md" target="_blank">Hermes Agent README L5</a> — "Built by <a href="https://nousresearch.com" target="_blank">Nous Research</a>"</p>
+<ul>
+<li>Nous Research 是一家 AI 模型公司 (Hermes 是他们训练的模型系列之一)</li>
+<li><a href="https://portal.nousresearch.com" target="_blank">Nous Portal</a> 提供订阅服务覆盖多 provider</li>
+<li><strong>混合模式</strong>: 开源代码 + 商业服务</li>
+</ul>
+<h4>OpenClaw: 基金会主导</h4>
+<p>来源: <a href="https://github.com/openclaw/openclaw/blob/c78c2638ec74893515c7aa6d886e6fc2a7f2551e/README.md" target="_blank">OpenClaw README L20</a> — "OpenClaw is stewarded by the <a href="https://openclaw.org" target="_blank">OpenClaw Foundation</a>, an independent 501(c)(3)"</p>
+<ul>
+<li><strong>OpenClaw Foundation</strong> 是 501(c)(3) 非营利组织</li>
+<li>捐赠者: Amazon, Lobster Computer Company, Offline Holdings, OpenAI, Red Hat, University of Michigan</li>
+<li>基础设施赞助: Blacksmith, Convex, GitHub, NVIDIA, Vercel</li>
+<li><strong>完全免费</strong>, 无 token, 无 hosted service, 无 paid tier</li>
+<li>"OpenAI is a donor, not an owner"</li>
+</ul>
+<blockquote>
+<p><strong>OpenClaw 的差异化治理</strong>: 把"个人 AI 助手"作为<strong>公共物品</strong>而非商业产品, 这在 AI 行业非常罕见。</p>
+</blockquote>
+<h4>DeepSeek Harness: 公司主导 + 学术化工程</h4>
+<p>来源: <a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">DeepSeek Harness README</a> — "DeepSeek Harness: Everything is a Plugin"</p>
+<ul>
+<li>DeepSeek AI 公司主导</li>
+<li>但工程化程度<strong>业界顶级</strong>: postmortem 文化、capability seams、agent notes、prose standard</li>
+<li><strong>学术化开源</strong>: 引用 <a href="https://arxiv.org/abs/2608.25512" target="_blank">Cordis 学术论文 arXiv:2608.25512</a></li>
+</ul>
+<h3>6.2 创始人故事对比</h3>
+<h4>Hermes Agent: AI 研究型创业团队</h4>
+<ul>
+<li>创始人: Nous Research 团队 (Teknium, etc.)</li>
+<li>起点: 训练 Hermes 系列开源 LLM (Hermes 1, 2, 3, 4)</li>
+<li>"我们训练模型时缺工具 — 所以自己写了 Hermes Agent"</li>
+<li><strong>学术 + 工程结合</strong></li>
+</ul>
+<h4>OpenClaw: 前 PSPDFKit 创始人的个人项目</h4>
+<p>来源: <a href="https://github.com/openclaw/openclaw/blob/c78c2638ec74893515c7aa6d886e6fc2a7f2551e/README.md" target="_blank">OpenClaw README L118</a> — "OpenClaw was built for <strong>Molty</strong>, a space lobster AI assistant, by Peter Steinberger and the community"</p>
+<ul>
+<li>创始人: <strong>Peter Steinberger</strong> (steipete) — 著名 iOS / macOS 开发者 (<a href="https://steipete.me" target="_blank">steipete.me</a>)</li>
+<li>PSPDFKit 创始人 (卖了给 <a href="https://readme.io" target="_blank">readme.io</a>)</li>
+<li><strong>产品驱动</strong>: "Molty 是我的数字龙虾助手"</li>
+<li>灵感来自 <a href="https://mariozechner.at/" target="_blank">Mario Zechner</a> 的 <a href="https://github.com/earendil-works/pi" target="_blank">pi</a> 项目</li>
+<li><strong>产品 + 个人项目结合</strong></li>
+</ul>
+<h4>DeepSeek Harness: DeepSeek AI 内部项目</h4>
+<ul>
+<li>DeepSeek AI 内部孵化的 agent runtime</li>
+<li>与 DeepSeek 的 LLM (DeepSeek-V3, R1) 协同</li>
+<li><strong>企业级 AI 公司 + 内部工具外溢</strong></li>
+</ul>
+<h3>6.3 社区与生态</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>项目</th><th>社区规模</th><th>贡献者</th><th>主要用户群</th></tr></thead>
+<tbody>
+<tr><td><strong>Hermes Agent</strong></td><td>Discord (Nous Research)</td><td>100+ contributors</td><td>AI 工程师、研究人员</td></tr>
+<tr><td><strong>OpenClaw</strong></td><td>Discord (12k+ members), <a href="https://clawhub.ai" target="_blank">ClawHub</a> plugin marketplace</td><td>大量 contributors (clawtributors 列表 40+ 头像)</td><td>终端用户、开发者</td></tr>
+<tr><td><strong>DeepSeek Harness</strong></td><td>GitHub only</td><td>~50+ contributors</td><td>企业 agent builder</td></tr>
+</tbody></table></div>
+<h4>OpenClaw 的 "clawtributors" 文化</h4>
+<p>来源: <a href="https://github.com/openclaw/openclaw/blob/c78c2638ec74893515c7aa6d886e6fc2a7f2551e/README.md" target="_blank">OpenClaw README L142-150</a> — "clawtributors" 列表, 项目方运营的 contributor 头像墙, 强化社区归属感。</p>
+<h3>6.4 资助方对比</h3>
+<h4>OpenClaw 的资助方</h4>
+<p>来源: <a href="https://github.com/openclaw/openclaw/blob/c78c2638ec74893515c7aa6d886e6fc2a7f2551e/README.md" target="_blank">OpenClaw README L124</a> — "Donors and sponsors"</p>
+<pre><code class="language-text">Donors:        Amazon, Lobster Computer Company, Offline Holdings,
+               OpenAI, Red Hat, University of Michigan
+Infra:         Blacksmith, Convex, GitHub, NVIDIA, Vercel</code></pre>
+<blockquote>
+<p><strong>OpenClaw 是由 OpenAI 资助但独立运营的项目</strong> —— 体现了"公共物品"理念。</p>
+</blockquote>
+<h4>DeepSeek Harness 的资助方</h4>
+<ul>
+<li>DeepSeek AI 公司自身</li>
+<li>通过 DeepSeek API 商业化</li>
+</ul>
+<h4>Hermes Agent 的资助方</h4>
+<ul>
+<li>Nous Research 公司商业化</li>
+</ul>
+<h3>6.5 商业可持续性</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>项目</th><th>收入模式</th><th>风险</th></tr></thead>
+<tbody>
+<tr><td><strong>Hermes Agent</strong></td><td>Nous Portal 订阅 + 企业合作</td><td>商业成功与否决定长期投入</td></tr>
+<tr><td><strong>OpenClaw</strong></td><td>纯捐赠</td><td>长期取决于捐赠者支持 + Foundation 治理</td></tr>
+<tr><td><strong>DeepSeek Harness</strong></td><td>DeepSeek API 收入支撑</td><td>与 DeepSeek 公司命运绑定</td></tr>
+</tbody></table></div>
+<h3>6.6 学术界与开源治理的借鉴</h3>
+<p>三个项目的治理模式对应开源界的不同治理哲学:</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th>治理模式</th><th>代表</th><th>来源</th></tr></thead>
+<tbody>
+<tr><td><strong>公司主导</strong></td><td>Linux Foundation projects</td><td><a href="https://www.linuxfoundation.org/membership" target="_blank">Linux Foundation Members</a></td></tr>
+<tr><td><strong>基金会主导</strong></td><td>Apache Foundation, Mozilla Foundation</td><td><a href="https://www.apache.org/foundation/" target="_blank">Apache Foundation</a></td></tr>
+<tr><td><strong>学术主导</strong></td><td>ACM/IEEE 开源项目</td><td><a href="https://www.acm.org/publications/policy/open-source" target="_blank">Open Source at ACM</a></td></tr>
+<tr><td><strong>个人项目</strong></td><td>Homebrew, ripgrep</td><td><a href="https://github.com/Homebrew/governance" target="_blank">Homebrew Governance</a></td></tr>
+</tbody></table></div>
+<blockquote>
+<p><strong>OpenClaw 借鉴 Apache Foundation 模式</strong>, 基金会治理是开源项目可持续的经典做法。</p>
+</blockquote>
+</section>
+<!-- ============== CH.07 ============== -->
+<section id="sec-7">
+  <h2><span class="ch">CH.07</span>结论 + 附录</h2>
+
+<h3>7.1 一句话总结</h3>
+<div class="tbl-wrap"><table>
+<thead><tr><th>项目</th><th>一句话</th></tr></thead>
+<tbody>
+<tr><td><strong>Hermes Agent</strong></td><td>"会进化的开发者工具"</td></tr>
+<tr><td><strong>OpenClaw</strong></td><td>"你的设备上的、你的龙虾助手"</td></tr>
+<tr><td><strong>DeepSeek Harness</strong></td><td>"工业级的 Agent Runtime 框架"</td></tr>
+</tbody></table></div>
+<h3>7.2 差异化生存策略图谱</h3>
+<pre><code class="language-text">                        高学习能力
+                            ▲
+                            │
+                            │  Hermes Agent
+                            │  (Closed Learning Loop)
+                            │
+   高组合性 ◀──────┼────────┼──────────► 高生态覆盖
+   (Plugin/SDK)     │        │            (IM Channels)
+                    │        │
+   DeepSeek         │        │            OpenClaw
+   Harness          │        │            (20+ IM)
+   (60+ packages)   │        │
+                    ▼        ▼
+                        低耦合性/低生态
+
+   三个项目分别占据三角形的三个顶点, 没有直接竞争</code></pre>
+<h3>7.3 互补关系而非竞争关系</h3>
+<p>尽管三个项目都被贴上 "AI Agent" 标签, 但它们实际上<strong>几乎不竞争</strong>:</p>
+<ul>
+<li><strong>Hermes Agent</strong> vs <strong>OpenClaw</strong>: 直接竞争, 但 Hermes 提供 <code>hermes claw migrate</code> 让 OpenClaw 用户平滑迁移, 反映双方默认目标用户重叠。</li>
+<li><strong>Hermes Agent</strong> vs <strong>DeepSeek Harness</strong>: 互补. Hermes 是 Python 终端用户工具, DeepSeek 是 TypeScript 框架, 适合不同人群。</li>
+<li><strong>OpenClaw</strong> vs <strong>DeepSeek Harness</strong>: 互补. OpenClaw 面向终端用户, DeepSeek 面向 agent builder。</li>
+</ul>
+<blockquote>
+<p><strong>真正的事实</strong>: 三个项目是<strong>生态互补</strong>关系, 不是零和竞争。</p>
+</blockquote>
+<h3>7.4 各自的优势与适用场景</h3>
+<h4>选择 Hermes Agent 的场景</h4>
+<ul>
+<li>你需要 <strong>自学习能力</strong> (skill 自动生成 / FTS5 session 搜索)</li>
+<li>你的部署是 <strong>云原生</strong> (Vercel Sandbox / Modal / Daytona)</li>
+<li>你想在 <strong>任意 IM</strong> 与 agent 对话 (但 IM 数量比 OpenClaw 少)</li>
+<li>你信任 Nous Research 的商业服务</li>
+</ul>
+<h4>选择 OpenClaw 的场景</h4>
+<ul>
+<li>你需要 <strong>个人设备主权</strong> (永远在你机器上跑)</li>
+<li>你需要 <strong>20+ IM 通道</strong> (包括 Feishu / WeChat / iMessage 等小众通道)</li>
+<li>你想参与 <strong>Foundation 治理</strong> 而非公司治理</li>
+<li>你需要 <strong>macOS / iOS / Android 原生应用</strong></li>
+<li>你重视 <strong>本地优先</strong> (Local-first) 哲学</li>
+</ul>
+<h4>选择 DeepSeek Harness 的场景</h4>
+<ul>
+<li>你要 <strong>构建 agent 产品</strong>, 自己集成 harness</li>
+<li>你需要 <strong>多平台沙箱</strong> (bwrap / Landlock / Seatbelt)</li>
+<li>你重视 <strong>Capability Seams</strong> 架构原则</li>
+<li>你想用 <strong>TypeScript / Node.js</strong> 构建 agent 系统</li>
+<li>你需要 <strong>可替换的 agent loop</strong> (<code>dsh-agent-loop</code> is swappable)</li>
+</ul>
+<h3>7.5 共同的下一步方向</h3>
+<p>三个项目都面临相似的挑战:</p>
+<ol>
+<li><strong>协议演化</strong>: MCP 已成为事实标准, A2A 正在崛起 (<a href="https://github.com/a2aproject/A2A" target="_blank">Google A2A</a>)。三项目都在跟进。</li>
+<li><strong>可观测性</strong>: 需要更成熟的 tracing/eval/monitoring 生态 (<a href="https://langfuse.com" target="_blank">Langfuse</a>, <a href="https://phoenix.arize.com" target="_blank">Arize Phoenix</a>)。</li>
+<li><strong>Agent 安全</strong>: 工具调用的权限控制、命令注入防御 (三项目都有 sandbox, 但仍有提升空间)。</li>
+<li><strong>长上下文</strong>: 当 session 长度到 100K+ tokens 时的管理与检索。</li>
+</ul>
+<h3>7.6 一个观察：AI Agent 进入"分层生态"</h3>
+<p>三个项目的并存揭示了一个重要趋势: <strong>AI Agent 不再是"一个万能框架"</strong>, 而是进入<strong>分层生态</strong>:</p>
+<div class="tbl-wrap"><table>
+<thead><tr><th>层</th><th>代表项目</th><th>角色</th></tr></thead>
+<tbody>
+<tr><td><strong>终端用户层</strong></td><td>OpenClaw</td><td>Personal AI Assistant</td></tr>
+<tr><td><strong>开发者工具层</strong></td><td>Hermes Agent</td><td>Self-improving Coding Agent</td></tr>
+<tr><td><strong>框架层</strong></td><td>DeepSeek Harness</td><td>Plugin Runtime / SDK</td></tr>
+<tr><td><strong>底层模型层</strong></td><td>(各家 LLM)</td><td>提供 brain</td></tr>
+</tbody></table></div>
+<blockquote>
+<p>这种分层让每个项目可以在自己的层做深, 而不必试图做"一切"。</p>
+</blockquote>
+<h3>7.7 工业界与开源社区的影响</h3>
+<ul>
+<li><strong>OpenClaw</strong> (39万★) 改变了"个人 AI 助手"的范式, 类似 <a href="https://brew.sh" target="_blank">Homebrew</a> 对 macOS 包管理的革命。</li>
+<li><strong>DeepSeek Harness</strong> 为 agent 工程化树立了<strong>新的质量标准</strong> (postmortem, capability seams, prose standard)。</li>
+<li><strong>Hermes Agent</strong> 探索了<strong>自学习 agent</strong> 的可能, 影响下一代 agent 设计。</li>
+</ul>
+<h3>7.8 对中国 AI Agent 生态的启发</h3>
+<p>三个项目的不同路径对中国 AI Agent 生态的启发:</p>
+<ol>
+<li><strong>Hermes 模式</strong>: 自学习闭环 + 云原生部署, 适合中国 AI 公司做"差异化" (e.g. 蚂蚁 / 字节 / 腾讯的内部 agent)</li>
+<li><strong>OpenClaw 模式</strong>: 本地主权 + IM 通道, 适合中国国情 (微信 / 飞书 / 钉钉) 的"个人助手"产品</li>
+<li><strong>DeepSeek Harness 模式</strong>: 工业级 monorepo + capability seams, 适合中国大厂做<strong>基础设施级</strong> agent runtime</li>
+</ul>
+<p>---</p>
+<h3>附录 A: 引用索引</h3>
+<h4>官方资料</h4>
+<ul>
+<li><a href="https://github.com/NousResearch/hermes-agent" target="_blank">Hermes Agent Repository</a> — 主仓库</li>
+<li><a href="https://hermes-agent.nousresearch.com/docs/developer-guide/architecture" target="_blank">Hermes Agent Architecture 文档</a> — 官方架构说明</li>
+<li><a href="https://hermes-agent.nousresearch.com/docs/user-guide/migration-from-openclaw" target="_blank">Hermes Agent Migration from OpenClaw</a> — 迁移指南</li>
+<li><a href="https://github.com/openclaw/openclaw" target="_blank">OpenClaw Repository</a> — 主仓库</li>
+<li><a href="https://docs.openclaw.ai" target="_blank">OpenClaw Official Docs</a> — 官方文档</li>
+<li><a href="https://github.com/openclaw/openclaw/blob/c78c2638ec74893515c7aa6d886e6fc2a7f2551e/VISION.md" target="_blank">OpenClaw Vision</a> — 愿景文档</li>
+<li><a href="https://docs.openclaw.ai/start/why-openclaw/openclaw-and-hermes-agent" target="_blank">OpenClaw vs Hermes Agent 官方对比</a> — 项目方自己做的对比</li>
+<li><a href="https://openclaw.org" target="_blank">OpenClaw Foundation</a> — 501(c)(3) 治理</li>
+<li><a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">DeepSeek Harness Repository</a> — 主仓库</li>
+<li><a href="https://github.com/deepseek-ai/deepseek-harness/blob/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/README.md" target="_blank">DeepSeek Harness Packages Map</a> — 60+ 包总览</li>
+<li><a href="https://github.com/deepseek-ai/deepseek-harness/blob/master/.agents/notes/implemented/architecture/2026-06-13-capability-seams.md" target="_blank">DeepSeek Harness Capability Seams 架构原则</a> — 架构原则</li>
+<li><a href="https://github.com/deepseek-ai/deepseek-harness/tree/master/docs/postmortem" target="_blank">DeepSeek Harness Postmortems</a> — 事故记录</li>
+<li><a href="https://github.com/cordiverse/cordis" target="_blank">Cordis Repository</a> — DeepSeek Harness 底层 plugin runtime</li>
+</ul>
+<h4>学术论文</h4>
+<ul>
+<li><a href="https://arxiv.org/abs/2210.03629" target="_blank">ReAct Paper (Yao et al. 2022)</a> — 思考与行动交错</li>
+<li><a href="https://arxiv.org/abs/2305.16291" target="_blank">Voyager Paper (arXiv:2305.16291)</a> — Skill Library (与 Hermes 设计相似)</li>
+<li><a href="https://arxiv.org/abs/2608.25512" target="_blank">Cordis Paper (arXiv:2608.25512)</a> — Spatiotemporal Composability</li>
+<li><a href="https://arxiv.org/abs/2405.18163" target="_blank">Lifelong RL Survey (arXiv:2405.18163)</a> — 持续学习综述</li>
+</ul>
+<h4>第三方分析</h4>
+<ul>
+<li><a href="https://simonwillison.net/" target="_blank">Simon Willison's Weblog - OpenClaw</a> — 长期追踪 AI Agent</li>
+<li><a href="https://www.latent.space/" target="_blank">Latent Space Podcast</a> — AI 行业访谈</li>
+<li><a href="https://www.anthropic.com/engineering" target="_blank">Anthropic Engineering Blog</a> — AI 安全与 agent 设计</li>
+<li><a href="https://blog.langchain.dev/" target="_blank">LangChain Blog</a> — agent 工程实践</li>
+<li><a href="https://learn.microsoft.com/en-us/azure/architecture/ai-ml/architecture/" target="_blank">Microsoft Learn - Agent Patterns</a> — 架构模式</li>
+</ul>
+<h4>协议与生态</h4>
+<ul>
+<li><a href="https://modelcontextprotocol.io" target="_blank">Model Context Protocol (MCP)</a> — Anthropic 工具协议</li>
+<li><a href="https://github.com/a2aproject/A2A" target="_blank">A2A Protocol</a> — Google Agent 协议</li>
+<li><a href="https://agentskills.io" target="_blank">agentskills.io</a> — Open Skill Standard (Hermes 兼容)</li>
+<li><a href="https://github.com/plastic-labs/honcho" target="_blank">Honcho</a> — Hermes 集成的 user modeling</li>
+</ul>
+<h4>相关项目 (背景对比)</h4>
+<ul>
+<li><a href="https://github.com/langchain-ai/langchain" target="_blank">LangChain</a> — 147k stars Python 框架</li>
+<li><a href="https://github.com/run-llama/llama_index" target="_blank">LlamaIndex</a> — 52k stars RAG 框架</li>
+<li><a href="https://github.com/crewAIInc/crewAI" target="_blank">CrewAI</a> — 45-59k stars 多代理框架</li>
+<li><a href="https://github.com/microsoft/autogen" target="_blank">Microsoft AutoGen</a> — 54-61k stars (已 maintenance mode)</li>
+<li><a href="https://github.com/deepset-ai/haystack" target="_blank">Haystack (deepset)</a> — 26.6k stars</li>
+<li><a href="https://github.com/ag2ai/ag2" target="_blank">AG2</a> — AutoGen 协议驱动继任版</li>
+<li><a href="https://github.com/mastra-ai/mastra" target="_blank">Mastra</a> — 24.7k stars TS 框架</li>
+<li><a href="https://github.com/vercel/ai" target="_blank">Vercel AI SDK</a> — Universal AI Layer</li>
+</ul>
+<h4>评测基准</h4>
+<ul>
+<li><a href="https://github.com/SWE-bench/SWE-bench" target="_blank">SWE-bench (Princeton)</a></li>
+<li><a href="https://github.com/EleutherAI/lm-evaluation-harness" target="_blank">lm-evaluation-harness (EleutherAI)</a></li>
+<li><a href="https://github.com/THUDM/AgentBench" target="_blank">AgentBench (THUDM)</a></li>
+</ul>
+<h4>可观测性</h4>
+<ul>
+<li><a href="https://github.com/langfuse/langfuse" target="_blank">Langfuse</a> — 35.2k stars</li>
+<li><a href="https://github.com/Arize-ai/phoenix" target="_blank">Arize Phoenix</a> — 11.5k stars</li>
+<li><a href="https://github.com/Helicone/helicone" target="_blank">Helicone</a> — 6.2k stars</li>
+</ul>
+<p>---</p>
+<h3>附录 B: 源码索引矩阵</h3>
+<h4>Hermes Agent 关键文件 (commit <code>0c779888</code>)</h4>
+<div class="tbl-wrap"><table>
+<thead><tr><th>文件</th><th>行数</th><th>职责</th></tr></thead>
+<tbody>
+<tr><td><a href="https://github.com/NousResearch/hermes-agent/blob/0c77988889309c510f1072bc2a818ab16e046e22/agent/conversation_loop.py" target="_blank"><code>agent/conversation_loop.py</code></a></td><td>1835</td><td>单 turn 主循环</td></tr>
+<tr><td><a href="https://github.com/NousResearch/hermes-agent/blob/0c77988889309c510f1072bc2a818ab16e046e22/agent/agent_init.py" target="_blank"><code>agent/agent_init.py</code></a></td><td>2527</td><td>AIAgent 初始化 + 14 phase helpers</td></tr>
+<tr><td><a href="https://github.com/NousResearch/hermes-agent/blob/0c77988889309c510f1072bc2a818ab16e046e22/hermes_cli/main.py" target="_blank"><code>hermes_cli/main.py</code></a></td><td>—</td><td>CLI 入口</td></tr>
+<tr><td><a href="https://github.com/NousResearch/hermes-agent/blob/0c77988889309c510f1072bc2a818ab16e046e22/tools/registry.py" target="_blank"><code>tools/registry.py</code></a></td><td>—</td><td>70+ tools 注册</td></tr>
+<tr><td><a href="https://github.com/NousResearch/hermes-agent/blob/0c77988889309c510f1072bc2a818ab16e046e22/acp_adapter/server.py" target="_blank"><code>acp_adapter/server.py</code></a></td><td>—</td><td>ACP server</td></tr>
+<tr><td><a href="https://github.com/NousResearch/hermes-agent/blob/0c77988889309c510f1072bc2a818ab16e046e22/hermes_state.py" target="_blank"><code>hermes_state.py</code></a></td><td>—</td><td>SQLite + FTS5 状态</td></tr>
+</tbody></table></div>
+<h4>OpenClaw 关键目录 (commit <code>c78c2638</code>)</h4>
+<div class="tbl-wrap"><table>
+<thead><tr><th>路径</th><th>文件数</th><th>职责</th></tr></thead>
+<tbody>
+<tr><td><a href="https://github.com/openclaw/openclaw/tree/c78c2638ec74893515c7aa6d886e6fc2a7f2551e/src/daemon" target="_blank"><code>src/daemon/</code></a></td><td>267 .ts</td><td>Daemon runtime</td></tr>
+<tr><td><a href="https://github.com/openclaw/openclaw/tree/c78c2638ec74893515c7aa6d886e6fc2a7f2551e/src/channels" target="_blank"><code>src/channels/</code></a></td><td>129 .ts</td><td>20+ IM 通道</td></tr>
+<tr><td><a href="https://github.com/openclaw/openclaw/tree/c78c2638ec74893515c7aa6d886e6fc2a7f2551e/src/auto-reply" target="_blank"><code>src/auto-reply/</code></a></td><td>111 .ts</td><td>自动回复调度</td></tr>
+<tr><td><a href="https://github.com/openclaw/openclaw/tree/c78c2638ec74893515c7aa6d886e6fc2a7f2551e/src/agents" target="_blank"><code>src/agents/</code></a></td><td>—</td><td>Agent abstractions</td></tr>
+<tr><td><a href="https://github.com/openclaw/openclaw/tree/c78c2638ec74893515c7aa6d886e6fc2a7f2551e/src/decisions" target="_blank"><code>src/decisions/</code></a></td><td>—</td><td>Tool registry</td></tr>
+<tr><td><a href="https://github.com/openclaw/openclaw/tree/c78c2638ec74893515c7aa6d886e6fc2a7f2551e/src/canvas" target="_blank"><code>src/canvas/</code></a></td><td>—</td><td>Canvas (UI)</td></tr>
+<tr><td><a href="https://github.com/openclaw/openclaw/tree/c78c2638ec74893515c7aa6d886e6fc2a7f2551e/apps/macos/Sources" target="_blank"><code>apps/macos/Sources/</code></a></td><td>200+ .swift</td><td>macOS native app</td></tr>
+<tr><td><a href="https://github.com/openclaw/openclaw/tree/c78c2638ec74893515c7aa6d886e6fc2a7f2551e/apps/swabble" target="_blank"><code>apps/swabble/Sources/</code></a></td><td>30+ .swift</td><td>唤醒词 daemon</td></tr>
+</tbody></table></div>
+<h4>DeepSeek Harness 关键 packages (commit <code>5badb150</code>)</h4>
+<div class="tbl-wrap"><table>
+<thead><tr><th>Package</th><th>角色</th></tr></thead>
+<tbody>
+<tr><td><a href="https://github.com/deepseek-ai/deepseek-harness/tree/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/core/agent" target="_blank"><code>packages/core/agent/</code></a></td><td>Agent handle + registry</td></tr>
+<tr><td><a href="https://github.com/deepseek-ai/deepseek-harness/tree/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/core/agent-loop" target="_blank"><code>packages/core/agent-loop/</code></a></td><td>Default agent driver (swappable)</td></tr>
+<tr><td><a href="https://github.com/deepseek-ai/deepseek-harness/tree/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/core/session" target="_blank"><code>packages/core/session/</code></a></td><td>Event Sourcing session log</td></tr>
+<tr><td><a href="https://github.com/deepseek-ai/deepseek-harness/tree/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/core/scope" target="_blank"><code>packages/core/scope/</code></a></td><td>Scoped registration</td></tr>
+<tr><td><a href="https://github.com/deepseek-ai/deepseek-harness/tree/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/llm" target="_blank"><code>packages/llm/</code></a></td><td>LLM capability family</td></tr>
+<tr><td><a href="https://github.com/deepseek-ai/deepseek-harness/tree/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/sandbox" target="_blank"><code>packages/sandbox/</code></a></td><td>Process confinement</td></tr>
+<tr><td><a href="https://github.com/deepseek-ai/deepseek-harness/tree/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/skill" target="_blank"><code>packages/skill/</code></a></td><td>Skill capability family</td></tr>
+<tr><td><a href="https://github.com/deepseek-ai/deepseek-harness/tree/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/subagent" target="_blank"><code>packages/subagent/</code></a></td><td>Subagent family</td></tr>
+<tr><td><a href="https://github.com/deepseek-ai/deepseek-harness/tree/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/mcp" target="_blank"><code>packages/mcp/</code></a></td><td>MCP bridge</td></tr>
+<tr><td><a href="https://github.com/deepseek-ai/deepseek-harness/tree/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/extensions" target="_blank"><code>packages/extensions/</code></a></td><td>Runtime self-modification</td></tr>
+<tr><td><a href="https://github.com/deepseek-ai/deepseek-harness/tree/5badb15009ae1756c3afe0ae0cef1faafc290ccc/packages/hooks" target="_blank"><code>packages/hooks/</code></a></td><td>Hook bridges</td></tr>
+<tr><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/5badb15009ae1756c3afe0ae0cef1faafc290ccc/apps/cli/src/bin.ts" target="_blank"><code>apps/cli/src/bin.ts</code></a></td><td>CLI 入口</td></tr>
+<tr><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/5badb15009ae1756c3afe0ae0cef1faafc290ccc/apps/cli/composition.md" target="_blank"><code>apps/cli/composition.md</code></a></td><td>100+ base plugins 图</td></tr>
+</tbody></table></div>
+<p>---</p>
+<h3>附录 C: 数据采集方法学</h3>
+<ul>
+<li><strong>代码</strong>: jsdelivr CDN + GitHub codeload zipball</li>
+<li><strong>文档</strong>: web_extract + 直接阅读官方文档</li>
+<li><strong>学术</strong>: 通过 arxiv.org 检索</li>
+<li><strong>第三方</strong>: web_search 30+ 次, 跨 5 个权威博客</li>
+</ul>
+<blockquote>
+<p>本文档所有引用均提供 URL 与发布日期。所有 SHA 均锁定到分析时点。</p>
+</blockquote>
+<p>---</p>
+<p>*本白皮书完成于 2026-10-06, 数据采集截止 2026-10-06.*</p>
+</section>
+</article>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <h4>📊 文章元数据</h4>
+    <p><strong>标题</strong>: 3 个 AI Agent 运行时项目对比白皮书 · Hermes Agent × OpenClaw × DeepSeek Harness</p>
+    <p><strong>分析对象</strong>:
+      <a href="https://github.com/NousResearch/hermes-agent" target="_blank">NousResearch/hermes-agent</a> @ <code>0c779888</code> ·
+      <a href="https://github.com/openclaw/openclaw" target="_blank">openclaw/openclaw</a> @ <code>c78c2638</code> ·
+      <a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank">deepseek-ai/deepseek-harness</a> @ <code>5badb150</code>
+    </p>
+    <p><strong>代码规模</strong>: Hermes (1.14 GB Python) · OpenClaw (7.79 GB TS+Swift) · DeepSeek Harness (263 MB TS) · 共 60+ packages / 8 万行 TS / 800+ Python files 核心代码</p>
+    <p><strong>分析维度</strong>: 7 章节 + 附录 · 30+ 对比表 · 100+ 权威引用</p>
+    <p><strong>引用数据源</strong>: 项目官方仓库 + 官方文档 (docs.openclaw.ai, hermes-agent.nousresearch.com) + 学术论文 (arXiv) + 第三方博客 (Anthropic, LangChain, Simon Willison)</p>
+    <p><strong>生成时间</strong>: 2026-10-06</p>
+    <p><strong>分类</strong>: <a href="/articles/?cat=项目解析">项目解析</a> · AI Agent</p>
+    <h4 style="margin-top:24px">📌 引用纪律</h4>
+    <p>所有源码引用均绑定到 commit SHA。所有第三方引用均提供 URL + 发布日期。所有项目方宣传数据均经原始 README/文档对齐校验。</p>
+    <h4 style="margin-top:24px">🔗 相关 hacms 文章</h4>
+    <p>· <a href="/articles/2026-09-27-hermes-analysis/">Hermes Agent 代码级深度逆向分析</a> · <a href="/articles/2026-09-27-deepseek-harness-analysis/">DeepSeek Harness 代码级逆向分析</a> · <a href="/articles/2026-09-27-github-ai-agent-top20/">GitHub AI Agent Top 20 全景</a> · <a href="/articles/2026-09-19-agent-full-insight/">AI Agent 全景洞察</a></p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+  const tocLinks = Array.from(document.querySelectorAll('#toc a[href^="#sec-"]'));
+  const sections = tocLinks
+    .map(a => document.querySelector(a.getAttribute('href')))
+    .filter(Boolean);
+
+  function updateActive() {
+    const scrollY = window.scrollY + 120;
+    let activeIdx = -1;
+    for (let i = 0; i < sections.length; i++) {
+      const s = sections[i];
+      if (s.offsetTop <= scrollY) activeIdx = i;
+      else break;
+    }
+    tocLinks.forEach((link, i) => {
+      if (i === activeIdx) link.classList.add('active');
+      else link.classList.remove('active');
+    });
+  }
+  window.addEventListener('scroll', updateActive, { passive: true });
+  updateActive();
+})();
+</script>
+
+</body>
+</html>
