@@ -56,6 +56,12 @@
     '其他':         '#9A9AA6',  // 中性灰
   };
   const DEFAULT_CATEGORY_COLOR = '#9A9AA6';
+  // 默认从"全部分类"视图按 slug 隐藏的 articles (仅主页不显示, 直接 URL 仍可访问)
+  // 用途: 同一主题多版本时, 旧版本在主页隐藏, 避免重复占位
+  // 2026-10-08: v2 真实代码级被 v4 运行时对比取代, 主页只显 v4
+  const HIDDEN_SLUGS = [
+    '2026-10-06-3-ai-agent-code-level',  // v2 真实代码级 (被 v4 runtime-comparison 取代)
+  ];
 
   function getCategoryColor(category) {
     return CATEGORY_COLORS[category] || DEFAULT_CATEGORY_COLOR;
@@ -724,6 +730,9 @@
     STATE.filtered = STATE.articles.filter(a => {
       if (a.series === '智慧问答' || a.type === 'qa') return false;
       const isAllView = !STATE.activeCategory;
+      // AllView: 排除 HIDDEN_SLUGS (旧版本被新版本取代时, 主页只显新版)
+      // 指定 category / 直接 URL 仍可见
+      if (isAllView && HIDDEN_SLUGS.includes(a.id)) return false;
       const catMatch = isAllView ? a.category !== '其他' : a.category === STATE.activeCategory;
       const tagMatch = STATE.activeTags.length === 0 || STATE.activeTags.every(t => (a.tags || []).includes(t));
       const searchOK = searchMatch(a, STATE.searchQuery);
