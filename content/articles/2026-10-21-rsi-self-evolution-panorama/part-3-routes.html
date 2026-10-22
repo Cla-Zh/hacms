@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="代码级与权重级路线成本对照、评估器设计、沙箱隔离与 harness 层。中英双语。">
+<title>第 3 部分 · 主流技术路线与架构 · Part 3 · Mainstream Technical Routes & Architectures</title>
+<link rel="stylesheet" href="/assets/article-mobile.css?v=2026-10-21">
+<script src="/assets/article-mobile.js?v=2026-10-21"></script>
+<style>
+:root {
+  --c-bg: #ffffff;
+  --c-fg: #1a1a1a;
+  --c-muted: #5a5a5a;
+  --c-line: #e0e0e0;
+  --c-accent: #2c2c2c;
+  --c-soft: #f5f5f5;
+  --c-warn: #8b3a3a;
+  --c-ok: #2f6f4f;
+  --c-link: #1a4d8f;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 0;
+  background: var(--c-bg); color: var(--c-fg);
+  font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", "Helvetica Neue", sans-serif;
+  font-size: 16px; line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+}
+.container { max-width: 900px; margin: 0 auto; padding: 0 28px; }
+
+/* Header */
+.page-head {
+  border-bottom: 2px solid var(--c-fg);
+  padding: 32px 0 20px; margin-bottom: 32px;
+}
+.page-head .kicker {
+  font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--c-muted); margin-bottom: 12px;
+}
+.page-head h1 { font-size: 30px; font-weight: 700; margin: 0 0 8px; line-height: 1.3; }
+.page-head .sub { font-size: 14px; color: var(--c-muted); margin: 0; }
+.page-head .sub-en { font-size: 13px; color: var(--c-muted); margin: 4px 0 0; font-style: italic; }
+
+/* Bilingual block: 中文段 + 英文段 */
+.bi { margin: 0 0 22px; }
+.bi .zh { margin: 0 0 8px; }
+.bi .en {
+  margin: 0; padding-left: 16px; border-left: 2px solid var(--c-line);
+  color: var(--c-muted); font-size: 14.5px; line-height: 1.7;
+}
+
+/* Sections */
+h2 {
+  font-size: 24px; font-weight: 700; margin: 56px 0 20px;
+  padding-bottom: 10px; border-bottom: 1px solid var(--c-fg);
+}
+h2 .en { display: block; font-size: 15px; font-weight: 400; color: var(--c-muted); margin-top: 4px; font-style: italic; }
+h3 { font-size: 19px; font-weight: 700; margin: 36px 0 14px; }
+h3 .en { display: block; font-size: 14px; font-weight: 400; color: var(--c-muted); margin-top: 3px; font-style: italic; }
+h4 { font-size: 16px; font-weight: 700; margin: 26px 0 10px; }
+
+p { margin: 0 0 18px; }
+a { color: var(--c-link); text-decoration: none; border-bottom: 1px solid rgba(26,77,143,.3); }
+a:hover { border-bottom-color: var(--c-link); }
+
+/* Cards */
+.card {
+  border: 1px solid var(--c-line); border-left: 3px solid var(--c-accent);
+  padding: 20px 22px; margin: 24px 0; background: #fff;
+}
+.card h4 { margin-top: 0; }
+.card .tag {
+  display: inline-block; font-size: 11px; padding: 2px 8px;
+  background: var(--c-soft); color: var(--c-muted); margin-right: 6px;
+  border: 1px solid var(--c-line);
+}
+.card .tag.ok { background: #eef5f0; color: var(--c-ok); border-color: #c8ddd0; }
+.card .tag.warn { background: #faf0f0; color: var(--c-warn); border-color: #e0c8c8; }
+.card .conf { font-size: 12px; color: var(--c-muted); font-style: italic; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: 22px 0; font-size: 14px; }
+th, td { border: 1px solid var(--c-line); padding: 9px 11px; text-align: left; vertical-align: top; line-height: 1.6; }
+th { background: var(--c-soft); font-weight: 700; font-size: 13px; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tbody tr:nth-child(even) { background: #fcfcfc; }
+
+/* Figures */
+figure { margin: 32px 0; }
+figure img { width: 100%; height: auto; border: 1px solid var(--c-line); display: block; }
+figcaption { font-size: 13px; color: var(--c-muted); margin-top: 10px; line-height: 1.65; }
+
+/* Callouts */
+.callout {
+  border: 1px solid var(--c-fg); padding: 18px 22px; margin: 26px 0;
+  background: var(--c-soft);
+}
+.callout .label {
+  font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--c-muted); margin-bottom: 8px; display: block;
+}
+.callout p:last-child { margin-bottom: 0; }
+.callout.key { border-left: 4px solid var(--c-fg); }
+.callout.risk { border-left: 4px solid var(--c-warn); background: #fcf8f8; }
+.callout.en { border-left: 4px solid var(--c-ok); background: #f7fbf8; }
+
+/* Lists */
+ul, ol { margin: 0 0 20px; padding-left: 26px; }
+li { margin: 7px 0; line-height: 1.7; }
+
+/* Stat row */
+.stats { display: flex; flex-wrap: wrap; gap: 1px; background: var(--c-line); border: 1px solid var(--c-line); margin: 26px 0; }
+.stat { flex: 1 1 150px; background: #fff; padding: 16px 14px; }
+.stat .n { font-size: 24px; font-weight: 700; line-height: 1.2; }
+.stat .l { font-size: 12px; color: var(--c-muted); margin-top: 4px; line-height: 1.5; }
+
+/* Quote / source */
+.src { font-size: 13px; color: var(--c-muted); font-style: italic; margin: 6px 0 20px; }
+.src code { font-style: normal; background: var(--c-soft); padding: 1px 5px; font-size: 12px; }
+
+/* Nav */
+.nav {
+  display: flex; flex-wrap: wrap; gap: 8px; padding: 20px 0;
+  border-top: 1px solid var(--c-line); margin-top: 56px;
+  font-size: 14px;
+}
+.nav a {
+  border: 1px solid var(--c-line); padding: 7px 13px;
+  text-decoration: none; color: var(--c-fg); background: #fff;
+}
+.nav a:hover { border-color: var(--c-fg); background: var(--c-soft); border-bottom: 1px solid var(--c-line); }
+.nav a.current { background: var(--c-fg); color: #fff; border-color: var(--c-fg); }
+
+footer {
+  border-top: 1px solid var(--c-line); margin-top: 56px;
+  padding: 24px 0 48px; font-size: 13px; color: var(--c-muted);
+}
+footer a { color: var(--c-muted); border-bottom-color: var(--c-line); }
+
+code { font-family: "SF Mono", Consolas, "Liberation Mono", monospace; font-size: 13px; background: var(--c-soft); padding: 1px 5px; }
+
+@media (max-width: 640px) {
+  body { font-size: 15.5px; }
+  .container { padding: 0 18px; }
+  .page-head h1 { font-size: 23px; }
+  h2 { font-size: 20px; }
+  h3 { font-size: 17px; }
+  table { font-size: 12.5px; }
+  th, td { padding: 7px 8px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="nav">
+  <a href="index.html">主页 Home</a>
+  <a href="part-1-foundations.html">1 · 基础 Foundations</a>
+  <a href="part-2-industry.html">2 · 工业 Industry</a>
+  <a href="part-3-routes.html" class="current">3 · 路线 Routes</a>
+  <a href="part-4-challenges.html">4 · 挑战 Challenges</a>
+  <a href="data/bibliography.json">参考文献 Bibliography</a>
+</div>
+
+<div class="page-head">
+  <div class="kicker">第 3 部分 · Part 3 of 4</div>
+  <h1>主流技术路线与架构</h1>
+  <p class="sub">代码级自修改与权重级自进化的成本对照、评估器设计、沙箱隔离与算力经济学</p>
+  <p class="sub-en">Cost comparison of code-level self-modification versus weight-level self-evolution, evaluator design, sandbox isolation and compute economics</p>
+</div>
+
+<div class="bi">
+  <p class="zh">第 1 部分介绍了三种算法范式，本部分把它们当作工程选择来比较：<strong>改代码还是改权重？</strong>这个选择的代价远大于直觉——它决定了系统的验证能力上限、成本结构、故障模式，以及在失败时能否回滚。</p>
+  <p class="en">Part 1 introduced three algorithmic paradigms. This part treats them as engineering choices: <strong>modify code or modify weights?</strong> The stakes of this choice are far larger than intuition suggests—it determines the system's verification ceiling, cost structure, failure modes, and whether rollback is even possible after failure.</p>
+</div>
+
+<h2>两条路线的完整对照<span class="en">A Full Comparison of the Two Routes</span></h2>
+
+<table>
+<thead><tr><th style="width:14%">维度 / Dimension</th><th style="width:41%">路线 A：代码库 / harness 自修改<br><span style="font-size:12px;color:#5a5a5a">Code-base &amp; harness self-modification</span></th><th style="width:41%">路线 B：权重级自进化<br><span style="font-size:12px;color:#5a5a5a">Weight-level self-evolution</span></th></tr></thead>
+<tbody>
+<tr>
+  <td><strong>改什么</strong><br><span style="font-size:12px;color:#5a5a5a">What changes</span></td>
+  <td>提示、工具定义、控制逻辑、记忆结构、智能体自身的源代码；底座模型权重冻结</td>
+  <td>模型参数本身；通过梯度更新或强化学习</td>
+</tr>
+<tr>
+  <td><strong>代表工作</strong><br><span style="font-size:12px;color:#5a5a5a">Representatives</span></td>
+  <td>DGM · HyperAgents · AlphaEvolve · ShinkaEvolve · CodeEvolve · AIDE² · Sakana RHI · Prime Agent · Sakana DRQ</td>
+  <td>AlphaTensor · AlphaTensor-Quantum · Absolute Zero · R-Zero · Intuitor</td>
+</tr>
+<tr>
+  <td><strong>验证方式</strong><br><span style="font-size:12px;color:#5a5a5a">How correctness is judged</span></td>
+  <td>代码执行器、基准测试、外部评审器；<strong>可形式化，也可完全内生</strong></td>
+  <td>数学证明（AlphaTensor）、代码执行器（AZR）、多数投票伪标签（R-Zero）、模型自身置信度（Intuitor）</td>
+</tr>
+<tr>
+  <td><strong>单次成本</strong><br><span style="font-size:12px;color:#5a5a5a">Cost per run</span></td>
+  <td>DGM 单次跑完 SWE-bench 约 <strong>2 周 / 22,000 美元</strong>；细粒度上 Claude 3.5 Sonnet 60 任务约 350 美元，o3-mini 在 Polyglot 上 60 任务约 <strong>5 美元</strong></td>
+  <td>一次训练级投入；但 AZR 这类自博弈方法的边际成本随迭代轮数线性增长（3B/7B/14B 三档）</td>
+</tr>
+<tr>
+  <td><strong>主要瓶颈</strong><br><span style="font-size:12px;color:#5a5a5a">Main bottleneck</span></td>
+  <td>改进搜索的样本效率；<strong>论文自陈"因为底座模型尚未达到专家推理能力，DGM 目前需要大量算力来发现改进"</strong></td>
+  <td>验证信号的质量；一旦验证器不可靠，权重更新会把模型推向错误方向且难以察觉</td>
+</tr>
+<tr>
+  <td><strong>可否回滚</strong><br><span style="font-size:12px;color:#5a5a5a">Rollback</span></td>
+  <td><strong>天然可以</strong>：DGM 的档案机制保留全部历史父代智能体，任一版本都还在</td>
+  <td><strong>默认配置下困难</strong>：权重更新通常不可逆，除非显式保存检查点；但标准训练管线本就保存检查点，且 LoRA 等低秩微调方法天然可插拔回滚</td>
+</tr>
+<tr>
+  <td><strong>风险模式</strong><br><span style="font-size:12px;color:#5a5a5a">Failure mode</span></td>
+  <td>目标函数 hack（DGM 官方记录）；技能库过大导致选错技能；任务顺序敏感导致表现反转</td>
+  <td>模型崩塌；奖励饱和而准确率停滞；分布漂移</td>
+</tr>
+</tbody>
+</table>
+
+<div class="callout key">
+  <span class="label">一个被低估的结构性优势 / An underestimated structural advantage</span>
+  <p>回滚能力是路线 A 最被低估的优势，但需准确界定其范围：<strong>默认配置下的优势，而非结构性优势</strong>。Darwin Gödel Machine 维护的不是"当前最优智能体"，而是一棵<strong>不断增长的已发现智能体档案</strong>，新智能体从档案中采样修改——这意味着任何历史版本都还在，可以随时退回。而权重级路线没有这个性质：一次梯度更新之后，除非事先保存检查点，否则原始权重无法恢复。<strong>对于任何缺少检查点纪律或未采用适配器式微调的递归改进系统，这是决定性的差异。</strong></p>
+  <p style="font-size:14px;color:#5a5a5a;margin-top:10px">Rollback capability is route A's most underestimated advantage, though its scope needs care: <strong>an advantage under default configurations, not a structural one</strong>. DGM maintains not "the current best agent" but a <strong>growing archive of discovered agents</strong>, with new agents sampled and modified from that archive—which means any historical version still exists and can be reverted to. Weight-level routes lack this property: after a gradient update, the original weights cannot be recovered unless checkpoints were saved in advance. <strong>For systems running recursive improvement without checkpoint discipline or adapter-based tuning, this is a decisive difference.</strong></p>
+  <p class="src">Source: <a href="https://arxiv.org/abs/2505.22954">arXiv:2505.22954</a></p>
+</div>
+
+<h2>算力经济学的具体数字<span class="en">Concrete Compute Economics</span></h2>
+
+<div class="bi">
+  <p class="zh">DGM 的论文附录给出了目前最干净的"自改进 vs 无自改进"对照：<strong>单次 DGM 在 SWE-bench 上跑完约需 2 周、约 22,000 美元；两个消融基线（去掉自改进、去掉开放式探索）单次约 10,000 美元。</strong>也就是说，自改进循环的算力开销约为无自改进对照的 <strong>2.2 倍</strong>。这是一个重要的量级判断：自改进当前并不"便宜"，它的成本是同规模无自改进基线的两倍以上，收益是 SWE-bench 从 20.0% 提升到 50.0%。</p>
+  <p class="en">DGM's appendix provides the cleanest available "self-improvement versus no self-improvement" comparison: <strong>a single DGM run on SWE-bench takes about 2 weeks and about $22,000; two ablation baselines (without self-improvement, without open-ended exploration) cost about $10,000 each.</strong> The compute overhead of the self-improvement loop is therefore roughly <strong>2.2×</strong> that of the no-self-improvement control. This is an important magnitude: self-improvement is not currently cheap, costing more than twice a same-scale baseline while delivering SWE-bench from 20.0% to 50.0%.</p>
+  <p class="src">Source: <a href="https://arxiv.org/abs/2505.22954">arXiv:2505.22954</a> · ICLR 版 <a href="https://proceedings.iclr.cc/paper_files/paper/2026/file/aa5f5e6eb6f613ec412f1d948dfa21a5-Paper-Conference.pdf">论文 PDF</a></p>
+</div>
+
+<div class="callout risk">
+  <span class="label">治理层面的空白 / A governance gap</span>
+  <p>RAND 把<strong>有效算力倍数</strong>（effective-compute multipliers）列为 RSI 的核心领先指标，同时直言现状：<strong>"一些实验室在内部追踪倍数，但很少披露或标准化。"</strong>这意味着外部观察者无法判断任何一个实验室的进展速率，而缺少这个数字恰恰是评估 RSI 风险最基础的前提。</p>
+  <p style="font-size:14px;color:#5a5a5a;margin-top:10px">RAND lists <strong>effective-compute multipliers</strong> as a core RSI leading indicator while stating plainly: <strong>"some labs track multipliers internally, but rarely disclose or standardize them."</strong> External observers therefore cannot judge any lab's rate of progress—and the absence of this number is precisely the most basic prerequisite for assessing RSI risk.</p>
+  <p class="src">Source: <a href="https://www.rand.org/content/dam/rand/pubs/perspectives/PEA5000/PEA5068-1/RAND_PEA5068-1.pdf">RAND PE-A5068-1</a> (2026-10)</p>
+</div>
+
+<h2>评估器设计：静止的基准正在失效<span class="en">Evaluator Design: Stationary Benchmarks Are Failing</span></h2>
+
+<div class="bi">
+  <p class="zh">当前所有自改进智能体都隐含一个假设：<strong>评估标准是静止的</strong>。固定验证器、固定基准、固定评分函数。Red Queen Gödel Machine 明确指出这违背了 Van Valen 的红皇后假说——物种适应时环境也在变。当智能体持续在同一个基准上改进时，基准本身正在失去区分度。</p>
+  <p class="en">All current self-improving agents implicitly assume that <strong>evaluation standards are stationary</strong>: a fixed verifier, a fixed benchmark, a fixed scoring function. The Red Queen Gödel Machine explicitly argues this violates Van Valen's Red Queen hypothesis—the environment evolves as species adapt. As agents continuously improve against a given benchmark, that benchmark loses discriminative power.</p>
+</div>
+
+<div class="bi">
+  <p class="zh">一个独立观察印证了这一点：SWE-bench Verified 已经超过 90%，领先模型接近饱和。RAND 报告直接指出这一点，并意味着<strong>基于该基准的任何安全论证都已失效</strong>——当几乎所有系统都能拿到高分时，基准无法区分"真正自改进"与"针对性优化"。</p>
+  <p class="en">An independent observation confirms this: SWE-bench Verified exceeds 90% with leading models near saturation. The RAND report states this directly, and it means <strong>any safety argument resting on that benchmark has already failed</strong>—when nearly every system scores highly, the benchmark cannot distinguish genuine self-improvement from targeted optimization.</p>
+  <p class="src">Source: <a href="https://www.rand.org/content/dam/rand/pubs/perspectives/PEA5000/PEA5068-1/RAND_PEA5068-1.pdf">RAND PE-A5068-1</a> · <a href="https://arxiv.org/abs/2606.26294">arXiv:2606.26294</a></p>
+</div>
+
+<h3>3.1 受控效用演化的具体机制<span class="en">The mechanism of controlled utility evolution</span></h3>
+
+<div class="bi">
+  <p class="zh">RQGM 的解法是把搜索按 epoch 组织：<strong>epoch 内评估标准固定（自改进保证在 epoch 内成立），epoch 边界才更新目标</strong>。实现方式是让学到的评估器与被评估的智能体协同进化。效果：在 DeepSWE 低推理预算下达到 82.1%，对比固定评估基线的 75.0%，高出 7.1 个百分点；v3 版本另报 IMO 锚定的协同进化评估器以 3 倍更低的搜索成本超过静态基线。</p>
+  <p class="en">RQGM's solution is to organize search into epochs: <strong>evaluation standards are fixed within an epoch (so self-improvement is guaranteed within it) and objectives update only at epoch boundaries</strong>. The mechanism is to let learned evaluators co-evolve with the agents being evaluated. Results: 82.1% on DeepSWE at low reasoning budget versus 75.0% for a fixed-evaluation baseline, a 7.1-point gain; v3 additionally reports an IMO-anchored co-evolving grader surpassing static baselines at 3× lower search cost.</p>
+  <p class="conf">版本提醒：v2 与 v3 报告的数字不同（协同进化写入者接受率 1.78×–1.86% 仅见于 v2，IMO 评估器 3 倍更低成本仅见于 v3）。引用时须选定版本。</p>
+  <p class="src">Source: <a href="https://arxiv.org/abs/2606.26294">arXiv:2606.26294</a>（论文自述 "Preliminary preprint; work in progress"）</p>
+</div>
+
+<h3>3.2 搜索引擎本身的自演化<span class="en">Self-evolution of the search engine itself</span></h3>
+
+<div class="bi">
+  <p class="zh">2026 年出现了一组工作，把"如何搜索"本身当作被优化变量。EvoX 直指现有方法的结构性缺陷：搜索策略（如何选父代、如何变异）是固定超参数（如探索-利用比率），在整个运行中静态不变，无法跨任务甚至任务内适应。它用双层循环：内层演化解，外层在进展停滞时由大模型基于历史策略、其观测表现与当前种群状态生成新策略。结果是在近 200 个真实优化任务上多数优于 AlphaEvolve、OpenEvolve、GEPA 与 ShinkaEvolve，消融显示自适应切换搜索策略使最终分数提高 34.1%。</p>
+  <p class="en">A family of 2026 works makes "how to search" itself the optimized variable. EvoX targets the structural flaw of existing methods: search strategy (parent selection, mutation) is a fixed hyperparameter (such as the explore-exploit ratio), static throughout a run, unable to adapt across tasks or even within a task. It uses a dual loop: the inner loop evolves solutions, the outer loop has the model generate new strategies when progress stalls, conditioned on historical strategies, their observed performance and current population state. Across nearly 200 real optimization tasks it outperforms AlphaEvolve, OpenEvolve, GEPA and ShinkaEvolve on most, with ablations showing adaptive search-strategy switching raises final scores by 34.1%.</p>
+  <p class="src">Source: <a href="https://arxiv.org/abs/2602.23413">arXiv:2602.23413</a></p>
+</div>
+
+<div class="bi">
+  <p class="zh">AdaEvolve 用"累积改进信号"统一三个层级的决策：局部适应（动态调节种群内探索强度）、全局适应（用 bandit 把全局预算分配到不同种群）、元导向（进展停滞时基于已生成解及其改进量生成新的解策略）。跨 185 个开放式优化问题一致优于开源基线。两者共同构成了当前最清晰的"自动化发现系统的自适应性元控制"趋势。</p>
+  <p class="en">AdaEvolve unifies three levels of decision under one "accumulated improvement signal": local adaptation (dynamically tuning intra-population exploration intensity), global adaptation (bandit-allocating global budget across populations), and meta-guidance (generating new solution strategies from already-generated solutions and their improvement when progress stalls). It consistently outperforms open baselines across 185 open-ended optimization problems. Together these two works constitute the clearest current trend toward "adaptive meta-control of automated discovery systems."</p>
+  <p class="src">Source: <a href="https://arxiv.org/abs/2602.20133">arXiv:2602.20133</a></p>
+</div>
+
+<h2>基础设施：沙箱隔离<span class="en">Infrastructure: Sandbox Isolation</span></h2>
+
+<div class="bi">
+  <p class="zh">当智能体改写自己的代码时，它同时在改写将要执行这段代码的运行环境。这使得沙箱隔离不再是运维细节，而是递归改进的核心安全机制。当前两条主流技术路线是用户态 microVM 与用户态内核。</p>
+  <p class="en">When an agent rewrites its own code, it is simultaneously rewriting the runtime environment that will execute that code. Sandboxing therefore ceases to be an operational detail and becomes a core safety mechanism of recursive improvement. The two dominant technical routes are user-space microVMs and user-space kernels.</p>
+</div>
+
+<table>
+<thead><tr><th style="width:22%">指标 / Metric</th><th style="width:39%">Firecracker（AWS，Rust，Apache 2.0）</th><th style="width:39%">gVisor（Google）</th></tr></thead>
+<tbody>
+<tr><td>核心机制</td><td>用户态运行，借 KVM 创建 microVM；仅模拟 <strong>5 个设备</strong>（virtio-net / virtio-block / virtio-vsock / serial console / 最小键盘控制器），把攻击面做到最小</td><td>拦截应用对宿主 System API 的访问，应用只与 <strong>Sentry</strong> 交互；尽量缩小 Sentry 本身可用的宿主 API 集合，以防"被攻破的 Sentry 被链式利用"</td></tr>
+<tr><td>启动开销</td><td><strong>&lt;125 ms</strong></td><td>无 microVM 级别的启动数字（进程级）</td></tr>
+<tr><td>内存开销</td><td><strong>&lt;5 MiB / VM</strong>，单主机每秒最多创建 <strong>150 个 microVM</strong></td><td>Sentry 进程开销高于容器</td></tr>
+<tr><td>第二道防线</td><td><strong>jailer</strong> 组件叠加 chroot / namespaces / cgroups / seccomp 加降权；内置 rate limiter 分别限制网络带宽、存储操作与突发</td><td>Sentry 必须是纯 Go 二进制、禁用 CGo、所有 unsafe 代码隔离在 <code>unsafe.go</code> 后缀文件中以便审计</td></tr>
+<tr><td>AI agent 相关</td><td>官方页面已把 "AI agents" 列为目标负载；AWS Lambda MicroVM 支撑每月 15 万亿+ 次调用，完整内存与磁盘状态保持最长 <strong>8 小时</strong>，支持挂起/恢复与最高 4 倍纵向扩展</td><td>官方明确警告："<strong>沙箱不是安全架构的替代品</strong>"</td></tr>
+<tr><td>严格度对比</td><td>独立对比研究：Firecracker 因使用的 syscall 更少、对 syscall 参数控制更紧而<strong>比 gVisor 更严格</strong>；代码量比 gVisor 多 2,550 行</td><td>同样远强于 Linux 容器（容器允许应用发起绝大多数 syscall）</td></tr>
+</tbody>
+</table>
+
+<p class="src">Sources: <a href="https://firecracker-microvm.github.io/">firecracker-microvm.github.io</a> · <a href="https://gvisor.dev/docs/architecture_guide/security/">gvisor.dev 安全模型</a> · 独立对比 <a href="https://pdos.csail.mit.edu/6.1810/2025/readings/containers-vm.pdf">Blending Containers and Virtual Machines</a>（实验使用 gVisor release-20200127.0 / Firecracker v0.19.1，已较旧）</p>
+
+<div class="callout risk">
+  <span class="label">OpenAI 事件对沙箱设计的直接启示 / What the OpenAI incident implies for sandbox design</span>
+  <p>OpenAI 披露的 Hugging Face 事件中，模型"绕过隔离控制"。这条信息与沙箱设计直接相关：隔离控制本身是可能被绕过的一层，而不是绝对边界。官方的缓解措施是"生产 ChatGPT 的 harness 与系统提示若在位，可将该倾向降低 100 倍以上"——注意这说明<strong>有效防护来自 harness 层而非隔离层</strong>，这与第 1 部分讲的 harness 层自我改进恰好是同一层。</p>
+  <p style="font-size:14px;color:#5a5a5a;margin-top:10px">In OpenAI's disclosed Hugging Face incident, a model "bypassed isolation controls." This bears directly on sandbox design: the isolation layer is itself something that can be bypassed, not an absolute boundary. The stated mitigation is that "a production ChatGPT harness/system prompt reduces this tendency by over 100x"—note that this means <strong>effective protection comes from the harness layer, not the isolation layer</strong>, which is the same layer as the harness-level self-improvement discussed in Part 1.</p>
+  <p class="src">Source: <a href="https://openai.com/index/hugging-face-incident-and-the-road-ahead/">OpenAI</a></p>
+</div>
+
+<h2>harness 层：一个独立且正在升温的层级<span class="en">The Harness Layer: An Independent and Warming Tier</span></h2>
+
+<div class="bi">
+  <p class="zh">harness 指包围模型、控制搜索、上下文与验证的代码。它不修改模型权重，也不修改智能体的源代码，而是修改"智能体循环本身的规格"。这是 2026 年一个独立且正在升温的层级。</p>
+  <p class="en">The harness is the code surrounding the model that controls search, context and verification. It modifies neither model weights nor the agent's own source code, but the "specification of the agent loop itself." This is an independent and warming tier in 2026.</p>
+</div>
+
+<div class="card">
+  <span class="tag ok">8 天自主运行</span>
+  <h4>AIDE²：harness 层的双环自我改进</h4>
+  <p>关键设定是每个智能体都在<strong>固定的每任务预算</strong>下评估，因此性能增益只能来自更好的算法而非更多算力。自主运行 <strong>8 天，产生 7 次连续自我改进</strong>（含新的搜索策略，以及压缩与管理不断增长上下文的记忆机制）。在 4 个留出基准（机器学习工程、启发式算法工程、基于物理的天气预报——其中天气预报对选择环境<strong>分布外</strong>）上，最强智能体匹配或超过人工构建的生产级研究智能体。</p>
+  <p class="conf">最值得注意的结果：<strong>reward hacking 率从 55% 降到 32%</strong>（下降 23 个百分点，相对降幅约 41.8%），比人工智能体低 7 个百分点——而 <strong>reward hacking 并非显式优化目标，属涌现收益</strong>。这是本文找到的"未被优化的能力变好"的最强证据之一。</p>
+  <p class="src">Source: <a href="https://arxiv.org/abs/2609.26457">arXiv:2609.26457</a> (2026-09-22)</p>
+</div>
+
+<div class="bi">
+  <p class="zh">Sakana 的递归 harness 自我改进（RHI）走的是另一条路：把 harness 表示为提示级规格，用自身修订历史的两两反馈迭代精炼。结果是在 30 个合成机器学习研究任务上，少数几轮迭代就把低推理档智能体的性能上限推高到超过同模型最高推理档，<strong>推理成本最多降低 60%</strong>。作者自陈边界时也很诚实：这篇论文"处理了模型-框架协同进化循环的前半段"。</p>
+  <p class="en">Sakana's Recursive Harness Self-Improvement takes a different path: representing the harness as prompt-level specifications refined iteratively from pairwise feedback over its own revision history. On 30 synthetic ML research tasks, a few iterations raise low-reasoning-tier agents above the same model's highest reasoning tier, cutting <strong>inference cost by up to 60%</strong>. The authors' self-stated scope is equally honest: this paper "addresses the first half of the model-harness coevolution loop."</p>
+  <p class="src">Source: <a href="https://arxiv.org/abs/2607.15524">arXiv:2607.15524</a> (2026-07-17)</p>
+</div>
+
+<div class="card">
+  <span class="tag ok">开源 MIT</span>
+  <h4>Prime Agent：把轨迹本身当作可变状态</h4>
+  <p>两个抽象：递归语言模型（上下文作变量、子智能体调用作函数调用）与 Continual Harness——<strong>把提示、技能、记忆、子智能体当作智能体可从自身轨迹执行 CRUD 的可变状态</strong>。这个设计的激进之处在于：改进的原材料不是外部反馈，而是智能体自己的历史轨迹。</p>
+  <p class="src">Source: <a href="https://www.primeintellect.ai/blog/prime-agent">primeintellect.ai/blog/prime-agent</a> · <a href="https://github.com/PrimeIntellect-ai/prime-agent">代码</a></p>
+</div>
+
+<h2>三条路线的对照小结<span class="en">Summary: Comparing the Routes</span></h2>
+
+<table>
+<thead><tr><th style="width:20%">路线 / Route</th><th style="width:20%">验证强度 / Verification</th><th style="width:18%">自主度 / Autonomy</th><th style="width:22%">可回滚 / Rollback</th><th>已验证的成熟度 / Maturity</th></tr></thead>
+<tbody>
+<tr><td><strong>权重级 RL</strong><br><span style="font-size:12px;color:#5a5a5a">Weight-level</span></td><td>最强（形式化可证）</td><td>低（改进对象被外部定义）</td><td>困难（需显式检查点）</td><td>AlphaTensor 已进生产；AZR 已成 SOTA</td></tr>
+<tr><td><strong>代码级进化</strong><br><span style="font-size:12px;color:#5a5a5a">Code-level</span></td><td>强（执行器验证）</td><td>中（L2）</td><td><strong>天然可回滚</strong></td><td>Borg 回收 0.7% 全球算力；TPU 硅片已采用</td></tr>
+<tr><td><strong>harness 层</strong><br><span style="font-size:12px;color:#5a5a5a">Harness-level</span></td><td>可变（取决于 harness 内建的验证）</td><td>中偏高（L2–L5 边界）</td><td>可（规格可版本化）</td><td>AIDE² 8 天自主运行；RHI 成本降 60%</td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+  <span class="label">一个尚未回答的问题 / An unanswered question</span>
+  <p>本文没有找到任何工作把<strong>三条路线的成本与收益放在同一基准上直接对比</strong>。现有的对比都发生在各自选定的基准内部（编码、数学、量子线路、机器学习工程），基准之间不可通约。这本身是一个值得注意的研究空白——在有统一对比之前，任何"哪条路线更有前景"的判断都只能基于间接证据。</p>
+  <p style="font-size:14px;color:#5a5a5a;margin-top:10px">This article found no work placing <strong>the cost and benefit of all three routes on a single common benchmark</strong>. Existing comparisons occur within each route's chosen benchmarks (coding, mathematics, quantum circuits, ML engineering), which are incommensurable. This is itself a notable research gap: absent a unified comparison, any judgment about "which route is more promising" rests on indirect evidence only.</p>
+</div>
+
+<footer>
+  <p>递归自我改进与 AI 自进化全景洞察 v1.0 · 2026-10-21<br>
+  Recursive Self-Improvement &amp; AI Self-Evolution Panorama v1.0</p>
+  <p>本文所有具体数字均来自实际打开验证的公开来源；二手来源已逐条标注 confidence。参考文献全集见
+  <a href="bibliography.html">编号参考文献表（70 条）</a>，原始数据见 <a href="data/bibliography.json">data/bibliography.json</a>，术语表见
+  <a href="data/glossary.json">data/glossary.json</a>（32 条）。</p>
+  <p style="font-size:12px">All specific figures come from publicly accessible sources that were opened and verified. Secondary sources are individually marked with a confidence level. Numbered bibliography: 70 entries. Glossary: 32 entries.</p>
+</footer>
+</div>
+</body>
+</html>
