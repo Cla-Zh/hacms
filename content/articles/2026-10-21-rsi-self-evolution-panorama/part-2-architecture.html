@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="RSI 七层参考架构，及 AlphaEvolve、Darwin Gödel Machine、Red Queen Gödel Machine 三个系统的逐层对照。中英双语。">
+<title>第 2 部分 · 参考架构 · Part 2 · The Reference Architecture</title>
+<link rel="stylesheet" href="/assets/article-mobile.css?v=2026-10-21">
+<script src="/assets/article-mobile.js?v=2026-10-21"></script>
+<style>
+:root {
+  --c-bg: #ffffff;
+  --c-fg: #1a1a1a;
+  --c-muted: #5a5a5a;
+  --c-line: #e0e0e0;
+  --c-accent: #2c2c2c;
+  --c-soft: #f5f5f5;
+  --c-warn: #8b3a3a;
+  --c-ok: #2f6f4f;
+  --c-link: #1a4d8f;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 0;
+  background: var(--c-bg); color: var(--c-fg);
+  font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", "Helvetica Neue", sans-serif;
+  font-size: 16px; line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+}
+.container { max-width: 900px; margin: 0 auto; padding: 0 28px; }
+
+/* Header */
+.page-head {
+  border-bottom: 2px solid var(--c-fg);
+  padding: 32px 0 20px; margin-bottom: 32px;
+}
+.page-head .kicker {
+  font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--c-muted); margin-bottom: 12px;
+}
+.page-head h1 { font-size: 30px; font-weight: 700; margin: 0 0 8px; line-height: 1.3; }
+.page-head .sub { font-size: 14px; color: var(--c-muted); margin: 0; }
+.page-head .sub-en { font-size: 13px; color: var(--c-muted); margin: 4px 0 0; font-style: italic; }
+
+/* Bilingual block: 中文段 + 英文段 */
+.bi { margin: 0 0 22px; }
+.bi .zh { margin: 0 0 8px; }
+.bi .en {
+  margin: 0; padding-left: 16px; border-left: 2px solid var(--c-line);
+  color: var(--c-muted); font-size: 14.5px; line-height: 1.7;
+}
+
+/* Sections */
+h2 {
+  font-size: 24px; font-weight: 700; margin: 56px 0 20px;
+  padding-bottom: 10px; border-bottom: 1px solid var(--c-fg);
+}
+h2 .en { display: block; font-size: 15px; font-weight: 400; color: var(--c-muted); margin-top: 4px; font-style: italic; }
+h3 { font-size: 19px; font-weight: 700; margin: 36px 0 14px; }
+h3 .en { display: block; font-size: 14px; font-weight: 400; color: var(--c-muted); margin-top: 3px; font-style: italic; }
+h4 { font-size: 16px; font-weight: 700; margin: 26px 0 10px; }
+
+p { margin: 0 0 18px; }
+a { color: var(--c-link); text-decoration: none; border-bottom: 1px solid rgba(26,77,143,.3); }
+a:hover { border-bottom-color: var(--c-link); }
+
+/* Cards */
+.card {
+  border: 1px solid var(--c-line); border-left: 3px solid var(--c-accent);
+  padding: 20px 22px; margin: 24px 0; background: #fff;
+}
+.card h4 { margin-top: 0; }
+.card .tag {
+  display: inline-block; font-size: 11px; padding: 2px 8px;
+  background: var(--c-soft); color: var(--c-muted); margin-right: 6px;
+  border: 1px solid var(--c-line);
+}
+.card .tag.ok { background: #eef5f0; color: var(--c-ok); border-color: #c8ddd0; }
+.card .tag.warn { background: #faf0f0; color: var(--c-warn); border-color: #e0c8c8; }
+.card .conf { font-size: 12px; color: var(--c-muted); font-style: italic; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: 22px 0; font-size: 14px; }
+th, td { border: 1px solid var(--c-line); padding: 9px 11px; text-align: left; vertical-align: top; line-height: 1.6; }
+th { background: var(--c-soft); font-weight: 700; font-size: 13px; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tbody tr:nth-child(even) { background: #fcfcfc; }
+
+/* Figures */
+figure { margin: 32px 0; }
+figure img { width: 100%; height: auto; border: 1px solid var(--c-line); display: block; }
+figcaption { font-size: 13px; color: var(--c-muted); margin-top: 10px; line-height: 1.65; }
+
+/* Callouts */
+.callout {
+  border: 1px solid var(--c-fg); padding: 18px 22px; margin: 26px 0;
+  background: var(--c-soft);
+}
+.callout .label {
+  font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--c-muted); margin-bottom: 8px; display: block;
+}
+.callout p:last-child { margin-bottom: 0; }
+.callout.key { border-left: 4px solid var(--c-fg); }
+.callout.risk { border-left: 4px solid var(--c-warn); background: #fcf8f8; }
+.callout.en { border-left: 4px solid var(--c-ok); background: #f7fbf8; }
+
+/* Lists */
+ul, ol { margin: 0 0 20px; padding-left: 26px; }
+li { margin: 7px 0; line-height: 1.7; }
+
+/* Stat row */
+.stats { display: flex; flex-wrap: wrap; gap: 1px; background: var(--c-line); border: 1px solid var(--c-line); margin: 26px 0; }
+.stat { flex: 1 1 150px; background: #fff; padding: 16px 14px; }
+.stat .n { font-size: 24px; font-weight: 700; line-height: 1.2; }
+.stat .l { font-size: 12px; color: var(--c-muted); margin-top: 4px; line-height: 1.5; }
+
+/* Quote / source */
+.src { font-size: 13px; color: var(--c-muted); font-style: italic; margin: 6px 0 20px; }
+.src code { font-style: normal; background: var(--c-soft); padding: 1px 5px; font-size: 12px; }
+
+/* Nav */
+.nav {
+  display: flex; flex-wrap: wrap; gap: 8px; padding: 20px 0;
+  border-top: 1px solid var(--c-line); margin-top: 56px;
+  font-size: 14px;
+}
+.nav a {
+  border: 1px solid var(--c-line); padding: 7px 13px;
+  text-decoration: none; color: var(--c-fg); background: #fff;
+}
+.nav a:hover { border-color: var(--c-fg); background: var(--c-soft); border-bottom: 1px solid var(--c-line); }
+.nav a.current { background: var(--c-fg); color: #fff; border-color: var(--c-fg); }
+
+footer {
+  border-top: 1px solid var(--c-line); margin-top: 56px;
+  padding: 24px 0 48px; font-size: 13px; color: var(--c-muted);
+}
+footer a { color: var(--c-muted); border-bottom-color: var(--c-line); }
+
+code { font-family: "SF Mono", Consolas, "Liberation Mono", monospace; font-size: 13px; background: var(--c-soft); padding: 1px 5px; }
+
+@media (max-width: 640px) {
+  body { font-size: 15.5px; }
+  .container { padding: 0 18px; }
+  .page-head h1 { font-size: 23px; }
+  h2 { font-size: 20px; }
+  h3 { font-size: 17px; }
+  table { font-size: 12.5px; }
+  th, td { padding: 7px 8px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="nav">
+  <a href="index.html">主页 Home</a>
+  <a href="part-0-definitions.html">0 · 定义 Definitions</a>
+  <a href="part-1-foundations.html">1 · 基础 Foundations</a>
+  <a href="part-2-architecture.html" class="current">2 · 架构 Architecture</a>
+  <a href="part-3-industry.html">3 · 工业 Industry</a>
+  <a href="part-4-routes.html">4 · 路线 Routes</a>
+  <a href="part-5-challenges.html">5 · 挑战 Challenges</a>
+  <a href="data/bibliography.json">参考文献 Bib</a>
+</div>
+
+<div class="page-head">
+  <div class="kicker">第 2 部分 · Part 2 of 6</div>
+  <h1>参考架构：三个系统，一张图</h1>
+  <p class="sub">七层结构 · AlphaEvolve / DGM / RQGM 逐层对照 · 元层可编辑性与不可变基座的缺口</p>
+  <p class="sub-en">Seven layers, three systems mapped layer by layer, meta-layer editability, and the missing immutable base</p>
+</div>
+
+
+<h2>为什么需要架构章<span class="en">Why an Architecture Chapter</span></h2>
+
+<div class="bi">
+  <p class="zh">v1 版本把 DGM、AlphaEvolve、Gödel Agent、Red Queen 各自讲一遍，每篇论文自成体系，读者无法判断它们是<strong>同一件事的不同实现</strong>，还是<strong>四件不同的事</strong>。本章把三者投影到同一张七层参考架构上——每个组件都注明出自哪篇论文的哪一节，不做统一发挥。</p>
+  <p class="en">The v1 treatment explained DGM, AlphaEvolve, Gödel Agent and Red Queen separately, each in its own terms, leaving readers unable to tell whether these are <strong>different implementations of one thing</strong> or <strong>four different things</strong>. This chapter projects all of them onto a single seven-layer reference architecture, citing for each component the paper and section it comes from rather than imposing a unification of our own.</p>
+</div>
+
+<h2>2.1 七层参考架构<span class="en">The Seven-Layer Reference Architecture</span></h2>
+
+<div class="bi">
+  <p class="zh">这七层不是我们设计的理想架构，而是<strong>从三个已发表系统的实际组件中归纳出来的最小公共结构</strong>。凡是三个系统都具备的，列为核心层；只有一个或两个具备的，列为可选层。</p>
+  <p class="en">These seven layers are not an ideal architecture we designed but the <strong>minimal common structure induced from the actual components of three published systems</strong>. Layers present in all three are marked core; layers present in only one or two are marked optional.</p>
+</div>
+
+<table>
+<thead><tr><th style="width:6%">层</th><th style="width:22%">名称 / Layer</th><th style="width:12%">类型</th><th style="width:60%">职责与实证依据 / Responsibility and evidence</th></tr></thead>
+<tbody>
+<tr>
+  <td><strong>L1</strong></td>
+  <td>任务域<br><span style="font-size:12px;color:#5a5a5a">Task domain</span></td>
+  <td>核心</td>
+  <td>改进所针对的问题域与其自动评分接口。AlphaEvolve 要求问题<strong>具有机器可评分的解</strong>（machine-gradeable solutions），由用户提供映射到标量指标的 <code>evaluate</code> 函数；DGM 取 SWE-bench 与 Polyglot。</td>
+</tr>
+<tr>
+  <td><strong>L2</strong></td>
+  <td>搜索空间<br><span style="font-size:12px;color:#5a5a5a">Search space</span></td>
+  <td>核心</td>
+  <td>被允许修改的对象及其边界。AlphaEvolve 用 <code># EVOLVE-BLOCK-START</code> / <code># EVOLVE-BLOCK-END</code> 注释<strong>标注可演化代码块</strong>，块内用户代码作为初始解，其余代码构成骨架；DGM 直接以代理源码为搜索空间；HyperAgents 把任务代理与元代理放进<strong>单个可编辑程序</strong>。</td>
+</tr>
+<tr>
+  <td><strong>L3</strong></td>
+  <td>变更算子<br><span style="font-size:12px;color:#5a5a5a">Mutation operator</span></td>
+  <td>核心</td>
+  <td>把采样到的父代变成候选子代的变换。AlphaEvolve 要求模型输出 <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; SEARCH … ======= … &gt;&gt;&gt;&gt;&gt;&gt;&gt; REPLACE</code> 格式的 diff 块以做<strong>定向局部替换</strong>，代码短时也可配置为整体输出；DGM 同样由基础模型对采样代理源码产生 diff。</td>
+</tr>
+<tr>
+  <td><strong>L4</strong></td>
+  <td>档案 / 选择<br><span style="font-size:12px;color:#5a5a5a">Archive &amp; selection</span></td>
+  <td>核心</td>
+  <td>跨代保留与父代采样。AlphaEvolve 的进化数据库受 <strong>MAP-Elites 与岛屿种群模型</strong>启发，设计难点是<strong>平衡探索与利用</strong>；DGM 维护开放探索档案<strong>累积全部变体</strong>，受开放式研究启发；HyperAgents 用 <strong>UCB-Air 门控</strong>决定扩展或评估，并以 Thompson 采样在 CMP 上抽父代。</td>
+</tr>
+<tr>
+  <td><strong>L5</strong></td>
+  <td>效用信号<br><span style="font-size:12px;color:#5a5a5a">Utility signal</span></td>
+  <td>核心</td>
+  <td>把候选映射为标量的裁决机制。AlphaEvolve 用多指标评分（可含多个标量）；DGM 用编码基准，并明确声明<strong>"基准成绩提升 ⇒ 自改进能力提升"</strong>这一假设。</td>
+</tr>
+<tr>
+  <td><strong>L6</strong></td>
+  <td>执行隔离<br><span style="font-size:12px;color:#5a5a5a">Execution isolation</span></td>
+  <td>核心</td>
+  <td>候选代码的实际运行边界。DGM 报告：<strong>所有代理执行与自修改过程都在隔离沙箱环境中进行</strong>，限制其影响宿主系统的能力；<strong>沙箱内每次执行都受严格时间限制</strong>，降低资源耗尽或无界行为的风险。</td>
+</tr>
+<tr>
+  <td><strong>L7</strong></td>
+  <td>可追溯与监督<br><span style="font-size:12px;color:#5a5a5a">Traceability &amp; oversight</span></td>
+  <td>核心</td>
+  <td>让人能审查与回滚。DGM <strong>主动监控代理性能与代码变更，其档案提供可追溯的修改谱系</strong>供审查；论文同时记录"目前未发现生成代理有有害或恶意行为"。</td>
+</tr>
+<tr>
+  <td><strong>M</strong></td>
+  <td>评估器共演化<br><span style="font-size:12px;color:#5a5a5a">Evaluator co-evolution</span></td>
+  <td><span class="tag warn">可选</span></td>
+  <td><strong>只有 RQGM 具备</strong>。把评估器本身纳入搜索空间：每个 epoch 内<strong>冻结一个评估器</strong>为所有任务代理打分以提供<strong>固定效用信号</strong>，同时并行<strong>共演化挑战者评估器</strong>并在留出真值集上打分；epoch 边界处挑战者只有在<strong>提高在任者的最优信念分数</strong>时才替换之，随后施加<strong>选择性擦除</strong>——只丢弃依赖被替换评估器的效用记录。</td>
+</tr>
+</tbody>
+</table>
+
+<figure>
+  <img src="assets/reference-architecture.svg" alt="RSI 七层参考架构图 / RSI seven-layer reference architecture">
+  <figcaption><strong>图 1 · RSI 七层参考架构。</strong>外侧为闭环：档案（L4）提供父代 → 搜索空间（L2）经变更算子（L3）产生候选 → 执行隔离（L6）中运行并由效用信号（L5）裁决 → 写回档案。可选的评估器共演化（M）从 L5 反向作用于 L2。<br>
+  <span style="font-size:12px"><strong>Figure 1 · The seven-layer reference architecture.</strong> The outer loop: the archive (L4) supplies parents, the search space (L2) yields candidates through the mutation operator (L3), candidates execute under isolation (L6) and are adjudicated by the utility signal (L5), then return to the archive. The optional evaluator co-evolution module (M) feeds back from L5 into L2.</span></figcaption>
+</figure>
+
+<h2>2.2 三个系统映射到同一张图<span class="en">Three Systems on One Diagram</span></h2>
+
+<div class="bi">
+  <p class="zh">下表逐层对照。空白单元格表示该系统在此层没有对应组件——<strong>空白本身就是发现</strong>，它指出了每个系统各自的边界。</p>
+  <p class="en">Layer-by-layer comparison below. An empty cell means the system has no counterpart at that layer — <strong>the gaps are themselves a finding</strong>, marking each system's boundary.</p>
+</div>
+
+<table>
+<thead><tr><th style="width:18%">层 / Layer</th><th style="width:27%">AlphaEvolve<br><span style="font-size:12px;color:#5a5a5a">Google DeepMind, 2025</span></th><th style="width:27%">Darwin Gödel Machine<br><span style="font-size:12px;color:#5a5a5a">Zhang et al., 2025</span></th><th style="width:28%">Red Queen Gödel Machine<br><span style="font-size:12px;color:#5a5a5a">2026</span></th></tr></thead>
+<tbody>
+<tr>
+  <td><strong>L1 任务域</strong></td>
+  <td>机器可评分问题：矩阵乘法分解、开放数学问题、数据中心调度、Gemini 内核、硬件电路、编译器生成代码</td>
+  <td>SWE-bench（软件工程）、Polyglot（代码推理）</td>
+  <td>DeepSWE（编码）、论文写作/评审、奥林匹克级证明写作/评分</td>
+</tr>
+<tr>
+  <td><strong>L2 搜索空间</strong></td>
+  <td><code># EVOLVE-BLOCK</code> 标注的代码块</td>
+  <td>被采样代理的 Python 源码</td>
+  <td>任务代理 + 评估器代理（<strong>评估器也在空间内</strong>）</td>
+</tr>
+<tr>
+  <td><strong>L3 变更算子</strong></td>
+  <td>SEARCH/REPLACE diff 块；可选整体重写</td>
+  <td>基础模型对源码产生 diff</td>
+  <td>元代理编辑工作区（节点内的角色）</td>
+</tr>
+<tr>
+  <td><strong>L4 档案</strong></td>
+  <td>进化数据库：MAP-Elites + 岛屿模型；目标是<strong>最优地重新浮现旧想法</strong></td>
+  <td>开放探索档案，<strong>累积全部生成变体</strong>，受开放式研究启发</td>
+  <td>工作区节点；UCB-Air 门控；<strong>选择性擦除</strong>清理失效效用记录</td>
+</tr>
+<tr>
+  <td><strong>L5 效用信号</strong></td>
+  <td>用户提供的 <code>evaluate</code>，返回标量字典；可多指标</td>
+  <td>编码基准分数（<strong>假设其为自改进能力的代理</strong>）</td>
+  <td><strong>epoch 内冻结评估器</strong> + 并行共演化的挑战者</td>
+</tr>
+<tr>
+  <td><strong>L6 执行隔离</strong></td>
+  <td>评估节点；异步流水线（asyncio），为吞吐优化</td>
+  <td><strong>隔离沙箱 + 严格时间限制</strong>；范围限定在特定编码基准</td>
+  <td>留出数据集隔离：<strong>产生节点的反馈与选择节点的证据相互分开</strong></td>
+</tr>
+<tr>
+  <td><strong>L7 可追溯</strong></td>
+  <td>程序数据库附分数与输出</td>
+  <td><strong>档案提供可追溯修改谱系供审查</strong>；主动监控性能与代码变更</td>
+  <td>留出评测协议；epoch 向量记录替换历史</td>
+</tr>
+<tr>
+  <td><strong>M 评估器共演化</strong></td>
+  <td>—</td>
+  <td>—</td>
+  <td><strong>✓ 受控效用演化</strong></td>
+</tr>
+</tbody>
+</table>
+
+<h3>2.2.1 AlphaEvolve 的六个组件<span class="en">AlphaEvolve's Six Components</span></h3>
+
+<div class="bi">
+  <p class="zh">AlphaEvolve 论文第 2 节的六个小节标题本身就是一份架构清单，本章的层划分与其一一对应。</p>
+  <p class="en">The six subsection titles of AlphaEvolve's Section 2 constitute an architectural inventory in their own right, and this chapter's layers map onto them one to one.</p>
+</div>
+
+<table>
+<thead><tr><th style="width:26%">论文小节 / Paper section</th><th style="width:14%">对应层</th><th style="width:60%">论文原文要点 / Substance from the paper</th></tr></thead>
+<tbody>
+<tr>
+  <td>2.1 Task specification<br><span style="font-size:12px;color:#5a5a5a">任务规格</span></td>
+  <td>L1 + L2</td>
+  <td>评估函数把解映射到标量指标集合，约定最大化，通常是固定签名的 Python <code>evaluate</code> 返回标量字典；执行代价可从数秒单机到大规模计算不等。<strong>API 用 <code># EVOLVE-BLOCK-START</code> / <code># EVOLVE-BLOCK-END</code> 注释标记待演化代码块</strong>，块内代码为初始解，块外为骨架；初始实现必须完整但可以很粗，例如返回适当类型常量的单行函数。</td>
+</tr>
+<tr>
+  <td>2.2 Prompt sampling<br><span style="font-size:12px;color:#5a5a5a">提示采样</span></td>
+  <td>L4</td>
+  <td>演化提示由<strong>程序数据库中采样的多个既有解</strong>与"如何提出修改"的系统指令组成；另支持显式上下文、随机化模板、渲染的评估结果，以及<strong>元提示演化</strong>——指令与上下文由 LLM 自身建议，在<strong>与解程序类似的独立数据库中共演化</strong>。</td>
+</tr>
+<tr>
+  <td>2.3 Creative generation<br><span style="font-size:12px;color:#5a5a5a">创造性生成</span></td>
+  <td>L3</td>
+  <td>LLM 的主要职责是消化既有解并提出多样改进；以 SEARCH/REPLACE diff 格式返回以实现定向更新；<strong>AlphaEvolve 是模型无关的</strong>，但消融显示底座 LLM 越强效果越好。</td>
+</tr>
+<tr>
+  <td>2.4 Evaluation<br><span style="font-size:12px;color:#5a5a5a">评估</span></td>
+  <td>L5</td>
+  <td>支持多分数；评估函数即效用定义。</td>
+</tr>
+<tr>
+  <td>2.5 Evolution<br><span style="font-size:12px;color:#5a5a5a">进化</span></td>
+  <td>L4</td>
+  <td>进化数据库的首要目标是<strong>在后续世代中最优地重新浮现此前探索过的想法</strong>；核心设计挑战是<strong>平衡探索与利用</strong>，算法受 <strong>MAP-Elites 与岛屿种群模型</strong>组合启发。</td>
+</tr>
+<tr>
+  <td>2.6 Distributed pipeline<br><span style="font-size:12px;color:#5a5a5a">分布式流水线</span></td>
+  <td>L6</td>
+  <td>以 asyncio 实现的<strong>异步计算流水线</strong>，多计算并发，任一计算在其下一步依赖未完成结果时阻塞等待；流水线由<strong>控制器、LLM 采样器、评估节点</strong>组成；<strong>为吞吐而非单次计算速度优化</strong>，以最大化给定总预算内可提出并评估的想法数。</td>
+</tr>
+</tbody>
+</table>
+
+<h3>2.2.2 DGM 的档案与开放探索<span class="en">DGM's Archive and Open-Ended Exploration</span></h3>
+
+<div class="bi">
+  <p class="zh">DGM 的差异化设计全部集中在 L4。它的论证结构是：<strong>改进被保留 → 形成生长的树 → 支持并行探索多条搜索路径 → 发现立即无收益但未来有价值的"垫脚石"</strong>。</p>
+  <p class="en">DGM's differentiator sits entirely in L4. Its argument runs: <strong>improvements are retained → a growing tree forms → many search paths are explored in parallel → "stepping stones" with no immediate payoff but future value are discovered</strong>.</p>
+</div>
+
+<div class="card">
+  <h4>DGM 的机制要点（论文原文表述）</h4>
+  <p>· <strong>档案初始化与累积</strong>：DGM 维护一个生成的编码代理档案，<em>初始化时仅含一个代理</em>，并<em>随时间持续累积所有生成的变体</em>。</p>
+  <p>· <strong>采样与自修改</strong>：从档案中<em>采样代理</em>，被采样的代理<em>自修改以创建新的、有趣的自身版本</em>；每次修改后的代理在编码基准上测试，然后加入档案。</p>
+  <p>· <strong>开放式探索</strong>：受开放式性研究启发，<em>累积多样的垫脚石（即有趣但次优的解或特性，可能促成未来突破）</em>，鼓励发现<em>超越即时性能收益的新颖自修改</em>。</p>
+  <p>· <strong>涌现的元层能力</strong>：DGM<em>自动改进其编码能力</em>（更好的代码编辑工具、长上下文窗口管理、同伴评审机制）。</p>
+  <p>· <strong>关键假设（论文明写）</strong>：<em>编码基准上性能提升意味着更好的编码能力，因而意味着更好的自我修改与自我改进能力</em>。</p>
+  <p class="src">Source: DGM §1 and Abstract, <a href="https://arxiv.org/abs/2505.22954">arXiv:2505.22954</a>. 代码开源于 <a href="https://github.com/jennyzzt/dgm">github.com/jennyzzt/dgm</a>.</p>
+</div>
+
+<h3>2.2.3 RQGM 的受控效用演化<span class="en">RQGM's Controlled Utility Evolution</span></h3>
+
+<div class="bi">
+  <p class="zh">RQGM 解决了 v1 版本标记为空白的一处：<strong>评估器是否可信、能否一起进化</strong>。它的做法不是让评估器自由漂移，而是用 epoch 结构<strong>把"效用固定的搜索"与"效用随代变化"两种情形统一起来</strong>。</p>
+  <p class="en">RQGM addresses what v1 flagged as an open gap: whether evaluators can be trusted and evolved alongside agents. Rather than letting the evaluator drift freely, it uses an epoch structure to <strong>unify stationary-utility search with utility that varies across generations</strong>.</p>
+</div>
+
+<div class="callout key">
+  <span class="label">受控效用演化的四步 / The four steps of controlled utility evolution</span>
+  <p><strong>1 · 冻结</strong>：在每个进化 epoch 内，<strong>冻结一个评估器</strong>，为所有任务代理打分，提供<strong>固定（平稳）的效用信号</strong>。</p>
+  <p><strong>2 · 共演化</strong>：并行地，搜索<strong>把挑战者评估器与其任务代理一起共演化</strong>，并在<strong>留出的真值数据集</strong>上打分挑战者。</p>
+  <p><strong>3 · 替换规则</strong>：在 epoch 边界，挑战者<strong>仅当它提高了在任者（incumbent）的最优信念分数</strong>时才替换冻结的评估器，判据是一个替换准则。</p>
+  <p><strong>4 · 选择性擦除</strong>：替换后<strong>只丢弃那些依赖于被替换评估器的效用记录</strong>。</p>
+  <p style="margin-top:10px">Each epoch is thus a <strong>fixed-criterion search problem</strong>, so the underlying guarantees apply within each epoch. Because validity requires only a fixed within-epoch utility plus boundary erasure of dependent records, <strong>time-varying benchmarks and adversarial objectives fit the same structure</strong>.</p>
+  <p class="src" style="margin-top:12px">Source: RQGM v3 §3.2（v1 §3.5）/ §B.3, <a href="https://arxiv.org/abs/2606.26294">arXiv:2606.26294</a></p>
+</div>
+
+<div class="card">
+  <h4>RQGM 的搜索空间形式化（论文 §B.1 原文要点）</h4>
+  <p>· <strong>角色与任务池</strong>：每个节点是一个工作区，持有由<strong>任务代理与评估器</strong>构成的角色，加上<strong>编辑该工作区的元代理</strong>；每个角色在自己的任务池上打分——例如论文评审者有一个针对人类撰写论文的任务、一个针对代理生成论文的任务。</p>
+  <p>· <strong>评估器槽与 epoch</strong>：依赖评估器的角色通过<strong>评估器槽</strong>打分，槽的 epoch 索引记录其替换次数；<strong>槽独立替换，其索引构成 epoch 向量</strong>，替换一个槽推进其中一个分量。</p>
+  <p>· <strong>数据隔离</strong>：<strong>产生节点的反馈与选择它们的证据相互分开</strong>；对依赖评估器的角色，任务代理为训练和搜索分别生成新鲜产物，<strong>只有搜索产物、由该 epoch 冻结评估器打分，才进入效用</strong>。</p>
+  <p>· <strong>三级采样层级</strong>：调度器交织扩展与评估；扩展经 <strong>Thompson 采样在 CMP 上抽父代</strong>；评估下探两层——先选最未被评估的合格角色，再选其最未被评估的合格任务。</p>
+  <p class="src">Source: RQGM §B.1–B.3 and §F, <a href="https://arxiv.org/abs/2606.26294">arXiv:2606.26294</a></p>
+</div>
+
+<h2>2.3 架构层面的三个观察<span class="en">Three Observations at the Architecture Level</span></h2>
+
+<h3>观察一：L1 决定了 L5 的形状<span class="en">Observation 1 · The task domain constrains the verifier</span></h3>
+
+<div class="bi">
+  <p class="zh">三个系统都把任务域限制在<strong>可自动打分</strong>的问题上，这不是巧合而是架构约束：<strong>评分机制无法判断的东西，搜索就无法优化</strong>。AlphaEvolve 明确写"由于 AlphaEvolve 处理的是具有机器可评分解的问题，用户必须提供自动评估生成解的机制"。RQGM 之所以要把评估器纳入搜索空间，正是因为在论文写作与证明评分这类域中<strong>根本没有真值基准</strong>，只有评审。</p>
+  <p class="en">All three systems restrict the task domain to <strong>automatically scorable</strong> problems — not by coincidence but by architectural necessity: <strong>what the scoring mechanism cannot judge, the search cannot optimize</strong>. AlphaEvolve states it directly: "Since AlphaEvolve tackles problems with machine-gradeable solutions, the user must provide a mechanism for automatically assessing generated solutions." RQGM's decision to place the evaluator inside the search space follows precisely because domains like paper writing and proof grading <strong>have no ground-truth benchmark at all</strong> — only reviewers.</p>
+</div>
+
+<h3>观察二：元层可编辑是当前的分水岭<span class="en">Observation 2 · Meta-layer editability is the current dividing line</span></h3>
+
+<div class="bi">
+  <p class="zh">AlphaEvolve 的元提示演化已触及元层（由 LLM 自己建议指令，并在独立数据库中共演化），HyperAgents 更进一步把任务代理与元代理集成进<strong>单个可编辑程序</strong>，使元层修改过程本身可编辑。RQGM 则从另一侧推进——把评估器纳入空间。三者方向不同，但都指向同一个判断：<strong>竞争焦点已从"代理能解什么题"转向"系统能否改进自己的改进过程"</strong>。这正是第 0 部分 A3→A4 级的跨越。</p>
+  <p class="en">AlphaEvolve's meta-prompt evolution already touches the meta-layer (instructions suggested by the LLM itself, co-evolved in a separate database); HyperAgents goes further by integrating task agent and meta agent into <strong>a single editable program</strong> whose meta-level modification procedure is itself editable. RQGM advances from the opposite side by placing the evaluator inside the space. The directions differ, but they converge on one judgment: <strong>competition has shifted from what problems an agent can solve to whether a system can improve its own process of improvement</strong> — precisely the L3→L4 transition defined in Part 0.</p>
+</div>
+
+<figure>
+  <img src="assets/self-improvement-loop.svg" alt="自改进闭环与元层可编辑性 / Self-improvement loop and meta-layer editability">
+  <figcaption><strong>图 2 · 自改进闭环与元层可编辑性。</strong>左侧为 L3 及以下：改进机制固定，系统在其中搜索。右侧为 L4 及以上：改进机制本身进入搜索空间。红色区域为两个系统共同具备的档案层。<br>
+  <span style="font-size:12px"><strong>Figure 2 · The loop and meta-layer editability.</strong> Left: at L3 and below, the improvement mechanism is fixed and the system searches within it. Right: at L4 and above, the improvement mechanism itself enters the search space. The shaded band is the archive layer present in both.</span></figcaption>
+</figure>
+
+<h3>观察三：L6 与 L7 是被低估的两层<span class="en">Observation 3 · Two underrated layers</span></h3>
+
+<div class="bi">
+  <p class="zh">公众讨论集中在"代理能自改多少"，但 DGM 论文安全一节提到的多项措施中，<strong>隔离沙箱与时间限制对应 L6、可追溯的修改谱系对应 L7</strong>。更值得注意的是，DGM 论文主动提出了一个尚未实现的设计：<strong>创建系统的一部分使其不可修改，以便评估并在必要时停止其余部分</strong>；并指出把 Constitutional AI 从一开始就编织进来所面临的挑战是<strong>激励系统保留这些指令</strong>。这说明<strong>"不可变基座"是当前架构讨论中最缺的一层</strong>——三个系统都假设验证器可信，却没有系统把"验证器本身可能被改进掉"纳入架构。</p>
+  <p class="en">Public discussion concentrates on how much an agent can self-modify, yet <strong>three of the four safeguards DGM reports in its safety section belong to L6/L7</strong>: isolated sandboxes, strict time limits, and a traceable lineage of modifications. More strikingly, the DGM paper proactively proposes a design it has not implemented: <strong>creating an unmodifiable part of the system so it can evaluate and halt the rest</strong> — while noting that weaving Constitutional AI in from the start faces the challenge of <strong>incentivizing the system to retain those directives</strong>. This exposes a structural gap: <strong>the immutable base is the least developed layer</strong> in current architecture — all three systems assume the verifier is trustworthy, and none places "the verifier itself may be improved away" into the architecture.</p>
+</div>
+
+<div class="callout risk">
+  <span class="label">RQGM 的替换规则正是对这一缺口的首次回应 / RQGM's replacement rule is the first answer to this gap</span>
+  <p>受控效用演化之所以要求"挑战者只有在<strong>提高在任者的最优信念分数</strong>时才替换"，并且要求在替换时<strong>选择性擦除</strong>依赖记录，是因为评估器本身也在漂移——若不控制，搜索会逐渐优化一个已经偏离真值的度量。这是对 L6/L7 缺口的第一个形式化回应，但目前<strong>只在 RQGM 一个系统中实现</strong>。</p>
+  <p>Controlled utility evolution requires that a challenger replace the frozen evaluator <strong>only if it raises the incumbent's best-belief score</strong>, with <strong>selective erasure</strong> of dependent records at the boundary, precisely because the evaluator drifts too. Without control, the search gradually optimizes a measure that has already drifted from ground truth. This is the first formal answer to the L6/L7 gap — but it exists in exactly one system.</p>
+</div>
+
+<h2>2.4 本章结论<span class="en">Summary of This Chapter</span></h2>
+
+<div class="bi">
+  <p class="zh">三个已发表系统<strong>可映射到同一套七层参考框架</strong>（该框架由本文归纳，非各论文自述），差别集中在 L4（档案策略）、L5（验证器强度）与可选层 M（评估器共演化）。这意味着路线之争不是"架构之争"，而是<strong>在同一架构上争夺 L4/L5 两层的具体选择</strong>。第 3 部分将检验这个判断在工业系统中是否成立；第 4 部分则展开 L4/L5 的取值如何决定成本结构与失败模式。</p>
+  <p class="en">The three published systems are structurally highly consistent: <strong>the same seven-layer skeleton</strong>, with differences concentrated in L4 (archive strategy), L5 (verifier strength) and the optional layer M (evaluator co-evolution). The route debate is therefore not architectural but a contest over <strong>the specific choices at L4 and L5 within one shared architecture</strong>. Part 3 tests whether that reading holds across industrial systems; Part 4 examines how the values taken at L4/L5 determine cost structure and failure modes.</p>
+</div>
+
+<div class="callout">
+  <span class="label">下一章 / Next</span>
+  <p>第 3 部分沿同一七层坐标考察工业系统的可核实主张与证据口径。</p>
+  <p>Part 3 examines industrial systems layer by layer along L1–L7: who self-limits the task domain, who maintains an archive, and who has turned the verifier into a product.</p>
+</div>
+
+<footer>
+  <p>递归自我改进与 AI 自进化全景洞察 v2.0 · 2026-10-21<br>
+  Recursive Self-Improvement &amp; AI Self-Evolution Panorama v2.0</p>
+  <p>本章为 v2.0 新增。七层架构为从 AlphaEvolve §2.1–2.6、DGM §1、RQGM v3 §3.2 与 §B.1–B.3（v1 时第 3.5 节为 Controlled Utility Evolution） 的实际组件归纳，每层均标注出处。编号参考文献表见
+  <a href="bibliography.html">参考文献表</a>。</p>
+  <p style="font-size:12px">Chapter 2 is new in v2.0. The seven layers are induced from the actual components in AlphaEvolve §2.1–2.6, DGM §1, and RQGM v3 §3.2 与 §B.1–B.3（v1 时第 3.5 节为 Controlled Utility Evolution）, with citations per layer. Numbered bibliography is linked above.</p>
+</footer>
+
+</div>
+</body>
+</html>
